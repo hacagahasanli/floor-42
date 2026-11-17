@@ -5,7 +5,7 @@ Goal: after reading this you can find any rule in the code, change a number safe
 
 Everything below was read from the source. Paths are relative to the repo root; `file:line` points at the lines as of this writing. Numbers come from `src/game/sim/constants.ts` unless stated.
 
-Everything described here is built, including online multiplayer (section 10, committed in `f820864`).
+Everything described here is built, including online multiplayer (section 10). Updated for commits up to `1b03043`.
 
 ---
 
@@ -42,7 +42,7 @@ src/
       constants.ts         arena layout, rules, physics, gun stats
       step.ts              step(state, inputs): advance one tick
       bot.ts               single-player opponent
-      sim.test.ts          22 tests (25 with net/protocol.test.ts)
+      sim.test.ts          27 tests (30 with net/protocol.test.ts)
     render/                THE LOOK. Three.js scene built from primitives
       game.ts              startArena(): game loop, sim <-> scene glue
       arena.ts             office geometry, canvas textures, skyline
@@ -227,7 +227,7 @@ Notes:
 - Recoil pushes the shooter backwards; in the air it also pushes vertically. This is what makes rocket-jumping possible.
 - `life` caps range: shotgun pellets vanish after 0.32 s, about 9 units.
 - Running dry on a special gun drops you back to a fresh pistol (`step.ts:255-259`). A magazine that empties with reserve left reloads automatically.
-- Walking over a pickup with only the pistol takes it automatically; with another gun, E swaps (`step.ts:388-390`). Fixed gun spawns respawn after 12 s; ceiling drops come every 10 s into up to 3 slots (`ARENA.dropEvery`, `dropSlots`).
+- Walking over a pickup with only the pistol takes it automatically; with another gun, E swaps (`step.ts:388-390`). There is **one gun per floor** (three floors). `ARENA.gunSpawns` (`constants.ts`) has three entries, each with a list of `spots` on that floor and a list of `kinds`. `placeGun` (`step.ts`) picks a random spot and a random kind using the seeded RNG, at match start and again `RULES.gunRespawn = 15` s after someone takes it. Ground floor: SMG or shotgun; middle floor: SMG, shotgun or rocket launcher; mezzanine: railgun or rocket launcher. On top of that, one ceiling drop (`ARENA.dropSlots = 1`) falls every `ARENA.dropEvery = 25` s and is gone once taken. `Pickup.spawn` is the index into `gunSpawns` (or `null` for a ceiling drop); it replaced the earlier fixed `home` position.
 
 ### Projectiles
 
@@ -295,7 +295,9 @@ If a fighter flagged `pushed` hits a side wall moving faster than `WALL_SPLAT_SP
 
 ### KO and respawn
 
-`knockOut` (`step.ts:119`): sets `respawn = 1.6 s`, emits `ko`, 9 ticks of hitstop. The scorer is whoever last hit the victim (`lastHitBy`); if there is none or it was self-inflicted, the other fighter scores. After `respawn`, `respawnFighter` (`step.ts:99`) puts them at their spawn with full hp, a fresh pistol and 1.4 s of invulnerability (rendered as flicker, `game.ts:315`). `applyHit` refuses to hit anyone who is respawning or invulnerable.
+`knockOut` (`step.ts:119`): sets `respawn = RULES.respawnSeconds` (3 s), emits `ko`, 9 ticks of hitstop. The scorer is whoever last hit the victim (`lastHitBy`); if there is none or it was self-inflicted, the other fighter scores. After `respawn`, `respawnFighter` puts them on a spawn point chosen by `placeAtSpawn`: `ARENA.spawns` has seven points across all levels, and the pick is random (seeded RNG) among points more than 12 units from the rival, or the two farthest if none qualify. They come back 1.5 units above the point with full hp, a fresh pistol and 1.4 s of invulnerability (rendered as flicker, `game.ts:315`). `applyHit` refuses to hit anyone who is respawning or invulnerable. The same rule places both fighters at the start of a match.
+
+**Choosing a character while dead.** `chooseCharacter(state, id, character)` stores `Fighter.nextCharacter`; `respawnFighter` swaps `character` to it. In the browser, keys 1 to 4 do this while `respawnIn` is not null (`ArenaGame.tsx`), and `game.ts` rebuilds the model when a fighter's character changes (`syncRig`).
 
 ---
 
@@ -307,7 +309,7 @@ How it behaves like a person instead of a perfect machine:
 
 - **Reaction delay.** It only re-plans when `state.tick % reaction === 0` (`bot.ts:99`). Between plans it keeps its last decision (move direction, whether to fire) and only keeps tracking the target's position.
 - **Aim error.** On each plan it draws one error, and aims at the target's chest offset by `error * distance`. The error stays fixed until the next plan, like a shaky hand.
-- **Preferred range per gun** (`RANGE`): for example shotgun 1.5 to 4, railgun 9 to 18. Too close, it backs off; too far, it approaches; in range, it sometimes strafes.
+- **Preferred range per gun** (`RANGE`): pistol 8 to 15, SMG 6 to 11, shotgun 2.5 to 5, railgun 12 to 24, rockets 9 to 16 (`bot.ts:24`). Too close, it backs off (and jumps if cornered against a wall); too far, it approaches 70% of the time; in range, it strafes or holds. At 50 hp or less it adds 3 units to both limits and plays further back.
 - **Decision rules**: with only the pistol it walks to a nearby gun; it Force Pushes when within 2.4 and level; dashes sometimes when the foe has just fired; jumps or drops toward the foe's height; wall-kicks when on a wall.
 - **Presses are edges.** One-shot actions alternate (`out[p] = !last[p]`) so the sim's `pressed()` sees a fresh press.
 
@@ -390,6 +392,8 @@ A development-only handle `window.__mc` exposes the state for automated checks (
 | Toggle aim mode | T |
 | Mute | M |
 | Rematch after a match | Enter |
+| Pause menu (online: ask to pause) | Esc twice within 450 ms |
+| Pick who you respawn as (while dead) | 1 to 4 |
 
 Source: `KEYMAP` (`input.ts:13`); T and M are handled in `game.ts:456-460`; Enter in `ArenaGame.tsx`. Keys use `event.code` (physical key position), so the layout works on non-QWERTY keyboards.
 
@@ -414,7 +418,9 @@ Side effect: because a text input has focus, a screen reader announces an edit f
 
 No audio files. Every sound is made with the Web Audio API at the time it plays: oscillators with a pitch sweep (`tone`, `sfx.ts:37`) and filtered noise from one second of random samples generated at startup (`noise`, `sfx.ts:52`), each shaped with an exponential attack/decay envelope (`env`, `sfx.ts:31`). The `shot`, `hit`, `explosion`, `glass`, `ko`, etc. functions combine these.
 
-Browsers refuse to start audio until the user interacts with the page. `createSfx` therefore creates the `AudioContext` lazily: `sfx.unlock()` is called on every keydown (`game.ts:456-457`) and `ensure()` creates or resumes it (`sfx.ts:14`). Sounds requested before the first key press are silently skipped. M mutes by setting master gain to 0; master gain is otherwise 0.5.
+Browsers refuse to start audio until the user interacts with the page. `createSfx` therefore creates the `AudioContext` lazily: `sfx.unlock()` is called on every keydown (`game.ts:456-457`) and `ensure()` creates or resumes it (`sfx.ts:14`). Sounds requested before the first key press are silently skipped. M mutes by setting master gain to 0; master gain is otherwise 0.7.
+
+Since `90aefa7` the output is layered: a gunshot is three voices, a high-passed noise crack, a band-passed noise body and a falling sine thump (`sfx.ts:127-129`); shotguns add pump clicks and rockets a noise hiss. Every voice goes to a dry bus and, scaled, to a generated room reverb (a `ConvolverNode` whose impulse response is built in code, `makeRoom`), and both feed a `DynamicsCompressor` before the master gain (`sfx.ts:41-56`). Still no audio files.
 
 Sounds are triggered from sim events in `handleEvent`, so audio and visuals stay in step with the rules without the sim knowing about either.
 
@@ -424,7 +430,7 @@ Sounds are triggered from sim events in `handleEvent`, so audio and visuals stay
 
 Files: `src/game/sim/sim.test.ts` (vitest, Node environment, no DOM). Helpers build a fighting state with pickups and drops disabled (`fighting()`), place fighters, arm them, and run N ticks with scripted input.
 
-What the 25 tests cover (22 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
+What the 30 tests cover (27 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
 
 | Group | Tests |
 |---|---|
@@ -432,25 +438,26 @@ What the 25 tests cover (22 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
 | Movement | land on a desk and drop through it with Down; wall-kick off the glass; facing follows aim |
 | Guns | pistol hits where aimed and misses when aimed away; furniture blocks bullets; auto-reload; spent special gun falls back to pistol; two pistol hits KO; point-blank shotgun is a one-shot KO; railgun goes through furniture; grenade throws everyone including the shooter; rockets fly straight across the office; walking over a gun with a pistol picks it up; dash dodges bullets |
 | Force Push | splats into the glass (checks `WALL_SPLAT_DAMAGE`); reflects bullets at the shooter |
-| KOs | KO scores for the shooter and the fighter respawns with a pistol |
+| KOs | KO scores for the shooter and the fighter respawns with a pistol; 3 s wait after a KO and coming back as someone else |
+| Level and pause | fighters start far apart; exactly one gun per floor at the start; a taken gun returns on the same floor; nothing moves while `paused` |
 | Bot | two bots score within a round; same seeds give the same result |
 | Wire protocol (`protocol.test.ts`) | input encode/decode round trip; a press in a skipped input survives a merge; a full game state round-trips including `Infinity` |
 
-Not covered: the grazing-shot rule at exact slope boundaries, ceiling-drop spawning, kill-credit edge cases (last hit by a rocket you fired yourself), draws, and everything in `render/`, `input.ts`, `sfx.ts`, `ArenaGame.tsx`, `net/client.ts` and `server/DuelRoom.ts`.
+Not covered: the grazing-shot rule at exact slope boundaries, ceiling-drop spawning, the spawn-distance rule beyond the start-of-match test, kill-credit edge cases (last hit by a rocket you fired yourself), draws, and everything in `render/`, `input.ts`, `sfx.ts`, `ArenaGame.tsx`, `net/client.ts` and `server/DuelRoom.ts`.
 
 Run:
 
 ```bash
-npm run test:run     # one-off run; expected: 25 passed
+npm run test:run     # one-off run; expected: 30 passed
 npm test             # watch mode
 npm run type-check   # tsc --noEmit
 ```
 
-`npm run test:run` was executed while updating this guide: `25 passed` (2 files), about 0.3 s. `npm run type-check` was not run for this document.
+`npm run test:run` was executed while updating this guide: `30 passed` (2 files), about 0.3 s. `npm run type-check` was not run for this document.
 
 ---
 
-## 10. Online multiplayer (built, deployed, committed in `f820864`)
+## 10. Online multiplayer (built and deployed; updated through `1b03043`)
 
 Play it at `/play`. Server: `floor42-game` on Fly.io. This section was rewritten from the code after the feature landed. The server and client files were read; I did not run the server or the two-browser test myself. The three measured numbers below are the owner's, taken on 2026-11-17 from the owner's Mac.
 
@@ -502,7 +509,11 @@ The server runs the same `step` as the browser (`DuelRoom.ts:5`, `:125`) at 60 H
 - **Backlog folding.** If a queue is longer than 4, the oldest entry is merged into the next (`DuelRoom.ts:110-113`, `mergeWire`). The merged input keeps the newer tick, aim and held state, and keeps one-shot presses from either (up, down, dash, fire, pickup, reload, push). A lag spike is caught up without losing a jump or dash.
 - **No input this tick.** The seat's last input is reused with the one-shot presses cleared (`up`, `dash`, `push`, `pickup`, `reload`): you keep running, but a single jump press does not repeat. `fire` and `down` are not cleared, so a held trigger keeps firing.
 - **Rematch.** Allowed only when the game phase is `over`. When both seats have sent `rematch`, `startGame` runs again and both get a new `start` message.
-- **Leaving.** `onLeave` empties the seat, discards the game, broadcasts `left` and unlocks the room so someone else can join (`DuelRoom.ts:76-83`). There is no forfeit result and no reconnect window.
+- **Leaving.** `onLeave` empties the seat, discards the game, broadcasts `left` and unlocks the room, so the same invite link still works for someone else (`DuelRoom.ts:126-133`). There is no forfeit result recorded.
+- **Dropped connection.** `onDrop` (a wifi blip, a sleeping tab) pauses the game, broadcasts `pauseState` (so the other client stops predicting) and `dropped {slot, seconds: 20}` and calls `allowReconnection(client, 20)`. If the player returns within 20 s the seat is kept, the game unpauses and `back {slot}` is broadcast. If not, `onLeave` runs as above.
+- **Pause by agreement.** One player sends `pause` (Esc twice); the room records it in `seat.pause` and broadcasts `pauseState {requests, paused}`. When both seats have asked, `game.paused = true`. `cancelPause` withdraws a request (ignored once paused). `resume` from either player clears the pause and both requests. `step` returns immediately when `state.paused` is true (`step.ts`, right after clearing events), so nothing moves, no timers run and `tick` does not advance. Because `game.tick` stops, the server counts its own `serverTick` and uses that to decide when to send a snapshot, so snapshots keep flowing while paused (`DuelRoom.ts:34`, `:184-185`). Against the bot, pause is instant and local.
+- **Character choice.** The `character` message sets `seat.character` (used by the next `startGame`, so the pick carries into a rematch) and calls the shared `chooseCharacter` so the fighter respawns as that character.
+- **Test hook.** `server/index.ts` sets `RULES.kosToWin` from the `KOS_TO_WIN` environment variable when present, for shorter matches in automated end-of-match checks. Leave it unset in production.
 - **Entry point.** `server/index.ts` builds a Colyseus `Server` with `@colyseus/core` and `@colyseus/ws-transport`, defines the room under the name `duel` (`ROOM_NAME`), and listens on `PORT` (default 2567) on `0.0.0.0`.
 
 ### Client (`src/game/net/client.ts`)
@@ -523,6 +534,7 @@ The server runs the same `step` as the browser (`DuelRoom.ts:5`, `:125`) at 60 H
   4. **Events from the local predicted step only.** Snapshots carry no events, and the replay's events are discarded because `step` clears `state.events` at the start of each call. `session.tick` returns the events of the single predicted step, and `game.ts` feeds those to `handleEvent` (sounds, particles, shake). So effects play once, from your own prediction.
   5. **Ping.** Every 2 s `room.ping` records round-trip time in ms; the HUD shows it (`ArenaGame.tsx:293`).
   6. **Rematch.** `rematch()` sends the `rematch` message; `restart(msg)` rebuilds the local game when the server sends a new `start`.
+  7. **Pause state.** The session listens for `pauseState` and keeps `pauseRequests` and a `serverPaused` flag. `reconcile` re-applies `state.paused = serverPaused` after adopting a snapshot (`client.ts:57`), so a snapshot that was produced just before the pause cannot un-pause the client. `requestPause`, `cancelPause`, `resume` and `chooseCharacter` (which also applies locally at once) send the matching messages.
 - This is the design from section 2 working as intended: it depends on `step` being deterministic and holding all its memory in `GameState`.
 
 ### Lobby and arena glue
@@ -530,7 +542,10 @@ The server runs the same `step` as the browser (`DuelRoom.ts:5`, `:125`) at 60 H
 - `/play` renders `OnlineLobby` (`src/app/play/page.tsx`). `?room=<id>` (4 to 32 word characters or hyphens) joins that room immediately, which is the invite link: `${origin}/play?room=${roomId}`.
 - Screens: menu (pick one of four fighters, saved in `localStorage` under `merge-conflict:character`; Invite a friend; Quick match), connecting, waiting (invite link with Copy button, or "waiting for someone to join the quick match"), error ("That room is full or gone" for a bad invite, otherwise "Can't reach the game server").
 - **The lobby owns the connection.** The room is left only in the lobby's unmount effect (`OnlineLobby.tsx:41-47`), not in the arena component. React StrictMode in development mounts, unmounts and re-mounts components, re-running effects; if `ArenaGame` left the room on cleanup, the match would end the moment it started in dev. `ArenaGame` therefore only subscribes and unsubscribes to messages (`start` for rematches, `left` for the "Your rival left" overlay).
-- **Slot-aware `me`.** In `game.ts`, `me = online.slot` (`game.ts:82`) replaces the hardcoded fighter 0 for auto-aim, aim line, reload sound and the key hint. Fighter order in the sim is unchanged (slot 0 spawns left).
+- **Round end and leaving (online).** The result modal has a character picker, Rematch (Enter) and Leave; it does not send you to `/characters`. Esc twice opens a Paused / "Pause requested" menu with Resume or Keep playing, and Exit match; while the rival has asked and you have not, a banner says "Press Esc twice to agree".
+- **Rival dropped.** On `dropped` a modal counts down the 20 s. On `back` it disappears.
+- **Rival left.** On `left` the client runs a wait flow (`WAIT_SECONDS = 60`, `MAX_WAITS = 3`, `ArenaGame.tsx:20-21`): it shows an invite link with a countdown, and after each 60 s asks "Keep waiting another minute?"; the third wait is labelled "last time". When it runs out, the client leaves the room and shows "Link expired". Meanwhile the room stays unlocked, so the same link can bring in a new rival, which triggers a normal `start`.
+- **Slot-aware `me`.** In `game.ts`, `me = online.slot` (`game.ts:82`) replaces the hardcoded fighter 0 for auto-aim, aim line, reload sound and the key hint. Fighter order in the sim is unchanged: slot 0 is `fighters[0]`; spawn points are random, not tied to the slot.
 - **HUD shows you first.** `emitHud` orders fighters as `[me, rival]` and remaps `winner` and the last KO to that order (`game.ts:452-460`), so the left panel is always "YOU" and the right is "RIVAL", whatever your slot.
 - **Rival smoothing.** Your own fighter is drawn from the predicted state. The rival's drawn position eases toward its corrected position with `k = 1 - exp(-22 * dt)` when the correction is under 4 units, and snaps otherwise (`game.ts:329-338`). That hides small server corrections instead of showing teleports.
 
@@ -561,7 +576,7 @@ The `Dockerfile` (`node:20-alpine`) installs exact versions of `@colyseus/core`,
 - Hitstop freezes `step` for up to 9 ticks. How prediction and the server stay aligned across hitstop was not designed or tested separately. The two-browser test showed matching state, but that is not a proof for every case.
 - The client sends one input per message at 60 messages per second; the server's 10-inputs-per-message allowance is not used by this client.
 - No rate limiting beyond the per-message cap, no authentication, and no check that a client's tick numbers are plausible.
-- A player who leaves ends the match for the other; no forfeit, no reconnect.
+- A player who leaves ends the match for the other; there is no forfeit result. A dropped connection has a 20 s reconnect window; a clean leave does not.
 - With ~125 ms round trip, the rival is always seen about that far in the past plus the 33 ms snapshot interval, and its input is a guess between snapshots.
 
 ---
@@ -578,6 +593,7 @@ Rows marked (notes) come from the owner's project notes and commit history, not 
 | The "CTO noise" mechanic was added and then removed | It broke the pace of the match. The code lives in commit `3c8d987`; removed in `a6a4b2c`. |
 | Rockets fly straight (`GRENADE.gravity = 0`) | Auto-aim aims at the target, so a falling rocket would miss for no visible reason. |
 | Simulation separated from rendering, written without a physics engine | Needed for a server-authoritative design, for fast headless tests, and for deterministic replay (sections 2 and 3). |
+| Playtest log, owner's first real online match (commits `90aefa7`, `1b03043`): pause by agreement (Esc twice, both must agree online); 3 s respawn (was 1.6 s) at a random spawn far from the rival; pick your next character while dead (keys 1 to 4), and pick or rematch from the result modal instead of leaving to `/characters`; 20 s reconnect for a dropped rival, then a 3 x 60 s wait flow with the same link; one gun per floor at random spots and kinds, slower gun respawn (15 s, was 12 s), one ceiling drop every 25 s (was 3 slots every 10 s); an in-world "E SWAP" prompt; the bot holds longer distances and backs off; layered gunshots, room reverb and compressor | Feedback from the match (notes; the log records the changes, the reasons are the owner's). What the diff shows: before these commits, spawns were two fixed points chosen by fighter id and guns were ten fixed spots. |
 | Own visual theme: Bungee for display, Chakra Petch for UI, navy with git-diff colours (HEAD green, incoming red, conflict yellow) | A distinct identity; `src/app/layout.tsx`, `palette.ts`, `globals.css`. |
 | Hosting plan: Cloudflare Pages for the static pages (free); Fly.io only for multiplayer servers, with autostop (notes) | Static pages cost nothing; a server only runs while someone plays. The Fly.io part is live (section 10); Cloudflare Pages was not checked for this guide. |
 | Studio "Merge Conflict" at mergeconflict.gg, with games on subdomains (notes) | One brand, one game per subdomain. Not checked for this guide. |
@@ -599,7 +615,7 @@ Honest list, from reading the code.
 **Online**
 - Prediction across hitstop (up to 9 frozen ticks) was not analysed separately; a two-browser test matched, which is evidence, not proof (section 10).
 - The rival is shown about one round trip behind (123 to 131 ms measured to Fly `fra`) plus the snapshot interval, and its input is a guess between snapshots.
-- A player leaving ends the match; no forfeit result or reconnect. First player after an idle period waits for the Fly machine to start.
+- A clean leave ends the match with no forfeit result; a dropped connection gets 20 s to reconnect. The first player after an idle period waits for the Fly machine to start.
 
 **Code and testing**
 - Automated tests cover the simulation and the wire format. Rendering, input, audio, the React shell, `net/client.ts` and `DuelRoom` have none. `type-check` exists but there is no CI configuration in the repo.
@@ -612,5 +628,5 @@ Honest list, from reading the code.
 **Next steps**
 1. Tests for `DuelRoom` (queue folding, rematch, leave) and for `createOnlineSession` reconciliation with a fake room.
 2. A simulation test that replays a recorded input log on two instances of `step` and compares full state, to guard determinism.
-3. A forfeit result and a short reconnect window.
+3. A forfeit result for a rival who never comes back.
 4. CI running `npm run test:run` and `npm run type-check`.

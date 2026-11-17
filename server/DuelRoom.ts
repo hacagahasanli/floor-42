@@ -112,6 +112,7 @@ export class DuelRoom extends Room {
     if (!seat) return;
     const slot = this.seats.indexOf(seat);
     if (this.game) this.game.paused = true;
+    this.sendPause(); // the other client must stop predicting too
     this.broadcast('dropped', { slot, seconds: 20 });
     try {
       seat.client = await this.allowReconnection(client, 20);
