@@ -1,6 +1,6 @@
 import { Bungee, Chakra_Petch } from 'next/font/google';
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 import './globals.css';
@@ -11,6 +11,16 @@ const ui = Chakra_Petch({ weight: ['400', '500', '600', '700'], subsets: ['latin
 export const metadata: Metadata = {
   title: { default: 'Floor 42 · Merge Conflict', template: '%s · Floor 42' },
   description: 'Code review got personal. A two-player office shootout from Merge Conflict: settle it on floor 42, two hits and you are out.',
+};
+
+/** Phones: no pinch zoom or double-tap zoom in the middle of a fight; draw under the notch. */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#0a0d18',
 };
 
 const RootLayout = ({ children }: { children: ReactNode }) => (

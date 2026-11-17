@@ -2,7 +2,11 @@ import { EMPTY_INPUT } from './sim/types';
 
 import type { InputState } from './sim/types';
 
-type Button = Exclude<keyof InputState, 'aimX' | 'aimY'>;
+export type Button = Exclude<keyof InputState, 'aimX' | 'aimY'>;
+
+/** True on phones and tablets: the game shows touch controls and always auto-aims. */
+export const isTouchDevice = () =>
+  typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches || 'ontouchstart' in window);
 
 export type AimMode = 'auto' | 'mouse';
 
@@ -31,6 +35,12 @@ export const createControls = (canvas: HTMLCanvasElement) => {
   /** Mouse in normalised device coordinates (-1..1). */
   const mouse = { x: 0, y: 0 };
   let clicking = false;
+  /**
+   * Touch buttons. A press is latched until the game has read it once, so a quick tap shorter
+   * than one tick still counts.
+   */
+  const touchHeld = new Set<Button>();
+  const touchLatched = new Set<Button>();
 
   const onDown = (e: KeyboardEvent) => {
     if (!CODE_TO_ACTION.has(e.code)) return;
@@ -53,6 +63,7 @@ export const createControls = (canvas: HTMLCanvasElement) => {
   const onBlur = () => {
     down.clear();
     clicking = false;
+    touchHeld.clear();
   };
 
   window.addEventListener('keydown', onDown);
@@ -70,7 +81,17 @@ export const createControls = (canvas: HTMLCanvasElement) => {
         const action = CODE_TO_ACTION.get(code);
         if (action) s[action] = true;
       }
+      for (const b of touchHeld) s[b] = true;
+      for (const b of touchLatched) s[b] = true;
+      touchLatched.clear();
       return s;
+    },
+    /** A touch button went down (true) or up (false). */
+    setTouch: (b: Button, on: boolean) => {
+      if (on) {
+        touchHeld.add(b);
+        touchLatched.add(b);
+      } else touchHeld.delete(b);
     },
     dispose: () => {
       window.removeEventListener('keydown', onDown);

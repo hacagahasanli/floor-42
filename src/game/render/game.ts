@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
-import { createControls } from '../input';
+import { createControls, isTouchDevice } from '../input';
+
+import type { Button } from '../input';
 import type { AimMode } from '../input';
 import { createSfx } from '../sfx';
 
@@ -75,8 +77,10 @@ const randomSeed = () => (Math.random() * 1e9) | 0;
 const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true, uzi: false, bomb: false };
 
 export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
+  const touch = isTouchDevice();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // Phones: a lower pixel ratio keeps 60 fps; the far camera doesn't need more.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, touch ? 1.5 : 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -691,6 +695,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     if (e.code === 'KeyT') aimMode = aimMode === 'auto' ? 'mouse' : 'auto';
   };
   window.addEventListener('keydown', onKey);
+  // On phones audio starts with the first touch.
+  const onFirstTouch = () => sfx.unlock();
+  window.addEventListener('pointerdown', onFirstTouch);
 
   let raf = 0;
   let last = performance.now();
@@ -793,6 +800,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     },
     resume,
     pickCharacter,
+    /** Touch controls press and release buttons through here. */
+    touch: (b: Button, on: boolean) => {
+      sfx.unlock();
+      controls.setTouch(b, on);
+    },
     volumes: () => sfx.volumes,
     setVolume: (kind: VolumeKind, value: number) => sfx.setVolume(kind, value),
     setAimMode: (m: AimMode) => {
@@ -802,6 +814,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       cancelAnimationFrame(raf);
       controls.dispose();
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onFirstTouch);
       scene.traverse((o) => {
         if (o instanceof THREE.Mesh) {
           o.geometry.dispose();

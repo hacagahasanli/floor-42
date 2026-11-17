@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
+import { RotateHint, TouchControls, useLandscape } from '~/components/TouchControls';
+import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
@@ -35,8 +37,8 @@ const Key = ({ k }: { k: string }) => (
   </kbd>
 );
 
-const FighterPanel = ({ f, label, align }: { f: HudFighter; label: string; align: 'left' | 'right' }) => (
-  <div className={`flex w-72 flex-col gap-1 ${align === 'right' ? 'items-end text-right' : ''}`}>
+const FighterPanel = ({ f, label, align, compact }: { f: HudFighter; label: string; align: 'left' | 'right'; compact?: boolean }) => (
+  <div className={`flex ${compact ? 'w-48' : 'w-72'} flex-col gap-1 ${align === 'right' ? 'items-end text-right' : ''}`}>
     <div className={`flex items-baseline gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
       <span className="font-display text-lg leading-none" style={{ color: accent(f.character) }}>
         {f.name}
@@ -164,6 +166,10 @@ export const ArenaGame = ({
   /** Seconds left for a rival whose connection dropped to come back, or null. */
   const [dropLeft, setDropLeft] = useState<number | null>(null);
   const lastEsc = useRef(0);
+  // Phones and tablets: touch controls, auto-aim, landscape. Known only after mount.
+  const [touch, setTouch] = useState(false);
+  useEffect(() => setTouch(isTouchDevice()), []);
+  const portrait = useLandscape();
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
 
@@ -174,7 +180,7 @@ export const ArenaGame = ({
       opponent,
       demo,
       level,
-      aimMode: readAim(),
+      aimMode: isTouchDevice() ? 'auto' : readAim(),
       onHud: setHud,
       online: online?.session,
     });
@@ -276,6 +282,14 @@ export const ArenaGame = ({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  /** The touch pause button: the same as Esc twice. */
+  const openMenu = () => {
+    const h = hudRef.current;
+    if (!h || h.phase === 'over') return;
+    if (!h.paused) gameRef.current?.requestPause();
+    setMenuOpen(true);
+  };
+
   const closeMenu = () => {
     setMenuOpen(false);
     if (hud?.paused) gameRef.current?.resume();
@@ -302,7 +316,8 @@ export const ArenaGame = ({
   // unless a text field has focus. Keep an invisible one focused while the game runs.
   useEffect(() => {
     const trap = keyTrapRef.current;
-    if (!trap) return;
+    // Never on phones: a focused field would pop up the on-screen keyboard.
+    if (!trap || isTouchDevice()) return;
     const refocus = () => setTimeout(() => trap.focus({ preventScroll: true }), 0);
     trap.focus({ preventScroll: true });
     trap.addEventListener('blur', refocus);
@@ -333,7 +348,7 @@ export const ArenaGame = ({
   const end = hud?.phase === 'over' ? END_TEXT(hud, demo) : null;
 
   return (
-    <main className="relative h-screen w-screen select-none overflow-hidden bg-ink-deep">
+    <main className="relative h-[100dvh] w-screen touch-none select-none overflow-hidden bg-ink-deep">
       <canvas ref={canvasRef} className={`block h-full w-full ${hud?.aimMode === 'mouse' ? 'cursor-crosshair' : ''}`} />
       <input
         ref={keyTrapRef}
@@ -347,18 +362,20 @@ export const ArenaGame = ({
       {hud && (
         <>
           <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between bg-gradient-to-b from-ink-deep/90 to-transparent px-4 pb-8 pt-3">
-            <FighterPanel f={hud.fighters[0]} label={demo ? 'BOT' : 'YOU'} align="left" />
+            <FighterPanel f={hud.fighters[0]} label={demo ? 'BOT' : 'YOU'} align="left" compact={touch} />
             <div className="flex flex-col items-center gap-1.5">
               <span className="font-display text-3xl leading-none tabular-nums text-cream">
                 {hud.phase === 'countdown' ? RULES.roundSeconds : Math.ceil(hud.time)}
               </span>
               <span className="text-[10px] font-semibold tracking-widest text-cream/50">FIRST TO {RULES.kosToWin}</span>
-              <span className="panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1">
-                <span className="font-display text-base text-gold">FLOOR 42</span>
-                <span className="text-[11px] text-cream/70">agents-know · merge room</span>
-              </span>
+              {!touch && (
+                <span className="panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1">
+                  <span className="font-display text-base text-gold">FLOOR 42</span>
+                  <span className="text-[11px] text-cream/70">agents-know · merge room</span>
+                </span>
+              )}
             </div>
-            <FighterPanel f={hud.fighters[1]} label={online ? 'RIVAL' : `BOT · ${level}`} align="right" />
+            <FighterPanel f={hud.fighters[1]} label={online ? 'RIVAL' : `BOT · ${level}`} align="right" compact={touch} />
           </div>
 
           {hud.phase === 'countdown' && (
@@ -379,11 +396,11 @@ export const ArenaGame = ({
           )}
 
           {hud.hint.length > 0 && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-10 flex justify-center">
+            <div className={`pointer-events-none absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-36' : 'bottom-10'}`}>
               <div className="panel-cut flex items-center gap-3 bg-ink-deep/85 px-4 py-1.5 text-sm text-cream">
                 {hud.hint.map((h) => (
                   <span key={h.key} className="flex items-center gap-2">
-                    <Key k={h.key} /> {h.text}
+                    <Key k={touch ? (h.key === 'R' ? 'Swap' : h.key === 'Space' ? 'Fire' : h.key) : h.key} /> {h.text}
                   </span>
                 ))}
               </div>
@@ -394,13 +411,13 @@ export const ArenaGame = ({
             <div className="pointer-events-none absolute inset-x-0 top-28 flex justify-center">
               <div className="panel-cut bg-gold/95 px-6 py-2 text-center text-ink-deep">
                 <div className="font-display text-xl">Your rival wants to pause</div>
-                <div className="text-xs font-bold uppercase tracking-widest">Press Esc twice to agree</div>
+                <div className="text-xs font-bold uppercase tracking-widest">{touch ? 'Tap pause to agree' : 'Press Esc twice to agree'}</div>
               </div>
             </div>
           )}
 
           {hud.respawnIn !== null && hud.phase === 'fight' && !hud.paused && (
-            <div className="absolute inset-x-0 bottom-16 flex justify-center">
+            <div className={`absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-32' : 'bottom-16'}`}>
               <div className="panel-cut flex flex-col items-center gap-3 bg-ink-deep/90 px-6 py-4">
                 <div className="text-sm text-cream/80">
                   Back in <span className="font-display text-xl text-gold">{Math.ceil(hud.respawnIn)}</span> · come back as:
@@ -455,7 +472,7 @@ export const ArenaGame = ({
                 ) : (
                   <>
                     <div className="font-display text-2xl text-gold">Pause requested</div>
-                    <p className="text-sm text-cream/70">Waiting for your rival to press Esc twice. The game keeps going until they do.</p>
+                    <p className="text-sm text-cream/70">Waiting for your rival to pause too. The game keeps going until they do.</p>
                     <button type="button" onClick={closeMenu} className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
                       Keep playing
                     </button>
@@ -554,7 +571,7 @@ export const ArenaGame = ({
                     disabled={rematchAsked}
                     className="panel-cut bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep disabled:opacity-60"
                   >
-                    {rematchAsked ? 'Waiting for rival…' : 'Rematch (Enter)'}
+                    {rematchAsked ? 'Waiting for rival…' : touch ? 'Rematch' : 'Rematch (Enter)'}
                   </button>
                   {online ? (
                     <button type="button" onClick={exit} className="panel-cut bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
@@ -570,9 +587,12 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {!demo && <Controls aim={hud.aimMode} />}
-          <div className="absolute bottom-3 right-3 flex items-center gap-3 text-[10px] text-cream/50">
-            {!demo && (
+          {!demo && !touch && <Controls aim={hud.aimMode} />}
+          {!demo && touch && hud.phase !== 'over' && !rivalLeft && !menuOpen && !hud.paused && (
+            <TouchControls press={(b, on) => gameRef.current?.touch(b, on)} onPause={openMenu} />
+          )}
+          <div className={`absolute flex items-center gap-3 text-[10px] text-cream/50 ${touch ? 'right-3 top-20' : 'bottom-3 right-3'}`}>
+            {!demo && !touch && (
               <button
                 type="button"
                 onClick={toggleAim}
@@ -596,6 +616,7 @@ export const ArenaGame = ({
           </div>
         </>
       )}
+      {touch && portrait && <RotateHint />}
     </main>
   );
 };
