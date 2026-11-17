@@ -64,7 +64,9 @@ export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
 
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    if (canvas.width !== Math.floor(w * renderer.getPixelRatio())) {
+    const pr = renderer.getPixelRatio();
+    // Height too: the lobby panel settles its height after the first frame.
+    if (w && h && (canvas.width !== Math.floor(w * pr) || canvas.height !== Math.floor(h * pr))) {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -103,6 +105,8 @@ export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
         if (o instanceof THREE.Mesh) o.geometry.dispose();
       });
       renderer.dispose();
+      // Free the WebGL context now, not at garbage collection: the lobby swaps turntables often.
+      renderer.forceContextLoss();
     },
   };
 };

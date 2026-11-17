@@ -1,127 +1,88 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { startGallery } from '~/game/render/gallery';
+import { accentOf, FighterCards, FighterHero, MenuShell, readCharacter, saveCharacter, Steps, usePortraits } from '~/components/MenuShell';
 import { ROSTER } from '~/game/roster';
 import { CHARACTERS } from '~/game/sim/constants';
 
-import type { RosterEntry } from '~/game/roster';
 import type { CharacterId } from '~/game/sim/types';
 
-const STAT_MAX = { speed: 11, weight: 1.4, jump: 17.5, jumps: 2 };
-
-const Stat = ({ label, value, max }: { label: string; value: number; max: number }) => (
-  <div className="flex items-center gap-2 font-mono text-xs">
-    <span className="w-14 text-cream/60">{label}</span>
-    <div className="h-1.5 flex-1 overflow-hidden rounded bg-cream/10">
-      <div className="h-full rounded bg-cream/80" style={{ width: `${Math.min(100, (value / max) * 100)}%` }} />
-    </div>
-  </div>
-);
-
-const Card = ({
-  entry,
-  selected,
-  onSelect,
-}: {
-  entry: RosterEntry;
-  selected: boolean;
-  onSelect: () => void;
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const galleryRef = useRef<ReturnType<typeof startGallery> | null>(null);
-  const stats = CHARACTERS[entry.id];
-
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const g = startGallery(canvasRef.current, entry.id);
-    galleryRef.current = g;
-    return () => g.dispose();
-  }, [entry.id]);
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      onMouseEnter={() => galleryRef.current?.setHovered(true)}
-      onMouseLeave={() => galleryRef.current?.setHovered(false)}
-      aria-pressed={selected}
-      className={`panel-cut group flex flex-col overflow-hidden border-2 bg-ink text-left transition ${
-        selected ? 'border-gold' : 'border-cream/10 hover:border-cream/30'
-      }`}
-    >
-      <div className="relative h-64 w-full" style={{ background: `radial-gradient(circle at 50% 70%, ${entry.accent}55, transparent 70%)` }}>
-        <canvas ref={canvasRef} className="h-full w-full" />
-        {selected && (
-          <span className="absolute right-3 top-3 rounded bg-gold px-2 py-0.5 font-mono text-xs font-bold text-ink">
-            YOU
-          </span>
-        )}
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="font-display text-xl" style={{ color: entry.accent }}>
-            {entry.name}
-          </h2>
-          <span className="font-mono text-xs text-cream/50">{entry.role}</span>
-        </div>
-        <p className="text-sm text-cream/75">{entry.pitch}</p>
-        <p className="font-mono text-[11px] text-cream/40">Silhouette: {entry.silhouette}</p>
-        <div className="mt-auto flex flex-col gap-1 pt-2">
-          <Stat label="speed" value={stats.speed} max={STAT_MAX.speed} />
-          <Stat label="weight" value={stats.weight} max={STAT_MAX.weight} />
-          <Stat label="jump" value={stats.jump} max={STAT_MAX.jump} />
-          <Stat label="air jumps" value={stats.airJumps} max={STAT_MAX.jumps} />
-        </div>
-      </div>
-    </button>
-  );
-};
-
+/** Practice against the bot: pick yourself and your rival. Same look as the home page, no live office behind it. */
 export const CharacterSelect = () => {
   const [player, setPlayer] = useState<CharacterId>('hotfix');
   const [opponent, setOpponent] = useState<CharacterId | 'random'>('random');
+  const portraits = usePortraits();
+
+  useEffect(() => {
+    const saved = readCharacter();
+    if (saved) setPlayer(saved);
+  }, []);
+
+  const pick = (id: CharacterId) => {
+    setPlayer(id);
+    saveCharacter(id);
+  };
 
   const href = `/arena?p1=${player}${opponent === 'random' ? '' : `&p2=${opponent}`}&bot=easy`;
 
   return (
-    <main className="grid-bg mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <Link href="/" className="font-mono text-xs text-cream/50 hover:text-cream">
-            ← Floor 42
-          </Link>
-          <h1 className="font-display text-3xl">Choose a fighter</h1>
-          <p className="text-sm text-cream/60">Everyone dies in two hits. Pick by speed, size and how hard you are to shove.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 font-mono text-sm">
-          <span className="text-cream/60">Opponent:</span>
-          {(['random', ...ROSTER.map((r) => r.id)] as const).map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setOpponent(id)}
-              className={`rounded px-2.5 py-1 ${opponent === id ? 'bg-cream text-ink' : 'bg-cream/10 hover:bg-cream/20'}`}
+    <MenuShell
+      accent={accentOf(player)}
+      status={
+        <>
+          <span className="h-2 w-2 animate-pulse rounded-full bg-gold" /> PRACTICE · VS BOT
+        </>
+      }
+    >
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] [@media(max-height:500px)]:grid-cols-2 [@media(max-height:500px)]:gap-4">
+        <FighterHero id={player} label="You fight as" />
+
+        <div className="flex flex-col gap-4">
+          <div className="flex items-end justify-between gap-3">
+            <h2 className="font-display text-xl">Choose a fighter</h2>
+            <span className="text-right text-xs text-cream/50">Two hits for everyone: speed, size and shove differ</span>
+          </div>
+          <FighterCards value={player} onPick={pick} portraits={portraits} />
+
+          <div className="panel-cut flex flex-col gap-2 bg-ink/80 p-3 backdrop-blur">
+            <span className="text-[10px] font-semibold tracking-widest text-cream/50">YOUR RIVAL</span>
+            <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Rival">
+              {(['random', ...ROSTER.map((r) => r.id)] as const).map((id) => {
+                const on = opponent === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setOpponent(id)}
+                    className={`panel-cut flex items-center justify-center gap-1 px-1 py-2 text-xs font-bold sm:text-sm ${on ? 'bg-gold text-ink-deep' : 'bg-cream/10 hover:bg-cream/15'}`}
+                    style={!on && id !== 'random' ? { color: accentOf(id) } : undefined}
+                  >
+                    {id === 'random' ? '?  Random' : CHARACTERS[id].name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link href="/play" className="panel-cut bg-cream/10 px-5 py-3 text-sm font-bold uppercase tracking-wider text-cream/90 hover:bg-cream/20">
+              Play online instead
+            </Link>
+            <Link
+              href={href}
+              className="panel-cut group fixed inset-x-4 bottom-4 z-20 flex items-center justify-center gap-3 bg-gold px-10 py-4 font-display text-xl uppercase text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.35)] transition hover:brightness-110 sm:static"
             >
-              {id === 'random' ? 'random' : CHARACTERS[id].name}
-            </button>
-          ))}
+              Fight as {CHARACTERS[player].name}
+              <span className="transition group-hover:translate-x-1">→</span>
+            </Link>
+          </div>
         </div>
-      </header>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {ROSTER.map((entry) => (
-          <Card key={entry.id} entry={entry} selected={entry.id === player} onSelect={() => setPlayer(entry.id)} />
-        ))}
-      </div>
-
-      <div className="flex justify-end">
-        <Link href={href} className="panel-cut bg-gold px-8 py-3 text-lg font-bold uppercase tracking-wider text-ink-deep hover:brightness-110">
-          Fight as {CHARACTERS[player].name} →
-        </Link>
-      </div>
-    </main>
+      </section>
+      <Steps />
+    </MenuShell>
   );
 };
