@@ -1,7 +1,7 @@
-import { ATTACKS, CHARACTERS } from './constants';
+import { CHARACTERS } from './constants';
 import { EMPTY_INPUT } from './types';
 
-import type { GameState, InputState } from './types';
+import type { GameState, GunKind, InputState } from './types';
 
 /** Small seeded PRNG so a bot is deterministic for a given seed. */
 const mulberry32 = (seed: number) => () => {
@@ -12,88 +12,111 @@ const mulberry32 = (seed: number) => () => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-type Press = 'up' | 'dash' | 'attack' | 'grab' | 'push' | 'down';
+export type BotLevel = 'easy' | 'normal' | 'hard';
+
+const LEVELS: Record<BotLevel, { reaction: number; aimError: number; trigger: number; dodge: number }> = {
+  easy: { reaction: 16, aimError: 0.22, trigger: 0.45, dodge: 0.05 },
+  normal: { reaction: 10, aimError: 0.12, trigger: 0.7, dodge: 0.15 },
+  hard: { reaction: 6, aimError: 0.05, trigger: 0.9, dodge: 0.3 },
+};
+
+/** Preferred distance to the target for each gun. */
+const RANGE: Record<GunKind, [number, number]> = {
+  pistol: [5, 10],
+  smg: [4, 8],
+  shotgun: [1.5, 4],
+  railgun: [9, 18],
+  launcher: [5, 11],
+};
+
+type Press = 'up' | 'down' | 'dash' | 'pickup' | 'push' | 'reload';
+
+interface Plan {
+  move: -1 | 0 | 1;
+  presses: Press[];
+  fire: boolean;
+  aimErr: number;
+}
 
 /**
- * A simple opponent for the single-player prototype. It re-thinks every few ticks
- * (a human-like reaction delay) and taps buttons rather than holding them.
+ * Single-player opponent. It re-thinks every few ticks (a human-like reaction
+ * delay), aims at your chest with an error that depends on the level, and keeps
+ * the distance its gun likes.
  */
-export const createBot = (myId: number, seed = 42, reactionTicks = 7) => {
+export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') => {
   const rand = mulberry32(seed);
-  let plan: { move: -1 | 0 | 1; presses: Press[]; holdDown: boolean } = { move: 0, presses: [], holdDown: false };
+  const cfg = LEVELS[level];
+  let plan: Plan = { move: 0, presses: [], fire: false, aimErr: 0 };
   let last: InputState = { ...EMPTY_INPUT };
 
-  type Plan = typeof plan;
   const think = (state: GameState): Plan => {
     const me = state.fighters[myId];
     const foe = state.fighters.find((f) => f.id !== myId)!;
-    const c = CHARACTERS[me.character];
     const presses: Press[] = [];
     let move: -1 | 0 | 1 = 0;
+    const aimErr = (rand() - 0.5) * 2 * cfg.aimError;
+    if (state.phase !== 'fight' || me.respawn > 0) return { move, presses, fire: false, aimErr };
+    // The CTO is out: hold fire and look busy.
+    if (state.cto.phase === 'coming' || state.cto.phase === 'watching') return { move: 0, presses: [], fire: false, aimErr };
 
-    if (state.phase !== 'fight' || me.respawn > 0) return { move, presses, holdDown: false };
-
-    const held = me.held !== null ? state.items[me.held] : null;
     const dx = foe.x - me.x;
     const dy = foe.y - me.y;
     const dist = Math.abs(dx);
     const toFoe = (dx < 0 ? -1 : 1) as -1 | 1;
 
-    // No weapon and one lies close: go and get it.
-    if (!held) {
-      const free = state.items
-        .filter((i) => i.active && i.holder === null && i.thrownBy === null)
+    // Only a pistol: a better gun nearby is worth a detour.
+    if (me.weapon.kind === 'pistol') {
+      const gun = state.pickups
+        .filter((p) => p.active && Math.abs(p.y - me.y) < 3.5)
         .sort((a, b) => Math.abs(a.x - me.x) - Math.abs(b.x - me.x))[0];
-      if (free && Math.abs(free.x - me.x) < 6 && (dist > 3 || foe.respawn > 0)) {
-        const ix = free.x - me.x;
-        if (Math.abs(ix) < c.width / 2 + 0.8 && free.y - me.y > -0.5 && free.y - me.y < c.height) presses.push('grab');
-        else move = ix < 0 ? -1 : 1;
-        if (free.y > me.y + 0.8 && rand() < 0.5) presses.push('up');
-        if (free.y < me.y - 0.5 && me.onGround) presses.push('down');
-        return { move, presses, holdDown: false };
+      if (gun && Math.abs(gun.x - me.x) < 9) {
+        move = gun.x < me.x ? -1 : 1;
+        if (gun.y > me.y + 0.8 && rand() < 0.6) presses.push('up');
+        if (gun.y < me.y - 0.5 && me.onGround) presses.push('down');
+        return { move, presses, fire: foe.respawn <= 0 && rand() < cfg.trigger, aimErr };
       }
     }
 
-    if (foe.respawn > 0) return { move: (-me.x > 0 ? 1 : -1) as -1 | 1, presses, holdDown: false };
-
-    // Coffee is best thrown from range.
-    if (held?.kind === 'mug' && dist > 3 && dist < 10 && Math.abs(dy) < 1.5 && me.facing === toFoe) {
-      presses.push('grab');
-      return { move: toFoe, presses, holdDown: false };
+    if (foe.respawn > 0) {
+      if (me.weapon.mag < 3) presses.push('reload');
+      return { move: (me.x < 0 ? 1 : -1) as -1 | 1, presses, fire: false, aimErr };
     }
 
-    const kind = held?.kind === 'keyboard' ? 'sweep' : held?.kind === 'monitor' ? 'bash' : held?.kind === 'mug' ? 'splash' : 'jab';
-    const range = ATTACKS[kind].reach * c.reach + c.width / 2 + 0.3;
+    const [near, far] = RANGE[me.weapon.kind];
+    if (dist < near) move = (-toFoe) as -1 | 1;
+    else if (dist > far) move = toFoe;
+    else if (rand() < 0.4) move = rand() < 0.5 ? -1 : 1; // strafe
 
-    if (dist < 2.2 && me.pushCooldown <= 0 && Math.abs(dy) < 1 && rand() < 0.35) {
-      if (me.facing !== toFoe) move = toFoe;
-      else presses.push('push');
-    } else if (dist < range && Math.abs(dy) < 1.4) {
-      if (me.facing !== toFoe) move = toFoe;
-      else if (rand() < 0.8) presses.push('attack');
-      if (foe.attack && held?.kind === 'monitor' && rand() < 0.5) return { move: 0, presses: [], holdDown: true };
-    } else {
-      move = toFoe;
-      if (dist > 5 && rand() < 0.2) presses.push('dash');
-    }
-
-    if (dy > 1 && rand() < 0.6) presses.push('up');
-    if (dy < -1 && me.onGround && me.y > 0.1) presses.push('down');
+    if (dist < 2.4 && me.pushCooldown <= 0 && Math.abs(dy) < 1.2 && rand() < 0.5) presses.push('push');
+    if (foe.firing < 0.2 && me.dashCooldown <= 0 && rand() < cfg.dodge) presses.push('dash');
+    if (dy > 1.2 && rand() < 0.6) presses.push('up');
+    if (dy < -1.2 && me.onGround && me.y > 0.1 && rand() < 0.6) presses.push('down');
     if (me.wall !== 0 && rand() < 0.5) presses.push('up');
-    if (rand() < 0.04) presses.push('up');
-    return { move, presses, holdDown: false };
+    if (rand() < 0.06) presses.push('up');
+
+    return { move, presses, fire: rand() < cfg.trigger, aimErr };
   };
 
   return (state: GameState): InputState => {
-    if (state.tick % reactionTicks === 0) plan = think(state);
+    if (state.tick % cfg.reaction === 0) plan = think(state);
+    // Never fight in front of the CTO, even mid-decision.
+    const ctoOut = state.cto.phase === 'coming' || state.cto.phase === 'watching';
+    const me = state.fighters[myId];
+    const foe = state.fighters.find((f) => f.id !== myId)!;
+    const fc = CHARACTERS[foe.character];
+    // Track the target every tick; the error is fixed per decision, like a shaky hand.
+    const tx = foe.x;
+    const ty = foe.y + fc.height * 0.55;
+    const d = Math.hypot(tx - me.x, ty - me.y);
     const out: InputState = {
       ...EMPTY_INPUT,
       left: plan.move < 0,
       right: plan.move > 0,
-      down: plan.holdDown,
+      fire: plan.fire && !ctoOut,
+      aimX: tx,
+      aimY: ty + plan.aimErr * d + (me.weapon.kind === 'launcher' ? d * 0.12 : 0),
     };
-    // Tap: press on one tick, release on the next, so the sim sees an edge.
-    for (const p of plan.presses) out[p] = !last[p];
+    for (const p of plan.presses) if (!(ctoOut && p === 'push')) out[p] = !last[p];
     last = out;
     return out;
   };

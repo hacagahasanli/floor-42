@@ -1,18 +1,18 @@
 import * as THREE from 'three';
 
-/** Floor 42 palette, shared with the agents-know office. */
+/** Merge Conflict palette: night office, git-diff accents (HEAD green, incoming red, conflict yellow). */
 export const PALETTE = {
-  ink: 0x2a2733,
-  inkSoft: 0x3a3650,
-  cream: 0xf1ebdf,
-  paper: 0xfbf6ea,
-  green: 0x2f8f5b,
-  orange: 0xd4552f,
-  red: 0xcf3b3b,
-  blue: 0x4a6fa5,
-  gold: 0xf0c24a,
-  lilac: 0xcfc6d8,
-  stone: 0x8a8478,
+  ink: 0x1b1f2e,
+  inkSoft: 0x2b3045,
+  cream: 0xd7dce6,
+  paper: 0xeef1f6,
+  green: 0x2ec27e,
+  orange: 0xf2542d,
+  red: 0xe23d5c,
+  blue: 0x3e7bfa,
+  gold: 0xffc93c,
+  lilac: 0x9aa3b8,
+  stone: 0x7a8296,
   skinA: 0xe9b48f,
   skinB: 0xc68a63,
   skinC: 0x8d5a3b,

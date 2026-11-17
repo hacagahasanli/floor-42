@@ -1,38 +1,71 @@
-import type { CharacterId, ItemKind } from './types';
+import type { CharacterId, GunKind } from './types';
 
 export const DT = 1 / 60;
 
+export type PlatformStyle = 'desk' | 'table' | 'counter' | 'fridge' | 'shelf' | 'cabinet' | 'walkway' | 'tray';
+
+export interface Platform {
+  x0: number;
+  x1: number;
+  y: number;
+  style: PlatformStyle;
+}
+
+/**
+ * Floor 42, open-plan. Every surface is a one-way platform: jump up through it,
+ * press Down to drop. Bullets do not go through furniture, so desks are cover.
+ */
 export const ARENA = {
-  left: -10,
-  right: 10,
+  left: -18,
+  right: 18,
   floor: 0,
-  ceiling: 8,
-  /** One-way platforms: you can jump up through them and drop down with Down. */
+  ceiling: 13.5,
   platforms: [
-    { x0: -7.2, x1: -3.6, y: 1.1 }, // left desk
-    { x0: 3.6, x1: 7.2, y: 1.1 }, // right desk
-    { x0: -2.2, x1: 2.2, y: 3.4 }, // hanging cable tray over the middle
-  ],
+    { x0: -17.9, x1: -16.1, y: 3.4, style: 'shelf' },
+    { x0: -15.5, x1: -11.5, y: 1.1, style: 'desk' },
+    { x0: -9.6, x1: -6.2, y: 1.1, style: 'desk' },
+    { x0: -14.5, x1: -11.5, y: 6.0, style: 'cabinet' },
+    { x0: -8.2, x1: -2.6, y: 4.4, style: 'walkway' },
+    { x0: -3, x1: 3, y: 1.0, style: 'table' },
+    { x0: -1.6, x1: 1.6, y: 7.2, style: 'tray' },
+    { x0: 2.6, x1: 8.2, y: 4.4, style: 'walkway' },
+    { x0: 9, x1: 13.6, y: 1.2, style: 'counter' },
+    { x0: 11.5, x1: 14.5, y: 6.0, style: 'cabinet' },
+    { x0: 15.8, x1: 17.9, y: 2.8, style: 'fridge' },
+    // The mezzanine: balconies along both glass walls, and a beam across the middle.
+    { x0: -17.9, x1: -9.5, y: 9.4, style: 'walkway' },
+    { x0: 9.5, x1: 17.9, y: 9.4, style: 'walkway' },
+    { x0: -4.5, x1: 4.5, y: 10.6, style: 'walkway' },
+  ] as Platform[],
   spawns: [
-    { x: -5.4, y: 1.1 },
-    { x: 5.4, y: 1.1 },
+    { x: -13.5, y: 1.1 },
+    { x: 11.3, y: 1.2 },
   ],
-  itemSpawns: [
-    { kind: 'keyboard' as ItemKind, x: 0, y: 3.4 },
-    { kind: 'mug' as ItemKind, x: -6.6, y: 1.1 },
-    { kind: 'mug' as ItemKind, x: 6.6, y: 1.1 },
-    { kind: 'monitor' as ItemKind, x: -1.2, y: 0 },
-    { kind: 'monitor' as ItemKind, x: 1.2, y: 0 },
-  ],
+  gunSpawns: [
+    { kind: 'smg', x: -5.4, y: 4.4 },
+    { kind: 'smg', x: 5.4, y: 4.4 },
+    { kind: 'shotgun', x: -8, y: 1.1 },
+    { kind: 'shotgun', x: 16.9, y: 2.8 },
+    { kind: 'railgun', x: 0, y: 7.2 },
+    { kind: 'launcher', x: -13, y: 6.0 },
+    { kind: 'launcher', x: 13, y: 6.0 },
+    { kind: 'railgun', x: -16, y: 9.4 },
+    { kind: 'smg', x: 16, y: 9.4 },
+    { kind: 'shotgun', x: 0, y: 10.6 },
+  ] as { kind: GunKind; x: number; y: number }[],
+  dropEvery: 10,
+  dropSlots: 3,
+  dropKinds: ['smg', 'shotgun', 'railgun', 'launcher'] as GunKind[],
 };
 
 export const RULES = {
   hp: 100,
   kosToWin: 5,
-  roundSeconds: 90,
+  roundSeconds: 150,
   countdownSeconds: 2.4,
-  respawnSeconds: 1.4,
-  spawnInvulnerable: 1.2,
+  respawnSeconds: 1.6,
+  spawnInvulnerable: 1.4,
+  gunRespawn: 12,
 };
 
 export const PHYS = {
@@ -40,14 +73,14 @@ export const PHYS = {
   fastFall: 70,
   maxFall: 24,
   groundAccel: 90,
-  airAccel: 42,
+  airAccel: 50,
   groundFriction: 60,
   airFriction: 8,
   dashSpeed: 19,
-  dashTime: 0.14,
-  dashCooldown: 0.55,
+  dashTime: 0.16,
+  dashCooldown: 0.7,
   wallKickX: 12.5,
-  wallSlide: 4, // max fall speed while hugging glass
+  wallSlide: 4,
   dropTime: 0.25,
 };
 
@@ -55,99 +88,83 @@ export interface CharacterStats {
   name: string;
   speed: number;
   jump: number;
-  weight: number; // knockback divisor
-  reach: number; // multiplier on every melee reach
+  weight: number;
+  hp: number;
   height: number;
   width: number;
   airJumps: number;
 }
 
 export const CHARACTERS: Record<CharacterId, CharacterStats> = {
-  hotfix: { name: 'Hotfix', speed: 9.4, jump: 15, weight: 0.92, reach: 1.18, height: 2.0, width: 0.7, airJumps: 1 },
-  legacy: { name: 'Legacy', speed: 7.4, jump: 13.6, weight: 1.38, reach: 1.0, height: 1.85, width: 1.0, airJumps: 1 },
-  standup: { name: 'Standup', speed: 10.6, jump: 15.6, weight: 0.8, reach: 0.9, height: 1.5, width: 0.7, airJumps: 2 },
-  intern: { name: 'Intern', speed: 9.0, jump: 14.8, weight: 1.0, reach: 1.0, height: 1.7, width: 0.8, airJumps: 1 },
+  hotfix: { name: 'Hotfix', speed: 9.4, jump: 16.5, weight: 0.92, hp: 100, height: 2.0, width: 0.7, airJumps: 1 },
+  legacy: { name: 'Legacy', speed: 7.6, jump: 15.2, weight: 1.38, hp: 100, height: 1.85, width: 1.0, airJumps: 1 },
+  standup: { name: 'Standup', speed: 10.6, jump: 17, weight: 0.8, hp: 100, height: 1.5, width: 0.7, airJumps: 2 },
+  intern: { name: 'Intern', speed: 9.0, jump: 16.2, weight: 1.0, hp: 100, height: 1.7, width: 0.8, airJumps: 1 },
 };
 
-export interface ItemStats {
+export interface GunStats {
   name: string;
-  hands: 1 | 2;
-  /** Movement speed multiplier while holding it. */
-  carrySpeed: number;
-  throwSpeed: number;
-  throwLift: number;
-  throwDamage: number;
-  throwKnockback: number;
-  /** Fraction of frontal damage the item absorbs while held (monitor is a shield). */
-  shield: number;
-  breaksOnImpact: boolean;
-  respawnSeconds: number;
-}
-
-export const ITEMS: Record<ItemKind, ItemStats> = {
-  keyboard: {
-    name: 'Keyboard',
-    hands: 2,
-    carrySpeed: 0.86,
-    throwSpeed: 17,
-    throwLift: 2,
-    throwDamage: 11,
-    throwKnockback: 11,
-    shield: 0,
-    breaksOnImpact: false,
-    respawnSeconds: 0,
-  },
-  mug: {
-    name: 'Hot coffee',
-    hands: 1,
-    carrySpeed: 1,
-    throwSpeed: 13,
-    throwLift: 6,
-    throwDamage: 7,
-    throwKnockback: 5,
-    shield: 0,
-    breaksOnImpact: true,
-    respawnSeconds: 5,
-  },
-  monitor: {
-    name: 'Monitor',
-    hands: 2,
-    carrySpeed: 0.78,
-    throwSpeed: 11,
-    throwLift: 3,
-    throwDamage: 14,
-    throwKnockback: 15,
-    shield: 0.6,
-    breaksOnImpact: false,
-    respawnSeconds: 0,
-  },
-};
-
-export interface AttackStats {
-  duration: number;
-  activeFrom: number;
-  activeTo: number;
-  reach: number;
-  /** Vertical extent of the hitbox, centred on the chest. */
-  span: number;
+  /** Seconds between shots while the trigger is held. */
+  rate: number;
+  mag: number;
+  reserve: number;
+  reloadTime: number;
   damage: number;
   knockback: number;
-  lift: number; // fraction of knockback sent upwards
-  /** Extra knockback per m/s of the attacker's own speed: swinging with momentum. */
-  momentum: number;
-  slow: number;
-  lunge: number;
+  speed: number;
+  spread: number; // radians, random cone
+  pellets: number;
+  life: number;
+  projectile: 'bullet' | 'pellet' | 'rail' | 'grenade';
+  /** Kick back on the shooter, in m/s. */
+  recoil: number;
+  /** Slows your run while you carry it. */
+  carry: number;
 }
 
-export const ATTACKS: Record<'jab' | 'sweep' | 'bash' | 'splash' | 'push', AttackStats> = {
-  jab: { duration: 0.24, activeFrom: 0.05, activeTo: 0.13, reach: 0.95, span: 0.8, damage: 6, knockback: 6.5, lift: 0.3, momentum: 0.2, slow: 0, lunge: 3 },
-  sweep: { duration: 0.5, activeFrom: 0.16, activeTo: 0.34, reach: 2.1, span: 2.2, damage: 15, knockback: 14, lift: 0.45, momentum: 0.6, slow: 0, lunge: 2 },
-  bash: { duration: 0.36, activeFrom: 0.1, activeTo: 0.2, reach: 1.15, span: 1.4, damage: 10, knockback: 17, lift: 0.2, momentum: 0.5, slow: 0, lunge: 7 },
-  splash: { duration: 0.3, activeFrom: 0.06, activeTo: 0.16, reach: 1.25, span: 1.2, damage: 4, knockback: 3, lift: 0.2, momentum: 0, slow: 1.8, lunge: 0 },
-  push: { duration: 0.32, activeFrom: 0.1, activeTo: 0.17, reach: 2.3, span: 1.8, damage: 3, knockback: 23, lift: 0.18, momentum: 0, slow: 0, lunge: 0 },
+/** Lethal on purpose: two pistol hits drop anyone, a rocket or a rail drops them in one. */
+export const GUNS: Record<GunKind, GunStats> = {
+  pistol: { name: 'Pistol', rate: 0.38, mag: 8, reserve: Infinity, reloadTime: 1, damage: 50, knockback: 4, speed: 30, spread: 0.02, pellets: 1, life: 1.3, projectile: 'bullet', recoil: 0, carry: 1 },
+  smg: { name: 'SMG', rate: 0.11, mag: 20, reserve: 40, reloadTime: 1.4, damage: 34, knockback: 2.5, speed: 32, spread: 0.1, pellets: 1, life: 1, projectile: 'bullet', recoil: 0.4, carry: 0.97 },
+  shotgun: { name: 'Shotgun', rate: 0.9, mag: 4, reserve: 8, reloadTime: 1.5, damage: 20, knockback: 4, speed: 28, spread: 0.26, pellets: 6, life: 0.32, projectile: 'pellet', recoil: 7, carry: 0.93 },
+  railgun: { name: 'Railgun', rate: 1.6, mag: 2, reserve: 2, reloadTime: 1.8, damage: 100, knockback: 14, speed: 160, spread: 0, pellets: 1, life: 0.35, projectile: 'rail', recoil: 9, carry: 0.88 },
+  launcher: { name: 'Launcher', rate: 1.1, mag: 1, reserve: 3, reloadTime: 1.1, damage: 110, knockback: 22, speed: 20, spread: 0.02, pellets: 1, life: 3, projectile: 'grenade', recoil: 4, carry: 0.88 },
 };
 
-export const PUSH_COOLDOWN = 3;
+/** How much noise each thing makes, and how fast the office calms down. */
+export const NOISE = {
+  max: 100,
+  decay: 7, // per second
+  shot: { pistol: 7, smg: 3.5, shotgun: 12, railgun: 16, launcher: 8 } as Record<GunKind, number>,
+  explosion: 22,
+  wallSplat: 14,
+  push: 3,
+  ko: 6,
+};
+
+export const CTO = {
+  /** Where the glass office is (render and walking start point). */
+  officeX: 6.4,
+  coming: 2.5, // warning: they get up and walk out
+  watching: 6,
+  leaving: 2,
+  cooldown: 10,
+  walkSpeed: 3,
+};
+
+export const GRENADE = { gravity: 26, radius: 2.8, selfDamage: 0.45 };
+
+export const PUSH = {
+  cooldown: 2.5,
+  duration: 0.3,
+  activeFrom: 0.06,
+  activeTo: 0.2,
+  reach: 2.4,
+  span: 2.4,
+  damage: 4,
+  knockback: 24,
+  lift: 0.2,
+};
+
 export const WALL_SPLAT_SPEED = 11;
-export const WALL_SPLAT_DAMAGE = 12;
-export const SLOW_FACTOR = 0.55;
+export const WALL_SPLAT_DAMAGE = 30;

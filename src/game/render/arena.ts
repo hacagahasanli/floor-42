@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 
-import { ARENA } from '../sim/constants';
+import { ARENA, CTO } from '../sim/constants';
 
 import { mat, mesh, PALETTE } from './palette';
+
+import type { Platform } from '../sim/constants';
 
 const canvasTexture = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => {
   const c = document.createElement('canvas');
@@ -15,11 +17,19 @@ const canvasTexture = (w: number, h: number, draw: (g: CanvasRenderingContext2D)
   return t;
 };
 
-/** Seeded so the skyline is the same every load. */
+/** Seeded so the skyline and decor are the same every load. */
 const rng = (seed: number) => () => {
   seed = (seed * 16807) % 2147483647;
   return (seed - 1) / 2147483646;
 };
+
+const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
+const put = <T extends THREE.Object3D>(o: T, x: number, y: number, z: number) => {
+  o.position.set(x, y, z);
+  return o;
+};
+
+const BACK_Z = -3.4;
 
 const buildCity = (scene: THREE.Scene) => {
   const sky = canvasTexture(4, 256, (g) => {
@@ -31,8 +41,8 @@ const buildCity = (scene: THREE.Scene) => {
     g.fillStyle = grad;
     g.fillRect(0, 0, 4, 256);
   });
-  const skyPlane = new THREE.Mesh(new THREE.PlaneGeometry(400, 140), new THREE.MeshBasicMaterial({ map: sky, fog: false }));
-  skyPlane.position.set(0, 10, -110);
+  const skyPlane = new THREE.Mesh(new THREE.PlaneGeometry(500, 160), new THREE.MeshBasicMaterial({ map: sky, fog: false }));
+  skyPlane.position.set(0, 12, -120);
   scene.add(skyPlane);
 
   const facade = canvasTexture(64, 128, (g) => {
@@ -52,9 +62,9 @@ const buildCity = (scene: THREE.Scene) => {
 
   const r = rng(42);
   const geo = new THREE.BoxGeometry(1, 1, 1);
-  for (let i = 0; i < 46; i++) {
+  for (let i = 0; i < 60; i++) {
     const w = 4 + r() * 7;
-    const h = 8 + r() * 34;
+    const h = 10 + r() * 36;
     const d = 4 + r() * 6;
     const tex = facade.clone();
     tex.repeat.set(Math.max(1, Math.round(w / 3)), Math.max(1, Math.round(h / 6)));
@@ -62,50 +72,160 @@ const buildCity = (scene: THREE.Scene) => {
     const b = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex }));
     const row = i % 2;
     b.scale.set(w, h, d);
-    b.position.set(-90 + i * 4 + r() * 3, h / 2 - 34 + row * 2, -32 - row * 22 - r() * 10);
+    b.position.set(-120 + i * 4 + r() * 3, h / 2 - 36 + row * 2, -34 - row * 22 - r() * 10);
     scene.add(b);
   }
 };
 
-const buildDesk = (x0: number, x1: number, y: number) => {
-  const g = new THREE.Group();
-  const w = x1 - x0;
-  const top = mesh(new THREE.BoxGeometry(w, 0.08, 1.5), mat(PALETTE.paper));
-  top.position.set((x0 + x1) / 2, y - 0.04, -0.3);
-  g.add(top);
-  const edge = mesh(new THREE.BoxGeometry(w, 0.04, 0.04), mat(PALETTE.ink), false);
-  edge.position.set((x0 + x1) / 2, y - 0.06, 0.45);
-  g.add(edge);
+// ---------- Furniture, one builder per platform style. Top surface sits at p.y. ----------
+
+const legs = (g: THREE.Group, x0: number, x1: number, h: number, z0: number, z1: number, color = PALETTE.ink) => {
   for (const lx of [x0 + 0.12, x1 - 0.12]) {
-    for (const lz of [-0.95, 0.35]) {
-      const leg = mesh(new THREE.BoxGeometry(0.07, y - 0.08, 0.07), mat(PALETTE.ink));
-      leg.position.set(lx, (y - 0.08) / 2, lz);
-      g.add(leg);
-    }
+    for (const lz of [z0, z1]) g.add(put(mesh(box(0.07, h, 0.07), mat(color)), lx, h / 2, lz));
   }
-  // Clutter at the back of the desk: a lamp, papers, a plant.
-  const lamp = new THREE.Group();
-  const lampArm = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 5), mat(PALETTE.ink));
-  lampArm.position.y = 0.25;
-  lampArm.rotation.z = 0.3;
+};
+
+const lamp = (x: number, y: number, z: number) => {
+  const g = new THREE.Group();
+  const arm = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 5), mat(PALETTE.ink));
+  arm.position.y = 0.25;
+  arm.rotation.z = 0.3;
   const shade = mesh(new THREE.ConeGeometry(0.14, 0.16, 7, 1, true), mat(PALETTE.gold, { emissive: 0x5a4000 }));
   shade.position.set(-0.08, 0.5, 0);
   shade.rotation.z = -0.6;
-  lamp.add(lampArm, shade);
-  lamp.position.set(x0 + 0.5, y, -0.85);
-  g.add(lamp);
-  const papers = mesh(new THREE.BoxGeometry(0.5, 0.05, 0.36), mat(PALETTE.white));
-  papers.position.set(x1 - 1.0, y + 0.025, -0.75);
-  papers.rotation.y = 0.2;
-  g.add(papers);
-  return g;
+  g.add(arm, shade);
+  return put(g, x, y, z);
+};
+
+const books = (g: THREE.Group, x0: number, x1: number, y: number, z: number, seed: number) => {
+  const r = rng(seed);
+  const cols = [PALETTE.red, PALETTE.blue, PALETTE.gold, PALETTE.green, PALETTE.lilac, PALETTE.orange];
+  let x = x0 + 0.08;
+  while (x < x1 - 0.12) {
+    const w = 0.06 + r() * 0.08;
+    const h = 0.3 + r() * 0.2;
+    g.add(put(mesh(box(w, h, 0.32), mat(cols[Math.floor(r() * cols.length)]), false), x + w / 2, y + h / 2, z));
+    x += w + 0.01;
+  }
+};
+
+const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
+  desk: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    g.add(put(mesh(box(w, 0.08, 1.5), mat(PALETTE.paper)), cx, p.y - 0.04, -0.3));
+    g.add(put(mesh(box(w, 0.04, 0.04), mat(PALETTE.ink), false), cx, p.y - 0.06, 0.45));
+    legs(g, p.x0, p.x1, p.y - 0.08, -0.95, 0.35);
+    g.add(lamp(p.x0 + 0.4, p.y, -0.85));
+    g.add(put(mesh(box(0.5, 0.05, 0.36), mat(PALETTE.white)), p.x1 - 1.1, p.y + 0.025, -0.75));
+    // A drawer unit under one end.
+    g.add(put(mesh(box(0.5, p.y - 0.15, 0.6), mat(PALETTE.lilac)), p.x1 - 0.45, (p.y - 0.15) / 2, -0.5));
+    return g;
+  },
+  table: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    g.add(put(mesh(box(w, 0.1, 1.8), mat(0xb8875a)), cx, p.y - 0.05, -0.4));
+    for (const lx of [p.x0 + 0.6, p.x1 - 0.6]) g.add(put(mesh(box(0.14, p.y - 0.1, 0.9), mat(PALETTE.ink)), lx, (p.y - 0.1) / 2, -0.4));
+    // A speakerphone in the middle of the meeting.
+    g.add(put(mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.06, 3), mat(PALETTE.ink)), cx, p.y + 0.03, -0.9));
+    return g;
+  },
+  counter: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    g.add(put(mesh(box(w, 0.08, 1.2), mat(PALETTE.stone)), cx, p.y - 0.04, -0.5));
+    g.add(put(mesh(box(w - 0.1, p.y - 0.08, 1.1), mat(PALETTE.paper)), cx, (p.y - 0.08) / 2, -0.55));
+    for (let x = p.x0 + 0.6; x < p.x1; x += 1.1) g.add(put(mesh(box(0.25, 0.03, 0.03), mat(PALETTE.ink), false), x, p.y - 0.25, 0.01));
+    // The coffee machine that keeps producing ammunition.
+    const machine = new THREE.Group();
+    machine.add(put(mesh(box(0.6, 0.7, 0.5), mat(PALETTE.ink)), 0, 0.35, 0));
+    machine.add(put(mesh(box(0.4, 0.1, 0.3), mat(PALETTE.stone)), 0, 0.05, 0.2));
+    machine.add(put(new THREE.Mesh(box(0.2, 0.08, 0.01), new THREE.MeshBasicMaterial({ color: 0x52e08a })), 0, 0.55, 0.26));
+    g.add(put(machine, cx + 0.2, p.y, -0.85));
+    return g;
+  },
+  fridge: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    g.add(put(mesh(box(w, p.y, 1), mat(0xe6e0d4)), cx, p.y / 2, -0.7));
+    g.add(put(mesh(box(0.05, 0.9, 0.06), mat(PALETTE.stone)), p.x0 + 0.2, p.y * 0.6, -0.17));
+    const r = rng(3);
+    for (let i = 0; i < 4; i++) {
+      const note = mesh(box(0.22, 0.22, 0.01), mat([PALETTE.gold, 0xff9ac0, 0x9ad0ff, 0xb6f09a][i]), false);
+      note.position.set(p.x0 + 0.5 + r() * (w - 0.8), 0.9 + r() * 1.3, -0.19);
+      note.rotation.z = (r() - 0.5) * 0.4;
+      g.add(note);
+    }
+    return g;
+  },
+  shelf: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    g.add(put(mesh(box(w, p.y, 0.5), mat(0x8a6a4a)), cx, p.y / 2, -2.6));
+    for (let y = 0.25; y < p.y - 0.3; y += 0.8) {
+      g.add(put(mesh(box(w - 0.1, 0.05, 0.45), mat(0x6a503a)), cx, y, -2.4));
+      books(g, p.x0, p.x1, y + 0.03, -2.4, Math.round(y * 100));
+    }
+    // The top: deep enough to stand on.
+    g.add(put(mesh(box(w, 0.1, 1.4), mat(0x8a6a4a)), cx, p.y - 0.05, -2.1));
+    return g;
+  },
+  cabinet: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    g.add(put(mesh(box(w, 0.9, 0.6), mat(PALETTE.lilac)), cx, p.y - 0.45, -2.9));
+    g.add(put(mesh(box(w, 0.08, 1.4), mat(PALETTE.paper)), cx, p.y - 0.04, -2.3));
+    for (let x = p.x0 + 0.5; x < p.x1; x += 1) g.add(put(mesh(box(0.04, 0.2, 0.04), mat(PALETTE.ink), false), x, p.y - 0.5, -2.58));
+    for (const bx of [p.x0 + 0.2, p.x1 - 0.2]) g.add(put(mesh(box(0.05, 0.4, 0.6), mat(PALETTE.ink)), bx, p.y - 0.2, -2.3));
+    return g;
+  },
+  walkway: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    g.add(put(mesh(box(w, 0.12, 1.4), mat(PALETTE.stone)), cx, p.y - 0.06, -0.6));
+    g.add(put(mesh(box(w, 0.05, 1.42), mat(PALETTE.ink), false), cx, p.y - 0.14, -0.6));
+    // Back rail only, so nothing hides the fight.
+    g.add(put(mesh(box(w, 0.05, 0.05), mat(PALETTE.ink), false), cx, p.y + 1, -1.28));
+    for (let x = p.x0 + 0.2; x <= p.x1; x += 1.4) g.add(put(mesh(box(0.05, 1, 0.05), mat(PALETTE.ink), false), x, p.y + 0.5, -1.28));
+    // Hung from the ceiling.
+    for (const x of [p.x0 + 0.3, p.x1 - 0.3]) {
+      g.add(put(mesh(new THREE.CylinderGeometry(0.025, 0.025, ARENA.ceiling - p.y, 5), mat(PALETTE.ink), false), x, (ARENA.ceiling + p.y) / 2, -0.6));
+    }
+    return g;
+  },
+  tray: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    g.add(put(mesh(box(w, 0.06, 0.9), mat(PALETTE.stone)), cx, p.y - 0.03, -0.3));
+    g.add(put(mesh(box(w, 0.16, 0.04), mat(PALETTE.ink), false), cx, p.y + 0.02, -0.75));
+    for (const x of [p.x0 + 0.2, p.x1 - 0.2]) {
+      g.add(put(mesh(new THREE.CylinderGeometry(0.025, 0.025, ARENA.ceiling - p.y, 5), mat(PALETTE.ink), false), x, p.y + (ARENA.ceiling - p.y) / 2, -0.3));
+    }
+    [PALETTE.gold, PALETTE.blue, PALETTE.red, PALETTE.green].forEach((col, i) => {
+      const xa = p.x0 + 0.2 + i * 0.7;
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(xa, p.y - 0.05, -0.4 + i * 0.1),
+        new THREE.Vector3(xa + 0.4, p.y - 0.6 - i * 0.12, -0.4 + i * 0.1),
+        new THREE.Vector3(xa + 0.8, p.y - 0.05, -0.4 + i * 0.1),
+      ]);
+      g.add(mesh(new THREE.TubeGeometry(curve, 12, 0.03, 5), mat(col), false));
+    });
+    return g;
+  },
 };
 
 const buildPlant = (x: number, z: number, scale = 1) => {
   const g = new THREE.Group();
-  const pot = mesh(new THREE.CylinderGeometry(0.28, 0.22, 0.5, 8), mat(PALETTE.orange));
-  pot.position.y = 0.25;
-  g.add(pot);
+  g.add(put(mesh(new THREE.CylinderGeometry(0.28, 0.22, 0.5, 8), mat(PALETTE.orange)), 0, 0.25, 0));
   const r = rng(Math.round(x * 100 + 999));
   for (let i = 0; i < 7; i++) {
     const leaf = mesh(new THREE.ConeGeometry(0.16, 0.9, 4), mat(i % 2 ? PALETTE.green : 0x3f8f5f));
@@ -114,9 +234,8 @@ const buildPlant = (x: number, z: number, scale = 1) => {
     leaf.rotation.set(Math.sin(a) * 0.5, r(), -Math.cos(a) * 0.5);
     g.add(leaf);
   }
-  g.position.set(x, 0, z);
   g.scale.setScalar(scale);
-  return g;
+  return put(g, x, 0, z);
 };
 
 const crackTexture = () =>
@@ -152,25 +271,93 @@ export interface ArenaView {
   crack: (side: -1 | 1, y: number) => void;
   update: (dt: number, time: number) => void;
   markers: THREE.Mesh[];
+  /** Turns the CTO office alarm on or off. */
+  setAlarm: (on: boolean) => void;
 }
+
+/** Where the CTO sits, and the door they walk out of. */
+export const CTO_OFFICE = {
+  x0: CTO.officeX - 2,
+  x1: CTO.officeX + 2.2,
+  front: -1.1,
+  seat: { x: CTO.officeX + 0.9, z: -2.1 },
+  door: { x: CTO.officeX - 1.5, z: -1.1 },
+  height: 3.2,
+};
+
+const buildCtoOffice = (scene: THREE.Scene) => {
+  const o = CTO_OFFICE;
+  const g = new THREE.Group();
+  const w = o.x1 - o.x0;
+  const cx = (o.x0 + o.x1) / 2;
+  const back = BACK_Z + 0.2;
+  const depth = o.front - back;
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0xbfe0ff,
+    transparent: true,
+    opacity: 0.18,
+    roughness: 0.05,
+    metalness: 0.4,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  // Front glass, with the door gap on the left.
+  const doorW = 1.1;
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(w - doorW, o.height), glassMat);
+  g.add(put(front, cx + doorW / 2, o.height / 2, o.front));
+  for (const side of [o.x0, o.x1]) {
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(depth, o.height), glassMat);
+    pane.rotation.y = Math.PI / 2;
+    g.add(put(pane, side, o.height / 2, back + depth / 2));
+  }
+  // Frame.
+  const frame = mat(PALETTE.ink);
+  g.add(put(mesh(box(w, 0.08, depth), frame, false), cx, o.height, back + depth / 2));
+  for (const x of [o.x0, o.x0 + doorW, o.x1]) g.add(put(mesh(box(0.08, o.height, 0.08), frame, false), x, o.height / 2, o.front));
+  // Carpet, desk, monitor, a good chair.
+  g.add(put(mesh(box(w - 0.1, 0.02, depth - 0.1), mat(0x3a2f4a)), cx, 0.01, back + depth / 2));
+  g.add(put(mesh(box(1.6, 0.06, 0.8), mat(0x6a4a30)), o.seat.x - 0.1, 0.78, o.seat.z + 0.75));
+  g.add(put(mesh(box(1.4, 0.74, 0.7), mat(0x5a3e28)), o.seat.x - 0.1, 0.38, o.seat.z + 0.75));
+  const screen = put(mesh(box(0.7, 0.42, 0.04), mat(PALETTE.ink)), o.seat.x - 0.1, 1.08, o.seat.z + 1.05);
+  screen.rotation.y = Math.PI;
+  g.add(screen);
+  g.add(put(mesh(box(0.6, 0.9, 0.12), mat(0x14161c)), o.seat.x, 0.95, o.seat.z - 0.3));
+  // Name on the glass.
+  const label = canvasTexture(256, 64, (c) => {
+    c.clearRect(0, 0, 256, 64);
+    c.fillStyle = 'rgba(255,255,255,0.85)';
+    c.font = 'bold 40px sans-serif';
+    c.textAlign = 'center';
+    c.fillText('CTO', 128, 46);
+  });
+  g.add(put(new THREE.Mesh(new THREE.PlaneGeometry(1, 0.25), new THREE.MeshBasicMaterial({ map: label, transparent: true })), cx + 0.6, o.height - 0.4, o.front + 0.01));
+  // The alarm lamp on the roof.
+  const lampMat = new THREE.MeshBasicMaterial({ color: 0x551111 });
+  const lamp = put(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.22, 10), lampMat), o.x0 + 0.6, o.height + 0.15, o.front - 0.3);
+  g.add(lamp);
+  const glow = new THREE.PointLight(0xff3344, 0, 9);
+  g.add(put(glow, o.x0 + 0.6, o.height + 0.5, o.front + 0.4));
+  scene.add(g);
+  return { lampMat, glow };
+};
 
 export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => {
   scene.background = new THREE.Color(0x1f1d3a);
-  scene.fog = new THREE.Fog(0x4a3f6b, 40, 120);
+  scene.fog = new THREE.Fog(0x4a3f6b, 45, 130);
 
   // Light: a cool sky fill, a warm key with shadows, and a dusk rim from the city.
   scene.add(new THREE.HemisphereLight(0xe6ecff, 0x8a7a66, 1.25));
   const key = new THREE.DirectionalLight(0xfff1dc, 2.1);
-  key.position.set(-6, 16, 12);
+  key.position.set(-6, 22, 14);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   const sc = key.shadow.camera;
-  sc.left = -13;
-  sc.right = 13;
-  sc.top = 12;
-  sc.bottom = -4;
+  sc.left = -21;
+  sc.right = 21;
+  sc.top = 17;
+  sc.bottom = -6;
   sc.near = 1;
-  sc.far = 50;
+  sc.far = 60;
   key.shadow.bias = -0.0005;
   scene.add(key);
   const rim = new THREE.DirectionalLight(0xff9a5a, 0.9);
@@ -182,63 +369,45 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   const W = ARENA.right - ARENA.left;
   const H = ARENA.ceiling;
 
-  // Floor with tiles.
   const tiles = canvasTexture(128, 128, (g) => {
-    g.fillStyle = '#f1ebdf';
+    g.fillStyle = '#c9cfdb';
     g.fillRect(0, 0, 128, 128);
-    g.strokeStyle = '#ddd3c2';
+    g.strokeStyle = '#aeb6c6';
     g.lineWidth = 3;
     g.strokeRect(0, 0, 128, 128);
   });
   tiles.wrapS = THREE.RepeatWrapping;
   tiles.wrapT = THREE.RepeatWrapping;
-  tiles.repeat.set(W / 1.5, 4);
-  const floor = new THREE.Mesh(
-    new THREE.BoxGeometry(W + 1.2, 0.5, 6),
-    new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.9 }),
-  );
-  floor.position.set(0, -0.25, -0.4);
-  // The building below floor 42: a dark slab, so the city only shows through the windows.
-  const slab = mesh(new THREE.BoxGeometry(W + 6, 12, 0.6), mat(PALETTE.ink), false);
-  slab.position.set(0, -6.5, 2.4);
-  scene.add(slab);
+  tiles.repeat.set(W / 1.5, 4.5);
+  const floor = new THREE.Mesh(box(W + 1.2, 0.5, 6.6), new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.9 }));
+  floor.position.set(0, -0.25, -0.5);
   floor.receiveShadow = true;
   scene.add(floor);
-  const lip = mesh(new THREE.BoxGeometry(W + 1.2, 0.1, 0.1), mat(PALETTE.ink), false);
-  lip.position.set(0, -0.02, 2.6);
-  scene.add(lip);
+  scene.add(put(mesh(box(W + 1.2, 0.1, 0.1), mat(PALETTE.ink), false), 0, -0.02, 2.8));
+  // The building below floor 42.
+  scene.add(put(mesh(box(W + 10, 14, 0.6), mat(PALETTE.ink), false), 0, -7.5, 2.6));
 
-  // Ceiling with light panels.
-  const ceiling = mesh(new THREE.BoxGeometry(W + 1.2, 0.4, 6), mat(PALETTE.cream));
-  ceiling.position.set(0, H + 0.2, -0.4);
-  scene.add(ceiling);
-  for (let x = -7.5; x <= 7.5; x += 5) {
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.04, 1), new THREE.MeshBasicMaterial({ color: 0xfff6e0 }));
-    panel.position.set(x, H - 0.01, -0.5);
-    scene.add(panel);
+  scene.add(put(mesh(box(W + 1.2, 0.4, 6.6), mat(PALETTE.cream)), 0, H + 0.2, -0.5));
+  for (let x = ARENA.left + 3; x <= ARENA.right - 3; x += 6) {
+    scene.add(put(new THREE.Mesh(box(2.6, 0.04, 1), new THREE.MeshBasicMaterial({ color: 0xfff6e0 })), x, H - 0.01, -0.6));
+  }
+  // Ceiling vents: IT supplies drop out of these.
+  for (let x = ARENA.left + 6; x < ARENA.right; x += 12) {
+    scene.add(put(mesh(box(1.4, 0.06, 0.9), mat(PALETTE.inkSoft), false), x, H - 0.02, 0.4));
+    for (let i = -2; i <= 2; i++) scene.add(put(mesh(box(1.2, 0.02, 0.05), mat(PALETTE.stone), false), x, H - 0.06, 0.4 + i * 0.15));
   }
 
   // Back wall: a low sill, pillars, floor-to-ceiling windows onto the city.
-  const sill = mesh(new THREE.BoxGeometry(W, 0.6, 0.3), mat(PALETTE.cream));
-  sill.position.set(0, 0.3, -3.1);
-  scene.add(sill);
-  for (let x = ARENA.left; x <= ARENA.right; x += 5) {
-    const pillar = mesh(new THREE.BoxGeometry(0.45, H, 0.45), mat(PALETTE.lilac));
-    pillar.position.set(x, H / 2, -3.1);
-    scene.add(pillar);
-  }
-  const mullion = mat(PALETTE.ink);
-  const transom = mesh(new THREE.BoxGeometry(W, 0.08, 0.1), mullion, false);
-  transom.position.set(0, 5.2, -3.15);
-  scene.add(transom);
+  scene.add(put(mesh(box(W, 0.6, 0.3), mat(PALETTE.cream)), 0, 0.3, BACK_Z));
+  for (let x = ARENA.left; x <= ARENA.right + 0.01; x += 6) scene.add(put(mesh(box(0.5, H, 0.5), mat(PALETTE.lilac)), x, H / 2, BACK_Z));
+  for (const ty of [5.6, 9.4]) scene.add(put(mesh(box(W, 0.08, 0.1), mat(PALETTE.ink), false), 0, ty, BACK_Z - 0.05));
   const windowGlass = new THREE.Mesh(
     new THREE.PlaneGeometry(W, H - 0.6),
     new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.08, depthWrite: false }),
   );
-  windowGlass.position.set(0, 0.6 + (H - 0.6) / 2, -3.2);
-  scene.add(windowGlass);
+  scene.add(put(windowGlass, 0, 0.6 + (H - 0.6) / 2, BACK_Z - 0.1));
 
-  // A whiteboard with the conflict that started this.
+  // The whiteboard with the conflict that started all this.
   const board = canvasTexture(512, 300, (g) => {
     g.fillStyle = '#fdfbf4';
     g.fillRect(0, 0, 512, 300);
@@ -264,14 +433,9 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
     g.font = 'bold 30px sans-serif';
     g.fillText('FIGHT', 330, 130);
   });
-  const boardMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2), new THREE.MeshStandardMaterial({ map: board, roughness: 0.6 }));
-  boardMesh.position.set(-7.5, 4.9, -2.8);
-  scene.add(boardMesh);
-  const boardFrame = mesh(new THREE.BoxGeometry(3.55, 2.15, 0.06), mat(PALETTE.stone));
-  boardFrame.position.set(-7.5, 4.9, -2.84);
-  scene.add(boardFrame);
+  scene.add(put(new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2), new THREE.MeshStandardMaterial({ map: board, roughness: 0.6 })), -4.5, 2.6, BACK_Z + 0.32));
+  scene.add(put(mesh(box(3.55, 2.15, 0.06), mat(PALETTE.stone)), -4.5, 2.6, BACK_Z + 0.28));
 
-  // Floor sign over the windows.
   const sign = canvasTexture(1024, 128, (g) => {
     g.fillStyle = '#2a2733';
     g.fillRect(0, 0, 1024, 128);
@@ -283,9 +447,7 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
     g.font = '40px ui-monospace, Menlo, monospace';
     g.fillText('agents-know · merge room', 420, 68);
   });
-  const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 0.9), new THREE.MeshBasicMaterial({ map: sign }));
-  signMesh.position.set(3.2, 7.2, -2.85);
-  scene.add(signMesh);
+  scene.add(put(new THREE.Mesh(new THREE.PlaneGeometry(7.2, 0.9), new THREE.MeshBasicMaterial({ map: sign })), 0, 12.4, BACK_Z + 0.3));
 
   // Side glass walls you can wall-kick off.
   const cracks: { mesh: THREE.Mesh; life: number }[] = [];
@@ -293,30 +455,13 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   for (const side of [-1, 1] as const) {
     const x = side < 0 ? ARENA.left : ARENA.right;
     const glass = new THREE.Mesh(
-      new THREE.PlaneGeometry(6, H),
-      new THREE.MeshStandardMaterial({
-        color: 0xbfe0ff,
-        transparent: true,
-        opacity: 0.22,
-        roughness: 0.1,
-        metalness: 0.3,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
+      new THREE.PlaneGeometry(6.4, H),
+      new THREE.MeshStandardMaterial({ color: 0xbfe0ff, transparent: true, opacity: 0.22, roughness: 0.1, metalness: 0.3, depthWrite: false, side: THREE.DoubleSide }),
     );
     glass.rotation.y = Math.PI / 2;
-    glass.position.set(x, H / 2, -0.4);
-    scene.add(glass);
-    for (const z of [-3.3, 2.5]) {
-      const post = mesh(new THREE.BoxGeometry(0.16, H, 0.16), mat(PALETTE.ink));
-      post.position.set(x, H / 2, z);
-      scene.add(post);
-    }
-    for (const y of [0.05, H - 0.05, 3]) {
-      const rail = mesh(new THREE.BoxGeometry(0.12, 0.08, 5.8), mat(PALETTE.ink), false);
-      rail.position.set(x, y, -0.4);
-      scene.add(rail);
-    }
+    scene.add(put(glass, x, H / 2, -0.5));
+    for (const z of [-3.6, 2.7]) scene.add(put(mesh(box(0.16, H, 0.16), mat(PALETTE.ink)), x, H / 2, z));
+    for (const y of [0.05, H - 0.05, 3.5, 7, 10.5]) scene.add(put(mesh(box(0.12, 0.08, 6.2), mat(PALETTE.ink), false), x, y, -0.5));
     for (let i = 0; i < 3; i++) {
       const crack = new THREE.Mesh(
         new THREE.PlaneGeometry(2.4, 2.4),
@@ -330,69 +475,48 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
     }
   }
 
-  // Desks and the hanging cable tray.
-  scene.add(buildDesk(ARENA.platforms[0].x0, ARENA.platforms[0].x1, ARENA.platforms[0].y));
-  scene.add(buildDesk(ARENA.platforms[1].x0, ARENA.platforms[1].x1, ARENA.platforms[1].y));
-  const tray = ARENA.platforms[2];
-  const trayGroup = new THREE.Group();
-  const grate = mesh(new THREE.BoxGeometry(tray.x1 - tray.x0, 0.06, 0.9), mat(PALETTE.stone));
-  grate.position.set(0, tray.y - 0.03, -0.2);
-  trayGroup.add(grate);
-  for (const z of [-0.65, 0.25]) {
-    const lipM = mesh(new THREE.BoxGeometry(tray.x1 - tray.x0, 0.16, 0.04), mat(PALETTE.ink), false);
-    lipM.position.set(0, tray.y + 0.02, z);
-    trayGroup.add(lipM);
-  }
-  for (const x of [tray.x0 + 0.2, tray.x1 - 0.2]) {
-    const rod = mesh(new THREE.CylinderGeometry(0.025, 0.025, H - tray.y, 5), mat(PALETTE.ink), false);
-    rod.position.set(x, tray.y + (H - tray.y) / 2, -0.2);
-    trayGroup.add(rod);
-  }
-  const cableColors = [PALETTE.gold, PALETTE.blue, PALETTE.red, PALETTE.green];
-  cableColors.forEach((col, i) => {
-    const xa = tray.x0 + 0.3 + i * 0.9;
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(xa, tray.y - 0.05, -0.3 + i * 0.1),
-      new THREE.Vector3(xa + 0.5, tray.y - 0.6 - i * 0.12, -0.3 + i * 0.1),
-      new THREE.Vector3(xa + 1.0, tray.y - 0.05, -0.3 + i * 0.1),
-    ]);
-    trayGroup.add(mesh(new THREE.TubeGeometry(curve, 12, 0.03, 5), mat(col), false));
-  });
-  scene.add(trayGroup);
+  for (const p of ARENA.platforms) scene.add(FURNITURE[p.style](p));
 
-  // Corners: plants and a water cooler.
-  scene.add(buildPlant(-9.3, -2.2, 1.1));
-  scene.add(buildPlant(9.2, -2.3, 0.9));
+  // Decor that is not a platform.
+  scene.add(buildPlant(-10.6, -2.6, 1.1));
+  scene.add(buildPlant(7.6, -2.6, 0.9));
+  const printer = new THREE.Group();
+  printer.add(put(mesh(box(1, 0.8, 0.7), mat(PALETTE.paper)), 0, 0.4, 0));
+  printer.add(put(mesh(box(0.8, 0.05, 0.4), mat(PALETTE.white)), 0, 0.82, 0.1));
+  printer.add(put(new THREE.Mesh(box(0.1, 0.06, 0.01), new THREE.MeshBasicMaterial({ color: 0xff6464 })), 0.3, 0.6, 0.36));
+  scene.add(put(printer, -6.6, 0, -2.6));
   const cooler = new THREE.Group();
-  const cBody = mesh(new THREE.BoxGeometry(0.6, 1.1, 0.6), mat(PALETTE.paper));
-  cBody.position.y = 0.55;
-  const jug = mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.55, 9), mat(0x7ea6e0, { opacity: 0.7 }));
-  jug.position.y = 1.38;
-  cooler.add(cBody, jug);
-  cooler.position.set(8.2, 0, -2.4);
-  scene.add(cooler);
+  cooler.add(put(mesh(box(0.6, 1.1, 0.6), mat(PALETTE.paper)), 0, 0.55, 0));
+  cooler.add(put(mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.55, 9), mat(0x7ea6e0, { opacity: 0.7 })), 0, 1.38, 0));
+  scene.add(put(cooler, -1.2, 0, -2.8));
 
-  // Pulsing floor markers under pick-up-able items.
+  // Pulsing floor markers under items you can pick up.
   const markers: THREE.Mesh[] = [];
   for (let i = 0; i < itemCount; i++) {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.32, 0.42, 20),
-      new THREE.MeshBasicMaterial({ color: PALETTE.gold, transparent: true, opacity: 0.7, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: PALETTE.gold, transparent: true, opacity: 0.75, depthWrite: false }),
     );
     ring.rotation.x = -Math.PI / 2;
     scene.add(ring);
     markers.push(ring);
   }
 
+  const office = buildCtoOffice(scene);
+  let alarm = false;
+
   let nextCrack = 0;
   return {
     markers,
+    setAlarm: (on) => {
+      alarm = on;
+    },
     crack: (side, y) => {
       const candidates = cracks.filter((c) => c.mesh.userData.side === side);
       const c = candidates[nextCrack++ % candidates.length];
       c.life = 5;
       c.mesh.position.y = y;
-      c.mesh.position.z = -0.4 + ((nextCrack * 1.7) % 3) - 1.5;
+      c.mesh.position.z = -0.5 + ((nextCrack * 1.7) % 3) - 1.5;
       c.mesh.rotation.x = nextCrack;
     },
     update: (dt, time) => {
@@ -400,10 +524,11 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
         c.life = Math.max(0, c.life - dt);
         (c.mesh.material as THREE.MeshBasicMaterial).opacity = Math.min(1, c.life / 1.5) * 0.9;
       }
-      for (const m of markers) {
-        const s = 1 + Math.sin(time * 5) * 0.12;
-        m.scale.set(s, s, s);
-      }
+      const s = 1 + Math.sin(time * 5) * 0.12;
+      for (const m of markers) m.scale.set(s, s, s);
+      const blink = alarm && Math.sin(time * 14) > 0;
+      office.lampMat.color.setHex(blink ? 0xff3344 : alarm ? 0x991a22 : 0x551111);
+      office.glow.intensity = blink ? 6 : 0;
     },
   };
 };

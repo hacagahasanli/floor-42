@@ -28,6 +28,9 @@ const COLORS = {
   dust: 0xe8e2d6,
   guard: 0x7ea6e0,
   ko: PALETTE.gold,
+  dirt: 0x6a4a30,
+  leaf: PALETTE.green,
+  foam: 0xf4f6fa,
 } as const;
 
 export type ParticleColor = keyof typeof COLORS;
@@ -40,7 +43,7 @@ export const createVfx = (scene: THREE.Scene) => {
   ) as Record<ParticleColor, THREE.MeshBasicMaterial>;
 
   const pool: Particle[] = [];
-  for (let i = 0; i < 260; i++) {
+  for (let i = 0; i < 360; i++) {
     const m = new THREE.Mesh(geo, mats.spark);
     m.visible = false;
     scene.add(m);

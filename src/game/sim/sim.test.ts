@@ -1,14 +1,12 @@
 import { createBot } from './bot';
-import { ARENA, DT, RULES, WALL_SPLAT_DAMAGE } from './constants';
-import { createGame, step } from './step';
+import { ARENA, CHARACTERS, CTO, DT, GUNS, NOISE, RULES, WALL_SPLAT_DAMAGE } from './constants';
+import { createGame, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
-import type { GameState, InputState } from './types';
-
-const idle = (): InputState[] => [{ ...EMPTY_INPUT }, { ...EMPTY_INPUT }];
+import type { GameEvent, GameState, GunKind, InputState } from './types';
 
 const run = (state: GameState, ticks: number, p0: Partial<InputState> = {}, p1: Partial<InputState> = {}) => {
-  const events = [];
+  const events: GameEvent[] = [];
   for (let i = 0; i < ticks; i++) {
     step(state, [
       { ...EMPTY_INPUT, ...p0 },
@@ -19,15 +17,23 @@ const run = (state: GameState, ticks: number, p0: Partial<InputState> = {}, p1: 
   return events;
 };
 
-/** Skips the countdown so fighters can act. */
+/** Skips the countdown, removes guns lying around and the ceiling drops. */
 const fighting = (): GameState => {
   const s = createGame(['hotfix', 'legacy']);
   s.phase = 'fight';
   s.phaseTime = RULES.roundSeconds;
+  s.dropTimer = Infinity;
+  s.pickups.forEach((p) => {
+    p.active = false;
+    p.respawn = Infinity;
+  });
   return s;
 };
 
 const place = (s: GameState, id: number, x: number, y = 0) => Object.assign(s.fighters[id], { x, y, vx: 0, vy: 0 });
+const arm = (s: GameState, id: number, kind: GunKind) => (s.fighters[id].weapon = newWeapon(kind));
+/** Aim at fighter `id`'s chest. */
+const at = (s: GameState, id: number) => ({ aimX: s.fighters[id].x, aimY: s.fighters[id].y + 1.1 });
 
 describe('round flow', () => {
   it('ignores input during the countdown, then starts the fight', () => {
@@ -43,7 +49,7 @@ describe('round flow', () => {
     const s = fighting();
     s.fighters[1].kos = 2;
     s.phaseTime = DT / 2;
-    step(s, idle());
+    run(s, 1);
     expect(s.phase).toBe('over');
     expect(s.winner).toBe(1);
   });
@@ -53,140 +59,243 @@ describe('movement', () => {
   it('lands on a desk and drops through it with Down', () => {
     const s = fighting();
     run(s, 30);
-    expect(s.fighters[0].y).toBeCloseTo(ARENA.platforms[0].y);
     expect(s.fighters[0].onGround).toBe(true);
+    expect(s.fighters[0].y).toBeCloseTo(ARENA.spawns[0].y);
     run(s, 1, { down: true });
     run(s, 40);
     expect(s.fighters[0].y).toBe(0);
   });
 
-  it('jumps, then wall-kicks off the glass away from it', () => {
+  it('wall-kicks off the glass', () => {
     const s = fighting();
-    place(s, 0, ARENA.left + 1.5);
-    run(s, 1, { up: true });
+    place(s, 0, ARENA.left + 1.5, 7.5);
     run(s, 20, { left: true });
     expect(s.fighters[0].wall).toBe(-1);
     run(s, 1, { up: true, left: true });
-    const f = s.fighters[0];
-    expect(f.vx).toBeGreaterThan(5);
-    expect(f.vy).toBeGreaterThan(5);
+    expect(s.fighters[0].vx).toBeGreaterThan(5);
+    expect(s.fighters[0].vy).toBeGreaterThan(5);
   });
 
-  it('dashes faster than running', () => {
+  it('faces where it aims, whichever way it runs', () => {
     const s = fighting();
-    place(s, 0, -2);
-    run(s, 1, { dash: true, right: true });
-    expect(s.fighters[0].vx).toBeGreaterThan(15);
+    place(s, 0, -5);
+    run(s, 5, { right: true, aimX: -15, aimY: 1 });
+    expect(s.fighters[0].facing).toBe(-1);
+    expect(s.fighters[0].vx).toBeGreaterThan(0);
   });
 });
 
-describe('combat', () => {
-  it('a jab damages and knocks back the opponent', () => {
+describe('guns', () => {
+  it('the pistol shoots where you aim and hurts', () => {
     const s = fighting();
-    place(s, 0, 0);
-    place(s, 1, 1.2);
-    s.fighters[0].facing = 1;
-    run(s, 12, { attack: true });
-    expect(s.fighters[1].hp).toBeLessThan(RULES.hp);
-    expect(s.fighters[1].x).toBeGreaterThan(1.2);
+    place(s, 0, -8);
+    place(s, 1, -2);
+    const events = run(s, 30, { fire: true, ...at(s, 1) });
+    expect(events.filter((e) => e.type === 'shot').length).toBeGreaterThan(1);
+    expect(s.fighters[1].hp).toBeLessThan(CHARACTERS.legacy.hp);
   });
 
-  it('a keyboard sweep reaches further and hits harder than a jab', () => {
-    const jab = fighting();
-    place(jab, 0, 0);
-    place(jab, 1, 2.4);
-    run(jab, 30, { attack: true });
-    expect(jab.fighters[1].hp).toBe(RULES.hp);
-
-    const sweep = fighting();
-    place(sweep, 0, 0);
-    place(sweep, 1, 2.4);
-    const keyboard = sweep.items.find((i) => i.kind === 'keyboard')!;
-    keyboard.holder = 0;
-    sweep.fighters[0].held = keyboard.id;
-    run(sweep, 30, { attack: true });
-    expect(sweep.fighters[1].hp).toBeLessThanOrEqual(RULES.hp - 15);
+  it('misses when you aim away', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, -2);
+    run(s, 30, { fire: true, aimX: -8, aimY: 9 });
+    expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
   });
 
-  it('picks up a mug and throws it: the hit slows the target and the mug breaks', () => {
+  it('furniture stops bullets: a walkway between you is cover', () => {
     const s = fighting();
-    const mug = s.items.find((i) => i.kind === 'mug' && i.x < 0)!;
-    place(s, 0, mug.x, mug.y);
-    s.fighters[0].facing = 1;
-    run(s, 1, { grab: true });
-    expect(s.fighters[0].held).toBe(mug.id);
-    place(s, 1, mug.x + 3.5, mug.y);
-    run(s, 1);
-    const events = run(s, 40, { grab: true });
-    expect(events.some((e) => e.type === 'splash')).toBe(true);
-    expect(s.fighters[1].slow).toBeGreaterThan(0);
-    expect(mug.active).toBe(false);
+    const walk = ARENA.platforms.find((p) => p.style === 'walkway')!;
+    const mid = (walk.x0 + walk.x1) / 2;
+    place(s, 0, mid, 7.5);
+    place(s, 1, mid, 0);
+    const events = run(s, 12, { fire: true, aimX: mid, aimY: 0 });
+    expect(events.some((e) => e.type === 'impact')).toBe(true);
+    expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
   });
 
-  it('a monitor held facing the hit absorbs most damage', () => {
+  it('reloads on its own when the magazine runs dry', () => {
     const s = fighting();
-    place(s, 0, 0);
-    place(s, 1, 1.4);
-    s.fighters[1].facing = -1;
-    const monitor = s.items.find((i) => i.kind === 'monitor')!;
-    monitor.holder = 1;
-    s.fighters[1].held = monitor.id;
-    run(s, 12, { attack: true });
-    expect(s.fighters[1].hp).toBeGreaterThan(RULES.hp - 6 * 0.5);
+    place(s, 0, -8);
+    s.fighters[0].weapon.mag = 1;
+    const events = run(s, 3, { fire: true, aimX: 0, aimY: 9 });
+    expect(events.some((e) => e.type === 'reload')).toBe(true);
+    run(s, Math.ceil(GUNS.pistol.reloadTime / DT) + 2);
+    expect(s.fighters[0].weapon.mag).toBe(GUNS.pistol.mag);
   });
 
-  it('Force Push into the glass wall splats for extra damage', () => {
+  it('a spent special gun falls back to the pistol', () => {
     const s = fighting();
-    place(s, 0, ARENA.right - 3);
-    place(s, 1, ARENA.right - 1.6);
-    s.fighters[0].facing = 1;
-    const events = run(s, 30, { push: true });
+    place(s, 0, -8);
+    arm(s, 0, 'railgun');
+    Object.assign(s.fighters[0].weapon, { mag: 1, reserve: 0 });
+    run(s, 3, { fire: true, aimX: 0, aimY: 9 });
+    expect(s.fighters[0].weapon.kind).toBe('pistol');
+  });
+
+  it('two pistol hits drop anyone', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, -4);
+    const events = run(s, 50, { fire: true, ...at(s, 1) });
+    expect(events.filter((e) => e.type === 'hit')).toHaveLength(2);
+    expect(events.some((e) => e.type === 'ko')).toBe(true);
+  });
+
+  it('a shotgun blast up close is a one-shot KO', () => {
+    const s = fighting();
+    place(s, 0, -5);
+    place(s, 1, -3.5);
+    arm(s, 0, 'shotgun');
+    const events = [...run(s, 1, { fire: true, ...at(s, 1) }), ...run(s, 20)];
+    expect(events.some((e) => e.type === 'ko')).toBe(true);
+  });
+
+  it('the railgun goes through furniture', () => {
+    const s = fighting();
+    const walk = ARENA.platforms.find((p) => p.style === 'walkway')!;
+    const mid = (walk.x0 + walk.x1) / 2;
+    place(s, 0, mid, 7.5);
+    place(s, 1, mid, 0);
+    arm(s, 0, 'railgun');
+    run(s, 6, { fire: true, aimX: mid, aimY: 0.5 });
+    expect(s.fighters[0].kos).toBe(1);
+  });
+
+  it('a grenade explodes and throws people around, the shooter too', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, -4);
+    arm(s, 0, 'launcher');
+    const events = run(s, 40, { fire: true, ...at(s, 1) });
+    expect(events.some((e) => e.type === 'explosion')).toBe(true);
+    expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
+  });
+
+  it('walking over a gun with a pistol picks it up', () => {
+    const s = createGame(['hotfix', 'legacy']);
+    s.phase = 'fight';
+    const smg = s.pickups.find((p) => p.kind === 'smg')!;
+    place(s, 0, smg.x, smg.y);
+    run(s, 2);
+    expect(s.fighters[0].weapon.kind).toBe('smg');
+    expect(smg.active).toBe(false);
+  });
+
+  it('dashing dodges bullets', () => {
+    const s = fighting();
+    place(s, 0, -10);
+    place(s, 1, -6);
+    run(s, 1, { fire: true, ...at(s, 1) });
+    run(s, 1, {}, { dash: true, left: true });
+    run(s, 4);
+    expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
+  });
+});
+
+describe('Force Push', () => {
+  it('shoves into the glass for a wall splat', () => {
+    const s = fighting();
+    place(s, 0, ARENA.right - 3.5);
+    place(s, 1, ARENA.right - 2.1);
+    const events = run(s, 40, { push: true, aimX: ARENA.right, aimY: 1 });
     expect(events.some((e) => e.type === 'wallSplat')).toBe(true);
-    expect(s.fighters[1].hp).toBeLessThanOrEqual(RULES.hp - WALL_SPLAT_DAMAGE);
-    expect(s.fighters[0].pushCooldown).toBeGreaterThan(0);
+    expect(s.fighters[1].hp).toBeLessThanOrEqual(CHARACTERS.legacy.hp - WALL_SPLAT_DAMAGE);
   });
 
-  it('a KO scores for the attacker and the fighter respawns', () => {
+  it('sends incoming bullets back at the shooter', () => {
     const s = fighting();
-    place(s, 0, 0);
-    place(s, 1, 1.2);
+    place(s, 0, -10);
+    place(s, 1, -4);
+    run(s, 1, { fire: true, ...at(s, 1) }, { aimX: -10, aimY: 1 });
+    const events = run(s, 30, {}, { push: true, aimX: -10, aimY: 1 });
+    expect(events.some((e) => e.type === 'deflect')).toBe(true);
+    expect(s.fighters[0].hp).toBeLessThan(CHARACTERS.hotfix.hp);
+  });
+});
+
+describe('the CTO', () => {
+  it('gunfire fills the noise meter and brings the CTO out', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    s.noise = NOISE.max - 1;
+    const events = run(s, 3, { fire: true, aimX: -8, aimY: 9 });
+    expect(events.some((e) => e.type === 'ctoComing')).toBe(true);
+    run(s, Math.ceil(CTO.coming / DT) + 1);
+    expect(s.cto.phase).toBe('watching');
+  });
+
+  it('noise calms down when nobody shoots', () => {
+    const s = fighting();
+    s.noise = 50;
+    run(s, 60);
+    expect(s.noise).toBeLessThan(50 - NOISE.decay * 0.9);
+  });
+
+  it('shooting while the CTO watches loses the round', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, 8);
+    Object.assign(s.cto, { phase: 'watching', t: 0 });
+    const events = run(s, 2, { fire: true, ...at(s, 1) });
+    expect(events.some((e) => e.type === 'caught' && e.fighter === 0)).toBe(true);
+    expect(s.phase).toBe('over');
+    expect(s.winner).toBe(1);
+    expect(s.endReason).toBe('caught');
+  });
+
+  it('the bot holds fire while the CTO is out', () => {
+    const s = fighting();
+    const bot = createBot(1, 3, 'hard');
+    Object.assign(s.cto, { phase: 'watching', t: 0 });
+    for (let i = 0; i < 120; i++) step(s, [{ ...EMPTY_INPUT }, bot(s)]);
+    expect(s.phase).toBe('fight');
+  });
+
+  it('goes back to the office and the fight resumes', () => {
+    const s = fighting();
+    Object.assign(s.cto, { phase: 'watching', t: 0 });
+    s.noise = 80;
+    run(s, Math.ceil((CTO.watching + CTO.leaving) / DT) + 2);
+    expect(s.cto.phase).toBe('away');
+    expect(s.noise).toBe(0);
+  });
+});
+
+describe('KOs', () => {
+  it('a KO scores for the shooter and the fighter respawns with a pistol', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, -3);
+    arm(s, 1, 'smg');
     s.fighters[1].hp = 1;
-    const events = run(s, 12, { attack: true });
+    const events = run(s, 20, { fire: true, ...at(s, 1) });
     expect(events.some((e) => e.type === 'ko')).toBe(true);
     expect(s.fighters[0].kos).toBe(1);
-    run(s, Math.ceil(RULES.respawnSeconds / DT) + 2);
-    expect(s.fighters[1].hp).toBe(RULES.hp);
-  });
-
-  it('first to the KO target wins the round', () => {
-    const s = fighting();
-    s.fighters[0].kos = RULES.kosToWin - 1;
-    place(s, 0, 0);
-    place(s, 1, 1.2);
-    s.fighters[1].hp = 1;
-    run(s, 12, { attack: true });
-    expect(s.phase).toBe('over');
-    expect(s.winner).toBe(0);
+    run(s, Math.ceil(RULES.respawnSeconds / DT) + 15);
+    expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
+    expect(s.fighters[1].weapon.kind).toBe('pistol');
   });
 });
 
 describe('bot', () => {
-  it('fights: two bots land hits on each other within a round', () => {
+  it('fights: two bots shoot each other and score within a round', () => {
     const s = createGame(['standup', 'intern']);
     const bots = [createBot(0, 1), createBot(1, 2)];
     let hits = 0;
-    for (let i = 0; i < 60 * 40 && s.phase !== 'over'; i++) {
+    for (let i = 0; i < 60 * 60 && s.phase !== 'over'; i++) {
       step(s, bots.map((b) => b(s)));
       hits += s.events.filter((e) => e.type === 'hit').length;
     }
-    expect(hits).toBeGreaterThan(5);
+    expect(hits).toBeGreaterThan(20);
+    expect(s.fighters[0].kos + s.fighters[1].kos).toBeGreaterThan(0);
   });
 
-  it('is deterministic for the same seed', () => {
+  it('is deterministic for the same seeds', () => {
     const play = () => {
-      const s = createGame(['hotfix', 'legacy']);
+      const s = createGame(['hotfix', 'legacy'], 5);
       const bots = [createBot(0, 7), createBot(1, 9)];
-      for (let i = 0; i < 600; i++) step(s, bots.map((b) => b(s)));
+      for (let i = 0; i < 900; i++) step(s, bots.map((b) => b(s)));
       return s.fighters.map((f) => [f.x, f.y, f.hp]);
     };
     expect(play()).toEqual(play());

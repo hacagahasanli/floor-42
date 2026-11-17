@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import { mat, mesh, PALETTE } from './palette';
 
-import type { AttackKind, CharacterId, ItemKind } from '../sim/types';
+import type { CharacterId } from '../sim/types';
 
 /**
  * Low-poly fighters built from primitives. Each one has a different silhouette:
@@ -23,7 +23,6 @@ export interface Rig {
   chestY: number;
   phase: number;
   turn: number;
-  throwT: number;
 }
 
 interface Spec {
@@ -235,8 +234,45 @@ const SPECS: Record<CharacterId, Spec> = {
   },
 };
 
-export const buildRig = (id: CharacterId): Rig => {
-  const s = SPECS[id];
+/** The CTO: not a fighter. Navy blazer, silver hair, a tablet that is always open. */
+const CTO_SPEC: Spec = {
+  legLen: 0.92,
+  legR: 0.095,
+  torsoW: 0.6,
+  torsoH: 0.72,
+  torsoD: 0.36,
+  headR: 0.2,
+  armLen: 0.74,
+  armR: 0.08,
+  skin: PALETTE.skinA,
+  top: 0x22305a,
+  pants: 0x2b3045,
+  shoes: 0x14161c,
+  extras: ({ head, torso, spec }) => {
+    const shirt = mesh(box(0.2, spec.torsoH * 0.9, 0.04), mat(0xbcd4f0));
+    shirt.position.set(0, spec.torsoH * 0.55, spec.torsoD / 2);
+    torso.add(shirt);
+    for (const sx of [-1, 1]) {
+      const lapel = mesh(box(0.1, 0.36, 0.03), mat(0x1a2547));
+      lapel.position.set(sx * 0.12, spec.torsoH - 0.2, spec.torsoD / 2 + 0.02);
+      lapel.rotation.z = sx * 0.3;
+      torso.add(lapel);
+    }
+    // Swept silver hair and thin frames.
+    const hair = mesh(new THREE.SphereGeometry(spec.headR * 1.06, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.45), mat(0xc8ccd6));
+    hair.position.set(0, 0.03, -0.02);
+    hair.rotation.x = -0.25;
+    head.add(hair);
+    for (const sx of [-1, 1]) {
+      const lens = mesh(box(0.11, 0.05, 0.02), mat(0x14161c), false);
+      lens.position.set(sx * 0.08, 0.04, spec.headR * 0.97);
+      head.add(lens);
+    }
+  },
+};
+
+export const buildRig = (id: CharacterId | 'cto'): Rig => {
+  const s = id === 'cto' ? CTO_SPEC : SPECS[id];
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
@@ -285,11 +321,11 @@ export const buildRig = (id: CharacterId): Rig => {
   const weapon = new THREE.Group();
   weapon.position.set(0, chestY, 0);
   const hand = new THREE.Object3D();
-  hand.position.set(0, 0, s.torsoD / 2 + Math.min(s.armLen, 0.6));
+  hand.position.set(0, 0, s.torsoD / 2 + Math.min(s.armLen, 0.55));
   weapon.add(hand);
   body.add(weapon);
 
-  return { root, body, armL, armR, legL, legR, weapon, hand, chestY, phase: 0, turn: 0, throwT: 0 };
+  return { root, body, armL, armR, legL, legR, weapon, hand, chestY, phase: 0, turn: 0 };
 };
 
 export interface PoseInput {
@@ -299,34 +335,39 @@ export interface PoseInput {
   vy: number;
   onGround: boolean;
   facing: 1 | -1;
+  /** Aim angle in world space: 0 = right, PI/2 = up. */
+  aim: number;
   /** Turn the model sideways to the camera (arena) or keep it facing the viewer (gallery). */
   sideways: boolean;
   wall: -1 | 0 | 1;
   dashing: boolean;
   stunned: boolean;
-  guarding: boolean;
-  held: ItemKind | null;
-  attack: { kind: AttackKind; t: number; duration: number } | null;
+  /** Two-handed guns pull both arms onto the weapon. */
+  twoHanded: boolean;
+  /** Seconds since the last shot: drives the recoil kick. */
+  sinceShot: number;
+  recoil: number;
+  reloading: boolean;
+  /** 0..1 while the Force Push is out. */
+  pushing: number;
 }
 
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-const easeOut = (v: number) => 1 - (1 - v) * (1 - v);
-const bump = (p: number, peak: number) => (p < peak ? p / peak : 1 - (p - peak) / (1 - peak));
 const damp = (cur: number, target: number, k: number, dt: number) => cur + (target - cur) * (1 - Math.exp(-k * dt));
 
-/** Procedural animation: running, jumping, holding and swinging. */
+/** Procedural animation: running, jumping, aiming, recoil, Force Push. */
 export const poseRig = (rig: Rig, p: PoseInput) => {
   const { dt } = p;
-  const turnTarget = p.sideways ? p.facing * (Math.PI / 2 - 0.42) : 0;
+  const turnTarget = p.sideways ? p.facing * (Math.PI / 2 - 0.3) : 0;
   rig.turn = damp(rig.turn, turnTarget, 18, dt);
   rig.root.rotation.y = rig.turn;
 
+  // Run cycle, played backwards when you back-pedal while aiming the other way.
   const speed = Math.abs(p.vx);
   const running = p.onGround && speed > 0.6;
-  rig.phase += dt * (running ? 4 + speed * 1.1 : 0);
+  const backwards = p.vx * p.facing < 0 ? -1 : 1;
+  rig.phase += dt * (running ? 4 + speed * 1.1 : 0) * backwards;
   const swing = running ? Math.sin(rig.phase) * Math.min(1, speed / 7) : 0;
 
-  // Legs.
   let legL = swing * 0.9;
   let legR = -swing * 0.9;
   if (!p.onGround) {
@@ -336,89 +377,39 @@ export const poseRig = (rig: Rig, p: PoseInput) => {
   rig.legL.rotation.x = damp(rig.legL.rotation.x, legL, 20, dt);
   rig.legR.rotation.x = damp(rig.legR.rotation.x, legR, 20, dt);
 
-  // Body lean and bob.
-  let lean = running ? 0.12 : 0;
+  let lean = running ? 0.1 * backwards : 0;
   if (p.dashing) lean = 0.45;
   if (p.stunned) lean = -0.35;
+  if (p.pushing > 0) lean = 0.3 * p.pushing;
   rig.body.rotation.x = damp(rig.body.rotation.x, lean, 14, dt);
   rig.body.rotation.z = p.stunned ? Math.sin(p.time * 30) * 0.12 : damp(rig.body.rotation.z, 0, 10, dt);
   rig.body.position.y = running ? Math.abs(Math.sin(rig.phase)) * 0.06 : 0;
 
-  // Arms default: counter-swing, raised in the air, reaching to the glass on a wall.
-  let armL = -swing * 0.8;
-  let armR = swing * 0.8;
-  let armLz = 0;
-  let armRz = 0;
-  if (!p.onGround) {
-    armLz = -0.6;
-    armRz = 0.6;
-    armL = -0.4;
-    armR = -0.4;
-  }
-
-  // Weapon pivot: angle r (0 = forward, negative = up), push-out z.
-  let r = 0.6;
-  let push = 0;
-  let wx = 0;
-  const a = p.attack;
-  const t = a ? clamp01(a.t / a.duration) : 0;
-
-  if (p.held === 'keyboard') r = 0.35;
-  if (p.held === 'monitor') r = p.guarding ? -0.25 : 0.05;
-  if (p.held === 'mug') {
-    r = 0.7;
-    wx = 0.18;
-  }
-
-  if (a?.kind === 'sweep') {
-    r = t < 0.3 ? 0.35 + (-2.3 - 0.35) * easeOut(t / 0.3) : -2.3 + 3.5 * easeOut(clamp01((t - 0.3) / 0.4));
-  } else if (a?.kind === 'bash') {
-    r = 0;
-    push = 0.5 * bump(t, 0.35);
-  } else if (a?.kind === 'splash') {
-    r = 0.7 - 1.7 * bump(t, 0.35);
-  }
-
-  rig.weapon.rotation.x = damp(rig.weapon.rotation.x, r, a ? 40 : 16, dt);
-  rig.weapon.position.z = push;
-  rig.weapon.position.x = wx;
+  // Elevation of the aim relative to where the model faces, in [-PI/2, PI/2].
+  const elev = p.sideways ? Math.atan2(Math.sin(p.aim), Math.abs(Math.cos(p.aim))) : 0.15 * Math.sin(p.time);
+  const kick = Math.max(0, 1 - p.sinceShot / 0.12) * p.recoil;
+  let r = -elev - kick * 0.25;
+  if (p.reloading) r = 0.7 + Math.sin(p.time * 14) * 0.1;
+  rig.weapon.rotation.x = damp(rig.weapon.rotation.x, r, 30, dt);
+  rig.weapon.position.z = -kick * 0.12;
+  rig.weapon.position.x = p.twoHanded ? 0 : 0.16;
   const toWeapon = rig.weapon.rotation.x - Math.PI / 2;
 
-  if (p.held === 'keyboard' || p.held === 'monitor') {
+  let armL = p.onGround ? -swing * 0.8 : -0.4;
+  let armR = toWeapon;
+  let armLz = p.onGround ? 0 : -0.6;
+  let armRz = p.twoHanded ? -0.25 : -0.08;
+  if (p.twoHanded) {
     armL = toWeapon;
-    armR = toWeapon;
     armLz = 0.25;
-    armRz = -0.25;
-  } else if (p.held === 'mug') {
-    armR = toWeapon;
-    armRz = -0.1;
   }
-
-  if (a?.kind === 'jab') {
-    armR = -Math.PI / 2 * bump(t, 0.4) - 0.1;
-    armRz = -0.15;
+  if (p.pushing > 0) {
+    // Free hand shoves forward, palm out.
+    armL = -Math.PI / 2 * p.pushing;
+    armLz = 0.35 * p.pushing;
   }
-  if (a?.kind === 'push') {
-    const k = bump(t, 0.45);
-    armL = -Math.PI / 2 * k;
-    armR = -Math.PI / 2 * k;
-    armLz = 0.35 * k;
-    armRz = -0.35 * k;
-    rig.body.rotation.x = 0.3 * k;
-  }
-  if (rig.throwT > 0) {
-    rig.throwT = Math.max(0, rig.throwT - dt);
-    armR = -Math.PI * 0.9 + (1 - rig.throwT / 0.25) * 2;
-  }
-  if (p.wall !== 0 && !p.onGround && !p.held) {
-    // Reach for the glass.
-    const toward = p.sideways ? p.wall * p.facing : 0;
-    if (toward > 0) armR = -1.4;
-  }
-
-  const k = a || rig.throwT > 0 ? 45 : 18;
-  rig.armL.rotation.x = damp(rig.armL.rotation.x, armL, k, dt);
-  rig.armR.rotation.x = damp(rig.armR.rotation.x, armR, k, dt);
+  rig.armL.rotation.x = damp(rig.armL.rotation.x, armL, 30, dt);
+  rig.armR.rotation.x = damp(rig.armR.rotation.x, armR, 40, dt);
   rig.armL.rotation.z = damp(rig.armL.rotation.z, armLz, 14, dt);
   rig.armR.rotation.z = damp(rig.armR.rotation.z, armRz, 14, dt);
 };

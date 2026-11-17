@@ -1,26 +1,33 @@
 import * as THREE from 'three';
 
-import { createKeyboard } from '../input';
+import { createControls } from '../input';
+import type { AimMode } from '../input';
+import { createSfx } from '../sfx';
 import { createBot } from '../sim/bot';
-import { ARENA, ATTACKS, CHARACTERS, DT, ITEMS, PUSH_COOLDOWN } from '../sim/constants';
-import { createGame, step } from '../sim/step';
+import { ARENA, CHARACTERS, CTO, DT, GUNS, NOISE, PUSH } from '../sim/constants';
+import { createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
-import { buildArena } from './arena';
+import { buildArena, CTO_OFFICE } from './arena';
 import { buildRig, poseRig } from './characters';
-import { buildItem, poseHeld, poseResting } from './items';
+import { buildGun } from './guns';
 import { createVfx } from './vfx';
 
 import type { Rig } from './characters';
-import type { ItemView } from './items';
-import type { CharacterId, GameEvent, GameState, Phase } from '../sim/types';
+import type { GunView } from './guns';
+import type { BotLevel } from '../sim/bot';
+import type { CharacterId, CtoPhase, EndReason, GameEvent, GameState, GunKind, Phase } from '../sim/types';
 
 export interface HudFighter {
   name: string;
   character: CharacterId;
   hp: number;
+  maxHp: number;
   kos: number;
   push: number; // 0..1 ready
-  held: string | null;
+  gun: string;
+  mag: number;
+  reserve: number; // Infinity for the pistol
+  reloading: number; // 0..1 progress, 0 when not reloading
   out: boolean;
 }
 
@@ -31,6 +38,14 @@ export interface HudState {
   fighters: HudFighter[];
   fps: number;
   lastKo: { fighter: number; at: number } | null;
+  hint: { key: string; text: string }[];
+  muted: boolean;
+  aimMode: AimMode;
+  noise: number; // 0..1
+  cto: CtoPhase;
+  ctoTime: number; // seconds left in the current CTO phase
+  endReason: EndReason | null;
+  caught: number | null;
 }
 
 export interface ArenaOptions {
@@ -39,7 +54,12 @@ export interface ArenaOptions {
   onHud: (hud: HudState) => void;
   /** Both sides are bots: attract mode, and handy for recording. */
   demo?: boolean;
+  level?: BotLevel;
+  aimMode?: AimMode;
 }
+
+const randomSeed = () => (Math.random() * 1e9) | 0;
+const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true };
 
 export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -51,15 +71,20 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 400);
-  camera.position.set(0, 4.6, 16);
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 400);
+  camera.position.set(0, ARENA.ceiling / 2, 40);
 
-  let state: GameState = createGame([opts.player, opts.opponent]);
-  let bot = createBot(1, (Math.random() * 1e9) | 0);
-  let demoBot = createBot(0, (Math.random() * 1e9) | 0);
-  const keyboard = createKeyboard(window);
+  const level = opts.level ?? 'normal';
+  let state: GameState = createGame([opts.player, opts.opponent], randomSeed());
+  let bot = createBot(1, randomSeed(), level);
+  let demoBot = createBot(0, randomSeed(), level);
+  const controls = createControls(canvas);
+  let aimMode: AimMode = opts.aimMode ?? 'auto';
+  let caughtId: number | null = null;
+  const sfx = createSfx();
+  let muted = false;
 
-  const arena = buildArena(scene, state.items.length);
+  const arena = buildArena(scene, state.pickups.length);
   const vfx = createVfx(scene);
 
   const rigs: Rig[] = state.fighters.map((f) => {
@@ -67,46 +92,140 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     scene.add(rig.root);
     return rig;
   });
-  const itemViews: ItemView[] = state.items.map((item) => {
-    const v = buildItem(item.kind);
-    scene.add(v.root);
-    return v;
-  });
 
-  // Positions from the previous tick, for render interpolation between fixed ticks.
-  const prevF = state.fighters.map((f) => ({ x: f.x, y: f.y }));
-  const prevI = state.items.map((i) => ({ x: i.x, y: i.y, rot: i.rot }));
-  const savePrev = () => {
-    state.fighters.forEach((f, i) => Object.assign(prevF[i], { x: f.x, y: f.y }));
-    state.items.forEach((it, i) => Object.assign(prevI[i], { x: it.x, y: it.y, rot: it.rot }));
+  const ctoRig = buildRig('cto');
+  scene.add(ctoRig.root);
+  const tablet = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.03, 0.24), new THREE.MeshStandardMaterial({ color: 0x14161c }));
+  scene.add(tablet);
+
+  // Gun in each fighter's hands, rebuilt when the weapon changes.
+  const heldGuns: (GunView | null)[] = state.fighters.map(() => null);
+  const gunFor = (i: number, kind: GunKind): GunView => {
+    const cur = heldGuns[i];
+    if (cur?.kind === kind) return cur;
+    if (cur) scene.remove(cur.root);
+    const v = buildGun(kind);
+    scene.add(v.root);
+    heldGuns[i] = v;
+    return v;
   };
+
+  // Guns lying around, rebuilt when a drop slot changes kind.
+  const pickupViews: (GunView | null)[] = state.pickups.map(() => null);
+  const pickupFor = (i: number, kind: GunKind): GunView => {
+    const cur = pickupViews[i];
+    if (cur?.kind === kind) return cur;
+    if (cur) scene.remove(cur.root);
+    const v = buildGun(kind);
+    v.root.scale.setScalar(1.5);
+    scene.add(v.root);
+    pickupViews[i] = v;
+    return v;
+  };
+
+  // Projectiles: pooled tracers and grenades.
+  const tracerGeo = new THREE.BoxGeometry(1, 0.06, 0.06);
+  const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe9a0 });
+  const pelletMat = new THREE.MeshBasicMaterial({ color: 0xffb070 });
+  const tracers = Array.from({ length: 80 }, () => {
+    const m = new THREE.Mesh(tracerGeo, tracerMat);
+    m.visible = false;
+    scene.add(m);
+    return m;
+  });
+  const grenades = Array.from({ length: 6 }, () => {
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), new THREE.MeshStandardMaterial({ color: 0x2f8f5b, flatShading: true }));
+    m.visible = false;
+    scene.add(m);
+    return m;
+  });
+  // Railgun beams fade out after the shot.
+  const beams = Array.from({ length: 4 }, () => {
+    const m = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 1, 6),
+      new THREE.MeshBasicMaterial({ color: 0x8cc4ff, transparent: true, opacity: 0, depthWrite: false }),
+    );
+    m.visible = false;
+    scene.add(m);
+    return { mesh: m, life: 0 };
+  });
+  let nextBeam = 0;
+  // Muzzle flashes.
+  const flashes = state.fighters.map(() => {
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.18, 0), new THREE.MeshBasicMaterial({ color: 0xfff1a8 }));
+    m.visible = false;
+    scene.add(m);
+    return m;
+  });
+  // Your aim line.
+  const aimLine = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 0.025, 0.025),
+    new THREE.MeshBasicMaterial({ color: 0xff6464, transparent: true, opacity: 0.45, depthWrite: false }),
+  );
+  scene.add(aimLine);
+
+  const prevF = state.fighters.map((f) => ({ x: f.x, y: f.y }));
+  const savePrev = () => state.fighters.forEach((f, i) => Object.assign(prevF[i], { x: f.x, y: f.y }));
 
   let shake = 0;
   let flash = 0;
   let lastKo: HudState['lastKo'] = null;
   let time = 0;
+  let started = false;
+
+  const fireBeam = (x: number, y: number, angle: number) => {
+    // Out to the room's edge.
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const tx = dx > 0 ? (ARENA.right - x) / dx : dx < 0 ? (ARENA.left - x) / dx : Infinity;
+    const ty = dy > 0 ? (ARENA.ceiling - y) / dy : dy < 0 ? (ARENA.floor - y) / dy : Infinity;
+    const len = Math.min(tx, ty);
+    const b = beams[nextBeam++ % beams.length];
+    b.life = 0.3;
+    b.mesh.visible = true;
+    b.mesh.scale.set(1, len, 1);
+    b.mesh.position.set(x + (dx * len) / 2, y + (dy * len) / 2, 0.1);
+    b.mesh.rotation.set(0, 0, angle - Math.PI / 2);
+    vfx.burst(x + dx * len, y + dy * len, 14, 'guard', { speed: 5, life: 0.4 });
+  };
 
   const handleEvent = (e: GameEvent) => {
     switch (e.type) {
-      case 'hit':
-        if (e.guarded) {
-          vfx.burst(e.x, e.y, 10, 'guard', { speed: 5, life: 0.3 });
-        } else {
-          vfx.burst(e.x, e.y, 8 + Math.round(e.power), 'spark', { speed: 4 + e.power * 0.4, life: 0.4 });
-          vfx.burst(e.x, e.y, 4, 'hot', { speed: 3, life: 0.35 });
+      case 'shot':
+        sfx.shot(e.gun);
+        if (e.gun === 'railgun') {
+          fireBeam(e.x, e.y, e.angle);
+          shake = Math.max(shake, 0.25);
         }
-        vfx.ring(e.x, e.y, e.guarded ? 0x7ea6e0 : 0xfff1a8, { grow: 4 + e.power * 0.2, life: 0.22 });
-        shake = Math.max(shake, Math.min(0.5, e.power * 0.025));
+        if (e.gun === 'shotgun') shake = Math.max(shake, 0.15);
         break;
-      case 'splash':
-        vfx.burst(e.x, e.y, 26, 'coffee', { speed: 5, up: 4, life: 0.7 });
+      case 'hit':
+        vfx.burst(e.x, e.y, 4 + Math.round(e.damage / 3), 'spark', { speed: 3 + e.power * 0.3, life: 0.3 });
+        if (e.damage > 15) vfx.ring(e.x, e.y, 0xfff1a8, { grow: 5, life: 0.22 });
+        shake = Math.max(shake, Math.min(0.4, e.power * 0.02));
+        sfx.hit(e.power);
         break;
-      case 'shatter':
-        vfx.burst(e.x, e.y, 14, 'glass', { speed: 5, life: 0.6 });
+      case 'impact':
+        vfx.burst(e.x, e.y, 3, 'dust', { speed: 2, up: 1, gravity: 6, life: 0.25, size: 0.7 });
+        sfx.impact();
+        break;
+      case 'explosion':
+        vfx.burst(e.x, e.y, 40, 'hot', { speed: 9, up: 2, life: 0.6, size: 1.6 });
+        vfx.burst(e.x, e.y, 24, 'spark', { speed: 6, up: 2, life: 0.5, size: 1.4 });
+        vfx.burst(e.x, e.y, 18, 'dust', { speed: 4, up: 1, gravity: -1, life: 1, size: 2.4 });
+        vfx.ring(e.x, e.y, 0xffb347, { grow: e.radius * 4, life: 0.35 });
+        shake = Math.max(shake, 0.7);
+        flash = Math.max(flash, 0.12);
+        sfx.explosion();
         break;
       case 'push':
         vfx.ring(e.x + e.facing * 0.6, e.y, 0xf0c24a, { grow: 7, life: 0.35, facing: e.facing });
         vfx.burst(e.x + e.facing * 0.8, e.y, 10, 'dust', { speed: 4, dirX: e.facing, up: 0.5, gravity: 2, life: 0.35 });
+        sfx.push();
+        break;
+      case 'deflect':
+        vfx.burst(e.x, e.y, 8, 'guard', { speed: 4, life: 0.3 });
+        sfx.deflect();
         break;
       case 'wallSplat': {
         const x = e.side < 0 ? ARENA.left : ARENA.right;
@@ -114,6 +233,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         vfx.burst(x - e.side * 0.2, e.y, 30, 'glass', { speed: 7, dirX: -e.side, life: 0.8, size: 1.3 });
         shake = 0.7;
         flash = 0.12;
+        sfx.glass();
         break;
       }
       case 'ko':
@@ -122,48 +242,59 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         shake = 0.8;
         flash = 0.18;
         lastKo = { fighter: e.fighter, at: time };
+        sfx.ko();
         break;
       case 'jump':
-        vfx.burst(e.x, e.y + 0.05, e.wallKick ? 10 : 5, e.wallKick ? 'glass' : 'dust', {
-          speed: 2.5,
-          up: 1,
-          gravity: 4,
-          life: 0.35,
-        });
+        vfx.burst(e.x, e.y + 0.05, e.wallKick ? 10 : 5, e.wallKick ? 'glass' : 'dust', { speed: 2.5, up: 1, gravity: 4, life: 0.35 });
+        sfx.jump();
         break;
       case 'dash':
-        vfx.burst(e.x, e.y + 0.2, 6, 'dust', { speed: 2, up: 0.6, gravity: 2, life: 0.3 });
+        vfx.burst(e.x, e.y + 0.4, 8, 'dust', { speed: 2, up: 0.6, gravity: 2, life: 0.3 });
+        sfx.dash();
         break;
-      case 'throw': {
-        const holderRig = rigs[state.items[e.item].thrownBy ?? 0];
-        holderRig.throwT = 0.25;
-        break;
-      }
       case 'pickup':
+        sfx.pickup();
+        break;
+      case 'reload':
+        if (e.fighter === 0) sfx.reload();
+        break;
+      case 'empty':
+        sfx.empty();
+        break;
+      case 'drop':
+        vfx.burst(e.x, ARENA.ceiling - 0.3, 12, 'dust', { speed: 2, up: -1, gravity: 3, life: 0.6, size: 1.5 });
+        sfx.drop();
+        break;
+      case 'ctoComing':
+        arena.setAlarm(true);
+        sfx.ctoComing();
+        break;
+      case 'ctoWatching':
+        break;
+      case 'ctoLeft':
+        arena.setAlarm(false);
+        break;
+      case 'caught':
+        caughtId = e.fighter;
+        arena.setAlarm(true);
+        flash = 0.25;
+        sfx.caught();
+        break;
+      case 'rail':
         break;
     }
   };
 
-  // Camera follows the midpoint and pulls back as fighters separate.
-  const camTarget = new THREE.Vector3(0, 3.4, 0);
+  // Camera: fixed, far back, the whole office in view.
   const updateCamera = (dt: number) => {
-    const alive = state.fighters.filter((f) => f.respawn <= 0);
-    const xs = alive.length ? alive.map((f) => f.x) : [0];
-    const ys = alive.length ? alive.map((f) => f.y) : [0];
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const midX = Math.max(-3.5, Math.min(3.5, (minX + maxX) / 2));
-    const midY = Math.max(...ys) * 0.2 + 3.1;
-    const spread = maxX - minX;
-    const dist = Math.max(15.5, Math.min(19, 13.5 + spread * 0.3));
-    const k = 1 - Math.exp(-4 * dt);
-    camTarget.x += (midX - camTarget.x) * k;
-    camTarget.y += (midY - camTarget.y) * k;
-    camera.position.x += (midX * 0.5 - camera.position.x) * k;
-    camera.position.y += (midY + 1.2 - camera.position.y) * k;
+    const tanHalf = Math.tan((camera.fov * Math.PI) / 360);
+    const dist = Math.max((ARENA.right + 1.5) / (tanHalf * camera.aspect), (ARENA.ceiling / 2 + 2) / tanHalf);
+    const k = 1 - Math.exp(-3 * dt);
+    camera.position.x += (0 - camera.position.x) * k;
+    camera.position.y += (ARENA.ceiling / 2 + 0.6 - camera.position.y) * k;
     camera.position.z += (dist - camera.position.z) * k;
     const s = shake * shake;
-    camera.lookAt(camTarget.x + (Math.random() - 0.5) * s, camTarget.y + (Math.random() - 0.5) * s, 0);
+    camera.lookAt((Math.random() - 0.5) * s, ARENA.ceiling / 2 + (Math.random() - 0.5) * s, 0);
     shake = Math.max(0, shake - dt * 2.5);
   };
 
@@ -177,59 +308,128 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     }
   };
 
+  // Mouse aim: project the pointer onto the fight plane (z = 0).
+  const raycaster = new THREE.Raycaster();
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const ndc = new THREE.Vector2();
+  const aimPoint = new THREE.Vector3();
+  const mouseAim = () => {
+    ndc.set(controls.mouse.x, controls.mouse.y);
+    raycaster.setFromCamera(ndc, camera);
+    if (!raycaster.ray.intersectPlane(plane, aimPoint)) return autoAim(0);
+    return { x: aimPoint.x, y: aimPoint.y };
+  };
+
+  // Auto-aim: your gun follows the opponent's chest. You only move and shoot.
+  const autoAim = (id: number) => {
+    const me = state.fighters[id];
+    const foe = state.fighters.find((f) => f.id !== id)!;
+    if (foe.respawn > 0) return { x: me.x + me.facing * 5, y: me.y + 1.1 };
+    return { x: foe.x, y: foe.y + CHARACTERS[foe.character].height * 0.55 };
+  };
+
   const tmpV = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();
+  const fwd = new THREE.Vector3();
   const renderFrame = (dt: number, alpha: number) => {
     resize();
+    const poseDt = state.hitstop > 0 ? 0 : dt;
     state.fighters.forEach((f, i) => {
       const rig = rigs[i];
       const out = f.respawn > 0;
       rig.root.visible = !out && !(f.invulnerable > 0 && Math.floor(time * 16) % 2 === 0);
-      rig.root.position.set(prevF[i].x + (f.x - prevF[i].x) * alpha, prevF[i].y + (f.y - prevF[i].y) * alpha, 0);
-      const held = f.held !== null ? state.items[f.held].kind : null;
+      const shudder = state.hitstop > 0 && f.stun > 0 ? (Math.random() - 0.5) * 0.14 : 0;
+      rig.root.position.set(prevF[i].x + (f.x - prevF[i].x) * alpha + shudder, prevF[i].y + (f.y - prevF[i].y) * alpha, 0);
+      const g = GUNS[f.weapon.kind];
       poseRig(rig, {
-        dt,
+        dt: poseDt,
         time,
         vx: f.vx,
         vy: f.vy,
         onGround: f.onGround,
         facing: f.facing,
+        aim: f.aim,
         sideways: true,
         wall: f.wall,
         dashing: f.dashTime > 0,
         stunned: f.stun > 0,
-        guarding: f.guarding,
-        held,
-        attack: f.attack ? { kind: f.attack.kind, t: f.attack.t, duration: ATTACKS[f.attack.kind].duration } : null,
+        twoHanded: TWO_HANDED[f.weapon.kind],
+        sinceShot: f.firing,
+        recoil: Math.min(1, 0.3 + g.recoil * 0.1),
+        reloading: f.weapon.reload > 0,
+        pushing: f.pushTime > 0 ? Math.sin((1 - f.pushTime / PUSH.duration) * Math.PI) : 0,
       });
       rig.root.updateMatrixWorld(true);
-    });
 
-    state.items.forEach((item, i) => {
-      const v = itemViews[i];
-      const marker = arena.markers[i];
-      v.root.visible = item.active;
-      const resting = item.active && item.holder === null && item.thrownBy === null && Math.abs(item.vy) < 0.01;
-      marker.visible = resting;
-      if (!item.active) return;
-      if (item.holder !== null) {
-        const rig = rigs[item.holder];
-        rig.hand.getWorldPosition(tmpV);
-        rig.hand.getWorldQuaternion(tmpQ);
-        v.root.position.copy(tmpV);
-        v.root.quaternion.copy(tmpQ);
-        v.root.visible = rig.root.visible;
-        poseHeld(v, item.kind);
-        return;
+      const gun = gunFor(i, f.weapon.kind);
+      rig.hand.getWorldPosition(tmpV);
+      rig.hand.getWorldQuaternion(tmpQ);
+      gun.root.position.copy(tmpV);
+      gun.root.quaternion.copy(tmpQ);
+      gun.root.visible = rig.root.visible;
+
+      // Muzzle flash at the gun's tip.
+      fwd.set(0, 0.05, gun.length).applyQuaternion(tmpQ).add(tmpV);
+      const fl = flashes[i];
+      fl.visible = rig.root.visible && f.firing < 0.05;
+      fl.position.copy(fwd);
+      fl.scale.setScalar(f.weapon.kind === 'shotgun' || f.weapon.kind === 'launcher' ? 1.8 : 1);
+
+      if (i === 0 && !opts.demo) {
+        const len = 2.2;
+        aimLine.visible = rig.root.visible && state.phase === 'fight';
+        aimLine.scale.set(len, 1, 1);
+        aimLine.position.set(fwd.x + (Math.cos(f.aim) * len) / 2, fwd.y + (Math.sin(f.aim) * len) / 2, fwd.z);
+        aimLine.rotation.set(0, 0, f.aim);
       }
-      poseResting(v);
-      const x = prevI[i].x + (item.x - prevI[i].x) * alpha;
-      const y = prevI[i].y + (item.y - prevI[i].y) * alpha;
-      v.root.position.set(x, y + v.halfHeight, item.kind === 'monitor' ? -0.1 : 0.35);
-      v.root.rotation.set(0, item.kind === 'keyboard' ? 0.25 : 0, prevI[i].rot + (item.rot - prevI[i].rot) * alpha);
-      marker.position.set(x, y + 0.012, 0.3);
+    });
+    if (opts.demo) aimLine.visible = false;
+
+    state.pickups.forEach((p, i) => {
+      const v = pickupFor(i, p.kind);
+      const marker = arena.markers[i];
+      v.root.visible = p.active;
+      marker.visible = p.active && Math.abs(p.vy) < 0.01;
+      if (!p.active) return;
+      v.root.position.set(p.x, p.y + 0.45 + Math.sin(time * 3 + i) * 0.08, 0.2);
+      v.root.rotation.set(0, Math.PI / 2 + Math.sin(time * 1.5 + i) * 0.5, 0);
+      marker.position.set(p.x, p.y + 0.012, 0.25);
     });
 
+    let t = 0;
+    let gr = 0;
+    for (const p of state.projectiles) {
+      const back = 1 - alpha;
+      const x = p.x - p.vx * DT * back;
+      const y = p.y - p.vy * DT * back;
+      if (p.kind === 'grenade') {
+        const m = grenades[gr++];
+        if (!m) continue;
+        m.visible = true;
+        m.position.set(x, y, 0.1);
+        m.rotation.z += dt * 10;
+      } else if (p.kind !== 'rail') {
+        const m = tracers[t++];
+        if (!m) continue;
+        m.visible = true;
+        m.material = p.kind === 'pellet' ? pelletMat : tracerMat;
+        const len = p.kind === 'pellet' ? 0.35 : 0.7;
+        const ang = Math.atan2(p.vy, p.vx);
+        m.scale.set(len, 1, 1);
+        m.position.set(x - (Math.cos(ang) * len) / 2, y - (Math.sin(ang) * len) / 2, 0.1);
+        m.rotation.set(0, 0, ang);
+      }
+    }
+    for (; t < tracers.length; t++) tracers[t].visible = false;
+    for (; gr < grenades.length; gr++) grenades[gr].visible = false;
+    for (const b of beams) {
+      b.life = Math.max(0, b.life - dt);
+      b.mesh.visible = b.life > 0;
+      (b.mesh.material as THREE.MeshBasicMaterial).opacity = b.life / 0.3;
+      b.mesh.scale.x = b.mesh.scale.z = 0.4 + (b.life / 0.3) * 0.8;
+    }
+
+    poseCto(dt);
     arena.update(dt, time);
     vfx.update(dt);
     updateCamera(dt);
@@ -238,7 +438,85 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     renderer.render(scene, camera);
   };
 
-  // HUD snapshot, throttled: React does not need 60 updates a second.
+  // The CTO: sits in the glass office; when it gets loud, walks out, watches, walks back.
+  const seat = new THREE.Vector3(CTO_OFFICE.seat.x, 0, CTO_OFFICE.seat.z);
+  const door = new THREE.Vector3(CTO_OFFICE.door.x, 0, CTO_OFFICE.door.z + 0.3);
+  const spot = new THREE.Vector3();
+  const pathPoint = (k: number, out: THREE.Vector3) => {
+    // seat -> door -> watching spot, k in 0..1
+    spot.set(state.cto.x, 0, 1.6);
+    const a = seat.distanceTo(door);
+    const b = door.distanceTo(spot);
+    const d = k * (a + b);
+    if (d <= a) return out.lerpVectors(seat, door, d / a);
+    return out.lerpVectors(door, spot, (d - a) / b);
+  };
+  const ctoPos = new THREE.Vector3();
+  const ctoPrev = new THREE.Vector3();
+  const poseCto = (dt: number) => {
+    const c = state.cto;
+    let k = 0;
+    let sitting = true;
+    if (c.phase === 'coming') {
+      k = Math.max(0, (c.t - 0.4) / (CTO.coming - 0.4));
+      sitting = c.t < 0.4;
+    } else if (c.phase === 'watching') {
+      k = 1;
+      sitting = false;
+    } else if (c.phase === 'leaving') {
+      k = 1 - c.t / CTO.leaving;
+      sitting = false;
+    }
+    ctoPrev.copy(ctoPos);
+    pathPoint(Math.min(1, k), ctoPos);
+    const moving = dt > 0 ? ctoPrev.distanceTo(ctoPos) / dt : 0;
+    poseRig(ctoRig, {
+      dt,
+      time,
+      vx: moving > 0.2 ? 6 : 0,
+      vy: 0,
+      onGround: true,
+      facing: 1,
+      aim: 0,
+      sideways: false,
+      wall: 0,
+      dashing: false,
+      stunned: false,
+      twoHanded: false,
+      sinceShot: 1,
+      recoil: 0,
+      reloading: false,
+      pushing: 0,
+    });
+    ctoRig.root.position.copy(ctoPos);
+    if (sitting) {
+      ctoRig.root.position.y = -0.42;
+      ctoRig.legL.rotation.x = ctoRig.legR.rotation.x = -1.45;
+      ctoRig.root.rotation.y = 0;
+    } else if (moving > 0.2) {
+      const dir = ctoPos.clone().sub(ctoPrev);
+      ctoRig.root.rotation.y = Math.atan2(dir.x, dir.z);
+    } else {
+      // Watching: slowly looking left and right, arms folded.
+      ctoRig.root.rotation.y = Math.sin(time * 0.9) * 0.9;
+      ctoRig.armL.rotation.x = ctoRig.armR.rotation.x = -1.1;
+      ctoRig.armL.rotation.z = 0.9;
+      ctoRig.armR.rotation.z = -0.9;
+    }
+    ctoRig.root.updateMatrixWorld(true);
+    ctoRig.hand.getWorldPosition(tmpV);
+    tablet.position.copy(tmpV);
+    tablet.visible = !sitting && moving > 0.2;
+  };
+
+  const hintFor = (): HudState['hint'] => {
+    const me = state.fighters[0];
+    if (opts.demo || state.phase !== 'fight' || me.respawn > 0) return [];
+    const near = pickupCandidate(state, me);
+    if (near && me.weapon.kind !== 'pistol') return [{ key: 'E', text: `swap for the ${GUNS[near.kind].name}` }];
+    return [];
+  };
+
   let fps = 60;
   let hudTimer = 0;
   const emitHud = () => {
@@ -248,17 +526,41 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       winner: state.winner,
       fps: Math.round(fps),
       lastKo,
-      fighters: state.fighters.map((f) => ({
-        name: CHARACTERS[f.character].name,
-        character: f.character,
-        hp: Math.max(0, f.hp),
-        kos: f.kos,
-        push: 1 - f.pushCooldown / PUSH_COOLDOWN,
-        held: f.held !== null ? ITEMS[state.items[f.held].kind].name : null,
-        out: f.respawn > 0,
-      })),
+      hint: hintFor(),
+      muted,
+      aimMode,
+      noise: state.noise / NOISE.max,
+      cto: state.cto.phase,
+      ctoTime:
+        state.cto.phase === 'coming' ? CTO.coming - state.cto.t : state.cto.phase === 'watching' ? CTO.watching - state.cto.t : 0,
+      endReason: state.endReason,
+      caught: caughtId,
+      fighters: state.fighters.map((f) => {
+        const g = GUNS[f.weapon.kind];
+        return {
+          name: CHARACTERS[f.character].name,
+          character: f.character,
+          hp: Math.max(0, f.hp),
+          maxHp: CHARACTERS[f.character].hp,
+          kos: f.kos,
+          push: 1 - f.pushCooldown / PUSH.cooldown,
+          gun: g.name,
+          mag: f.weapon.mag,
+          reserve: f.weapon.reserve,
+          reloading: f.weapon.reload > 0 ? 1 - f.weapon.reload / g.reloadTime : 0,
+          out: f.respawn > 0,
+        };
+      }),
     });
   };
+
+  // Audio may only start after a user gesture.
+  const onKey = (e: KeyboardEvent) => {
+    sfx.unlock();
+    if (e.code === 'KeyM') muted = sfx.toggleMute();
+    if (e.code === 'KeyT') aimMode = aimMode === 'auto' ? 'mouse' : 'auto';
+  };
+  window.addEventListener('keydown', onKey);
 
   let raf = 0;
   let last = performance.now();
@@ -271,7 +573,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     acc += dt;
     while (acc >= DT) {
       savePrev();
-      step(state, [opts.demo ? demoBot(state) : keyboard.read(), bot(state)]);
+      const aim = aimMode === 'mouse' ? mouseAim() : autoAim(0);
+      step(state, [opts.demo ? demoBot(state) : controls.read(aim.x, aim.y, aimMode), bot(state)]);
+      if (!started && state.phase === 'fight') {
+        started = true;
+        sfx.start();
+      }
       state.events.forEach(handleEvent);
       acc -= DT;
     }
@@ -284,11 +591,18 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);
+  // Dev-only handle for automated checks.
+  if (process.env.NODE_ENV !== 'production') {
+    (window as unknown as { __mc?: unknown }).__mc = { state: () => state, muzzle: () => muzzle(state.fighters[0]) };
+  }
 
   const restart = () => {
-    state = createGame([opts.player, opts.opponent]);
-    bot = createBot(1, (Math.random() * 1e9) | 0);
-    demoBot = createBot(0, (Math.random() * 1e9) | 0);
+    state = createGame([opts.player, opts.opponent], randomSeed());
+    bot = createBot(1, randomSeed(), level);
+    demoBot = createBot(0, randomSeed(), level);
+    started = false;
+    caughtId = null;
+    arena.setAlarm(false);
     savePrev();
     lastKo = null;
     emitHud();
@@ -296,9 +610,13 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
   return {
     restart,
+    setAimMode: (m: AimMode) => {
+      aimMode = m;
+    },
     dispose: () => {
       cancelAnimationFrame(raf);
-      keyboard.dispose();
+      controls.dispose();
+      window.removeEventListener('keydown', onKey);
       scene.traverse((o) => {
         if (o instanceof THREE.Mesh) {
           o.geometry.dispose();

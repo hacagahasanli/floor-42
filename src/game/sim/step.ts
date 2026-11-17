@@ -1,24 +1,34 @@
-import {
-  ARENA,
-  ATTACKS,
-  CHARACTERS,
-  DT,
-  ITEMS,
-  PHYS,
-  PUSH_COOLDOWN,
-  RULES,
-  SLOW_FACTOR,
-  WALL_SPLAT_DAMAGE,
-  WALL_SPLAT_SPEED,
-} from './constants';
+import { ARENA, CHARACTERS, CTO, DT, GRENADE, GUNS, NOISE, PHYS, PUSH, RULES, WALL_SPLAT_DAMAGE, WALL_SPLAT_SPEED } from './constants';
 import { EMPTY_INPUT } from './types';
 
-import type { AttackKind, CharacterId, Fighter, GameState, InputState, Item, ItemKind } from './types';
+import type { CharacterId, Fighter, GameState, GunKind, InputState, Pickup, Projectile, Weapon } from './types';
 
 const approach = (v: number, target: number, delta: number) =>
   v < target ? Math.min(v + delta, target) : Math.max(v - delta, target);
 
 const sign = (v: number): 1 | -1 => (v < 0 ? -1 : 1);
+
+/** Deterministic PRNG kept in the state, so a server and a replay agree. */
+const nextRandom = (state: GameState) => {
+  let t = (state.seed = (state.seed + 0x6d2b79f5) | 0);
+  t = Math.imul(t ^ (t >>> 15), 1 | t);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+export const newWeapon = (kind: GunKind): Weapon => ({
+  kind,
+  mag: GUNS[kind].mag,
+  reserve: GUNS[kind].reserve,
+  cooldown: 0,
+  reload: 0,
+});
+
+/** Where bullets leave from: the chest. */
+export const muzzle = (f: Fighter) => {
+  const c = CHARACTERS[f.character];
+  return { x: f.x + Math.cos(f.aim) * 0.7, y: f.y + c.height * 0.62 + Math.sin(f.aim) * 0.7 };
+};
 
 export const createFighter = (id: number, character: CharacterId): Fighter => {
   const spawn = ARENA.spawns[id % ARENA.spawns.length];
@@ -31,6 +41,7 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     vx: 0,
     vy: 0,
     facing: spawn.x < 0 ? 1 : -1,
+    aim: spawn.x < 0 ? 0 : Math.PI,
     onGround: true,
     wall: 0,
     airJumps: c.airJumps,
@@ -38,49 +49,54 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     dashTime: 0,
     dashCooldown: 0,
     dropTime: 0,
-    hp: RULES.hp,
+    hp: c.hp,
     kos: 0,
     stun: 0,
-    slow: 0,
     pushCooldown: 0,
+    pushTime: 0,
+    pushHit: [],
     pushed: 0,
     respawn: 0,
     invulnerable: 0,
-    held: null,
-    attack: null,
-    guarding: false,
+    weapon: newWeapon('pistol'),
+    firing: 1,
     lastHitBy: null,
     prev: { ...EMPTY_INPUT },
   };
 };
 
-const createItem = (id: number, kind: ItemKind, x: number, y: number): Item => ({
-  id,
-  kind,
-  x,
-  y,
-  vx: 0,
-  vy: 0,
-  rot: 0,
-  spin: 0,
-  holder: null,
-  thrownBy: null,
-  thrownTime: 0,
-  active: true,
-  respawn: 0,
-  homeX: x,
-  homeY: y,
-});
-
-export const createGame = (characters: [CharacterId, CharacterId]): GameState => ({
-  tick: 0,
-  phase: 'countdown',
-  phaseTime: RULES.countdownSeconds,
-  winner: null,
-  fighters: characters.map((c, i) => createFighter(i, c)),
-  items: ARENA.itemSpawns.map((s, i) => createItem(i, s.kind, s.x, s.y)),
-  events: [],
-});
+export const createGame = (characters: [CharacterId, CharacterId], seed = 1): GameState => {
+  const pickups: Pickup[] = ARENA.gunSpawns.map((s, i) => ({
+    id: i,
+    kind: s.kind,
+    x: s.x,
+    y: s.y,
+    vy: 0,
+    active: true,
+    respawn: 0,
+    home: { x: s.x, y: s.y },
+  }));
+  for (let i = 0; i < ARENA.dropSlots; i++) {
+    pickups.push({ id: pickups.length, kind: 'smg', x: 0, y: ARENA.ceiling, vy: 0, active: false, respawn: Infinity, home: null });
+  }
+  return {
+    tick: 0,
+    phase: 'countdown',
+    phaseTime: RULES.countdownSeconds,
+    winner: null,
+    endReason: null,
+    hitstop: 0,
+    noise: 0,
+    cto: { phase: 'away', t: 0, x: CTO.officeX, cooldown: 0 },
+    seed,
+    dropTimer: ARENA.dropEvery,
+    nextId: 1,
+    fighters: characters.map((c, i) => createFighter(i, c)),
+    pickups,
+    projectiles: [],
+    events: [],
+  };
+};
 
 const respawnFighter = (f: Fighter) => {
   const spawn = ARENA.spawns[f.id % ARENA.spawns.length];
@@ -90,140 +106,213 @@ const respawnFighter = (f: Fighter) => {
     vx: 0,
     vy: 0,
     facing: spawn.x < 0 ? 1 : -1,
-    hp: RULES.hp,
+    aim: spawn.x < 0 ? 0 : Math.PI,
+    hp: CHARACTERS[f.character].hp,
     stun: 0,
-    slow: 0,
     pushed: 0,
-    attack: null,
+    pushTime: 0,
     dashTime: 0,
+    weapon: newWeapon('pistol'),
     invulnerable: RULES.spawnInvulnerable,
     lastHitBy: null,
   });
 };
 
-const breakItem = (state: GameState, item: Item) => {
-  const s = ITEMS[item.kind];
-  state.events.push(
-    item.kind === 'mug' ? { type: 'splash', x: item.x, y: item.y } : { type: 'shatter', x: item.x, y: item.y },
-  );
-  if (item.holder !== null) state.fighters[item.holder].held = null;
-  Object.assign(item, { active: false, respawn: s.respawnSeconds, holder: null, thrownBy: null });
+const makeNoise = (state: GameState, amount: number) => {
+  if (state.phase !== 'fight') return;
+  state.noise = Math.min(NOISE.max, state.noise + amount);
 };
 
-const dropHeld = (state: GameState, f: Fighter) => {
-  if (f.held === null) return;
-  const item = state.items[f.held];
-  Object.assign(item, { holder: null, thrownBy: null, vx: f.vx * 0.5, vy: 4, spin: 6 });
-  f.held = null;
+/** Fighting in front of the CTO: you lose the round on the spot. */
+const caught = (state: GameState, f: Fighter) => {
+  if (state.phase !== 'fight') return;
+  state.phase = 'over';
+  state.endReason = 'caught';
+  state.winner = state.fighters.find((o) => o.id !== f.id)?.id ?? -1;
+  state.events.push({ type: 'caught', fighter: f.id });
 };
 
 const knockOut = (state: GameState, f: Fighter) => {
   f.hp = 0;
   f.respawn = RULES.respawnSeconds;
-  f.attack = null;
-  f.guarding = false;
-  dropHeld(state, f);
-  state.events.push({ type: 'ko', fighter: f.id, x: f.x, y: f.y + 1 });
+  f.pushTime = 0;
+  state.events.push({ type: 'ko', fighter: f.id, by: f.lastHitBy, x: f.x, y: f.y + 1 });
+  state.hitstop = 9;
+  makeNoise(state, NOISE.ko);
   if (state.phase !== 'fight') return;
-  const scorerId = f.lastHitBy ?? state.fighters.find((o) => o.id !== f.id)?.id ?? null;
-  if (scorerId === null) return;
+  const scorerId = f.lastHitBy !== null && f.lastHitBy !== f.id ? f.lastHitBy : state.fighters.find((o) => o.id !== f.id)?.id;
+  if (scorerId === undefined) return;
   const scorer = state.fighters[scorerId];
   scorer.kos += 1;
   if (scorer.kos >= RULES.kosToWin) {
     state.phase = 'over';
     state.winner = scorer.id;
+    state.endReason = 'kos';
   }
 };
 
 interface HitSpec {
   attacker: number;
-  dir: 1 | -1;
+  dx: number; // knockback direction
+  dy: number;
   damage: number;
   knockback: number;
-  lift: number;
-  slow: number;
-  push: boolean;
+  push?: boolean;
 }
 
-/** Applies a hit to a fighter. Returns false if the fighter cannot be hit right now. */
+/** Damages and shoves a fighter. Returns false if they cannot be hit right now. */
 export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boolean => {
-  if (target.respawn > 0 || target.invulnerable > 0 || target.id === hit.attacker) return false;
-  const heldKind = target.held !== null ? state.items[target.held].kind : null;
-  const frontal = target.facing === -hit.dir;
-  const shield = heldKind && frontal ? (target.guarding ? 1 : ITEMS[heldKind].shield) : 0;
-  const guarded = shield > 0;
-  const damage = hit.damage * (1 - shield);
-  const weight = CHARACTERS[target.character].weight;
-  const k = (hit.knockback * (target.guarding ? 0.4 : guarded ? 0.75 : 1)) / weight;
-
-  target.vx = hit.dir * k;
-  target.vy = Math.max(target.vy, k * hit.lift + 3);
-  target.onGround = false;
-  target.stun = 0.12 + k * 0.022;
-  target.attack = null;
-  target.dashTime = 0;
-  target.hp -= damage;
-  target.slow = Math.max(target.slow, hit.slow);
-  target.lastHitBy = hit.attacker;
+  if (target.respawn > 0 || target.invulnerable > 0) return false;
+  const c = CHARACTERS[target.character];
+  const k = hit.knockback / c.weight;
+  const len = Math.hypot(hit.dx, hit.dy) || 1;
+  target.vx += (hit.dx / len) * k;
+  target.vy = Math.max(target.vy, (hit.dy / len) * k + (k > 6 ? 3 : 0));
+  if (k > 6) target.onGround = false;
+  target.stun = Math.max(target.stun, k > 6 ? 0.06 + k * 0.012 : 0);
+  target.hp -= hit.damage;
+  if (hit.attacker !== target.id) target.lastHitBy = hit.attacker;
   if (hit.push) target.pushed = 0.6;
-  state.events.push({
-    type: 'hit',
-    x: target.x,
-    y: target.y + CHARACTERS[target.character].height * 0.6,
-    power: k,
-    guarded,
-  });
+  state.events.push({ type: 'hit', x: target.x, y: target.y + c.height * 0.6, power: k, damage: hit.damage });
+  if (k > 10) state.hitstop = Math.max(state.hitstop, Math.min(6, Math.round(k * 0.25)));
   if (target.hp <= 0) knockOut(state, target);
   return true;
 };
 
-const attackFor = (heldKind: ItemKind | null): AttackKind => {
-  if (heldKind === 'keyboard') return 'sweep';
-  if (heldKind === 'monitor') return 'bash';
-  if (heldKind === 'mug') return 'splash';
-  return 'jab';
-};
-
-const throwItem = (state: GameState, f: Fighter, input: InputState) => {
-  if (f.held === null) return;
-  const item = state.items[f.held];
-  const s = ITEMS[item.kind];
-  const c = CHARACTERS[f.character];
-  f.held = null;
-  Object.assign(item, {
-    holder: null,
-    thrownBy: f.id,
-    thrownTime: 0,
-    x: f.x + f.facing * (c.width / 2 + 0.3),
-    y: f.y + c.height * 0.62,
-    vx: f.facing * s.throwSpeed + f.vx * 0.5,
-    vy: s.throwLift + Math.max(f.vy, 0) * 0.5 + (input.up ? 7 : 0) - (input.down && !f.onGround ? 9 : 0),
-    spin: -f.facing * (item.kind === 'keyboard' ? 18 : 11),
-  });
-  state.events.push({ type: 'throw', item: item.id });
-};
-
-const tryPickup = (state: GameState, f: Fighter) => {
-  const c = CHARACTERS[f.character];
-  let best: Item | null = null;
-  let bestD = Infinity;
-  for (const item of state.items) {
-    if (!item.active || item.holder !== null || item.thrownBy !== null) continue;
-    const dx = Math.abs(item.x - f.x);
-    const dy = item.y - f.y;
-    if (dx > c.width / 2 + 1.0 || dy < -0.6 || dy > c.height + 0.2) continue;
-    if (dx < bestD) {
-      bestD = dx;
-      best = item;
-    }
+const explode = (state: GameState, p: Projectile) => {
+  state.events.push({ type: 'explosion', x: p.x, y: p.y, radius: GRENADE.radius });
+  makeNoise(state, NOISE.explosion);
+  for (const o of state.fighters) {
+    const c = CHARACTERS[o.character];
+    const dx = o.x - p.x;
+    const dy = o.y + c.height / 2 - p.y;
+    const d = Math.hypot(dx, dy);
+    if (d > GRENADE.radius) continue;
+    // Near the blast is lethal; the edge still hurts.
+    const falloff = 0.5 + 0.5 * (1 - d / GRENADE.radius);
+    const self = o.id === p.owner ? GRENADE.selfDamage : 1;
+    applyHit(state, o, {
+      attacker: p.owner,
+      dx: dx || 0.01,
+      dy: dy + 0.6,
+      damage: p.damage * falloff * self,
+      knockback: p.knockback * (0.4 + falloff * 0.6),
+    });
   }
-  if (!best) return;
-  best.holder = f.id;
-  best.vx = 0;
-  best.vy = 0;
-  best.spin = 0;
-  f.held = best.id;
-  state.events.push({ type: 'pickup', item: best.id });
+};
+
+const fire = (state: GameState, f: Fighter) => {
+  if (state.cto.phase === 'watching') caught(state, f);
+  const g = GUNS[f.weapon.kind];
+  makeNoise(state, NOISE.shot[f.weapon.kind]);
+  const m = muzzle(f);
+  for (let i = 0; i < g.pellets; i++) {
+    const angle = f.aim + (nextRandom(state) - 0.5) * 2 * g.spread;
+    const speed = g.speed * (g.pellets > 1 ? 0.85 + nextRandom(state) * 0.3 : 1);
+    state.projectiles.push({
+      id: state.nextId++,
+      kind: g.projectile,
+      owner: f.id,
+      x: m.x,
+      y: m.y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      damage: g.damage,
+      knockback: g.knockback,
+      life: g.life,
+      hit: [],
+    });
+  }
+  f.vx -= Math.cos(f.aim) * g.recoil;
+  if (!f.onGround) f.vy -= Math.sin(f.aim) * g.recoil * 0.6;
+  f.firing = 0;
+  state.events.push({ type: 'shot', fighter: f.id, gun: f.weapon.kind, x: m.x, y: m.y, angle: f.aim });
+};
+
+/** The gun a fighter is standing on, if any. */
+export const pickupCandidate = (state: GameState, f: Fighter): Pickup | null => {
+  const c = CHARACTERS[f.character];
+  for (const p of state.pickups) {
+    if (!p.active) continue;
+    if (Math.abs(p.x - f.x) < c.width / 2 + 0.6 && p.y > f.y - 0.6 && p.y < f.y + c.height) return p;
+  }
+  return null;
+};
+
+const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
+  f.weapon = newWeapon(p.kind);
+  p.active = false;
+  p.respawn = p.home ? RULES.gunRespawn : Infinity;
+  state.events.push({ type: 'pickup', fighter: f.id, gun: p.kind });
+};
+
+const updateWeapon = (state: GameState, f: Fighter, input: InputState, canAct: boolean) => {
+  const w = f.weapon;
+  const g = GUNS[w.kind];
+  w.cooldown = Math.max(0, w.cooldown - DT);
+  f.firing += DT;
+
+  if (w.reload > 0) {
+    w.reload -= DT;
+    if (w.reload <= 0) {
+      const take = Math.min(g.mag - w.mag, w.reserve);
+      w.mag += take;
+      w.reserve -= take;
+    }
+    return;
+  }
+  const startReload = () => {
+    if (w.mag >= g.mag || w.reserve <= 0) return;
+    w.reload = g.reloadTime;
+    state.events.push({ type: 'reload', fighter: f.id });
+  };
+  if (canAct && input.reload && !f.prev.reload) startReload();
+  if (w.mag <= 0) {
+    if (w.reserve > 0) startReload();
+    else if (w.kind !== 'pistol') {
+      // Out of everything: back to the pistol.
+      f.weapon = newWeapon('pistol');
+      state.events.push({ type: 'empty', fighter: f.id });
+    }
+    return;
+  }
+  if (canAct && input.fire && w.cooldown <= 0 && f.pushTime <= 0) {
+    w.mag -= 1;
+    w.cooldown = g.rate;
+    fire(state, f);
+  }
+};
+
+const updatePush = (state: GameState, f: Fighter) => {
+  if (f.pushTime <= 0) return;
+  const t = PUSH.duration - f.pushTime;
+  f.pushTime -= DT;
+  if (t < PUSH.activeFrom || t > PUSH.activeTo) return;
+  const c = CHARACTERS[f.character];
+  const cy = f.y + c.height * 0.55;
+  const x0 = f.facing > 0 ? f.x : f.x - c.width / 2 - PUSH.reach;
+  const x1 = f.facing > 0 ? f.x + c.width / 2 + PUSH.reach : f.x;
+  for (const o of state.fighters) {
+    if (o.id === f.id || f.pushHit.includes(o.id)) continue;
+    const oc = CHARACTERS[o.character];
+    const overlap = o.x + oc.width / 2 > x0 && o.x - oc.width / 2 < x1 && o.y + oc.height > cy - PUSH.span / 2 && o.y < cy + PUSH.span / 2;
+    if (!overlap) continue;
+    f.pushHit.push(o.id);
+    applyHit(state, o, { attacker: f.id, dx: f.facing, dy: PUSH.lift, damage: PUSH.damage, knockback: PUSH.knockback, push: true });
+  }
+  // Force Push also sends enemy shots back where they came from.
+  for (const p of state.projectiles) {
+    if (p.owner === f.id || p.kind === 'rail') continue;
+    if (p.x < x0 || p.x > x1 || Math.abs(p.y - cy) > PUSH.span / 2) continue;
+    const speed = Math.hypot(p.vx, p.vy) * 1.2;
+    const back = Math.atan2(-p.vy, -p.vx);
+    p.vx = Math.cos(back) * speed;
+    p.vy = Math.sin(back) * speed;
+    p.owner = f.id;
+    p.life = Math.max(p.life, 0.6);
+    p.hit = [];
+    state.events.push({ type: 'deflect', x: p.x, y: p.y });
+  }
 };
 
 const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
@@ -235,7 +324,6 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   f.dashCooldown = Math.max(0, f.dashCooldown - DT);
   f.dropTime = Math.max(0, f.dropTime - DT);
   f.stun = Math.max(0, f.stun - DT);
-  f.slow = Math.max(0, f.slow - DT);
   f.pushCooldown = Math.max(0, f.pushCooldown - DT);
   f.pushed = Math.max(0, f.pushed - DT);
   f.invulnerable = Math.max(0, f.invulnerable - DT);
@@ -248,19 +336,22 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   }
 
   const canAct = state.phase === 'fight' && f.stun <= 0;
-  const heldKind = f.held !== null ? state.items[f.held].kind : null;
-  const heldStats = heldKind ? ITEMS[heldKind] : null;
 
-  f.guarding = canAct && heldKind === 'monitor' && input.down && f.onGround && !f.attack;
+  // Aim follows the mouse. You face where you aim.
+  if (state.phase === 'fight') {
+    const m = { x: f.x, y: f.y + c.height * 0.62 };
+    const dx = input.aimX - m.x;
+    const dy = input.aimY - m.y;
+    if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) f.aim = Math.atan2(dy, dx);
+    f.facing = Math.cos(f.aim) < 0 ? -1 : 1;
+  }
 
   // Horizontal movement.
-  const dir = canAct && !f.guarding ? (input.right ? 1 : 0) - (input.left ? 1 : 0) : 0;
+  const dir = canAct ? (input.right ? 1 : 0) - (input.left ? 1 : 0) : 0;
   if (f.dashTime <= 0) {
-    let maxSpeed = c.speed * (f.slow > 0 ? SLOW_FACTOR : 1) * (heldStats?.carrySpeed ?? 1);
-    if (f.attack && f.onGround) maxSpeed *= 0.35;
+    const maxSpeed = c.speed * GUNS[f.weapon.kind].carry;
     if (dir !== 0) {
       f.vx = approach(f.vx, dir * maxSpeed, (f.onGround ? PHYS.groundAccel : PHYS.airAccel) * DT);
-      if (!f.attack) f.facing = dir as 1 | -1;
     } else {
       const friction = f.stun > 0 ? 18 : f.onGround ? PHYS.groundFriction : PHYS.airFriction;
       f.vx = approach(f.vx, 0, friction * DT);
@@ -268,7 +359,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   }
 
   // Jump, wall-kick, air jump.
-  if (canAct && pressed('up') && !f.guarding) {
+  if (canAct && pressed('up')) {
     if (f.onGround) {
       f.vy = c.jump;
       f.onGround = false;
@@ -276,7 +367,6 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     } else if (f.wall !== 0) {
       f.vx = -f.wall * PHYS.wallKickX;
       f.vy = c.jump * 0.95;
-      f.facing = -f.wall as 1 | -1;
       f.airJumps = c.airJumps;
       f.airDashes = 1;
       state.events.push({ type: 'jump', x: f.x, y: f.y, wallKick: true });
@@ -287,13 +377,12 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     }
   }
 
-  // Drop through a desk.
-  if (canAct && pressed('down') && f.onGround && f.y > ARENA.floor + 0.01 && heldKind !== 'monitor') {
+  if (canAct && pressed('down') && f.onGround && f.y > ARENA.floor + 0.01) {
     f.dropTime = PHYS.dropTime;
     f.onGround = false;
   }
 
-  // Dash.
+  // Dash: also dodges bullets while it lasts.
   if (canAct && pressed('dash') && f.dashCooldown <= 0 && (f.onGround || f.airDashes > 0)) {
     const d = dir !== 0 ? (dir as 1 | -1) : f.facing;
     f.vx = d * PHYS.dashSpeed;
@@ -301,29 +390,26 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
       f.airDashes -= 1;
       f.vy = 0;
     }
-    f.facing = d;
     f.dashTime = PHYS.dashTime;
     f.dashCooldown = PHYS.dashCooldown;
     state.events.push({ type: 'dash', x: f.x, y: f.y });
   }
 
-  // Attack, Force Push, grab / throw.
-  if (canAct && !f.attack) {
-    if (pressed('push') && f.pushCooldown <= 0) {
-      f.attack = { kind: 'push', t: 0, hit: [] };
-      f.pushCooldown = PUSH_COOLDOWN;
-      f.guarding = false;
-      state.events.push({ type: 'push', x: f.x, y: f.y + c.height * 0.55, facing: f.facing });
-    } else if (pressed('attack')) {
-      const kind = attackFor(heldKind);
-      f.attack = { kind, t: 0, hit: [] };
-      f.guarding = false;
-      if (f.onGround) f.vx += f.facing * ATTACKS[kind].lunge;
-    } else if (pressed('grab')) {
-      if (f.held !== null) throwItem(state, f, input);
-      else tryPickup(state, f);
-    }
+  if (canAct && pressed('push') && f.pushCooldown <= 0) {
+    if (state.cto.phase === 'watching') caught(state, f);
+    makeNoise(state, NOISE.push);
+    f.pushTime = PUSH.duration;
+    f.pushCooldown = PUSH.cooldown;
+    f.pushHit = [];
+    state.events.push({ type: 'push', x: f.x, y: f.y + c.height * 0.55, facing: f.facing });
   }
+
+  // Walking over a gun with only the pistol picks it up; E swaps any time.
+  const near = canAct ? pickupCandidate(state, f) : null;
+  if (near && (pressed('pickup') || f.weapon.kind === 'pistol')) takePickup(state, f, near);
+
+  updateWeapon(state, f, input, canAct);
+  updatePush(state, f);
 
   // Gravity.
   if (f.dashTime > 0 && !f.onGround) {
@@ -335,7 +421,6 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     f.vy = Math.max(f.vy, hugging ? -PHYS.wallSlide : -PHYS.maxFall);
   }
 
-  // Integrate.
   const prevY = f.y;
   f.x += f.vx * DT;
   f.y += f.vy * DT;
@@ -353,22 +438,22 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
       f.pushed = 0;
       f.vx = -side * 4;
       f.vy = Math.max(f.vy, 5);
-      f.stun = 0.7;
+      f.stun = 0.5;
       f.hp -= WALL_SPLAT_DAMAGE;
+      state.hitstop = Math.max(state.hitstop, 7);
       state.events.push({ type: 'wallSplat', side, y: f.y + c.height * 0.6 });
+      makeNoise(state, NOISE.wallSplat);
       if (f.hp <= 0) knockOut(state, f);
     } else if (into > 0) {
       f.vx = 0;
     }
   }
 
-  // Ceiling.
   if (f.y + c.height > ARENA.ceiling) {
     f.y = ARENA.ceiling - c.height;
     f.vy = Math.min(f.vy, 0);
   }
 
-  // Floor and one-way desks.
   f.onGround = false;
   if (f.vy <= 0) {
     let landY: number | null = null;
@@ -391,132 +476,165 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     }
   }
   f.wall = f.onGround ? 0 : touching;
-
-  // Attack hitboxes.
-  if (f.attack) {
-    const a = ATTACKS[f.attack.kind];
-    f.attack.t += DT;
-    const { t } = f.attack;
-    if (t >= a.activeFrom && t <= a.activeTo) {
-      const reach = a.reach * c.reach;
-      const x0 = f.facing > 0 ? f.x : f.x - halfW - reach;
-      const x1 = f.facing > 0 ? f.x + halfW + reach : f.x;
-      const cy = f.y + c.height * 0.55;
-      for (const o of state.fighters) {
-        if (o.id === f.id || f.attack.hit.includes(o.id)) continue;
-        const oc = CHARACTERS[o.character];
-        const overlap =
-          o.x + oc.width / 2 > x0 && o.x - oc.width / 2 < x1 && o.y + oc.height > cy - a.span / 2 && o.y < cy + a.span / 2;
-        if (!overlap) continue;
-        const landed = applyHit(state, o, {
-          attacker: f.id,
-          dir: f.facing,
-          damage: a.damage,
-          knockback: a.knockback + a.momentum * Math.max(0, f.vx * f.facing),
-          lift: a.lift,
-          slow: a.slow,
-          push: f.attack.kind === 'push',
-        });
-        if (landed) f.attack.hit.push(o.id);
-      }
-    }
-    if (t >= a.duration) {
-      if (f.attack.kind === 'splash' && f.held !== null) breakItem(state, state.items[f.held]);
-      f.attack = null;
-    }
-  }
-
   f.prev = { ...input };
 };
 
-const updateItem = (state: GameState, item: Item) => {
-  const s = ITEMS[item.kind];
-  if (!item.active) {
-    item.respawn -= DT;
-    if (item.respawn <= 0) {
-      Object.assign(item, {
-        active: true,
-        x: item.homeX,
-        y: item.homeY,
-        vx: 0,
-        vy: 0,
-        rot: 0,
-        spin: 0,
-        thrownBy: null,
-      });
-    }
-    return;
-  }
-  if (item.holder !== null) {
-    const f = state.fighters[item.holder];
-    const c = CHARACTERS[f.character];
-    item.x = f.x + f.facing * (c.width / 2 + 0.2);
-    item.y = f.y + c.height * 0.5;
-    item.vx = f.vx;
-    item.vy = f.vy;
-    return;
-  }
+const updateProjectiles = (state: GameState) => {
+  state.projectiles = state.projectiles.filter((p) => {
+    p.life -= DT;
+    const px = p.x;
+    const py = p.y;
+    if (p.kind === 'grenade') p.vy -= GRENADE.gravity * DT;
+    p.x += p.vx * DT;
+    p.y += p.vy * DT;
 
-  const prevY = item.y;
-  item.vy = Math.max(item.vy - PHYS.gravity * DT, -PHYS.maxFall);
-  item.x += item.vx * DT;
-  item.y += item.vy * DT;
-  item.rot += item.spin * DT;
+    const done = () => {
+      if (p.kind === 'grenade') explode(state, p);
+      else state.events.push({ type: 'impact', x: p.x, y: p.y });
+      return false;
+    };
 
-  if (item.x < ARENA.left + 0.3 || item.x > ARENA.right - 0.3) {
-    item.x = Math.min(Math.max(item.x, ARENA.left + 0.3), ARENA.right - 0.3);
-    if (s.breaksOnImpact && item.thrownBy !== null) return breakItem(state, item);
-    item.vx = -item.vx * 0.35;
-  }
+    if (p.life <= 0) return p.kind === 'grenade' ? done() : false;
 
-  // Thrown items hit fighters.
-  if (item.thrownBy !== null) {
-    item.thrownTime += DT;
-    const speed = Math.hypot(item.vx, item.vy);
-    for (const o of state.fighters) {
-      if (o.id === item.thrownBy) continue;
-      const oc = CHARACTERS[o.character];
-      if (Math.abs(item.x - o.x) > oc.width / 2 + 0.3 || item.y < o.y - 0.2 || item.y > o.y + oc.height + 0.2) continue;
-      const scale = Math.min(1.2, Math.max(0.5, speed / s.throwSpeed));
-      const landed = applyHit(state, o, {
-        attacker: item.thrownBy,
-        dir: sign(item.vx),
-        damage: s.throwDamage * scale,
-        knockback: s.throwKnockback * scale,
-        lift: 0.35,
-        slow: item.kind === 'mug' ? 2.2 : 0,
-        push: false,
-      });
-      if (!landed) continue;
-      if (s.breaksOnImpact) return breakItem(state, item);
-      item.vx = -item.vx * 0.25;
-      item.vy = 3;
-      item.thrownBy = null;
-      return;
-    }
-  }
-
-  // Land on the floor or a desk.
-  if (item.vy <= 0) {
-    let landY: number | null = null;
-    if (item.y <= ARENA.floor) landY = ARENA.floor;
-    else {
-      for (const p of ARENA.platforms) {
-        if (item.x >= p.x0 && item.x <= p.x1 && prevY >= p.y - 0.001 && item.y <= p.y) {
-          landY = p.y;
-          break;
-        }
+    // Find where this tick's path is cut short: the room's walls, or furniture
+    // (cover; rails go straight through it). Only fighters before that point get hit.
+    let tEnd = 1;
+    let blocked = false;
+    const cut = (t: number) => {
+      if (t >= 0 && t < tEnd) {
+        tEnd = t;
+        blocked = true;
+      }
+    };
+    const ddx = p.x - px;
+    const ddy = p.y - py;
+    if (p.x < ARENA.left) cut((ARENA.left - px) / ddx);
+    if (p.x > ARENA.right) cut((ARENA.right - px) / ddx);
+    if (p.y < ARENA.floor) cut((ARENA.floor - py) / ddy);
+    if (p.y > ARENA.ceiling) cut((ARENA.ceiling - py) / ddy);
+    if (p.kind !== 'rail') {
+      for (const pl of ARENA.platforms) {
+        if ((py - pl.y) * (p.y - pl.y) > 0 || ddy === 0) continue;
+        const t = (pl.y - py) / ddy;
+        const cx = px + ddx * t;
+        if (cx >= pl.x0 && cx <= pl.x1) cut(t);
       }
     }
-    if (landY !== null) {
-      if (s.breaksOnImpact && item.thrownBy !== null) return breakItem(state, item);
-      item.y = landY;
-      item.vy = 0;
-      item.vx = approach(item.vx, 0, 40 * DT);
-      item.spin = 0;
-      item.rot = 0;
-      if (Math.abs(item.vx) < 2) item.thrownBy = null;
+    const ex = px + ddx * tEnd;
+    const ey = py + ddy * tEnd;
+
+    // Hit fighters along the path (fast rounds would skip over thin targets).
+    for (const o of state.fighters) {
+      if (o.id === p.owner || o.respawn > 0 || p.hit.includes(o.id)) continue;
+      if (o.dashTime > 0) continue; // dodged
+      const oc = CHARACTERS[o.character];
+      const x0 = o.x - oc.width / 2 - 0.08;
+      const x1 = o.x + oc.width / 2 + 0.08;
+      const y0 = o.y;
+      const y1 = o.y + oc.height;
+      if (!segmentHitsBox(px, py, ex, ey, x0, y0, x1, y1)) continue;
+      if (p.kind === 'grenade') {
+        p.x = Math.min(Math.max(ex, x0), x1);
+        p.y = ey;
+        return done();
+      }
+      const landed = applyHit(state, o, { attacker: p.owner, dx: p.vx, dy: p.vy * 0.3 + Math.abs(p.vx) * 0.15, damage: p.damage, knockback: p.knockback });
+      if (!landed) continue;
+      if (p.kind === 'rail') {
+        p.hit.push(o.id);
+        continue;
+      }
+      return false;
     }
+    if (blocked) {
+      p.x = ex;
+      p.y = ey;
+      return done();
+    }
+    return true;
+  });
+};
+
+/** Liang–Barsky style test: does the segment touch the box? */
+const segmentHitsBox = (ax: number, ay: number, bx: number, by: number, x0: number, y0: number, x1: number, y1: number) => {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const clip = (p: number, q: number) => {
+    if (p === 0) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  };
+  return clip(-dx, ax - x0) && clip(dx, x1 - ax) && clip(-dy, ay - y0) && clip(dy, y1 - ay);
+};
+
+const updatePickups = (state: GameState) => {
+  for (const p of state.pickups) {
+    if (!p.active) {
+      if (!p.home) continue;
+      p.respawn -= DT;
+      if (p.respawn <= 0) Object.assign(p, { active: true, x: p.home.x, y: p.home.y, vy: 0 });
+      continue;
+    }
+    // Ceiling drops fall onto whatever is below them.
+    if (p.home) continue;
+    const prevY = p.y;
+    p.vy = Math.max(p.vy - PHYS.gravity * 0.5 * DT, -12);
+    p.y += p.vy * DT;
+    if (p.y <= ARENA.floor) {
+      p.y = ARENA.floor;
+      p.vy = 0;
+    }
+    for (const pl of ARENA.platforms) {
+      if (p.x >= pl.x0 && p.x <= pl.x1 && prevY >= pl.y && p.y <= pl.y) {
+        p.y = pl.y;
+        p.vy = 0;
+      }
+    }
+  }
+
+  if (state.phase !== 'fight') return;
+  state.dropTimer -= DT;
+  if (state.dropTimer > 0) return;
+  state.dropTimer = ARENA.dropEvery;
+  const slot = state.pickups.find((p) => !p.home && !p.active);
+  if (!slot) return;
+  const kind = ARENA.dropKinds[Math.floor(nextRandom(state) * ARENA.dropKinds.length)];
+  const x = ARENA.left + 2 + nextRandom(state) * (ARENA.right - ARENA.left - 4);
+  Object.assign(slot, { kind, x, y: ARENA.ceiling - 0.4, vy: 0, active: true });
+  state.events.push({ type: 'drop', x });
+};
+
+const updateCto = (state: GameState) => {
+  if (state.phase !== 'fight') return;
+  const cto = state.cto;
+  const loud = state.noise >= NOISE.max;
+  state.noise = Math.max(0, state.noise - NOISE.decay * DT);
+  cto.t += DT;
+  if (cto.phase === 'away') {
+    cto.cooldown = Math.max(0, cto.cooldown - DT);
+    if (loud && cto.cooldown <= 0) {
+      // Too loud: the CTO gets up and comes to see what's going on.
+      Object.assign(cto, { phase: 'coming', t: 0, x: -8 + nextRandom(state) * 16 });
+      state.events.push({ type: 'ctoComing' });
+    }
+  } else if (cto.phase === 'coming' && cto.t >= CTO.coming) {
+    Object.assign(cto, { phase: 'watching', t: 0 });
+    state.events.push({ type: 'ctoWatching' });
+  } else if (cto.phase === 'watching' && cto.t >= CTO.watching) {
+    Object.assign(cto, { phase: 'leaving', t: 0 });
+    state.noise = 0;
+    state.events.push({ type: 'ctoLeft' });
+  } else if (cto.phase === 'leaving' && cto.t >= CTO.leaving) {
+    Object.assign(cto, { phase: 'away', t: 0, cooldown: CTO.cooldown });
   }
 };
 
@@ -524,6 +642,12 @@ const updateItem = (state: GameState, item: Item) => {
 export const step = (state: GameState, inputs: InputState[]): GameState => {
   state.events = [];
   state.tick += 1;
+
+  // Hitstop: the world holds still for a few ticks so big hits land with weight.
+  if (state.hitstop > 0) {
+    state.hitstop -= 1;
+    return state;
+  }
 
   if (state.phase === 'countdown') {
     state.phaseTime -= DT;
@@ -536,12 +660,17 @@ export const step = (state: GameState, inputs: InputState[]): GameState => {
     if (state.phaseTime <= 0) {
       state.phaseTime = 0;
       state.phase = 'over';
+      state.endReason = 'time';
       const [a, b] = state.fighters;
       state.winner = a.kos === b.kos ? -1 : a.kos > b.kos ? a.id : b.id;
     }
   }
 
   for (const f of state.fighters) updateFighter(state, f, inputs[f.id] ?? EMPTY_INPUT);
-  for (const item of state.items) updateItem(state, item);
+  updateProjectiles(state);
+  updatePickups(state);
+  updateCto(state);
   return state;
 };
+
+export { sign };

@@ -1,18 +1,23 @@
 // Pure simulation types. No DOM, no Three.js: the same code will run on the game server.
 
 export type CharacterId = 'hotfix' | 'legacy' | 'standup' | 'intern';
-export type ItemKind = 'keyboard' | 'mug' | 'monitor';
 
-/** Buttons held this tick. Edges (pressed this tick) are derived by the sim. */
+export type GunKind = 'pistol' | 'smg' | 'shotgun' | 'railgun' | 'launcher';
+
+/** One tick of input. Buttons are held state; edges are derived by the sim. */
 export interface InputState {
   left: boolean;
   right: boolean;
-  up: boolean; // jump / wall-kick
-  down: boolean; // drop through desks, fast fall, guard with monitor
+  up: boolean; // jump / double jump / wall-kick
+  down: boolean; // drop through furniture, fast fall
   dash: boolean;
-  attack: boolean;
-  grab: boolean; // pick up, or throw what you hold
+  fire: boolean; // held: guns fire at their own rate
+  pickup: boolean;
+  reload: boolean;
   push: boolean; // Force Push
+  /** Aim point in world space (the mouse, projected onto the fight plane). */
+  aimX: number;
+  aimY: number;
 }
 
 export const EMPTY_INPUT: InputState = {
@@ -21,17 +26,20 @@ export const EMPTY_INPUT: InputState = {
   up: false,
   down: false,
   dash: false,
-  attack: false,
-  grab: false,
+  fire: false,
+  pickup: false,
+  reload: false,
   push: false,
+  aimX: 0,
+  aimY: 0,
 };
 
-export type AttackKind = 'jab' | 'sweep' | 'bash' | 'splash' | 'push';
-
-export interface Attack {
-  kind: AttackKind;
-  t: number; // seconds since start
-  hit: number[]; // fighter ids already hit by this swing
+export interface Weapon {
+  kind: GunKind;
+  mag: number;
+  reserve: number; // Infinity for the pistol
+  cooldown: number;
+  reload: number; // > 0 while reloading
 }
 
 export interface Fighter {
@@ -42,66 +50,110 @@ export interface Fighter {
   vx: number;
   vy: number;
   facing: 1 | -1;
+  aim: number; // radians, 0 = right, PI/2 = up
   onGround: boolean;
-  wall: -1 | 0 | 1; // touching the left (-1) or right (1) glass wall while airborne
+  wall: -1 | 0 | 1;
   airJumps: number;
   airDashes: number;
   dashTime: number;
   dashCooldown: number;
-  dropTime: number; // ignore desks while > 0
+  dropTime: number;
   hp: number;
   kos: number;
   stun: number;
-  slow: number; // coffee burn
   pushCooldown: number;
-  pushed: number; // > 0 right after a Force Push: hitting a wall now splats
-  respawn: number; // > 0 while knocked out
+  pushTime: number; // > 0 while the Force Push is out
+  pushHit: number[];
+  pushed: number; // > 0 right after being shoved: hitting a wall now splats
+  respawn: number;
   invulnerable: number;
-  held: number | null; // item id
-  attack: Attack | null;
-  guarding: boolean;
+  weapon: Weapon;
+  firing: number; // seconds since the last shot, for muzzle flash / recoil
   lastHitBy: number | null;
   prev: InputState;
 }
 
-export interface Item {
+export interface Pickup {
   id: number;
-  kind: ItemKind;
+  kind: GunKind;
+  x: number;
+  y: number;
+  vy: number;
+  active: boolean;
+  respawn: number;
+  /** Fixed spawn point, or null for a ceiling drop that is gone once taken. */
+  home: { x: number; y: number } | null;
+}
+
+export type ProjectileKind = 'bullet' | 'pellet' | 'rail' | 'grenade';
+
+export interface Projectile {
+  id: number;
+  kind: ProjectileKind;
+  owner: number;
   x: number;
   y: number;
   vx: number;
   vy: number;
-  rot: number;
-  spin: number;
-  holder: number | null;
-  thrownBy: number | null;
-  thrownTime: number;
-  active: boolean; // false while broken / waiting to respawn
-  respawn: number;
-  homeX: number;
-  homeY: number;
+  damage: number;
+  knockback: number;
+  life: number;
+  hit: number[]; // rails pierce: fighters already hit
 }
 
 export type GameEvent =
-  | { type: 'hit'; x: number; y: number; power: number; guarded: boolean }
-  | { type: 'splash'; x: number; y: number }
+  | { type: 'shot'; fighter: number; gun: GunKind; x: number; y: number; angle: number }
+  | { type: 'hit'; x: number; y: number; power: number; damage: number }
+  | { type: 'impact'; x: number; y: number }
+  | { type: 'explosion'; x: number; y: number; radius: number }
+  | { type: 'rail'; x0: number; y0: number; x1: number; y1: number }
   | { type: 'push'; x: number; y: number; facing: 1 | -1 }
+  | { type: 'deflect'; x: number; y: number }
   | { type: 'wallSplat'; side: -1 | 1; y: number }
-  | { type: 'ko'; fighter: number; x: number; y: number }
+  | { type: 'ko'; fighter: number; by: number | null; x: number; y: number }
   | { type: 'jump'; x: number; y: number; wallKick: boolean }
   | { type: 'dash'; x: number; y: number }
-  | { type: 'pickup'; item: number }
-  | { type: 'throw'; item: number }
-  | { type: 'shatter'; x: number; y: number };
+  | { type: 'pickup'; fighter: number; gun: GunKind }
+  | { type: 'reload'; fighter: number }
+  | { type: 'empty'; fighter: number }
+  | { type: 'drop'; x: number }
+  | { type: 'ctoComing' }
+  | { type: 'ctoWatching' }
+  | { type: 'ctoLeft' }
+  | { type: 'caught'; fighter: number };
+
+/**
+ * The CTO sits in the glass office. Noise brings them out; anyone who fires or
+ * shoves while they are watching loses the round.
+ */
+export type CtoPhase = 'away' | 'coming' | 'watching' | 'leaving';
+
+export interface Cto {
+  phase: CtoPhase;
+  t: number; // seconds in this phase
+  x: number; // where they stand while watching
+  cooldown: number; // after leaving, they stay in their office at least this long
+}
+
+export type EndReason = 'kos' | 'time' | 'caught';
 
 export type Phase = 'countdown' | 'fight' | 'over';
 
 export interface GameState {
   tick: number;
   phase: Phase;
-  phaseTime: number; // countdown left, or fight time left
+  phaseTime: number;
   winner: number | null; // fighter id, -1 for a draw
+  endReason: EndReason | null;
+  hitstop: number;
+  /** Office noise, 0..NOISE.max. Fills with gunfire and decays when it's quiet. */
+  noise: number;
+  cto: Cto;
+  seed: number; // deterministic RNG state (spread, drops)
+  dropTimer: number;
+  nextId: number;
   fighters: Fighter[];
-  items: Item[];
-  events: GameEvent[]; // produced by the last step only
+  pickups: Pickup[];
+  projectiles: Projectile[];
+  events: GameEvent[];
 }

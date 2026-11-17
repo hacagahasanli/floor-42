@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = { title: 'Arena' };
 
 interface Props {
-  searchParams: Promise<{ p1?: string; p2?: string; demo?: string }>;
+  searchParams: Promise<{ p1?: string; p2?: string; demo?: string; bot?: string }>;
 }
 
 const pickOther = (not: CharacterId): CharacterId => {
@@ -16,10 +16,11 @@ const pickOther = (not: CharacterId): CharacterId => {
 };
 
 const ArenaPage = async ({ searchParams }: Props) => {
-  const { p1, p2, demo } = await searchParams;
+  const { p1, p2, demo, bot } = await searchParams;
+  const level = bot === 'easy' || bot === 'hard' ? bot : 'normal';
   const player: CharacterId = isCharacterId(p1) ? p1 : 'hotfix';
   const opponent: CharacterId = isCharacterId(p2) ? p2 : pickOther(player);
-  return <ArenaGame player={player} opponent={opponent} demo={demo !== undefined} />;
+  return <ArenaGame player={player} opponent={opponent} demo={demo !== undefined} level={level} />;
 };
 
 export default ArenaPage;

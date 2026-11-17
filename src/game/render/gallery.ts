@@ -1,22 +1,15 @@
 import * as THREE from 'three';
 
-import { ATTACKS } from '../sim/constants';
-
 import { buildRig, poseRig } from './characters';
-import { buildItem, poseHeld } from './items';
+import { buildGun } from './guns';
 import { mat, mesh, PALETTE } from './palette';
 
-import type { AttackKind, CharacterId, ItemKind } from '../sim/types';
+import type { GunView } from './guns';
+import type { CharacterId, GunKind } from '../sim/types';
 
-/** A turntable for one character: it idles, then shows a move with a weapon. */
-const DEMO: { held: ItemKind | null; attack: AttackKind | null }[] = [
-  { held: null, attack: null },
-  { held: null, attack: 'jab' },
-  { held: 'keyboard', attack: 'sweep' },
-  { held: null, attack: 'push' },
-  { held: 'monitor', attack: 'bash' },
-  { held: 'mug', attack: 'splash' },
-];
+/** A turntable for one character, cycling through the guns and aiming around. */
+const DEMO: GunKind[] = ['pistol', 'smg', 'shotgun', 'railgun', 'launcher'];
+const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true };
 
 export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -49,13 +42,14 @@ export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
   const rig = buildRig(id);
   turntable.add(rig.root);
 
-  const items: Partial<Record<ItemKind, ReturnType<typeof buildItem>>> = {};
-  for (const kind of ['keyboard', 'monitor', 'mug'] as ItemKind[]) {
-    const v = buildItem(kind);
-    v.root.visible = false;
-    scene.add(v.root);
-    items[kind] = v;
-  }
+  const guns = Object.fromEntries(
+    DEMO.map((k) => {
+      const v = buildGun(k);
+      v.root.visible = false;
+      scene.add(v.root);
+      return [k, v];
+    }),
+  ) as Record<GunKind, GunView>;
 
   let raf = 0;
   let last = performance.now();
@@ -78,11 +72,8 @@ export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
     }
 
     turntable.rotation.y += dt * (hovered ? 0.2 : 0.6);
-    const slot = Math.floor(time / 1.6) % DEMO.length;
-    const demo = DEMO[slot];
-    const t = time % 1.6;
-    const duration = demo.attack ? ATTACKS[demo.attack].duration : 1;
-    const attack = demo.attack && t > 0.7 && t < 0.7 + duration ? { kind: demo.attack, t: t - 0.7, duration } : null;
+    const kind = DEMO[Math.floor(time / 2) % DEMO.length];
+    const sinceShot = (time % 0.6) * 2;
 
     poseRig(rig, {
       dt,
@@ -91,25 +82,24 @@ export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
       vy: 0,
       onGround: true,
       facing: 1,
+      aim: 0,
       sideways: false,
       wall: 0,
       dashing: false,
       stunned: false,
-      guarding: false,
-      held: demo.held,
-      attack,
+      twoHanded: TWO_HANDED[kind],
+      sinceShot,
+      recoil: 0.8,
+      reloading: false,
+      pushing: 0,
     });
     turntable.updateMatrixWorld(true);
 
-    for (const [kind, v] of Object.entries(items) as [ItemKind, ReturnType<typeof buildItem>][]) {
-      v.root.visible = demo.held === kind;
-      if (!v.root.visible) continue;
-      rig.hand.getWorldPosition(tmpV);
-      rig.hand.getWorldQuaternion(tmpQ);
-      v.root.position.copy(tmpV);
-      v.root.quaternion.copy(tmpQ);
-      poseHeld(v, kind);
-    }
+    for (const k of DEMO) guns[k].root.visible = k === kind;
+    rig.hand.getWorldPosition(tmpV);
+    rig.hand.getWorldQuaternion(tmpQ);
+    guns[kind].root.position.copy(tmpV);
+    guns[kind].root.quaternion.copy(tmpQ);
 
     renderer.render(scene, camera);
     raf = requestAnimationFrame(frame);

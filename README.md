@@ -2,7 +2,13 @@
 
 A fast two-player office fighting game set on floor 42. Two developers, one file, settle it with whatever is on the desk.
 
-> Status: clickable prototype. Single player against a bot, desktop keyboard only.
+> Status: playable prototype. Single player against a bot (`?bot=easy|normal|hard`), desktop keyboard, auto-aim, sound on (M mutes).
+
+A side-on office shootout across three floors of furniture: desks and the kitchen counter, hanging walkways, and a mezzanine under the ceiling.
+
+**Two hits and you're out** (a rocket or a rail: one), so cover and timing matter more than trading shots face to face.
+
+**Keep it quiet.** Every shot, blast and body through the glass fills the office noise meter. When it's full the CTO gets up from the glass office, walks out and watches for a few seconds. Whoever fires or shoves while the CTO is watching loses the round on the spot.
 
 ## Play locally
 
@@ -11,26 +17,39 @@ npm install
 npm run dev
 ```
 
-- `/characters`: four character concepts on turntables, pick yours and an opponent
-- `/arena`: the fight (`?p1=legacy&p2=standup`, add `&demo` for bot vs bot)
+- `/characters`: four fighters on turntables, pick yours and an opponent
+- `/arena`: the fight (`?p1=legacy&p2=standup&bot=hard`, add `&demo` for bot vs bot)
 
 ## Controls
+
+Keyboard only by default: your gun aims at the opponent by itself. Press **T** (or the button in the corner) to switch to mouse aim; the choice is remembered.
 
 | Key | Action |
 | --- | --- |
 | A / D | move |
-| W / Space | jump, jump again in the air, wall-kick off the glass |
-| S | drop through a desk, fast fall, guard while holding a monitor |
-| Shift | dash (one in the air) |
-| J | attack: jab, or the held weapon's move |
-| K | pick up / throw (hold W to lob) |
-| L | Force Push: a shove with a 3 s cooldown; into the glass it splats |
+| W | jump, again in the air, wall-kick off the glass |
+| Space | shoot (hold for automatic fire); left click too in mouse mode |
+| S | drop through furniture, fast fall |
+| Shift | dash: you can't be hit while it lasts |
+| Q | Force Push: shoves them, sends their bullets back, splats them into the glass |
+| E | swap for the gun you are standing on (with only a pistol you pick guns up by walking over them) |
+| T / M | aim mode / mute |
 
-## Weapons in the prototype
+Reloading is automatic (R reloads early). Enter starts a rematch.
 
-- **Keyboard**: two hands, a long overhead sweep. Swinging while running adds knockback.
-- **Hot coffee**: one hand. Splash up close or throw it; the burn slows the target.
-- **Monitor**: two hands. Absorbs most frontal damage, bashes hard, S to guard fully.
+## Guns
+
+Everyone starts with the pistol (endless ammo). Walk over a gold ring to grab something better; more drops from the ceiling vents. When a special gun runs dry you are back to the pistol.
+
+| Gun | What it does |
+| --- | --- |
+| Pistol | accurate, 8 rounds, never runs out, two hits to KO |
+| SMG | fast and spread out |
+| Shotgun | six pellets, a one-shot KO up close, kicks you back |
+| Railgun | one-shot KO, goes through furniture and through people |
+| Launcher | one-shot KO near the blast; it throws everyone, you too (rocket jumps) |
+
+Desks, walkways and cabinets stop bullets, so they are cover.
 
 ## How it is built
 
