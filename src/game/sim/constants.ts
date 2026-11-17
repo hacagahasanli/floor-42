@@ -37,24 +37,27 @@ export const ARENA = {
     { x0: 9.5, x1: 17.9, y: 9.4, style: 'walkway' },
     { x0: -4.5, x1: 4.5, y: 10.6, style: 'walkway' },
   ] as Platform[],
+  /** Respawn points on every level. You come back at one far from your rival. */
   spawns: [
     { x: -13.5, y: 1.1 },
     { x: 11.3, y: 1.2 },
+    { x: 0, y: 1.0 },
+    { x: -5.4, y: 4.4 },
+    { x: 5.4, y: 4.4 },
+    { x: -14, y: 9.4 },
+    { x: 14, y: 9.4 },
   ],
+  /**
+   * One gun per floor: each spawn picks a random spot on its level and a random gun.
+   * Taking it starts a timer before the next one appears.
+   */
   gunSpawns: [
-    { kind: 'smg', x: -5.4, y: 4.4 },
-    { kind: 'smg', x: 5.4, y: 4.4 },
-    { kind: 'shotgun', x: -8, y: 1.1 },
-    { kind: 'shotgun', x: 16.9, y: 2.8 },
-    { kind: 'railgun', x: 0, y: 7.2 },
-    { kind: 'launcher', x: -13, y: 6.0 },
-    { kind: 'launcher', x: 13, y: 6.0 },
-    { kind: 'railgun', x: -16, y: 9.4 },
-    { kind: 'smg', x: 16, y: 9.4 },
-    { kind: 'shotgun', x: 0, y: 10.6 },
-  ] as { kind: GunKind; x: number; y: number }[],
-  dropEvery: 10,
-  dropSlots: 3,
+    { spots: [{ x: 0, y: 1.0 }, { x: -8, y: 1.1 }, { x: 16.9, y: 2.8 }], kinds: ['smg', 'shotgun'] },
+    { spots: [{ x: -5.4, y: 4.4 }, { x: 5.4, y: 4.4 }, { x: 0, y: 7.2 }], kinds: ['smg', 'shotgun', 'launcher'] },
+    { spots: [{ x: -15, y: 9.4 }, { x: 15, y: 9.4 }, { x: 0, y: 10.6 }], kinds: ['railgun', 'launcher'] },
+  ] as { spots: { x: number; y: number }[]; kinds: GunKind[] }[],
+  dropEvery: 25,
+  dropSlots: 1,
   dropKinds: ['smg', 'shotgun', 'railgun', 'launcher'] as GunKind[],
 };
 
@@ -65,7 +68,7 @@ export const RULES = {
   countdownSeconds: 2.4,
   respawnSeconds: 3,
   spawnInvulnerable: 1.4,
-  gunRespawn: 12,
+  gunRespawn: 15,
 };
 
 export const PHYS = {

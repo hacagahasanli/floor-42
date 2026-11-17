@@ -83,8 +83,8 @@ export interface Pickup {
   vy: number;
   active: boolean;
   respawn: number;
-  /** Fixed spawn point, or null for a ceiling drop that is gone once taken. */
-  home: { x: number; y: number } | null;
+  /** Index into ARENA.gunSpawns, or null for a ceiling drop that is gone once taken. */
+  spawn: number | null;
 }
 
 export type ProjectileKind = 'bullet' | 'pellet' | 'rail' | 'grenade';

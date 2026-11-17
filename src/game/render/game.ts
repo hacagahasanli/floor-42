@@ -139,6 +139,35 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     return v;
   };
 
+  // "Press E" floating over a gun you can swap for.
+  const promptTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 96;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#ffd23f';
+    g.beginPath();
+    g.roundRect(8, 8, 80, 80, 12);
+    g.fill();
+    g.fillStyle = '#0a0d18';
+    g.font = 'bold 56px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('E', 48, 52);
+    g.fillStyle = '#ffffff';
+    g.font = 'bold 44px sans-serif';
+    g.textAlign = 'left';
+    g.fillText('SWAP', 104, 52);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: promptTex, depthTest: false, transparent: true }));
+  prompt.scale.set(2.4, 0.9, 1);
+  prompt.renderOrder = 10;
+  prompt.visible = false;
+  scene.add(prompt);
+
   // Projectiles: pooled tracers and grenades.
   const tracerGeo = new THREE.BoxGeometry(1, 0.06, 0.06);
   const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe9a0 });
@@ -410,6 +439,16 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       v.root.rotation.set(0, Math.PI / 2 + Math.sin(time * 1.5 + i) * 0.5, 0);
       marker.position.set(p.x, p.y + 0.012, 0.25);
     });
+
+    // Show the swap prompt over the gun you're standing on (with only a pistol it's picked up automatically).
+    const self = state.fighters[me];
+    const near = !opts.demo && self.respawn <= 0 && self.weapon.kind !== 'pistol' ? pickupCandidate(state, self) : null;
+    prompt.visible = !!near;
+    if (near) {
+      const bob = 1 + Math.sin(time * 6) * 0.06;
+      prompt.position.set(near.x, near.y + 1.6, 0.5);
+      prompt.scale.set(2.4 * bob, 0.9 * bob, 1);
+    }
 
     let t = 0;
     let gr = 0;

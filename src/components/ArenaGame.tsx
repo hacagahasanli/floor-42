@@ -17,6 +17,8 @@ import type { CharacterId } from '~/game/sim/types';
 
 const accent = (id: CharacterId) => ROSTER.find((r) => r.id === id)?.accent ?? '#fff';
 const AIM_KEY = 'merge-conflict:aim';
+const WAIT_SECONDS = 60;
+const MAX_WAITS = 3;
 
 const readAim = (): AimMode => {
   try {
@@ -118,6 +120,14 @@ export const ArenaGame = ({
   const [rematchAsked, setRematchAsked] = useState(false);
   const [rivalLeft, setRivalLeft] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Rival left: wait up to three rounds of WAIT_SECONDS, asking in between, then the link expires.
+  const [waitRound, setWaitRound] = useState(0);
+  const [waitLeft, setWaitLeft] = useState(0);
+  const [asking, setAsking] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  /** Seconds left for a rival whose connection dropped to come back, or null. */
+  const [dropLeft, setDropLeft] = useState<number | null>(null);
   const lastEsc = useRef(0);
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
@@ -142,16 +152,67 @@ export const ArenaGame = ({
     if (!online) return;
     const offStart = online.room.onMessage('start', (msg: StartMessage) => {
       setRematchAsked(false);
+      setRivalLeft(false);
+      setWaitRound(0);
+      setAsking(false);
       gameRef.current?.serverStart(msg);
     });
-    const offLeft = online.room.onMessage('left', () => setRivalLeft(true));
+    const offLeft = online.room.onMessage('left', () => {
+      setDropLeft(null);
+      setRivalLeft(true);
+      setWaitRound(1);
+      setWaitLeft(WAIT_SECONDS);
+      setAsking(false);
+    });
     // Leaving the room is the lobby's job (it owns the connection), not this effect's:
     // React re-runs effects in development, which would otherwise drop the match.
+    const offDropped = online.room.onMessage('dropped', (msg: { slot: number; seconds: number }) => {
+      if (msg.slot !== online.session.slot) setDropLeft(msg.seconds);
+    });
+    const offBack = online.room.onMessage('back', () => setDropLeft(null));
     return () => {
       offStart();
       offLeft();
+      offDropped();
+      offBack();
     };
   }, [online]);
+
+  // Count down the current wait; at zero ask again, or expire after the last one.
+  useEffect(() => {
+    if (!rivalLeft || asking || expired || waitRound === 0) return;
+    const t = setInterval(() => {
+      setWaitLeft((left) => {
+        if (left > 1) return left - 1;
+        if (waitRound >= MAX_WAITS) {
+          setExpired(true);
+          void online?.room.leave();
+        } else {
+          setAsking(true);
+        }
+        return 0;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [rivalLeft, asking, expired, waitRound, online]);
+
+  useEffect(() => {
+    if (dropLeft === null || dropLeft <= 0) return;
+    const t = setTimeout(() => setDropLeft((d) => (d === null ? null : d - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [dropLeft]);
+
+  const keepWaiting = () => {
+    setWaitRound((r) => r + 1);
+    setWaitLeft(WAIT_SECONDS);
+    setAsking(false);
+  };
+  const inviteLink = online && typeof window !== 'undefined' ? `${window.location.origin}/play?room=${online.room.roomId}` : '';
+  const copyInvite = async () => {
+    await navigator.clipboard.writeText(inviteLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 1500);
+  };
 
   const exit = () => {
     if (online) void online.room.leave();
@@ -325,7 +386,19 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {(hud.paused || menuOpen) && hud.phase !== 'over' && !rivalLeft && (
+          {dropLeft !== null && !rivalLeft && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-ink-deep/70">
+              <div className="panel-cut flex w-[26rem] flex-col items-center gap-3 bg-ink p-7 text-center">
+                <div className="font-display text-2xl text-gold">Your rival&apos;s connection dropped</div>
+                <p className="text-sm text-cream/70">
+                  The game is on hold while they reconnect:{' '}
+                  <span className="font-display text-cream">{Math.max(0, dropLeft)}s</span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {(hud.paused || menuOpen) && hud.phase !== 'over' && !rivalLeft && dropLeft === null && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-ink-deep/70">
               <div className="panel-cut flex w-80 flex-col items-center gap-4 bg-ink p-7 text-center">
                 {hud.paused ? (
@@ -356,12 +429,49 @@ export const ArenaGame = ({
           )}
 
           {rivalLeft && (
-            <div className="absolute inset-0 flex items-center justify-center bg-ink-deep/80">
-              <div className="panel-cut flex flex-col items-center gap-4 bg-ink p-8 text-center">
-                <div className="font-display text-3xl text-gold">Your rival left</div>
-                <Link href="/play" className="panel-cut bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
-                  Find another match
-                </Link>
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-ink-deep/80">
+              <div className="panel-cut flex w-[26rem] flex-col items-center gap-4 bg-ink p-7 text-center">
+                {expired ? (
+                  <>
+                    <div className="font-display text-3xl text-orange">Link expired</div>
+                    <p className="text-sm text-cream/70">Your rival didn&apos;t come back. Start a new match and send a new link.</p>
+                    <Link href="/play" className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                      New match
+                    </Link>
+                  </>
+                ) : asking ? (
+                  <>
+                    <div className="font-display text-2xl text-gold">Still not back</div>
+                    <p className="text-sm text-cream/70">
+                      {waitRound + 1 >= MAX_WAITS
+                        ? `Wait one more minute? This is the last one: after it the link expires.`
+                        : `Keep waiting another minute for your rival?`}
+                    </p>
+                    <button type="button" onClick={keepWaiting} className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                      {waitRound + 1 >= MAX_WAITS ? 'Wait (last time)' : 'Keep waiting'}
+                    </button>
+                    <button type="button" onClick={exit} className="panel-cut w-full bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
+                      Leave
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="font-display text-3xl text-gold">Your rival left</div>
+                    <p className="text-sm text-cream/70">
+                      Waiting for them to come back with the same link
+                      {waitRound >= MAX_WAITS ? ' (last wait)' : ''}:{' '}
+                      <span className="font-display text-cream">
+                        {Math.floor(waitLeft / 60)}:{String(waitLeft % 60).padStart(2, '0')}
+                      </span>
+                    </p>
+                    <button type="button" onClick={copyInvite} className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                      {linkCopied ? 'Link copied' : 'Copy the link again'}
+                    </button>
+                    <button type="button" onClick={exit} className="panel-cut w-full bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
+                      Leave
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -375,6 +485,27 @@ export const ArenaGame = ({
                 <div className="font-display text-xl text-cream">
                   {hud.fighters[0].kos} – {hud.fighters[1].kos}
                 </div>
+                {online && (
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-xs uppercase tracking-widest text-cream/50">Next round as</span>
+                    <div className="flex gap-2">
+                      {ROSTER.map((r) => {
+                        const chosen = (hud.nextCharacter ?? hud.character) === r.id;
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => gameRef.current?.pickCharacter(r.id)}
+                            className={`panel-cut border-2 px-3 py-1.5 font-display text-sm ${chosen ? 'border-gold bg-ink-deep' : 'border-cream/10 bg-ink-deep/60 hover:border-cream/30'}`}
+                            style={{ color: r.accent }}
+                          >
+                            {r.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     type="button"
@@ -384,9 +515,15 @@ export const ArenaGame = ({
                   >
                     {rematchAsked ? 'Waiting for rival…' : 'Rematch (Enter)'}
                   </button>
-                  <Link href="/characters" className="panel-cut bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
-                    Change fighter
-                  </Link>
+                  {online ? (
+                    <button type="button" onClick={exit} className="panel-cut bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
+                      Leave
+                    </button>
+                  ) : (
+                    <Link href="/characters" className="panel-cut bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
+                      Change fighter
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

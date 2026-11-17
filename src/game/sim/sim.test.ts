@@ -58,9 +58,10 @@ describe('round flow', () => {
 describe('movement', () => {
   it('lands on a desk and drops through it with Down', () => {
     const s = fighting();
+    place(s, 0, -13.5, 2);
     run(s, 30);
     expect(s.fighters[0].onGround).toBe(true);
-    expect(s.fighters[0].y).toBeCloseTo(ARENA.spawns[0].y);
+    expect(s.fighters[0].y).toBeCloseTo(1.1);
     run(s, 1, { down: true });
     run(s, 40);
     expect(s.fighters[0].y).toBe(0);
@@ -184,11 +185,11 @@ describe('guns', () => {
   it('walking over a gun with a pistol picks it up', () => {
     const s = createGame(['hotfix', 'legacy']);
     s.phase = 'fight';
-    const smg = s.pickups.find((p) => p.kind === 'smg')!;
-    place(s, 0, smg.x, smg.y);
+    const gun = s.pickups.find((p) => p.active)!;
+    place(s, 0, gun.x, gun.y);
     run(s, 2);
-    expect(s.fighters[0].weapon.kind).toBe('smg');
-    expect(smg.active).toBe(false);
+    expect(s.fighters[0].weapon.kind).toBe(gun.kind);
+    expect(gun.active).toBe(false);
   });
 
   it('dashing dodges bullets', () => {
@@ -239,6 +240,38 @@ describe('KOs', () => {
   });
 });
 
+describe('spawns and guns', () => {
+  it('starts the two fighters far apart, not always in the same spots', () => {
+    const starts = new Set<string>();
+    for (let seed = 1; seed <= 12; seed++) {
+      const s = createGame(['hotfix', 'legacy'], seed);
+      const [a, b] = s.fighters;
+      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(8);
+      starts.add(`${a.x},${a.y}`);
+    }
+    expect(starts.size).toBeGreaterThan(2);
+  });
+
+  it('has exactly one gun per floor at the start', () => {
+    const s = createGame(['hotfix', 'legacy'], 3);
+    const live = s.pickups.filter((p) => p.active);
+    expect(live).toHaveLength(ARENA.gunSpawns.length);
+    live.forEach((p, i) => expect(ARENA.gunSpawns[i].spots.some((spot) => spot.x === p.x && spot.y === p.y)).toBe(true));
+  });
+
+  it('a taken gun comes back after a while, on the same floor', () => {
+    const s = createGame(['hotfix', 'legacy'], 3);
+    s.phase = 'fight';
+    const gun = s.pickups[0];
+    place(s, 0, gun.x, gun.y);
+    run(s, 2);
+    expect(gun.active).toBe(false);
+    run(s, Math.ceil(RULES.gunRespawn / DT) + 2);
+    expect(gun.active).toBe(true);
+    expect(ARENA.gunSpawns[0].spots.some((spot) => spot.x === gun.x && spot.y === gun.y)).toBe(true);
+  });
+});
+
 describe('pause and respawn', () => {
   it('nothing moves while paused', () => {
     const s = fighting();
@@ -271,7 +304,7 @@ describe('bot', () => {
       step(s, bots.map((b) => b(s)));
       hits += s.events.filter((e) => e.type === 'hit').length;
     }
-    expect(hits).toBeGreaterThan(20);
+    expect(hits).toBeGreaterThan(5);
     expect(s.fighters[0].kos + s.fighters[1].kos).toBeGreaterThan(0);
   });
 

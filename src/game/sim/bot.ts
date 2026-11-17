@@ -22,11 +22,11 @@ const LEVELS: Record<BotLevel, { reaction: number; aimError: number; trigger: nu
 
 /** Preferred distance to the target for each gun. */
 const RANGE: Record<GunKind, [number, number]> = {
-  pistol: [5, 10],
-  smg: [4, 8],
-  shotgun: [1.5, 4],
-  railgun: [9, 18],
-  launcher: [5, 11],
+  pistol: [8, 15],
+  smg: [6, 11],
+  shotgun: [2.5, 5],
+  railgun: [12, 24],
+  launcher: [9, 16],
 };
 
 type Press = 'up' | 'down' | 'dash' | 'pickup' | 'push' | 'reload';
@@ -80,10 +80,19 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
       return { move: (me.x < 0 ? 1 : -1) as -1 | 1, presses, fire: false, aimErr };
     }
 
+    // Keep the distance the gun likes: back off when they close in, drift in when too far,
+    // otherwise hold position and strafe a little. Wounded bots play even further back.
     const [near, far] = RANGE[me.weapon.kind];
-    if (dist < near) move = (-toFoe) as -1 | 1;
-    else if (dist > far) move = toFoe;
-    else if (rand() < 0.4) move = rand() < 0.5 ? -1 : 1; // strafe
+    const wounded = me.hp <= 50 ? 3 : 0;
+    if (dist < near + wounded) {
+      move = (-toFoe) as -1 | 1;
+      if (me.wall !== 0 || Math.abs(me.x) > 16) presses.push('up'); // cornered: get over them
+    } else if (dist > far + wounded) {
+      move = rand() < 0.7 ? toFoe : 0;
+    } else {
+      const r = rand();
+      move = r < 0.25 ? -1 : r < 0.5 ? 1 : 0;
+    }
 
     if (dist < 2.4 && me.pushCooldown <= 0 && Math.abs(dy) < 1.2 && rand() < 0.5) presses.push('push');
     if (foe.firing < 0.2 && me.dashCooldown <= 0 && rand() < cfg.dodge) presses.push('dash');

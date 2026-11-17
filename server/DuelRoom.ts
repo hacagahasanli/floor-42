@@ -106,6 +106,23 @@ export class DuelRoom extends Room {
     }
   }
 
+  /** A dropped connection (wifi blip, tab asleep) gets 20 seconds to come back to the same seat. */
+  async onDrop(client: Client) {
+    const seat = this.seatOf(client);
+    if (!seat) return;
+    const slot = this.seats.indexOf(seat);
+    if (this.game) this.game.paused = true;
+    this.broadcast('dropped', { slot, seconds: 20 });
+    try {
+      seat.client = await this.allowReconnection(client, 20);
+      if (this.game) this.game.paused = false;
+      this.broadcast('back', { slot });
+      this.sendPause();
+    } catch {
+      // Did not come back: onLeave handles it.
+    }
+  }
+
   onLeave(client: Client) {
     const slot = this.seats.findIndex((s) => s?.client === client);
     if (slot < 0) return;

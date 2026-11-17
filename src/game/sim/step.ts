@@ -67,20 +67,22 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
 };
 
 export const createGame = (characters: [CharacterId, CharacterId], seed = 1): GameState => {
-  const pickups: Pickup[] = ARENA.gunSpawns.map((s, i) => ({
+  const fighters = characters.map((c, i) => createFighter(i, c));
+  fighters.forEach((f) => Object.assign(f, { x: 0, y: 0 }));
+  const pickups: Pickup[] = ARENA.gunSpawns.map((_, i) => ({
     id: i,
-    kind: s.kind,
-    x: s.x,
-    y: s.y,
+    kind: 'smg',
+    x: 0,
+    y: 0,
     vy: 0,
-    active: true,
+    active: false,
     respawn: 0,
-    home: { x: s.x, y: s.y },
+    spawn: i,
   }));
   for (let i = 0; i < ARENA.dropSlots; i++) {
-    pickups.push({ id: pickups.length, kind: 'smg', x: 0, y: ARENA.ceiling, vy: 0, active: false, respawn: Infinity, home: null });
+    pickups.push({ id: pickups.length, kind: 'smg', x: 0, y: ARENA.ceiling, vy: 0, active: false, respawn: Infinity, spawn: null });
   }
-  return {
+  const state: GameState = {
     tick: 0,
     phase: 'countdown',
     phaseTime: RULES.countdownSeconds,
@@ -91,11 +93,44 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1): Ga
     seed,
     dropTimer: ARENA.dropEvery,
     nextId: 1,
-    fighters: characters.map((c, i) => createFighter(i, c)),
+    fighters,
     pickups,
     projectiles: [],
     events: [],
   };
+  // Random starting spots (far apart) and random guns on each floor.
+  for (const f of state.fighters) placeAtSpawn(state, f);
+  for (const p of state.pickups) if (p.spawn !== null) placeGun(state, p);
+  return state;
+};
+
+/** Put a fighter on a random spawn point, preferring ones far from everyone else. */
+const placeAtSpawn = (state: GameState, f: Fighter) => {
+  const others = state.fighters.filter((o) => o !== f && o.respawn <= 0 && (o.x !== 0 || o.y !== 0));
+  const scored = ARENA.spawns.map((p) => ({
+    p,
+    d: others.length ? Math.min(...others.map((o) => Math.hypot(o.x - p.x, o.y - p.y))) : 99,
+  }));
+  const far = scored.filter((s) => s.d > 12);
+  const pool = far.length ? far : scored.sort((a, b) => b.d - a.d).slice(0, 2);
+  const spot = pool[Math.floor(nextRandom(state) * pool.length)].p;
+  f.x = spot.x;
+  f.y = spot.y;
+  f.facing = spot.x < 0 ? 1 : -1;
+  f.aim = f.facing > 0 ? 0 : Math.PI;
+};
+
+/** A floor's gun appears at a random spot on that floor, as a random kind. */
+const placeGun = (state: GameState, p: Pickup) => {
+  const def = ARENA.gunSpawns[p.spawn!];
+  const spot = def.spots[Math.floor(nextRandom(state) * def.spots.length)];
+  Object.assign(p, {
+    kind: def.kinds[Math.floor(nextRandom(state) * def.kinds.length)],
+    x: spot.x,
+    y: spot.y,
+    vy: 0,
+    active: true,
+  });
 };
 
 /** Pick the character you come back as. Takes effect at your next respawn. */
@@ -104,19 +139,16 @@ export const chooseCharacter = (state: GameState, id: number, character: Charact
   if (f && character in CHARACTERS) f.nextCharacter = character;
 };
 
-const respawnFighter = (f: Fighter) => {
-  const spawn = ARENA.spawns[f.id % ARENA.spawns.length];
+const respawnFighter = (state: GameState, f: Fighter) => {
   if (f.nextCharacter) {
     f.character = f.nextCharacter;
     f.nextCharacter = null;
   }
+  placeAtSpawn(state, f);
   Object.assign(f, {
-    x: spawn.x,
-    y: spawn.y + 2,
+    y: f.y + 1.5,
     vx: 0,
     vy: 0,
-    facing: spawn.x < 0 ? 1 : -1,
-    aim: spawn.x < 0 ? 0 : Math.PI,
     hp: CHARACTERS[f.character].hp,
     stun: 0,
     pushed: 0,
@@ -237,7 +269,7 @@ export const pickupCandidate = (state: GameState, f: Fighter): Pickup | null => 
 const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
   f.weapon = newWeapon(p.kind);
   p.active = false;
-  p.respawn = p.home ? RULES.gunRespawn : Infinity;
+  p.respawn = p.spawn !== null ? RULES.gunRespawn : Infinity;
   state.events.push({ type: 'pickup', fighter: f.id, gun: p.kind });
 };
 
@@ -325,7 +357,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
 
   if (f.respawn > 0) {
     f.respawn -= DT;
-    if (f.respawn <= 0) respawnFighter(f);
+    if (f.respawn <= 0) respawnFighter(state, f);
     f.prev = { ...input };
     return;
   }
@@ -573,13 +605,13 @@ const segmentHitsBox = (ax: number, ay: number, bx: number, by: number, x0: numb
 const updatePickups = (state: GameState) => {
   for (const p of state.pickups) {
     if (!p.active) {
-      if (!p.home) continue;
+      if (p.spawn === null) continue;
       p.respawn -= DT;
-      if (p.respawn <= 0) Object.assign(p, { active: true, x: p.home.x, y: p.home.y, vy: 0 });
+      if (p.respawn <= 0) placeGun(state, p);
       continue;
     }
     // Ceiling drops fall onto whatever is below them.
-    if (p.home) continue;
+    if (p.spawn !== null) continue;
     const prevY = p.y;
     p.vy = Math.max(p.vy - PHYS.gravity * 0.5 * DT, -12);
     p.y += p.vy * DT;
@@ -599,7 +631,7 @@ const updatePickups = (state: GameState) => {
   state.dropTimer -= DT;
   if (state.dropTimer > 0) return;
   state.dropTimer = ARENA.dropEvery;
-  const slot = state.pickups.find((p) => !p.home && !p.active);
+  const slot = state.pickups.find((p) => p.spawn === null && !p.active);
   if (!slot) return;
   const kind = ARENA.dropKinds[Math.floor(nextRandom(state) * ARENA.dropKinds.length)];
   const x = ARENA.left + 2 + nextRandom(state) * (ARENA.right - ARENA.left - 4);

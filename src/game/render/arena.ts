@@ -379,7 +379,7 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
     g.font = '40px ui-monospace, Menlo, monospace';
     g.fillText('agents-know · merge room', 420, 68);
   });
-  scene.add(put(new THREE.Mesh(new THREE.PlaneGeometry(7.2, 0.9), new THREE.MeshBasicMaterial({ map: sign })), 0, 12.4, BACK_Z + 0.3));
+  scene.add(put(new THREE.Mesh(new THREE.PlaneGeometry(7.2, 0.9), new THREE.MeshBasicMaterial({ map: sign })), 0, 8.7, BACK_Z + 0.3));
 
   // Side glass walls you can wall-kick off.
   const cracks: { mesh: THREE.Mesh; life: number }[] = [];
