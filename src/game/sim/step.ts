@@ -1,4 +1,4 @@
-import { ARENA, CHARACTERS, DT, GRENADE, GUNS, PHYS, PUSH, RULES, WALL_SPLAT_DAMAGE, WALL_SPLAT_SPEED } from './constants';
+import { ARENA, BOMB, CHARACTERS, DT, GRENADE, GUNS, PHYS, PUSH, RULES, WALL_SPLAT_DAMAGE, WALL_SPLAT_SPEED } from './constants';
 import { EMPTY_INPUT } from './types';
 
 import type { CharacterId, Fighter, GameState, GunKind, InputState, Pickup, Projectile, Weapon } from './types';
@@ -42,6 +42,8 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     vy: 0,
     facing: spawn.x < 0 ? 1 : -1,
     aim: spawn.x < 0 ? 0 : Math.PI,
+    aimTx: 0,
+    aimTy: 0,
     onGround: true,
     wall: 0,
     airJumps: c.airJumps,
@@ -59,6 +61,7 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     respawn: 0,
     invulnerable: 0,
     weapon: newWeapon('pistol'),
+    stash: null,
     nextCharacter: null,
     firing: 1,
     lastHitBy: null,
@@ -155,6 +158,7 @@ const respawnFighter = (state: GameState, f: Fighter) => {
     pushTime: 0,
     dashTime: 0,
     weapon: newWeapon('pistol'),
+    stash: null,
     invulnerable: RULES.spawnInvulnerable,
     lastHitBy: null,
   });
@@ -206,8 +210,11 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
   return true;
 };
 
+const isExplosive = (k: Projectile['kind']) => k === 'grenade' || k === 'bomb';
+
 const explode = (state: GameState, p: Projectile) => {
-  state.events.push({ type: 'explosion', x: p.x, y: p.y, radius: GRENADE.radius });
+  const blast = p.kind === 'bomb' ? BOMB : GRENADE;
+  state.events.push({ type: 'explosion', x: p.x, y: p.y, radius: blast.radius });
   for (const o of state.fighters) {
     const c = CHARACTERS[o.character];
     const dx = o.x - p.x;
@@ -216,10 +223,10 @@ const explode = (state: GameState, p: Projectile) => {
     const nx = Math.min(Math.max(p.x, o.x - c.width / 2), o.x + c.width / 2);
     const ny = Math.min(Math.max(p.y, o.y), o.y + c.height);
     const d = Math.hypot(nx - p.x, ny - p.y);
-    if (d > GRENADE.radius) continue;
+    if (d > blast.radius) continue;
     // Near the blast is lethal; the edge still hurts.
-    const falloff = 0.5 + 0.5 * (1 - d / GRENADE.radius);
-    const self = o.id === p.owner ? GRENADE.selfDamage : 1;
+    const falloff = p.kind === 'bomb' ? Math.max(0.15, 1 - d / blast.radius) : 0.5 + 0.5 * (1 - d / blast.radius);
+    const self = o.id === p.owner ? blast.selfDamage : 1;
     applyHit(state, o, {
       attacker: p.owner,
       dx: dx || 0.01,
@@ -230,18 +237,32 @@ const explode = (state: GameState, p: Projectile) => {
   }
 };
 
+/** The low-arc launch angle that lands a lobbed throw on (tx, ty); 45° if it can't reach. */
+export const lobAngle = (x: number, y: number, tx: number, ty: number, v: number, g: number) => {
+  const dx = Math.abs(tx - x);
+  const dy = ty - y;
+  const dir = tx >= x ? 1 : -1;
+  const disc = v ** 4 - g * (g * dx * dx + 2 * dy * v * v);
+  const up = disc < 0 || dx < 0.01 ? Math.PI / 4 : Math.atan((v * v - Math.sqrt(disc)) / (g * dx));
+  return dir > 0 ? up : Math.PI - up;
+};
+
 const fire = (state: GameState, f: Fighter) => {
   const g = GUNS[f.weapon.kind];
   const m = muzzle(f);
   for (let i = 0; i < g.pellets; i++) {
-    const angle = f.aim + (nextRandom(state) - 0.5) * 2 * g.spread;
+    let angle = f.aim + (nextRandom(state) - 0.5) * 2 * g.spread;
+    if (g.projectile === 'bomb') angle = lobAngle(m.x, m.y, f.aimTx, f.aimTy, g.speed, BOMB.gravity);
     const speed = g.speed * (g.pellets > 1 ? 0.85 + nextRandom(state) * 0.3 : 1);
     state.projectiles.push({
       id: state.nextId++,
       kind: g.projectile,
+      gun: f.weapon.kind,
       owner: f.id,
       x: m.x,
       y: m.y,
+      ox: m.x,
+      oy: m.y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       damage: g.damage,
@@ -267,6 +288,12 @@ export const pickupCandidate = (state: GameState, f: Fighter): Pickup | null => 
 };
 
 const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
+  // A bomb is a one-off: keep the gun you had and get it back after the throw.
+  if (p.kind === 'bomb') {
+    if (f.weapon.kind !== 'bomb') f.stash = f.weapon;
+  } else {
+    f.stash = null;
+  }
   f.weapon = newWeapon(p.kind);
   p.active = false;
   p.respawn = p.spawn !== null ? RULES.gunRespawn : Infinity;
@@ -296,7 +323,11 @@ const updateWeapon = (state: GameState, f: Fighter, input: InputState, canAct: b
   if (canAct && input.reload && !f.prev.reload) startReload();
   if (w.mag <= 0) {
     if (w.reserve > 0) startReload();
-    else if (w.kind !== 'pistol') {
+    else if (w.kind === 'bomb') {
+      // Thrown: back to whatever you were holding.
+      f.weapon = f.stash ?? newWeapon('pistol');
+      f.stash = null;
+    } else if (w.kind !== 'pistol') {
       // Out of everything: back to the pistol.
       f.weapon = newWeapon('pistol');
       state.events.push({ type: 'empty', fighter: f.id });
@@ -370,6 +401,8 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     const dx = input.aimX - m.x;
     const dy = input.aimY - m.y;
     if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) f.aim = Math.atan2(dy, dx);
+    f.aimTx = input.aimX;
+    f.aimTy = input.aimY;
     f.facing = Math.cos(f.aim) < 0 ? -1 : 1;
   }
 
@@ -431,7 +464,9 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
 
   // Walking over a gun with only the pistol picks it up; E swaps any time.
   const near = canAct ? pickupCandidate(state, f) : null;
-  if (near && (pressed('pickup') || f.weapon.kind === 'pistol')) takePickup(state, f, near);
+  // Only a pistol: walk over a gun to take it. Bombs are always picked up. Otherwise press E or R to swap.
+  const swap = pressed('pickup') || pressed('reload');
+  if (near && (swap || f.weapon.kind === 'pistol' || near.kind === 'bomb')) takePickup(state, f, near);
 
   updateWeapon(state, f, input, canAct);
   updatePush(state, f);
@@ -509,16 +544,17 @@ const updateProjectiles = (state: GameState) => {
     const px = p.x;
     const py = p.y;
     if (p.kind === 'grenade') p.vy -= GRENADE.gravity * DT;
+    if (p.kind === 'bomb') p.vy -= BOMB.gravity * DT;
     p.x += p.vx * DT;
     p.y += p.vy * DT;
 
     const done = () => {
-      if (p.kind === 'grenade') explode(state, p);
+      if (isExplosive(p.kind)) explode(state, p);
       else state.events.push({ type: 'impact', x: p.x, y: p.y });
       return false;
     };
 
-    if (p.life <= 0) return p.kind === 'grenade' ? done() : false;
+    if (p.life <= 0) return isExplosive(p.kind) ? done() : false;
 
     // Find where this tick's path is cut short: the room's walls, or furniture
     // (cover; rails go straight through it). Only fighters before that point get hit.
@@ -559,12 +595,22 @@ const updateProjectiles = (state: GameState) => {
       const y0 = o.y;
       const y1 = o.y + oc.height;
       if (!segmentHitsBox(px, py, ex, ey, x0, y0, x1, y1)) continue;
-      if (p.kind === 'grenade') {
+      if (isExplosive(p.kind)) {
         p.x = Math.min(Math.max(ex, x0), x1);
         p.y = ey;
         return done();
       }
-      const landed = applyHit(state, o, { attacker: p.owner, dx: p.vx, dy: p.vy * 0.3 + Math.abs(p.vx) * 0.15, damage: p.damage, knockback: p.knockback });
+      // Damage falls off with the distance the shot travelled.
+      const fo = GUNS[p.gun].falloff;
+      const travelled = Math.hypot(o.x - p.ox, o.y + oc.height / 2 - p.oy);
+      const scale = fo ? 1 - (1 - fo.min) * Math.min(1, Math.max(0, (travelled - fo.near) / (fo.far - fo.near))) : 1;
+      const landed = applyHit(state, o, {
+        attacker: p.owner,
+        dx: p.vx,
+        dy: p.vy * 0.3 + Math.abs(p.vx) * 0.15,
+        damage: p.damage * scale,
+        knockback: p.knockback,
+      });
       if (!landed) continue;
       if (p.kind === 'rail') {
         p.hit.push(o.id);

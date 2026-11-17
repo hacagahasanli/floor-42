@@ -9,7 +9,7 @@ import type { CharacterId, GunKind } from '../sim/types';
 
 /** A turntable for one character, cycling through the guns and aiming around. */
 const DEMO: GunKind[] = ['pistol', 'smg', 'shotgun', 'railgun', 'launcher'];
-const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true };
+const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true, uzi: false, bomb: false };
 
 export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });

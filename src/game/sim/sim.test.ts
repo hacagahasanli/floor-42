@@ -1,5 +1,5 @@
 import { createBot } from './bot';
-import { ARENA, CHARACTERS, DT, GUNS, RULES, WALL_SPLAT_DAMAGE } from './constants';
+import { ARENA, CHARACTERS, DT, GUN_TABLE, GUNS, RULES, WALL_SPLAT_DAMAGE } from './constants';
 import { chooseCharacter, createGame, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
@@ -200,6 +200,79 @@ describe('guns', () => {
     run(s, 1, {}, { dash: true, left: true });
     run(s, 4);
     expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
+  });
+});
+
+describe('range, rarity and bombs', () => {
+  it('small guns hurt less from across the office', () => {
+    const near = fighting();
+    place(near, 0, -8);
+    place(near, 1, -4);
+    const nearHits = run(near, 12, { fire: true, ...at(near, 1) }).filter((e) => e.type === 'hit');
+    const far = fighting();
+    place(far, 0, -16);
+    place(far, 1, 12);
+    const farHits = run(far, 90, { fire: true, ...at(far, 1) }).filter((e) => e.type === 'hit');
+    const dmg = (h: typeof nearHits) => (h[0] && h[0].type === 'hit' ? h[0].damage : 0);
+    expect(dmg(nearHits)).toBe(GUNS.pistol.damage);
+    expect(dmg(farHits)).toBeLessThan(GUNS.pistol.damage * 0.6);
+  });
+
+  it('the sniper rail still kills in one from across the office', () => {
+    const s = fighting();
+    place(s, 0, -16);
+    place(s, 1, 12);
+    arm(s, 0, 'railgun');
+    const events = run(s, 20, { fire: true, ...at(s, 1) });
+    expect(events.some((e) => e.type === 'ko')).toBe(true);
+  });
+
+  it('rockets are the rarest gun, the Uzi more common than the rail', () => {
+    const count = (k: string) => GUN_TABLE.filter((g) => g === k).length;
+    expect(count('launcher')).toBeLessThan(count('railgun'));
+    expect(count('railgun')).toBeLessThan(count('uzi'));
+    expect(count('uzi')).toBeLessThan(count('smg'));
+  });
+
+  it('the Uzi fires fast but each round does little', () => {
+    expect(GUNS.uzi.rate).toBeLessThan(GUNS.smg.rate);
+    expect(GUNS.uzi.damage).toBeLessThan(GUNS.smg.damage / 2);
+  });
+
+  it('a bomb is picked up over your gun and you get the gun back after throwing it', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, 6);
+    arm(s, 0, 'shotgun');
+    const bomb = s.pickups.find((p) => p.spawn === null)!;
+    Object.assign(bomb, { kind: 'bomb', x: -8, y: 0, vy: 0, active: true });
+    run(s, 2);
+    expect(s.fighters[0].weapon.kind).toBe('bomb');
+    run(s, 2, { fire: true, ...at(s, 1) });
+    expect(s.fighters[0].weapon.kind).toBe('shotgun');
+  });
+
+  it('a bomb lobbed at someone lands near them and right next to it is lethal', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, -2);
+    arm(s, 0, 'bomb');
+    const events = run(s, 90, { fire: true, ...at(s, 1) });
+    const blast = events.find((e) => e.type === 'explosion');
+    expect(blast && blast.type === 'explosion' && Math.abs(blast.x - -2)).toBeLessThan(1.5);
+    expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
+  });
+
+  it('R swaps for the gun you are standing on', () => {
+    const s = fighting();
+    arm(s, 0, 'smg');
+    const gun = s.pickups[0];
+    Object.assign(gun, { kind: 'shotgun', active: true });
+    place(s, 0, gun.x, gun.y);
+    run(s, 1);
+    expect(s.fighters[0].weapon.kind).toBe('smg');
+    run(s, 1, { reload: true });
+    expect(s.fighters[0].weapon.kind).toBe('shotgun');
   });
 });
 

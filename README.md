@@ -31,7 +31,7 @@ A rocket crosses the whole office in a second.
 ![Three.js](https://img.shields.io/badge/Three.js-r187-000)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/tests-30%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-37%20passing-2ea44f)
 ![60 fps](https://img.shields.io/badge/target-60%20fps-ffd23f)
 
 [Play locally](#play-locally) · [Controls](#controls) · [Guns](#guns) · [How it works](#how-it-works) · [Status](#status)
@@ -76,7 +76,7 @@ Keyboard only. Your gun aims at the opponent by itself.
 | S | drop through furniture, fast fall |
 | Shift | dash: you can't be hit while it lasts |
 | Q | Force Push |
-| E | swap for the gun you're standing on |
+| R / E | swap for the gun you're standing on (an **R · SWAP** sign shows over it) |
 | T | auto-aim / mouse aim (in mouse mode left click shoots too) |
 | M | mute |
 
@@ -89,13 +89,15 @@ If your rival's connection drops, the game holds for 20 seconds while they recon
 
 ## Guns
 
-| Gun | What it does |
-| --- | --- |
-| Pistol | accurate, 8 rounds, never runs out, two hits to KO |
-| SMG | fast and loose, three hits to KO |
-| Shotgun | six pellets, a one-shot KO up close, kicks you back |
-| Railgun | one-shot KO, goes through furniture and through people |
-| Rockets | fly straight, one-shot KO near the blast, throw everyone around, you too |
+| Gun | What it does | How often |
+| --- | --- | --- |
+| Pistol | 8 rounds, never runs out; two hits up close, more from across the office | always |
+| SMG | fast, three hits up close, weaker at range | common |
+| Shotgun | six pellets, a one-shot KO point-blank, falls off fast | common |
+| Uzi | sprays very fast, every round does little | sometimes |
+| Sniper rail | one-shot KO at any range, goes through furniture and people | rare |
+| Rockets | fly straight, one-shot KO near the blast, throw everyone around | rarest |
+| Bomb | drops from the ceiling vents; you lob it with Space and get your gun back; lethal right next to it | now and then |
 
 A shot coming down onto or up into furniture is stopped. A shot skimming along a desk top grazes past.
 

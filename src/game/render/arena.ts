@@ -368,18 +368,7 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   scene.add(put(new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2), new THREE.MeshStandardMaterial({ map: board, roughness: 0.6 })), -4.5, 2.6, BACK_Z + 0.32));
   scene.add(put(mesh(box(3.55, 2.15, 0.06), mat(PALETTE.stone)), -4.5, 2.6, BACK_Z + 0.28));
 
-  const sign = canvasTexture(1024, 128, (g) => {
-    g.fillStyle = '#2a2733';
-    g.fillRect(0, 0, 1024, 128);
-    g.fillStyle = '#f0c24a';
-    g.font = 'bold 72px ui-monospace, Menlo, monospace';
-    g.textBaseline = 'middle';
-    g.fillText('FLOOR 42', 40, 66);
-    g.fillStyle = '#cfc6d8';
-    g.font = '40px ui-monospace, Menlo, monospace';
-    g.fillText('agents-know · merge room', 420, 68);
-  });
-  scene.add(put(new THREE.Mesh(new THREE.PlaneGeometry(7.2, 0.9), new THREE.MeshBasicMaterial({ map: sign })), 0, 8.7, BACK_Z + 0.3));
+  // The floor sign lives in the HUD now, under the round timer.
 
   // Side glass walls you can wall-kick off.
   const cracks: { mesh: THREE.Mesh; life: number }[] = [];

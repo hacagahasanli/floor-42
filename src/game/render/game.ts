@@ -70,7 +70,7 @@ export interface ArenaOptions {
 }
 
 const randomSeed = () => (Math.random() * 1e9) | 0;
-const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true };
+const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true, uzi: false, bomb: false };
 
 export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -141,7 +141,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     return v;
   };
 
-  // "Press E" floating over a gun you can swap for.
+  // "R · SWAP" floating over a gun you can swap for (E works too).
   const promptTex = (() => {
     const c = document.createElement('canvas');
     c.width = 256;
@@ -155,7 +155,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     g.font = 'bold 56px sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText('E', 48, 52);
+    g.fillText('R', 48, 52);
     g.fillStyle = '#ffffff';
     g.font = 'bold 44px sans-serif';
     g.textAlign = 'left';
@@ -565,7 +565,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
     // Show the swap prompt over the gun you're standing on (with only a pistol it's picked up automatically).
     const self = state.fighters[me];
-    const near = !opts.demo && self.respawn <= 0 && self.weapon.kind !== 'pistol' ? pickupCandidate(state, self) : null;
+    const cand = !opts.demo && self.respawn <= 0 && self.weapon.kind !== 'pistol' ? pickupCandidate(state, self) : null;
+    const near = cand && cand.kind !== 'bomb' ? cand : null; // bombs are picked up automatically
     prompt.visible = !!near;
     if (near) {
       const bob = 1 + Math.sin(time * 6) * 0.06;
@@ -579,7 +580,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       const back = 1 - alpha;
       const x = p.x - p.vx * DT * back;
       const y = p.y - p.vy * DT * back;
-      if (p.kind === 'grenade') {
+      if (p.kind === 'grenade' || p.kind === 'bomb') {
         const m = grenades[gr++];
         if (!m) continue;
         m.visible = true;
@@ -632,7 +633,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     const self = state.fighters[me];
     if (opts.demo || state.phase !== 'fight' || self.respawn > 0) return [];
     const near = pickupCandidate(state, self);
-    if (near && self.weapon.kind !== 'pistol') return [{ key: 'E', text: `swap for the ${GUNS[near.kind].name}` }];
+    if (self.weapon.kind === 'bomb') return [{ key: 'Space', text: 'throw the bomb' }];
+    if (near && near.kind !== 'bomb' && self.weapon.kind !== 'pistol') {
+      return [{ key: 'R', text: `swap for the ${GUNS[near.kind].name}` }];
+    }
     return [];
   };
 

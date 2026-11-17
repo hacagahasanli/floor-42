@@ -15,6 +15,18 @@ export interface Platform {
  * Floor 42, open-plan. Every surface is a one-way platform: jump up through it,
  * press Down to drop. Bullets do not go through furniture, so desks are cover.
  */
+/**
+ * How often each gun shows up, as weights (one entry = one ticket): SMG and shotgun are common,
+ * the Uzi less so, the sniper rail rare and the rocket launcher rarest.
+ */
+export const GUN_TABLE: GunKind[] = [
+  'smg', 'smg', 'smg', 'smg', 'smg',
+  'shotgun', 'shotgun', 'shotgun', 'shotgun',
+  'uzi', 'uzi', 'uzi',
+  'railgun', 'railgun',
+  'launcher',
+];
+
 export const ARENA = {
   left: -18,
   right: 18,
@@ -49,16 +61,17 @@ export const ARENA = {
   ],
   /**
    * One gun per floor: each spawn picks a random spot on its level and a random gun.
-   * Taking it starts a timer before the next one appears.
+   * Taking it starts a timer before the next one appears. The kind is drawn from GUN_TABLE.
    */
   gunSpawns: [
-    { spots: [{ x: 0, y: 1.0 }, { x: -8, y: 1.1 }, { x: 16.9, y: 2.8 }], kinds: ['smg', 'shotgun'] },
-    { spots: [{ x: -5.4, y: 4.4 }, { x: 5.4, y: 4.4 }, { x: 0, y: 7.2 }], kinds: ['smg', 'shotgun', 'launcher'] },
-    { spots: [{ x: -15, y: 9.4 }, { x: 15, y: 9.4 }, { x: 0, y: 10.6 }], kinds: ['railgun', 'launcher'] },
+    { spots: [{ x: 0, y: 1.0 }, { x: -8, y: 1.1 }, { x: 16.9, y: 2.8 }], kinds: GUN_TABLE },
+    { spots: [{ x: -5.4, y: 4.4 }, { x: 5.4, y: 4.4 }, { x: 0, y: 7.2 }], kinds: GUN_TABLE },
+    { spots: [{ x: -15, y: 9.4 }, { x: 15, y: 9.4 }, { x: 0, y: 10.6 }], kinds: GUN_TABLE },
   ] as { spots: { x: number; y: number }[]; kinds: GunKind[] }[],
-  dropEvery: 25,
-  dropSlots: 1,
-  dropKinds: ['smg', 'shotgun', 'railgun', 'launcher'] as GunKind[],
+  /** Bombs fall from the ceiling vents now and then. */
+  dropEvery: 18,
+  dropSlots: 2,
+  dropKinds: ['bomb'] as GunKind[],
 };
 
 export const RULES = {
@@ -118,24 +131,32 @@ export interface GunStats {
   spread: number; // radians, random cone
   pellets: number;
   life: number;
-  projectile: 'bullet' | 'pellet' | 'rail' | 'grenade';
+  projectile: 'bullet' | 'pellet' | 'rail' | 'grenade' | 'bomb';
+  /** Damage falls from full at `near` metres to `min` x damage at `far`. Absent = no falloff. */
+  falloff?: { near: number; far: number; min: number };
   /** Kick back on the shooter, in m/s. */
   recoil: number;
   /** Slows your run while you carry it. */
   carry: number;
 }
 
-/** Lethal on purpose: two pistol hits drop anyone, a rocket or a rail drops them in one. */
+/**
+ * Up close the small guns are deadly (pistol: two hits); at range they need more hits.
+ * The rocket and the rail always kill in one, which is why they are rare.
+ */
 export const GUNS: Record<GunKind, GunStats> = {
-  pistol: { name: 'Pistol', rate: 0.38, mag: 8, reserve: Infinity, reloadTime: 1, damage: 50, knockback: 4, speed: 30, spread: 0.02, pellets: 1, life: 1.3, projectile: 'bullet', recoil: 0, carry: 1 },
-  smg: { name: 'SMG', rate: 0.11, mag: 20, reserve: 40, reloadTime: 1.4, damage: 34, knockback: 2.5, speed: 32, spread: 0.1, pellets: 1, life: 1, projectile: 'bullet', recoil: 0.4, carry: 0.97 },
-  shotgun: { name: 'Shotgun', rate: 0.9, mag: 4, reserve: 8, reloadTime: 1.5, damage: 20, knockback: 4, speed: 28, spread: 0.26, pellets: 6, life: 0.32, projectile: 'pellet', recoil: 7, carry: 0.93 },
-  railgun: { name: 'Railgun', rate: 1.6, mag: 2, reserve: 2, reloadTime: 1.8, damage: 100, knockback: 14, speed: 160, spread: 0, pellets: 1, life: 0.35, projectile: 'rail', recoil: 9, carry: 0.88 },
-  launcher: { name: 'Rockets', rate: 1.1, mag: 1, reserve: 3, reloadTime: 1.1, damage: 110, knockback: 22, speed: 22, spread: 0.01, pellets: 1, life: 2.2, projectile: 'grenade', recoil: 4, carry: 0.88 },
+  pistol: { name: 'Pistol', rate: 0.38, mag: 8, reserve: Infinity, reloadTime: 1, damage: 50, knockback: 4, speed: 30, spread: 0.02, pellets: 1, life: 1.3, projectile: 'bullet', recoil: 0, carry: 1, falloff: { near: 6, far: 20, min: 0.5 } },
+  smg: { name: 'SMG', rate: 0.11, mag: 20, reserve: 40, reloadTime: 1.4, damage: 34, knockback: 2.5, speed: 32, spread: 0.1, pellets: 1, life: 1, projectile: 'bullet', recoil: 0.4, carry: 0.97, falloff: { near: 5, far: 16, min: 0.5 } },
+  uzi: { name: 'Uzi', rate: 0.055, mag: 32, reserve: 32, reloadTime: 1.2, damage: 12, knockback: 1.2, speed: 30, spread: 0.15, pellets: 1, life: 0.8, projectile: 'bullet', recoil: 0.2, carry: 1, falloff: { near: 4, far: 12, min: 0.5 } },
+  shotgun: { name: 'Shotgun', rate: 0.9, mag: 4, reserve: 8, reloadTime: 1.5, damage: 20, knockback: 4, speed: 28, spread: 0.26, pellets: 6, life: 0.32, projectile: 'pellet', recoil: 7, carry: 0.93, falloff: { near: 2, far: 7, min: 0.4 } },
+  railgun: { name: 'Sniper rail', rate: 1.6, mag: 2, reserve: 2, reloadTime: 1.8, damage: 100, knockback: 14, speed: 160, spread: 0, pellets: 1, life: 0.35, projectile: 'rail', recoil: 9, carry: 0.88 },
+  launcher: { name: 'Rockets', rate: 1.1, mag: 1, reserve: 2, reloadTime: 1.1, damage: 110, knockback: 22, speed: 22, spread: 0.01, pellets: 1, life: 2.2, projectile: 'grenade', recoil: 4, carry: 0.88 },
+  bomb: { name: 'Bomb', rate: 0.5, mag: 1, reserve: 0, reloadTime: 1, damage: 110, knockback: 20, speed: 16, spread: 0, pellets: 1, life: 1.8, projectile: 'bomb', recoil: 0, carry: 1 },
 };
 
-/** Rockets fly straight: auto-aim points at the target, so no drop. */
 export const GRENADE = { gravity: 0, radius: 2.8, selfDamage: 0.45 };
+/** A thrown bomb: arcs, explodes on contact or when the fuse runs out. Lethal right next to it. */
+export const BOMB = { gravity: 26, radius: 3.2, selfDamage: 0.45 };
 
 export const PUSH = {
   cooldown: 2.5,

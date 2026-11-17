@@ -248,7 +248,8 @@ export const ArenaGame = ({
   };
 
   const rematch = () => {
-    setRematchAsked(true);
+    // Only online waits for the rival; against the bot the rematch starts at once.
+    if (online) setRematchAsked(true);
     gameRef.current?.restart();
   };
 
@@ -317,6 +318,10 @@ export const ArenaGame = ({
                 {hud.phase === 'countdown' ? RULES.roundSeconds : Math.ceil(hud.time)}
               </span>
               <span className="text-[10px] font-semibold tracking-widest text-cream/50">FIRST TO {RULES.kosToWin}</span>
+              <span className="panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1">
+                <span className="font-display text-base text-gold">FLOOR 42</span>
+                <span className="text-[11px] text-cream/70">agents-know · merge room</span>
+              </span>
             </div>
             <FighterPanel f={hud.fighters[1]} label={online ? 'RIVAL' : `BOT · ${level}`} align="right" />
           </div>

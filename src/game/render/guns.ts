@@ -69,6 +69,20 @@ export const buildGun = (kind: GunKind): GunView => {
       root.add(put(mesh(box(0.04, 0.08, 0.1), mat(PALETTE.gold), false), 0, 0.22, 0.15));
       length = 0.74;
       break;
+    case 'uzi':
+      root.add(put(mesh(box(0.07, 0.11, 0.3), body), 0, 0.04, 0.1));
+      root.add(put(mesh(box(0.045, 0.3, 0.06), mat(PALETTE.gold)), 0, -0.13, 0.08)); // long magazine in the grip
+      root.add(put(mesh(barrel(0.02, 0.1), trim), 0, 0.06, 0.29));
+      length = 0.34;
+      break;
+    case 'bomb': {
+      root.add(put(mesh(new THREE.IcosahedronGeometry(0.15, 1), mat(0x2b3045)), 0, 0, 0.12));
+      root.add(put(mesh(barrel(0.04, 0.06), mat(PALETTE.stone)), 0, 0.15, 0.12));
+      const fuse = new THREE.Mesh(new THREE.IcosahedronGeometry(0.03, 0), new THREE.MeshBasicMaterial({ color: 0xffb347 }));
+      root.add(put(fuse, 0, 0.2, 0.12));
+      length = 0.2;
+      break;
+    }
   }
   return { kind, root, length };
 };

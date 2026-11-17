@@ -5,12 +5,13 @@
  * - voices -> category bus (sfx, ui, ambience) -> master -> compressor, plus a room reverb send;
  * - gunshots are layered: crack (high-passed noise), body (band-passed noise), thump (falling sine);
  * - every voice gets random detune and gain, and a stereo pan from its world x;
- * - rapid fire has a voice budget; big moments duck the ambience; mute is remembered.
+ * - rapid fire has a voice budget; mute is remembered.
+ * No ambience bed: a noise loop read as old-TV static, so the room stays quiet between fights.
  */
 
 export type Sfx = ReturnType<typeof createSfx>;
 
-type Gun = 'pistol' | 'smg' | 'shotgun' | 'railgun' | 'launcher';
+type Gun = 'pistol' | 'smg' | 'shotgun' | 'railgun' | 'launcher' | 'uzi' | 'bomb';
 type Bus = 'sfx' | 'ui' | 'amb';
 
 const MUTE_KEY = 'merge-conflict:muted';
@@ -49,33 +50,6 @@ export const createSfx = () => {
     return ir;
   };
 
-  /** The room you're in: HVAC rumble and a faint city hiss, far below everything else. */
-  const startAmbience = (c: AudioContext) => {
-    if (!noiseBuf || !buses.amb) return;
-    const src = c.createBufferSource();
-    src.buffer = noiseBuf;
-    src.loop = true;
-    const low = c.createBiquadFilter();
-    low.type = 'lowpass';
-    low.frequency.value = 220;
-    const g = c.createGain();
-    g.gain.value = 0.12;
-    src.connect(low).connect(g).connect(buses.amb);
-    const hiss = c.createBufferSource();
-    hiss.buffer = noiseBuf;
-    hiss.loop = true;
-    hiss.playbackRate.value = 0.5;
-    const band = c.createBiquadFilter();
-    band.type = 'bandpass';
-    band.frequency.value = 1800;
-    band.Q.value = 0.4;
-    const hg = c.createGain();
-    hg.gain.value = 0.015;
-    hiss.connect(band).connect(hg).connect(buses.amb);
-    src.start();
-    hiss.start(0, 0.37);
-  };
-
   const ensure = () => {
     if (ctx) {
       if (ctx.state === 'suspended') void ctx.resume();
@@ -107,7 +81,6 @@ export const createSfx = () => {
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    startAmbience(ctx);
     return ctx;
   };
 
@@ -208,6 +181,16 @@ export const createSfx = () => {
         noise('bandpass', 1100, 500, 0.12, 0.7, 0.9, { pan }); // body
         tone('sine', 170, 48, 0.14, 0.9, { room: 0.4, pan }); // thump
         click(0.06, 4200, 0.12, pan); // slide
+        break;
+      case 'uzi':
+        noise('highpass', 5000, 3200, 0.015, 0.45, 0.7, { pan });
+        noise('bandpass', 1900, 1100, 0.04, 0.35, 1.2, { pan });
+        tone('sine', 260, 110, 0.04, 0.35, { room: 0.2, pan });
+        break;
+      case 'bomb':
+        // The throw: a short whoosh and the fuse hiss.
+        noise('bandpass', 400, 1800, 0.25, 0.3, 1.4, { room: 0.2, pan });
+        noise('highpass', 6000, 5000, 0.4, 0.06, 1, { delay: 0.05, room: 0, pan });
         break;
       case 'smg':
         noise('highpass', 4200, 2600, 0.02, 0.6, 0.7, { pan });

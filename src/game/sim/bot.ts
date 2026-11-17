@@ -27,6 +27,8 @@ const RANGE: Record<GunKind, [number, number]> = {
   shotgun: [2.5, 5],
   railgun: [12, 24],
   launcher: [9, 16],
+  uzi: [3, 8],
+  bomb: [5, 11],
 };
 
 type Press = 'up' | 'down' | 'dash' | 'pickup' | 'push' | 'reload';

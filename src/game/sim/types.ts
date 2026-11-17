@@ -2,7 +2,7 @@
 
 export type CharacterId = 'hotfix' | 'legacy' | 'standup' | 'intern';
 
-export type GunKind = 'pistol' | 'smg' | 'shotgun' | 'railgun' | 'launcher';
+export type GunKind = 'pistol' | 'smg' | 'shotgun' | 'railgun' | 'launcher' | 'uzi' | 'bomb';
 
 /** One tick of input. Buttons are held state; edges are derived by the sim. */
 export interface InputState {
@@ -51,6 +51,9 @@ export interface Fighter {
   vy: number;
   facing: 1 | -1;
   aim: number; // radians, 0 = right, PI/2 = up
+  /** The point being aimed at (bombs are lobbed to land on it). */
+  aimTx: number;
+  aimTy: number;
   onGround: boolean;
   wall: -1 | 0 | 1;
   airJumps: number;
@@ -68,6 +71,8 @@ export interface Fighter {
   respawn: number;
   invulnerable: number;
   weapon: Weapon;
+  /** The gun you were holding when you picked up a bomb; you get it back after the throw. */
+  stash: Weapon | null;
   /** Picked while dead: you respawn as this character. */
   nextCharacter: CharacterId | null;
   firing: number; // seconds since the last shot, for muzzle flash / recoil
@@ -87,11 +92,15 @@ export interface Pickup {
   spawn: number | null;
 }
 
-export type ProjectileKind = 'bullet' | 'pellet' | 'rail' | 'grenade';
+export type ProjectileKind = 'bullet' | 'pellet' | 'rail' | 'grenade' | 'bomb';
 
 export interface Projectile {
   id: number;
   kind: ProjectileKind;
+  gun: GunKind;
+  /** Where it was fired from: damage falls off with distance travelled. */
+  ox: number;
+  oy: number;
   owner: number;
   x: number;
   y: number;
