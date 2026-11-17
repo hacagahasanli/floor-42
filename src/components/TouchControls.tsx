@@ -6,6 +6,12 @@ import type { Button } from '~/game/input';
 
 type Press = (b: Button, on: boolean) => void;
 
+/**
+ * The side strips the controls live in (CSS px, before the notch's safe area). The game keeps
+ * the office out of them, so a button never covers a fighter.
+ */
+export const TOUCH_STRIPS = { left: 124, right: 172, top: 62 };
+
 /** Ask once for fullscreen in landscape: hides the browser bars on Android Chrome. */
 let askedFullscreen = false;
 const goFullscreen = () => {
@@ -48,7 +54,8 @@ const Stick = ({ press }: { press: Press }) => {
 
   return (
     <div
-      className="absolute bottom-0 left-0 top-16 w-1/2 touch-none"
+      className="absolute bottom-0 left-0 top-16 touch-none"
+      style={{ width: `calc(${TOUCH_STRIPS.left}px + env(safe-area-inset-left))` }}
       onPointerDown={(e) => {
         goFullscreen();
         if (pointer.current !== null) return;
@@ -83,7 +90,10 @@ const Stick = ({ press }: { press: Press }) => {
           />
         </div>
       ) : (
-        <div className="pointer-events-none absolute bottom-6 left-6 flex h-28 w-28 items-center justify-center rounded-full border-2 border-dashed border-cream/20 text-[10px] font-semibold uppercase tracking-widest text-cream/40">
+        <div
+          className="pointer-events-none absolute bottom-6 flex h-28 w-28 items-center justify-center rounded-full border-2 border-dashed border-cream/25 text-[10px] font-semibold uppercase tracking-widest text-cream/50"
+          style={{ left: 'calc(6px + env(safe-area-inset-left))' }}
+        >
           move
         </div>
       )}
@@ -102,8 +112,8 @@ const Pad = ({ b, label, press, className, big }: { b: Button; label: string; pr
       type="button"
       aria-label={label}
       className={`absolute flex touch-none select-none items-center justify-center rounded-full border-2 font-display uppercase shadow-lg ${
-        big ? 'h-24 w-24 text-base' : 'h-16 w-16 text-[11px]'
-      } ${down ? 'scale-95 border-gold bg-gold/80 text-ink-deep' : 'border-cream/30 bg-ink-deep/35 text-cream/90'} ${className}`}
+        big ? 'h-[88px] w-[88px] text-base' : 'h-[60px] w-[60px] text-[10px]'
+      } ${down ? 'scale-95 border-gold bg-gold/80 text-ink-deep' : 'border-cream/30 bg-ink-deep/55 text-cream/90'} ${className}`}
       onPointerDown={(e) => {
         goFullscreen();
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -123,26 +133,39 @@ const Pad = ({ b, label, press, className, big }: { b: Button; label: string; pr
 export const TouchControls = ({ press, onPause }: { press: Press; onPause: () => void }) => (
   <div className="absolute inset-0 z-[5] select-none" style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}>
     <Stick press={press} />
-    <div className="absolute bottom-0 right-0 h-64 w-72">
-      <Pad b="fire" label="Fire" press={press} big className="bottom-5 right-5" />
-      <Pad b="up" label="Jump" press={press} className="bottom-6 right-32" />
-      <Pad b="dash" label="Dash" press={press} className="bottom-32 right-6" />
-      <Pad b="push" label="Push" press={press} className="bottom-28 right-28" />
-      <Pad b="reload" label="Swap" press={press} className="bottom-[13.5rem] right-6 !h-12 !w-12 !text-[9px]" />
-    </div>
-    <button
-      type="button"
-      aria-label="Pause"
-      onClick={onPause}
-      className="absolute left-1/2 top-[4.5rem] flex h-10 w-10 -translate-x-1/2 items-center justify-center rounded-full border-2 border-cream/30 bg-ink-deep/60 text-cream"
-    >
+    {/* The right strip: Fire under the thumb, Jump beside it, Dash and Push above, Swap on top. */}
+    <div className="absolute bottom-0 top-16" style={{ right: 'env(safe-area-inset-right)', width: TOUCH_STRIPS.right }}>
+      <Pad b="fire" label="Fire" press={press} big className="bottom-3 right-2" />
+      <Pad b="up" label="Jump" press={press} className="bottom-4 right-[104px]" />
+      <Pad b="dash" label="Dash" press={press} className="bottom-[104px] right-4" />
+      <Pad b="push" label="Push" press={press} className="bottom-[84px] right-[104px]" />
+      <Pad b="reload" label="Swap" press={press} className="bottom-[176px] right-[110px] !h-12 !w-12 !text-[9px]" />
+      <button
+        type="button"
+        aria-label="Pause"
+        onClick={onPause}
+        className="absolute bottom-[176px] right-6 flex h-11 w-11 items-center justify-center rounded-full border-2 border-cream/30 bg-ink-deep/60 text-cream"
+      >
       <span className="flex gap-1">
         <span className="h-4 w-1.5 rounded-sm bg-cream" />
         <span className="h-4 w-1.5 rounded-sm bg-cream" />
       </span>
-    </button>
+      </button>
+    </div>
   </div>
 );
+
+/** The notch's safe-area insets in CSS px (0 on most screens). */
+export const safeArea = () => {
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:fixed;visibility:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const out = { left: parseFloat(cs.paddingLeft) || 0, right: parseFloat(cs.paddingRight) || 0 };
+  probe.remove();
+  return out;
+};
 
 /** Phones held upright: ask to turn sideways (the arena is wide). */
 export const useLandscape = () => {

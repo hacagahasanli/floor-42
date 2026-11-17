@@ -53,6 +53,17 @@ export const createSfx = () => {
   /** While a gunshot is being scheduled, all its voices go to the guns bus. */
   let busOverride: Bus | null = null;
   let shotVoices = 0;
+  /** Recorded gun sounds (see ASSETS.md), decoded once the audio context exists. */
+  const samples = new Map<string, AudioBuffer>();
+  const loadSamples = (c: AudioContext) => {
+    for (const n of ['pistol', 'smg', 'shotgun', 'sniper', 'pump', 'bolt', 'reload']) {
+      fetch(`/assets/sounds/${n}.m4a`)
+        .then((r) => r.arrayBuffer())
+        .then((b) => c.decodeAudioData(b))
+        .then((buf) => samples.set(n, buf))
+        .catch(() => undefined);
+    }
+  };
 
   const MASTER = 0.75;
 
@@ -95,6 +106,7 @@ export const createSfx = () => {
       g.connect(comp);
       buses[bus] = g;
     }
+    loadSamples(ctx);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -186,12 +198,45 @@ export const createSfx = () => {
 
   const panOf = (x?: number) => (x === undefined ? 0 : x / HALF_VIEW);
 
+  /** Play a recorded sound with a little pitch and level variation. False until it's loaded. */
+  const sample = (name: string, o: { pan?: number; gain?: number; delay?: number; rate?: number; room?: number } = {}) => {
+    const c = ctx;
+    const buf = samples.get(name);
+    if (!c || !buf || muted) return false;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = (o.rate ?? 1) * (0.95 + Math.random() * 0.1);
+    const g = c.createGain();
+    g.gain.value = (o.gain ?? 1) * (0.9 + Math.random() * 0.15);
+    src.connect(g);
+    out(g, { pan: o.pan ?? 0, room: o.room ?? 0.2 });
+    src.start(c.currentTime + (o.delay ?? 0));
+    return true;
+  };
+
+  /** Real guns use the recordings; the railgun adds its recorded crack under the zap. */
+  const RECORDED: Partial<Record<Gun, { name: string; rate?: number; gain: number; after?: string; delay?: number }>> = {
+    pistol: { name: 'pistol', gain: 0.55 },
+    uzi: { name: 'smg', rate: 1.12, gain: 0.45 },
+    smg: { name: 'smg', gain: 0.5 },
+    shotgun: { name: 'shotgun', gain: 0.6, after: 'pump', delay: 0.45 },
+    railgun: { name: 'sniper', gain: 0.5, after: 'bolt', delay: 0.6 },
+  };
+
   const shot = (gun: Gun, x?: number) => {
     if (!ctx || muted) return;
     if (shotVoices >= SHOT_BUDGET) return;
     busOverride = 'guns';
     try {
-      shotVoice(gun, x);
+      const rec = RECORDED[gun];
+      const pan = panOf(x);
+      if (rec && sample(rec.name, { pan, gain: rec.gain, rate: rec.rate })) {
+        shotVoices += 1;
+        setTimeout(() => (shotVoices = Math.max(0, shotVoices - 1)), 90);
+        if (rec.after) sample(rec.after, { pan, gain: rec.gain * 0.8, delay: rec.delay });
+        // The railgun keeps a quiet electric zap on top of the shot.
+        if (gun === 'railgun') tone('sawtooth', 2600, 140, 0.25, 0.12, { pan });
+      } else shotVoice(gun, x);
     } finally {
       busOverride = null;
     }
@@ -294,9 +339,11 @@ export const createSfx = () => {
       tone('sine', 90, 50, 0.08, 0.35, { room: 0.2, pan: panOf(x) });
       noise('lowpass', 600, 200, 0.06, 0.2, 1, { room: 0.2, pan: panOf(x) });
     },
-    reload: () => {
-      click(0, 3000, 0.25);
-      click(0.18, 2200, 0.3);
+    /** A magazine change (recorded), panned to whoever reloads. */
+    reload: (x?: number, gain = 0.7) => {
+      if (sample('reload', { pan: panOf(x), gain, room: 0.25 })) return;
+      click(0, 3000, 0.25, panOf(x));
+      click(0.18, 2200, 0.3, panOf(x));
     },
     deflect: (x?: number) => tone('triangle', 1600, 2600, 0.12, 0.2, { pan: panOf(x) }),
     empty: () => click(0, 4000, 0.2),

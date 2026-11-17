@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
-import { RotateHint, TouchControls, useLandscape } from '~/components/TouchControls';
+import { RotateHint, safeArea, TOUCH_STRIPS, TouchControls, useLandscape } from '~/components/TouchControls';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
@@ -170,6 +170,17 @@ export const ArenaGame = ({
   const [touch, setTouch] = useState(false);
   useEffect(() => setTouch(isTouchDevice()), []);
   const portrait = useLandscape();
+  // Phones: keep the office clear of the control strips (and the notch).
+  useEffect(() => {
+    if (!touch || demo) return;
+    const apply = () => {
+      const sa = safeArea();
+      gameRef.current?.setInsets({ left: TOUCH_STRIPS.left + sa.left, right: TOUCH_STRIPS.right + sa.right, top: TOUCH_STRIPS.top, bottom: 0 });
+    };
+    apply();
+    window.addEventListener('resize', apply);
+    return () => window.removeEventListener('resize', apply);
+  }, [touch, demo]);
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
 

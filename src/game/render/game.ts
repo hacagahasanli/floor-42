@@ -399,7 +399,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         sfx.pickup();
         break;
       case 'reload':
-        if (e.fighter === me) sfx.reload();
+        // Yours loud and centred-ish, the rival's quieter: you hear them reloading.
+        sfx.reload(state.fighters[e.fighter].x, e.fighter === me ? 0.7 : 0.45);
         break;
       case 'empty':
         sfx.empty();
@@ -413,11 +414,22 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     }
   };
 
-  // Camera: fixed, far back, the whole office in view.
+  // Camera: fixed, far back, the whole office in view. On phones the office fits inside the
+  // screen minus `insets` (CSS px: the touch controls' side strips and the HUD on top), so no
+  // fighter is ever hidden behind a button; the city outside fills the strips.
+  let insets = { left: 0, right: 0, top: 0, bottom: 0 };
   const camBase = camera.position.clone();
   const updateCamera = (dt: number) => {
     const tanHalf = Math.tan((camera.fov * Math.PI) / 360);
-    const dist = Math.max((ARENA.right + 1.5) / (tanHalf * camera.aspect), (ARENA.ceiling / 2 + 2) / tanHalf);
+    const w = canvas.clientWidth || 1;
+    const h = canvas.clientHeight || 1;
+    const fw = Math.max(0.3, (w - insets.left - insets.right) / w);
+    const fh = Math.max(0.3, (h - insets.top - insets.bottom) / h);
+    const dist = Math.max((ARENA.right + 1.5) / (tanHalf * camera.aspect * fw), (ARENA.ceiling / 2 + 2) / (tanHalf * fh));
+    const ox = (insets.right - insets.left) / 2;
+    const oy = (insets.bottom - insets.top) / 2;
+    if (ox || oy) camera.setViewOffset(w, h, ox, oy, w, h);
+    else if (camera.view) camera.clearViewOffset();
     const k = 1 - Math.exp(-3 * dt);
     camBase.x += (0 - camBase.x) * k;
     camBase.y += (ARENA.ceiling / 2 + 0.6 - camBase.y) * k;
@@ -800,6 +812,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     },
     resume,
     pickCharacter,
+    /** Keep the office clear of screen edges covered by controls (CSS px). */
+    setInsets: (i: { left: number; right: number; top: number; bottom: number }) => {
+      insets = i;
+      if (!i.left && !i.right && !i.top && !i.bottom) camera.clearViewOffset();
+    },
     /** Touch controls press and release buttons through here. */
     touch: (b: Button, on: boolean) => {
       sfx.unlock();

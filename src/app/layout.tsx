@@ -11,6 +11,8 @@ const ui = Chakra_Petch({ weight: ['400', '500', '600', '700'], subsets: ['latin
 export const metadata: Metadata = {
   title: { default: 'Floor 42 · Merge Conflict', template: '%s · Floor 42' },
   description: 'Code review got personal. A two-player office shootout from Merge Conflict: settle it on floor 42, two hits and you are out.',
+  // Added to the iPhone home screen, it opens full screen with no browser bars.
+  appleWebApp: { capable: true, title: 'Floor 42', statusBarStyle: 'black-translucent' },
 };
 
 /** Phones: no pinch zoom or double-tap zoom in the middle of a fight; draw under the notch. */

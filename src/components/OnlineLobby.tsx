@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 import { ArenaGame } from '~/components/ArenaGame';
+import { InstallHint } from '~/components/InstallHint';
 import { createOnlineSession, joinRoom } from '~/game/net/client';
 import { ROSTER } from '~/game/roster';
 
@@ -25,6 +26,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   const [character, setCharacter] = useState<CharacterId>('hotfix');
   const [stage, setStage] = useState<Stage>({ kind: 'menu' });
   const [copied, setCopied] = useState(false);
+  const [pasted, setPasted] = useState('');
   const roomRef = useRef<Room | null>(null);
 
   useEffect(() => {
@@ -155,6 +157,36 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
             Invite a friend makes a private room and gives you a link. Quick match puts you with whoever else is waiting.
             Nobody around? Play the bot.
           </p>
+          {/* For the installed app (no address bar) or a code read out loud: paste the link here. */}
+          <form
+            className="flex w-full max-w-sm items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const text = pasted.trim();
+              const id = (() => {
+                try {
+                  return new URL(text).searchParams.get('room') ?? '';
+                } catch {
+                  return text;
+                }
+              })();
+              if (id) void go({ kind: 'join', roomId: id });
+            }}
+          >
+            <input
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              placeholder="Have a link? Paste it here"
+              aria-label="Invite link or room code"
+              className="panel-cut min-w-0 flex-1 bg-ink-deep px-3 py-2 text-sm text-cream placeholder:text-cream/40"
+              autoCapitalize="off"
+              autoCorrect="off"
+            />
+            <button type="submit" disabled={!pasted.trim()} className="panel-cut bg-cream/10 px-4 py-2 text-sm font-bold uppercase disabled:opacity-40">
+              Join
+            </button>
+          </form>
+          <InstallHint />
         </>
       )}
 
