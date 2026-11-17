@@ -10,7 +10,7 @@ type Press = (b: Button, on: boolean) => void;
  * The side strips the controls live in (CSS px, before the notch's safe area). The game keeps
  * the office out of them, so a button never covers a fighter.
  */
-export const TOUCH_STRIPS = { left: 124, right: 172, top: 62 };
+export const TOUCH_STRIPS = { left: 132, right: 200, top: 62 };
 
 /** Ask once for fullscreen in landscape: hides the browser bars on Android Chrome. */
 let askedFullscreen = false;
@@ -112,7 +112,7 @@ const Pad = ({ b, label, press, className, big }: { b: Button; label: string; pr
       type="button"
       aria-label={label}
       className={`absolute flex touch-none select-none items-center justify-center rounded-full border-2 font-display uppercase shadow-lg ${
-        big ? 'h-[88px] w-[88px] text-base' : 'h-[60px] w-[60px] text-[10px]'
+        big ? 'h-[104px] w-[104px] text-lg' : 'h-[72px] w-[72px] text-xs'
       } ${down ? 'scale-95 border-gold bg-gold/80 text-ink-deep' : 'border-cream/30 bg-ink-deep/55 text-cream/90'} ${className}`}
       onPointerDown={(e) => {
         goFullscreen();
@@ -136,15 +136,15 @@ export const TouchControls = ({ press, onPause }: { press: Press; onPause: () =>
     {/* The right strip: Fire under the thumb, Jump beside it, Dash and Push above, Swap on top. */}
     <div className="absolute bottom-0 top-16" style={{ right: 'env(safe-area-inset-right)', width: TOUCH_STRIPS.right }}>
       <Pad b="fire" label="Fire" press={press} big className="bottom-3 right-2" />
-      <Pad b="up" label="Jump" press={press} className="bottom-4 right-[104px]" />
-      <Pad b="dash" label="Dash" press={press} className="bottom-[104px] right-4" />
-      <Pad b="push" label="Push" press={press} className="bottom-[84px] right-[104px]" />
-      <Pad b="reload" label="Swap" press={press} className="bottom-[176px] right-[110px] !h-12 !w-12 !text-[9px]" />
+      <Pad b="up" label="Jump" press={press} className="bottom-3 right-[116px]" />
+      <Pad b="dash" label="Dash" press={press} className="bottom-[118px] right-4" />
+      <Pad b="push" label="Push" press={press} className="bottom-[92px] right-[116px]" />
+      <Pad b="reload" label="Swap" press={press} className="bottom-[178px] right-[124px] !h-14 !w-14 !text-[10px]" />
       <button
         type="button"
         aria-label="Pause"
         onClick={onPause}
-        className="absolute bottom-[176px] right-6 flex h-11 w-11 items-center justify-center rounded-full border-2 border-cream/30 bg-ink-deep/60 text-cream"
+        className="absolute bottom-[198px] right-6 flex h-11 w-11 items-center justify-center rounded-full border-2 border-cream/30 bg-ink-deep/60 text-cream"
       >
       <span className="flex gap-1">
         <span className="h-4 w-1.5 rounded-sm bg-cream" />

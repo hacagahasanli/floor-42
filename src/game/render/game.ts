@@ -430,15 +430,33 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     const oy = (insets.bottom - insets.top) / 2;
     if (ox || oy) camera.setViewOffset(w, h, ox, oy, w, h);
     else if (camera.view) camera.clearViewOffset();
+    let tx = 0;
+    let ty = ARENA.ceiling / 2 + 0.6;
+    let tz = dist;
+    if (touch) {
+      // Phones: closer, so the fighters read bigger. The camera follows the pair and pulls back
+      // only as far as it must to keep both in the clear middle of the screen.
+      const [a, b] = state.fighters;
+      const hwNeed = Math.abs(a.x - b.x) / 2 + 3.2;
+      const hhNeed = Math.abs(a.y - b.y) / 2 + 2.6;
+      tz = Math.min(dist, Math.max(dist / 1.8, hwNeed / (tanHalf * camera.aspect * fw), hhNeed / (tanHalf * fh)));
+      const hw = tz * tanHalf * camera.aspect * fw;
+      const hh = tz * tanHalf * fh;
+      const maxX = Math.max(0, ARENA.right + 1.5 - hw);
+      tx = Math.max(-maxX, Math.min(maxX, (a.x + b.x) / 2));
+      const lowY = ARENA.floor - 1 + hh;
+      const highY = ARENA.ceiling + 1 - hh;
+      ty = lowY > highY ? (lowY + highY) / 2 : Math.max(lowY, Math.min(highY, (a.y + b.y) / 2 + 1));
+    }
     const k = 1 - Math.exp(-3 * dt);
-    camBase.x += (0 - camBase.x) * k;
-    camBase.y += (ARENA.ceiling / 2 + 0.6 - camBase.y) * k;
-    camBase.z += (dist - camBase.z) * k;
+    camBase.x += (tx - camBase.x) * k;
+    camBase.y += (ty - camBase.y) * k;
+    camBase.z += (tz - camBase.z) * k;
     // Trauma shake: amount = trauma², offsets from smooth noise (summed sines), never Math.random().
     const amt = trauma * trauma;
     const n = (f: number, p: number) => Math.sin(time * f + p) * 0.6 + Math.sin(time * f * 2.3 + p) * 0.4;
     camera.position.set(camBase.x + n(23, 1.3) * 0.45 * amt, camBase.y + n(19, 4.1) * 0.32 * amt, camBase.z);
-    camera.lookAt(n(23, 1.3) * 0.2 * amt, ARENA.ceiling / 2 + n(19, 4.1) * 0.15 * amt, 0);
+    camera.lookAt(camBase.x + n(23, 1.3) * 0.2 * amt, camBase.y - 0.6 + n(19, 4.1) * 0.15 * amt, 0);
     camera.rotateZ(n(17, 2.7) * 0.02 * amt);
     trauma = Math.max(0, trauma - dt * 1.5);
     // A short zoom punch on huge moments.
