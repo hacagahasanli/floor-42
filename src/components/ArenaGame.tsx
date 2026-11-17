@@ -13,6 +13,7 @@ import type { StartMessage } from '~/game/net/protocol';
 import type { Room } from '@colyseus/sdk';
 import type { HudFighter, HudState } from '~/game/render/game';
 import type { BotLevel } from '~/game/sim/bot';
+import type { VolumeKind } from '~/game/sfx';
 import type { CharacterId } from '~/game/sim/types';
 
 const accent = (id: CharacterId) => ROSTER.find((r) => r.id === id)?.accent ?? '#fff';
@@ -98,6 +99,40 @@ const END_TEXT = (hud: HudState, demo: boolean) => {
   if (hud.winner === -1 || hud.winner === null) return { title: 'Draw', sub: 'Time ran out with nothing resolved.' };
   const name = hud.winner === 0 && !demo ? 'You win' : `${hud.fighters[hud.winner].name} wins`;
   return { title: name, sub: hud.endReason === 'time' ? 'More KOs when time ran out.' : `First to ${RULES.kosToWin} KOs.` };
+};
+
+const VOLUME_LABELS: { kind: VolumeKind; label: string }[] = [
+  { kind: 'master', label: 'All sound' },
+  { kind: 'guns', label: 'Gunshots' },
+];
+
+/** Volume sliders in the Esc Esc menu: applied at once, remembered in this browser. */
+const SoundSliders = ({ game }: { game: ReturnType<typeof startArena> | null }) => {
+  const [v, setV] = useState(() => game?.volumes() ?? { master: 0.8, guns: 0.45 });
+  return (
+    <div className="flex w-full flex-col gap-2 text-left">
+      <span className="text-[10px] font-semibold tracking-widest text-cream/50">SOUND</span>
+      {VOLUME_LABELS.map(({ kind, label }) => (
+        <label key={kind} className="flex items-center gap-3 text-sm text-cream/80">
+          <span className="w-20 shrink-0">{label}</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(v[kind] * 100)}
+            onChange={(e) => {
+              const value = Number(e.target.value) / 100;
+              game?.setVolume(kind, value);
+              setV((old) => ({ ...old, [kind]: value }));
+            }}
+            className="h-2 flex-1 cursor-pointer accent-[#ffd23f]"
+            aria-label={label}
+          />
+          <span className="w-8 text-right text-xs tabular-nums text-cream/60">{Math.round(v[kind] * 100)}</span>
+        </label>
+      ))}
+    </div>
+  );
 };
 
 export const ArenaGame = ({
@@ -426,6 +461,7 @@ export const ArenaGame = ({
                     </button>
                   </>
                 )}
+                <SoundSliders game={gameRef.current} />
                 <button type="button" onClick={exit} className="panel-cut w-full bg-orange/90 px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
                   Exit match
                 </button>

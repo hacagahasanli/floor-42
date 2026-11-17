@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { createControls } from '../input';
 import type { AimMode } from '../input';
 import { createSfx } from '../sfx';
+
+import type { VolumeKind } from '../sfx';
 import { createBot } from '../sim/bot';
 import { ARENA, CHARACTERS, DT, GUNS, PUSH } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
@@ -791,6 +793,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     },
     resume,
     pickCharacter,
+    volumes: () => sfx.volumes,
+    setVolume: (kind: VolumeKind, value: number) => sfx.setVolume(kind, value),
     setAimMode: (m: AimMode) => {
       aimMode = m;
     },

@@ -12,9 +12,23 @@
 export type Sfx = ReturnType<typeof createSfx>;
 
 type Gun = 'pistol' | 'smg' | 'shotgun' | 'railgun' | 'launcher' | 'uzi' | 'bomb';
-type Bus = 'sfx' | 'ui' | 'amb';
+type Bus = 'sfx' | 'ui' | 'amb' | 'guns';
 
 const MUTE_KEY = 'merge-conflict:muted';
+const VOLUME_KEY = 'floor42:volume';
+
+export type VolumeKind = 'master' | 'guns';
+export type Volumes = Record<VolumeKind, number>;
+/** Guns sit well under everything else by default (Reis: gunshots too loud). */
+const DEFAULT_VOLUMES: Volumes = { master: 0.8, guns: 0.45 };
+
+const readVolumes = (): Volumes => {
+  try {
+    return { ...DEFAULT_VOLUMES, ...(JSON.parse(window.localStorage.getItem(VOLUME_KEY) ?? '{}') as Partial<Volumes>) };
+  } catch {
+    return { ...DEFAULT_VOLUMES };
+  }
+};
 /** Half the visible width of the arena, for turning world x into stereo pan. */
 const HALF_VIEW = 19.5;
 /** At most this many gunshot voices at once; extras are skipped. */
@@ -35,6 +49,9 @@ export const createSfx = () => {
   const buses: Partial<Record<Bus, GainNode>> = {};
   let noiseBuf: AudioBuffer | null = null;
   let muted = typeof window !== 'undefined' ? readMuted() : false;
+  const volumes: Volumes = typeof window !== 'undefined' ? readVolumes() : { ...DEFAULT_VOLUMES };
+  /** While a gunshot is being scheduled, all its voices go to the guns bus. */
+  let busOverride: Bus | null = null;
   let shotVoices = 0;
 
   const MASTER = 0.75;
@@ -65,14 +82,14 @@ export const createSfx = () => {
     comp.attack.value = 0.002;
     comp.release.value = 0.12;
     master = ctx.createGain();
-    master.gain.value = muted ? 0 : MASTER;
+    master.gain.value = muted ? 0 : MASTER * volumes.master;
     comp.connect(master).connect(ctx.destination);
     const verb = ctx.createConvolver();
     verb.buffer = makeRoom(ctx);
     wet = ctx.createGain();
     wet.gain.value = 0.22;
     wet.connect(verb).connect(comp);
-    for (const [bus, level] of [['sfx', 1], ['ui', 0.7], ['amb', 0.5]] as const) {
+    for (const [bus, level] of [['sfx', 1], ['ui', 0.7], ['amb', 0.5], ['guns', volumes.guns]] as const) {
       const g = ctx.createGain();
       g.gain.value = level;
       g.connect(comp);
@@ -96,7 +113,7 @@ export const createSfx = () => {
     if (!ctx || !wet) return;
     const p = ctx.createStereoPanner();
     p.pan.value = Math.max(-0.8, Math.min(0.8, pan));
-    node.connect(p).connect(buses[bus]!);
+    node.connect(p).connect(buses[busOverride ?? bus]!);
     if (room > 0) {
       const send = ctx.createGain();
       send.gain.value = room;
@@ -172,6 +189,14 @@ export const createSfx = () => {
   const shot = (gun: Gun, x?: number) => {
     if (!ctx || muted) return;
     if (shotVoices >= SHOT_BUDGET) return;
+    busOverride = 'guns';
+    try {
+      shotVoice(gun, x);
+    } finally {
+      busOverride = null;
+    }
+  };
+  const shotVoice = (gun: Gun, x?: number) => {
     shotVoices += 1;
     setTimeout(() => (shotVoices = Math.max(0, shotVoices - 1)), 120);
     const pan = panOf(x);
@@ -223,9 +248,23 @@ export const createSfx = () => {
     get muted() {
       return muted;
     },
+    get volumes() {
+      return { ...volumes };
+    },
+    /** Change a volume (0..1) now and remember it in this browser. */
+    setVolume: (kind: VolumeKind, value: number) => {
+      volumes[kind] = Math.max(0, Math.min(1, value));
+      if (master) master.gain.value = muted ? 0 : MASTER * volumes.master;
+      if (buses.guns) buses.guns.gain.value = volumes.guns;
+      try {
+        window.localStorage.setItem(VOLUME_KEY, JSON.stringify(volumes));
+      } catch {
+        /* storage unavailable */
+      }
+    },
     toggleMute: () => {
       muted = !muted;
-      if (master) master.gain.value = muted ? 0 : MASTER;
+      if (master) master.gain.value = muted ? 0 : MASTER * volumes.master;
       try {
         window.localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
       } catch {
