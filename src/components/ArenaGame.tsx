@@ -37,6 +37,19 @@ const Key = ({ k }: { k: string }) => (
   </kbd>
 );
 
+/** A small cooldown bar: fills up, then lights up when the move is ready. */
+const Ready = ({ label, value }: { label: string; value: number }) => {
+  const ready = value >= 1;
+  return (
+    <span className={`flex items-center gap-1 ${ready ? 'text-gold' : 'text-cream/40'}`} title={ready ? `${label} ready` : `${label} recharging`}>
+      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      <span className="h-1.5 w-8 overflow-hidden rounded bg-cream/15">
+        <span className={`block h-full ${ready ? 'bg-gold' : 'bg-cream/50'}`} style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />
+      </span>
+    </span>
+  );
+};
+
 const FighterPanel = ({ f, label, align, compact }: { f: HudFighter; label: string; align: 'left' | 'right'; compact?: boolean }) => (
   <div className={`flex ${compact ? 'w-48' : 'w-72'} flex-col gap-1 ${align === 'right' ? 'items-end text-right' : ''}`}>
     <div className={`flex items-baseline gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
@@ -58,6 +71,12 @@ const FighterPanel = ({ f, label, align, compact }: { f: HudFighter; label: stri
         ))}
       </span>
       <span className="font-semibold text-cream">{f.gun}</span>
+      {label === 'YOU' && (
+        <>
+          <Ready label="Dash" value={f.dash} />
+          <Ready label="Push" value={f.push} />
+        </>
+      )}
       {f.reloading > 0 ? (
         <span className="text-gold">reloading</span>
       ) : (
@@ -600,7 +619,7 @@ export const ArenaGame = ({
 
           {!demo && !touch && <Controls aim={hud.aimMode} />}
           {!demo && touch && hud.phase !== 'over' && !rivalLeft && !menuOpen && !hud.paused && (
-            <TouchControls press={(b, on) => gameRef.current?.touch(b, on)} onPause={openMenu} />
+            <TouchControls press={(b, on) => gameRef.current?.touch(b, on)} onPause={openMenu} ready={{ dash: hud.fighters[0].dash, push: hud.fighters[0].push }} />
           )}
           <div className={`absolute flex items-center gap-3 text-[10px] text-cream/50 ${touch ? 'right-3 top-20' : 'bottom-3 right-3'}`}>
             {!demo && !touch && (

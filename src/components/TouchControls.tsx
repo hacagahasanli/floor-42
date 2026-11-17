@@ -101,7 +101,7 @@ const Stick = ({ press }: { press: Press }) => {
   );
 };
 
-const Pad = ({ b, label, press, className, big }: { b: Button; label: string; press: Press; className: string; big?: boolean }) => {
+const Pad = ({ b, label, press, className, big, ready = 1 }: { b: Button; label: string; press: Press; className: string; big?: boolean; ready?: number }) => {
   const [down, setDown] = useState(false);
   const up = () => {
     setDown(false);
@@ -124,21 +124,28 @@ const Pad = ({ b, label, press, className, big }: { b: Button; label: string; pr
       onPointerCancel={up}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {label}
+      {/* Recharging: the button is dim and a ring fills up round it. */}
+      {ready < 1 && (
+        <svg className="pointer-events-none absolute inset-0 -rotate-90" viewBox="0 0 100 100" aria-hidden>
+          <circle cx="50" cy="50" r="47" fill="rgba(10,13,24,0.55)" />
+          <circle cx="50" cy="50" r="47" fill="none" stroke="#ffd23f" strokeWidth="5" strokeDasharray={`${ready * 295} 295`} />
+        </svg>
+      )}
+      <span className="relative">{label}</span>
     </button>
   );
 };
 
 /** Touch controls for phones: the stick on the left, actions on the right, pause on top. */
-export const TouchControls = ({ press, onPause }: { press: Press; onPause: () => void }) => (
+export const TouchControls = ({ press, onPause, ready }: { press: Press; onPause: () => void; ready?: { dash: number; push: number } }) => (
   <div className="absolute inset-0 z-[5] select-none" style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}>
     <Stick press={press} />
     {/* The right strip: Fire under the thumb, Jump beside it, Dash and Push above, Swap on top. */}
     <div className="absolute bottom-0 top-16" style={{ right: 'env(safe-area-inset-right)', width: TOUCH_STRIPS.right }}>
       <Pad b="fire" label="Fire" press={press} big className="bottom-3 right-2" />
       <Pad b="up" label="Jump" press={press} className="bottom-3 right-[116px]" />
-      <Pad b="dash" label="Dash" press={press} className="bottom-[118px] right-4" />
-      <Pad b="push" label="Push" press={press} className="bottom-[92px] right-[116px]" />
+      <Pad b="dash" label="Dash" press={press} className="bottom-[118px] right-4" ready={ready?.dash} />
+      <Pad b="push" label="Push" press={press} className="bottom-[92px] right-[116px]" ready={ready?.push} />
       <Pad b="reload" label="Swap" press={press} className="bottom-[178px] right-[124px] !h-14 !w-14 !text-[10px]" />
       <button
         type="button"

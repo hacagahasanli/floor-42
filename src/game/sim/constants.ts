@@ -95,7 +95,8 @@ export const PHYS = {
   airFriction: 8,
   dashSpeed: 19,
   dashTime: 0.16,
-  dashCooldown: 0.7,
+  /** Once every 5 s: a dash is a big play, not something to spam (Reis). */
+  dashCooldown: 5,
   wallKickX: 12.5,
   wallSlide: 4,
   dropTime: 0.25,

@@ -8,7 +8,7 @@ import { createSfx } from '../sfx';
 
 import type { VolumeKind } from '../sfx';
 import { createBot } from '../sim/bot';
-import { ARENA, CHARACTERS, DT, GUNS, PUSH } from '../sim/constants';
+import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
 import { buildArena } from './arena';
@@ -30,6 +30,7 @@ export interface HudFighter {
   maxHp: number;
   kos: number;
   push: number; // 0..1 ready
+  dash: number; // 0..1 ready
   gun: string;
   mag: number;
   reserve: number; // Infinity for the pistol
@@ -710,6 +711,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
           maxHp: CHARACTERS[f.character].hp,
           kos: f.kos,
           push: 1 - f.pushCooldown / PUSH.cooldown,
+          dash: 1 - f.dashCooldown / PHYS.dashCooldown,
           gun: g.name,
           mag: f.weapon.mag,
           reserve: f.weapon.reserve,
