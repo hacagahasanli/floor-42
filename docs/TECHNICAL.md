@@ -5,7 +5,7 @@ Goal: after reading this you can find any rule in the code, change a number safe
 
 Everything below was read from the source. Paths are relative to the repo root; `file:line` points at the lines as of this writing. Numbers come from `src/game/sim/constants.ts` unless stated.
 
-Status legend: **built** means the code exists and runs. **In progress** means files exist but the feature is not usable yet. Online multiplayer is the only in-progress area (section 10).
+Everything described here is built, including online multiplayer (section 10, committed in `f820864`).
 
 ---
 
@@ -20,7 +20,7 @@ Floor 42 is a side-on, 1v1 office shootout that runs in the browser.
 - Five guns: pistol (infinite ammo, you spawn with it), SMG, shotgun, railgun, rocket launcher.
 - Furniture (desks, walkways, cabinets) is cover: bullets stop on it.
 - **Force Push** (Q): a short-range shove that also reflects bullets.
-- Single-player against a bot (three levels). Online play is in progress.
+- Single-player against a bot (three levels). Online 1v1 at `/play` (invite link or quick match).
 
 ### Folder map
 
@@ -29,18 +29,20 @@ src/
   app/                     Next.js App Router: pages only, no game logic
     page.tsx               title screen
     characters/page.tsx    character select (renders CharacterSelect)
+    play/page.tsx          online lobby (?room=<id> joins an invite)
     arena/page.tsx         reads ?p1= &p2= &demo &bot= and renders ArenaGame
     layout.tsx             fonts (Bungee, Chakra Petch), metadata
   components/
     ArenaGame.tsx          React shell: canvas + HUD overlay + hidden input
     CharacterSelect.tsx    turntable gallery of the four fighters
+    OnlineLobby.tsx        /play: invite link, quick match, owns the room connection
   game/
     sim/                   THE RULES. Pure TypeScript, no DOM, no Three.js
       types.ts             GameState, Fighter, InputState, GameEvent ...
       constants.ts         arena layout, rules, physics, gun stats
       step.ts              step(state, inputs): advance one tick
       bot.ts               single-player opponent
-      sim.test.ts          22 tests
+      sim.test.ts          22 tests (25 with net/protocol.test.ts)
     render/                THE LOOK. Three.js scene built from primitives
       game.ts              startArena(): game loop, sim <-> scene glue
       arena.ts             office geometry, canvas textures, skyline
@@ -49,9 +51,13 @@ src/
     input.ts               keyboard and pointer -> InputState
     sfx.ts                 WebAudio sound synthesis
     roster.ts              character names, pitches, accent colours (UI copy)
-    net/protocol.ts        wire format for online play (in progress)
+    net/protocol.ts        wire format for online play
+    net/client.ts          join a room, prediction and reconciliation
+    net/protocol.test.ts   3 tests
 server/
-  index.ts  DuelRoom.ts    Colyseus game server (in progress)
+  index.ts  DuelRoom.ts    Colyseus game server (authoritative)
+  Dockerfile               image for Fly.io
+fly.toml                   Fly.io app config
 ```
 
 The one rule that shapes everything: **`sim/` knows nothing about the screen, and `render/` never decides anything about the game.** Details in section 2.
@@ -97,7 +103,7 @@ Why fixed and not "multiply by frame time": with variable steps, a 144 Hz laptop
 `sim/` imports nothing from DOM, React or Three.js (comment at `types.ts:1`). Consequences:
 
 1. **It runs on a server.** An authoritative server must decide who got hit. It cannot trust the browser to say so. Because `step` is plain TypeScript, the server imports the same file (`server/DuelRoom.ts:5`) instead of re-implementing the rules.
-2. **It runs in tests.** `sim.test.ts` builds a state, calls `step` N times and asserts. No browser, no canvas. 22 tests run in about 0.3 s.
+2. **It runs in tests.** `sim.test.ts` builds a state, calls `step` N times and asserts. No browser, no canvas. The tests run in about 0.3 s.
 3. **It is replayable.** Same starting state plus same inputs gives the same result. That is what client-side prediction (section 10) depends on.
 
 Anything cosmetic (particles, camera shake, sounds) lives in `render/` and `sfx.ts`, and is allowed to use `Math.random()`. A grep confirms there is no `Math.random` in `sim/` outside the tests.
@@ -418,7 +424,7 @@ Sounds are triggered from sim events in `handleEvent`, so audio and visuals stay
 
 Files: `src/game/sim/sim.test.ts` (vitest, Node environment, no DOM). Helpers build a fighting state with pickups and drops disabled (`fighting()`), place fighters, arm them, and run N ticks with scripted input.
 
-What the 22 tests cover:
+What the 25 tests cover (22 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
 
 | Group | Tests |
 |---|---|
@@ -428,73 +434,135 @@ What the 22 tests cover:
 | Force Push | splats into the glass (checks `WALL_SPLAT_DAMAGE`); reflects bullets at the shooter |
 | KOs | KO scores for the shooter and the fighter respawns with a pistol |
 | Bot | two bots score within a round; same seeds give the same result |
+| Wire protocol (`protocol.test.ts`) | input encode/decode round trip; a press in a skipped input survives a merge; a full game state round-trips including `Infinity` |
 
-Not covered: the grazing-shot rule at exact slope boundaries, ceiling-drop spawning, kill-credit edge cases (last hit by a rocket you fired yourself), draws, and everything in `render/`, `input.ts`, `sfx.ts`, `ArenaGame.tsx` and the server.
+Not covered: the grazing-shot rule at exact slope boundaries, ceiling-drop spawning, kill-credit edge cases (last hit by a rocket you fired yourself), draws, and everything in `render/`, `input.ts`, `sfx.ts`, `ArenaGame.tsx`, `net/client.ts` and `server/DuelRoom.ts`.
 
 Run:
 
 ```bash
-npm run test:run     # one-off run; expected: 22 passed
+npm run test:run     # one-off run; expected: 25 passed
 npm test             # watch mode
 npm run type-check   # tsc --noEmit
 ```
 
-`npm run test:run` was executed while writing this guide: `22 passed`, about 0.3 s. `npm run type-check` was not run for this document.
+`npm run test:run` was executed while updating this guide: `25 passed` (2 files), about 0.3 s. `npm run type-check` was not run for this document.
 
 ---
 
-## 10. Online multiplayer (in progress)
+## 10. Online multiplayer (built, deployed, committed in `f820864`)
 
-### What exists today
+Play it at `/play`. Server: `floor42-game` on Fly.io. This section was rewritten from the code after the feature landed. The server and client files were read; I did not run the server or the two-browser test myself. The three measured numbers below are the owner's, taken on 2026-11-17 from the owner's Mac.
 
-| Piece | State |
-|---|---|
-| `src/game/net/protocol.ts` | exists: input encoding, snapshot encoding, message types |
-| `server/index.ts`, `server/DuelRoom.ts` | exist: Colyseus room with input queue, tick loop, snapshots, rematch |
-| Browser client (connect, prediction, reconciliation, smoothing) | **not built** (nothing under `src/game/net/` besides `protocol.ts`; the Colyseus SDK is installed but unused) |
-| Lobby UI (invite link, quick match) | **not built** |
-| Fly.io deployment (`fly.toml`, Dockerfile, CI) | **not built** |
-| `npm run server` | script exists (`tsx server/index.ts`); never run for this document |
+### Pieces
 
-The server files are being written as this guide is written, so details below can change. Treat this section as the design plus what the files say today.
+| Piece | File | Job |
+|---|---|---|
+| Wire format | `src/game/net/protocol.ts` | input encoding, snapshot encoding, message types |
+| Browser client | `src/game/net/client.ts` | `joinRoom`, `createOnlineSession` (prediction, reconciliation, ping) |
+| Lobby | `src/components/OnlineLobby.tsx`, `src/app/play/page.tsx` | character choice, invite link, quick match, owns the room connection |
+| Arena glue | `src/components/ArenaGame.tsx`, `src/game/render/game.ts` | runs the session inside the normal game loop |
+| Game server | `server/index.ts`, `server/DuelRoom.ts` | one `DuelRoom` per match, authoritative |
+| Deployment | `server/Dockerfile`, `fly.toml` | container and Fly.io app |
+| Tests | `src/game/net/protocol.test.ts` | 3 tests on the wire format |
 
-### Design
-
-Stack: Colyseus 0.18 (a Node.js game-server framework: rooms, matchmaking, WebSocket transport) hosted on Fly.io.
+### Data flow
 
 ```text
-  Browser A                         Server (one DuelRoom)                  Browser B
-  ---------                         ---------------------                  ---------
-  read keys
-  send [tick, bits, aimX, aimY] -->  queue per player
-  predict locally with step()        every 1/60 s:
-                                       take next queued input per player
-                                       step(game, [inputA, inputB])   <- same sim/step.ts
-                                     every 2nd tick:
-  <-- snapshot {ack, inputs, state} -- broadcast full GameState         --> snapshot
-  reconcile
+  Browser A                        Server (one DuelRoom)                    Browser B
+  ---------                        ---------------------                    ---------
+  every tick (60/s):
+    read keys
+    send 'input' [tick,bits,ax,ay] -> queue per seat
+    step() locally (prediction)       every 1/60 s:
+                                        take next queued input per seat
+                                        step(game, [inA, inB])   <- same sim/step.ts
+                                      every 2nd tick (30/s):
+  <------ 'snap' {ack, inputs, state} broadcast full GameState -------->  'snap'
+  next tick: reconcile
 ```
 
-1. **Authoritative server.** The server runs the same `step` at 60 Hz (`setSimulationInterval(..., 1000 / 60)`, `DuelRoom.ts:54`) and decides every hit, KO and score. Clients send inputs, never positions or damage. A modified client can lie about its keys but not about the outcome.
-2. **Compact inputs.** `WireInput = [clientTick, buttonBitmask, aimX, aimY]` (`protocol.ts:13`). Nine buttons map to bits 0 to 8; aim is rounded to 2 decimals.
-3. **Input queue per player.** The server keeps a queue per seat, sorted by client tick, ignores ticks it has already applied, and accepts at most 10 inputs per message (`DuelRoom.ts:37-45`). Each server tick applies one queued input.
-4. **Backlog folding.** If more than 4 inputs are queued, the oldest are merged into the next (`DuelRoom.ts:110-113`, `mergeWire`): held buttons and aim come from the newer one, but one-shot presses (up, down, dash, fire, pickup, reload, push) from either are kept. This catches up after a lag spike without dropping a jump or dash. With nothing queued, held movement continues but one-shot presses are cleared so a lone jump does not repeat.
-5. **Snapshots about 30 times a second.** Every `SNAPSHOT_EVERY_TICKS = 2` ticks the server broadcasts the full `GameState` (`DuelRoom.ts:126-133`) as JSON. `Infinity` (the pistol's reserve, empty drop slots) is encoded as a marker string because JSON cannot carry it (`protocol.ts:57-62`). Measured size of an idle snapshot (tick 400, no projectiles): 2,643 bytes, so roughly 80 KB/s per client at 30 snapshots/s. This is with `events` emptied.
-6. **Per-player ack.** Each snapshot carries `ack: [slotA, slotB]`, the last client tick the server applied for each player, plus the inputs it used (`protocol.ts:45-51`).
-7. **Client prediction.** The client applies its own inputs immediately with the same `step`, so its own character responds without waiting for a round trip.
-8. **Reconciliation.** On each snapshot the client replaces its state with the server's, then re-applies every input with a tick greater than the ack (the ones the server has not seen yet). If its prediction was right the result equals what it had; if not, it snaps to the truth plus the unacknowledged inputs. This works only because `step` is deterministic and its entire memory is in `GameState`.
-9. **Smoothing.** Corrections are not shown as teleports; the displayed position eases toward the corrected one. (Design only; not written.)
-10. **Rooms.** `DuelRoom` has `maxClients = 2`. A private room (`options.private`, `DuelRoom.ts:35`) is hidden from matchmaking and joined by room id, which an invite link will carry. Quick match is the default public room (`ROOM_NAME = 'duel'`). When the second player joins the room locks and the game starts (`DuelRoom.ts:68-71`). Rematch: after `phase === 'over'` both clients send `rematch`; when both have, `startGame` runs again.
+The server runs the same `step` as the browser (`DuelRoom.ts:5`, `:125`) at 60 Hz (`setSimulationInterval`, `DuelRoom.ts:54`). It decides every hit, KO and score. Clients send only inputs.
 
-### Things the current files do not do (read from the code)
+### Wire format (`protocol.ts`)
 
-- The client does not exist, so none of items 7 to 9 is testable yet.
-- Snapshots are sent with `events: []` (`DuelRoom.ts:131`). Sounds and particles come from events, so a client that only applies snapshots would be silent. The client has to produce events by running `step` itself during prediction and replay, and avoid double-playing effects when it replays. This is an open design point.
-- When a player leaves, the room discards the game and broadcasts `left` (`DuelRoom.ts:76-83`). There is no reconnect window and no forfeit result.
-- No rate limiting beyond the 10-inputs-per-message cap, no authentication, and no check that a client's tick numbers are plausible.
-- Hitstop freezes `step` for up to 9 ticks. How the client's prediction and the server's tick counter stay aligned during hitstop has not been designed or tested.
-- `server/` imports `@colyseus/core` and `@colyseus/ws-transport`, which are installed as dependencies of `colyseus` but not listed in `package.json` directly.
-- No tests cover `protocol.ts` or `DuelRoom.ts`.
+- `WireInput = [clientTick, buttonBitmask, aimX, aimY]` (`protocol.ts:13`). Buttons map to bits in this order: left 0, right 1, up 2, down 3, dash 4, fire 5, pickup 6, reload 7, push 8 (`protocol.ts:10`). Aim is rounded to 2 decimals.
+- `Snapshot = { ack: [number, number], inputs: [WireInput, WireInput], state }`. `ack[slot]` is the last client tick the server applied for that player. `inputs[slot]` is the input the server is currently using for that player.
+- `SNAPSHOT_EVERY_TICKS = 2` (`protocol.ts:8`): a snapshot every second tick, 30 per second. Measured: about 139 snapshots in 4.5 s, consistent with that.
+- Snapshots travel as a JSON string. JSON cannot hold `Infinity`, which appears in the state (the pistol's `reserve`, empty drop slots' `respawn`), so `encodeSnapshot` swaps it for the marker string `"__inf"` (and `-Infinity` for `"-__inf"`) and `decodeSnapshot` swaps it back (`protocol.ts:56-61`). A test round-trips a full state including `Infinity`.
+- Size: an idle snapshot (tick 400, no projectiles) is 2,643 bytes. I measured this with a one-off script against the earlier server file; at 30 per second that is about 80 KB/s per client.
+- The server sends snapshots with `events: []` (`DuelRoom.ts:131`).
+
+### Server (`server/DuelRoom.ts`)
+
+- **Seats.** `maxClients = 2`; `seats` has two slots. A joiner takes slot 0 if free, otherwise slot 1 (`DuelRoom.ts:58`). The character comes from the join options, validated against `CHARACTERS`, falling back to `hotfix`.
+- **Start.** When both seats are filled, the room locks (no third client can join) and `startGame` creates the game with a random seed and sends each player `start { slot, characters }`. With one player, that player is sent `waiting { roomId }`.
+- **Private rooms.** `options.private` calls `setPrivate(true)`, hiding the room from quick match; it can only be joined by id.
+- **Input queue.** Each seat has a queue. A message may contain at most 10 inputs; each must be a 4-number array of finite numbers; inputs with a tick not greater than the seat's `ack`, or a tick already queued, are dropped (`DuelRoom.ts:37-45`). Each server tick takes one input from the queue, sorted by tick.
+- **Backlog folding.** If a queue is longer than 4, the oldest entry is merged into the next (`DuelRoom.ts:110-113`, `mergeWire`). The merged input keeps the newer tick, aim and held state, and keeps one-shot presses from either (up, down, dash, fire, pickup, reload, push). A lag spike is caught up without losing a jump or dash.
+- **No input this tick.** The seat's last input is reused with the one-shot presses cleared (`up`, `dash`, `push`, `pickup`, `reload`): you keep running, but a single jump press does not repeat. `fire` and `down` are not cleared, so a held trigger keeps firing.
+- **Rematch.** Allowed only when the game phase is `over`. When both seats have sent `rematch`, `startGame` runs again and both get a new `start` message.
+- **Leaving.** `onLeave` empties the seat, discards the game, broadcasts `left` and unlocks the room so someone else can join (`DuelRoom.ts:76-83`). There is no forfeit result and no reconnect window.
+- **Entry point.** `server/index.ts` builds a Colyseus `Server` with `@colyseus/core` and `@colyseus/ws-transport`, defines the room under the name `duel` (`ROOM_NAME`), and listens on `PORT` (default 2567) on `0.0.0.0`.
+
+### Client (`src/game/net/client.ts`)
+
+- **Server address.** `GAME_SERVER` is `NEXT_PUBLIC_GAME_SERVER`, defaulting to `wss://floor42-game.fly.dev` (`client.ts:13`). For a local server set `NEXT_PUBLIC_GAME_SERVER=ws://localhost:2567` before `npm run dev` (not run for this document).
+- **`joinRoom(mode, character)`**:
+
+| Mode | Colyseus call | Used for |
+|---|---|---|
+| `quick` | `joinOrCreate('duel', ...)` | Quick match: join a waiting public room or create one |
+| `private` | `create('duel', {private: true})` | Invite a friend: new hidden room |
+| `join` | `joinById(roomId, ...)` | Opening an invite link |
+
+- **`createOnlineSession(room, start)`** returns the object the game loop drives. It keeps its own `GameState`, a tick counter, a `history` of sent inputs (capped at 240), the latest unprocessed snapshot, and the rival's assumed input.
+  1. **Predict.** Each tick (`session.tick(input)`) it numbers the input, stores it, sends it as `room.send('input', [wire])`, and runs `step` locally with your input and the rival's assumed input. The game feels instant because nothing waits for the network.
+  2. **Rival input is assumed.** The client never sees the rival's keys ahead of time. It uses the rival's input from the last snapshot (`snap.inputs[1 - slot]`) and holds it constant until the next snapshot.
+  3. **Reconcile.** The `snap` handler only stores the newest snapshot (an older unprocessed one is overwritten). At the start of the next tick, `reconcile` (`client.ts:47`): adopt the server's state as the truth, drop every history entry with tick `<= ack[slot]`, and replay the remaining (not yet acknowledged) inputs with `step`, using the rival's assumed input. Then the normal predicted step for the current tick runs. If the prediction was right, nothing visibly changes; if not, the state is corrected.
+  4. **Events from the local predicted step only.** Snapshots carry no events, and the replay's events are discarded because `step` clears `state.events` at the start of each call. `session.tick` returns the events of the single predicted step, and `game.ts` feeds those to `handleEvent` (sounds, particles, shake). So effects play once, from your own prediction.
+  5. **Ping.** Every 2 s `room.ping` records round-trip time in ms; the HUD shows it (`ArenaGame.tsx:293`).
+  6. **Rematch.** `rematch()` sends the `rematch` message; `restart(msg)` rebuilds the local game when the server sends a new `start`.
+- This is the design from section 2 working as intended: it depends on `step` being deterministic and holding all its memory in `GameState`.
+
+### Lobby and arena glue
+
+- `/play` renders `OnlineLobby` (`src/app/play/page.tsx`). `?room=<id>` (4 to 32 word characters or hyphens) joins that room immediately, which is the invite link: `${origin}/play?room=${roomId}`.
+- Screens: menu (pick one of four fighters, saved in `localStorage` under `merge-conflict:character`; Invite a friend; Quick match), connecting, waiting (invite link with Copy button, or "waiting for someone to join the quick match"), error ("That room is full or gone" for a bad invite, otherwise "Can't reach the game server").
+- **The lobby owns the connection.** The room is left only in the lobby's unmount effect (`OnlineLobby.tsx:41-47`), not in the arena component. React StrictMode in development mounts, unmounts and re-mounts components, re-running effects; if `ArenaGame` left the room on cleanup, the match would end the moment it started in dev. `ArenaGame` therefore only subscribes and unsubscribes to messages (`start` for rematches, `left` for the "Your rival left" overlay).
+- **Slot-aware `me`.** In `game.ts`, `me = online.slot` (`game.ts:82`) replaces the hardcoded fighter 0 for auto-aim, aim line, reload sound and the key hint. Fighter order in the sim is unchanged (slot 0 spawns left).
+- **HUD shows you first.** `emitHud` orders fighters as `[me, rival]` and remaps `winner` and the last KO to that order (`game.ts:452-460`), so the left panel is always "YOU" and the right is "RIVAL", whatever your slot.
+- **Rival smoothing.** Your own fighter is drawn from the predicted state. The rival's drawn position eases toward its corrected position with `k = 1 - exp(-22 * dt)` when the correction is under 4 units, and snaps otherwise (`game.ts:329-338`). That hides small server corrections instead of showing teleports.
+
+### Deployment
+
+| Item | Value | Source |
+|---|---|---|
+| App | `floor42-game` | `fly.toml:2` |
+| Region | `fra` (Frankfurt) | `fly.toml:3` |
+| Machine | `shared-cpu-1x`, 256 MB | `fly.toml:15-17` |
+| Autostop | `auto_stop_machines = "stop"`, `auto_start_machines = true`, `min_machines_running = 0` | `fly.toml:11-13` |
+| Port | internal 8080 (`PORT=8080` in the image), HTTPS forced | `fly.toml:9-10`, `Dockerfile:10` |
+| Scale | deployed with `--ha=false`: one machine, so every room lives in one process | owner's note |
+
+The machine stops when idle and Fly starts it on the next connection, so the first player after a quiet period waits for a cold start. Rooms live in the memory of that single machine; if it restarts, running matches end.
+
+The `Dockerfile` (`node:20-alpine`) installs exact versions of `@colyseus/core`, `@colyseus/ws-transport`, `@colyseus/schema`, `express` and `tsx`, copies only `server/index.ts`, `server/DuelRoom.ts`, `src/game/sim` and `src/game/net/protocol.ts`, and runs `npx tsx server/index.ts`. Those packages (except `tsx`, a dev dependency) are also direct dependencies in `package.json` (as ranges), so the image and local development can drift if the ranges move. If the server starts importing another file, it must be added to the `COPY` lines or the image will fail at start.
+
+### Measured (2026-11-17, owner's Mac)
+
+- Two browsers connected over Fly: both clients showed identical state.
+- Round-trip time to Fly `fra`: about 123 to 131 ms.
+- About 139 snapshots in 4.5 s.
+
+### Not covered or not designed (read from the code)
+
+- No automated test for `client.ts` or `DuelRoom.ts`; only `protocol.ts` has tests.
+- Hitstop freezes `step` for up to 9 ticks. How prediction and the server stay aligned across hitstop was not designed or tested separately. The two-browser test showed matching state, but that is not a proof for every case.
+- The client sends one input per message at 60 messages per second; the server's 10-inputs-per-message allowance is not used by this client.
+- No rate limiting beyond the per-message cap, no authentication, and no check that a client's tick numbers are plausible.
+- A player who leaves ends the match for the other; no forfeit, no reconnect.
+- With ~125 ms round trip, the rival is always seen about that far in the past plus the 33 ms snapshot interval, and its input is a guess between snapshots.
 
 ---
 
@@ -511,8 +579,8 @@ Rows marked (notes) come from the owner's project notes and commit history, not 
 | Rockets fly straight (`GRENADE.gravity = 0`) | Auto-aim aims at the target, so a falling rocket would miss for no visible reason. |
 | Simulation separated from rendering, written without a physics engine | Needed for a server-authoritative design, for fast headless tests, and for deterministic replay (sections 2 and 3). |
 | Own visual theme: Bungee for display, Chakra Petch for UI, navy with git-diff colours (HEAD green, incoming red, conflict yellow) | A distinct identity; `src/app/layout.tsx`, `palette.ts`, `globals.css`. |
-| Hosting plan: Cloudflare Pages for the static pages (free); Fly.io only for multiplayer servers, with autostop (notes) | Static pages cost nothing; a server only runs while someone plays. Not set up yet. |
-| Studio "Merge Conflict" at mergeconflict.gg, with games on subdomains (notes) | One brand, one game per subdomain. Not set up yet. |
+| Hosting plan: Cloudflare Pages for the static pages (free); Fly.io only for multiplayer servers, with autostop (notes) | Static pages cost nothing; a server only runs while someone plays. The Fly.io part is live (section 10); Cloudflare Pages was not checked for this guide. |
+| Studio "Merge Conflict" at mergeconflict.gg, with games on subdomains (notes) | One brand, one game per subdomain. Not checked for this guide. |
 
 ---
 
@@ -528,18 +596,21 @@ Honest list, from reading the code.
 - Kill credit is the last attacker. A fighter killed by a wall splat they caused after being shoved credits the pusher, but no event distinguishes it.
 - The `rail` event type and `sign` export are declared but unused (`types.ts:109`, `step.ts:632`).
 
+**Online**
+- Prediction across hitstop (up to 9 frozen ticks) was not analysed separately; a two-browser test matched, which is evidence, not proof (section 10).
+- The rival is shown about one round trip behind (123 to 131 ms measured to Fly `fra`) plus the snapshot interval, and its input is a guess between snapshots.
+- A player leaving ends the match; no forfeit result or reconnect. First player after an idle period waits for the Fly machine to start.
+
 **Code and testing**
-- Test coverage is the simulation only. Rendering, input, audio, the React shell and the server have no automated tests. `type-check` exists but there is no CI configuration in the repo.
+- Automated tests cover the simulation and the wire format. Rendering, input, audio, the React shell, `net/client.ts` and `DuelRoom` have none. `type-check` exists but there is no CI configuration in the repo.
 - Magic numbers inside `step.ts` (stun thresholds, the 0.15 graze slope, the 0.6 s push-flag time) are not in `constants.ts`.
-- The README badge says 22 passing tests, matching today. The commit message for `3c8d987` says 26, from before the CTO removal.
+- The Dockerfile pins Colyseus versions while `package.json` uses ranges, and lists server files in `COPY` by hand.
 
 **Before going public**
-- `CLAUDE.md` lists work still to do on the base template: remove the private `@frontend/ui-kit` dependency and every NAIC trace. This guide did not check whether that is finished.
+- `CLAUDE.md` lists work to do on the base template: remove the private `@frontend/ui-kit` dependency and every NAIC trace. `package.json` no longer lists `@frontend/ui-kit`; the rest of that list was not checked for this guide.
 
-**Next steps (in order of dependency)**
-1. Finish the browser net client: connect, send inputs, run the same `step` for prediction, apply snapshots with ack replay, smooth corrections.
-2. Decide how effects are produced on the client without snapshot events.
-3. Lobby UI: private invite link, quick match, rematch button wired to the `rematch` message.
-4. Tests for `protocol.ts` (encode/decode round trip, `Infinity`) and for `DuelRoom` queue folding.
-5. A simulation test that replays a recorded input log on two instances of `step` and compares full state, to guard determinism.
-6. Fly.io config with autostop; Cloudflare Pages for the web app; domain setup.
+**Next steps**
+1. Tests for `DuelRoom` (queue folding, rematch, leave) and for `createOnlineSession` reconciliation with a fake room.
+2. A simulation test that replays a recorded input log on two instances of `step` and compares full state, to guard determinism.
+3. A forfeit result and a short reconnect window.
+4. CI running `npm run test:run` and `npm run type-check`.
