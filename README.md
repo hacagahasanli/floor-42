@@ -95,8 +95,8 @@ If your rival's connection drops, the game holds for 20 seconds while they recon
 | SMG | fast, three hits up close, weaker at range | common |
 | Shotgun | six pellets, a one-shot KO point-blank, falls off fast | common |
 | Uzi | sprays very fast, every round does little | sometimes |
-| Sniper rail | one-shot KO at any range, goes through furniture and people | rare |
-| Rockets | fly straight, one-shot KO near the blast, throw everyone around | rarest |
+| Sniper rail | one-shot KO at any range, goes through furniture and people; 6 shots | top floor |
+| Rockets | fly straight, one-shot KO near the blast, throw everyone around; 6 shots | top floor |
 | Bomb | drops from the ceiling vents; you lob it with Space and get your gun back; lethal right next to it | now and then |
 
 A shot coming down onto or up into furniture is stopped. A shot skimming along a desk top grazes past.

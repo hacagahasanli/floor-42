@@ -296,7 +296,7 @@ const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
   }
   f.weapon = newWeapon(p.kind);
   p.active = false;
-  p.respawn = p.spawn !== null ? RULES.gunRespawn : Infinity;
+  p.respawn = p.spawn !== null ? (ARENA.gunSpawns[p.spawn].respawn ?? RULES.gunRespawn) : Infinity;
   state.events.push({ type: 'pickup', fighter: f.id, gun: p.kind });
 };
 

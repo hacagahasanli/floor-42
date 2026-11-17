@@ -1,5 +1,5 @@
 import { createBot } from './bot';
-import { ARENA, CHARACTERS, DT, GUN_TABLE, GUNS, RULES, WALL_SPLAT_DAMAGE } from './constants';
+import { ARENA, CHARACTERS, DT, GUNS, RULES, WALL_SPLAT_DAMAGE } from './constants';
 import { chooseCharacter, createGame, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
@@ -227,11 +227,16 @@ describe('range, rarity and bombs', () => {
     expect(events.some((e) => e.type === 'ko')).toBe(true);
   });
 
-  it('rockets are the rarest gun, the Uzi more common than the rail', () => {
-    const count = (k: string) => GUN_TABLE.filter((g) => g === k).length;
-    expect(count('launcher')).toBeLessThan(count('railgun'));
-    expect(count('railgun')).toBeLessThan(count('uzi'));
-    expect(count('uzi')).toBeLessThan(count('smg'));
+  it('the top floor always offers a power weapon with six shots; lower floors never do', () => {
+    const top = ARENA.gunSpawns[ARENA.gunSpawns.length - 1];
+    expect(top.kinds.every((k) => k === 'railgun' || k === 'launcher')).toBe(true);
+    for (const floor of ARENA.gunSpawns.slice(0, -1)) {
+      expect(floor.kinds.some((k) => k === 'railgun' || k === 'launcher')).toBe(false);
+    }
+    for (const k of ['railgun', 'launcher'] as const) expect(GUNS[k].mag + GUNS[k].reserve).toBe(6);
+    const s = createGame(['hotfix', 'legacy'], 9);
+    const power = s.pickups[ARENA.gunSpawns.length - 1];
+    expect(power.active && (power.kind === 'railgun' || power.kind === 'launcher')).toBe(true);
   });
 
   it('the Uzi fires fast but each round does little', () => {
