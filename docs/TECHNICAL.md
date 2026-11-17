@@ -5,7 +5,7 @@ Goal: after reading this you can find any rule in the code, change a number safe
 
 Everything below was read from the source. Paths are relative to the repo root; `file:line` points at the lines as of this writing. Numbers come from `src/game/sim/constants.ts` unless stated.
 
-Everything described here is built, including online multiplayer (section 10). Updated for commits up to `9d30b50`.
+Everything described here is built, including online multiplayer (section 10). Updated for commits up to `55edc4d`; section 13 covers the last three (play vs bot, sound sliders, phones).
 
 Project tooling, one line: the game was built with agent skills from the owner's local repo `~/Desktop/projects/game-dev-skills` (not published). Three were written for this project (`web-multiplayer-netcode`, `web-game-feel`, `web-game-audio`); five third-party skills in it are Apache-2.0.
 
@@ -454,11 +454,11 @@ Side effect: because a text input has focus, a screen reader announces an edit f
 
 No audio files. Every sound is made with the Web Audio API at the time it plays: oscillators with a pitch sweep (`tone`, `sfx.ts:37`) and filtered noise from one second of random samples generated at startup (`noise`, `sfx.ts:52`), each shaped with an exponential attack/decay envelope (`env`, `sfx.ts:31`). The `shot`, `hit`, `explosion`, `glass`, `ko`, etc. functions combine these.
 
-Browsers refuse to start audio until the user interacts with the page. `createSfx` therefore creates the `AudioContext` lazily: `sfx.unlock()` is called on every keydown (`game.ts:456-457`) and `ensure()` creates or resumes it (`sfx.ts:14`). Sounds requested before the first key press are silently skipped. M mutes by setting master gain to 0; master gain is otherwise 0.75 (`MASTER`). The mute choice is remembered in `localStorage` under `merge-conflict:muted`.
+Browsers refuse to start audio until the user interacts with the page. `createSfx` therefore creates the `AudioContext` lazily: `sfx.unlock()` is called on every keydown (`game.ts:456-457`) and `ensure()` creates or resumes it (`sfx.ts:14`). Sounds requested before the first key press are silently skipped. M mutes by setting master gain to 0; master gain is otherwise `MASTER` 0.75 times the "All sound" slider (default 0.8, section 13.2). The mute choice is remembered in `localStorage` under `merge-conflict:muted`.
 
 Since `3da54fc` the audio follows the owner's `web-game-audio` skill (`sfx.ts`, header comment):
 
-- **Buses.** Every voice goes through a stereo panner to a category bus (`sfx` 1.0, `ui` 0.7, `amb` 0.5), then a `DynamicsCompressor`, then the master gain. A scaled copy of each voice also goes to a generated room reverb (a `ConvolverNode` whose 0.9 s impulse response is decaying noise built in code, `makeRoom`).
+- **Buses.** Every voice goes through a stereo panner to a category bus (`sfx` 1.0, `ui` 0.7, `amb` 0.5, and since `bfed1d6` `guns` 0.45, section 13.2), then a `DynamicsCompressor`, then the master gain. A scaled copy of each voice also goes to a generated room reverb (a `ConvolverNode` whose 0.9 s impulse response is decaying noise built in code, `makeRoom`).
 - **Layered gunshots.** A shot is a crack (high-passed noise), a body (band-passed noise) and a thump (a falling sine), with extras per gun: shotgun pump clicks, rocket hiss, slide click.
 - **Pan from world x.** `panOf(x) = x / 19.5`, clamped to about plus or minus 0.8, so sounds come from where they happen. Events now pass `e.x` to the sfx calls.
 - **Variation.** Every voice gets a random detune (about plus or minus 70 cents) and a gain between 0.9 and 1.1, so repeated shots do not sound identical.
@@ -682,3 +682,85 @@ Honest list, from reading the code.
 2. A simulation test that replays a recorded input log on two instances of `step` and compares full state, to guard determinism.
 3. A forfeit result for a rival who never comes back.
 4. CI running `npm run test:run` and `npm run type-check`.
+
+---
+
+## 13. Since `9d30b50`: play vs bot, sound sliders, phones
+
+Three commits, read from their diffs and the current files. Nothing here changes the simulation (`src/game/sim`) or the wire format.
+
+### 13.1 Play vs bot from `/play` (`b7688ca`)
+
+Reader question: what if nobody else is online?
+
+- **Menu screen.** `OnlineLobby.tsx` has a "Play vs bot" link beside Invite a friend and Quick match (`OnlineLobby.tsx:147-152`).
+- **Waiting screen.** While a quick match waits, "Nobody yet? Play the bot instead" is shown (`OnlineLobby.tsx:186-188`).
+- **Both are plain links** to `/arena?p1=<your character>&bot=normal`. `/arena` is the existing single-player page: `src/app/arena/page.tsx:20` accepts `bot=easy|normal|hard` and falls back to `normal`. The character picked in the lobby is carried in `p1`; the bot's character is random.
+- **Leaving the room.** The links leave `/play`, so the lobby's unmount effect runs and calls `room.leave()` (`OnlineLobby.tsx:41-47`, section 10). Nobody can join an empty match you walked away from. No new code was needed for that; the comment at the waiting link says so.
+- The character-select page (`CharacterSelect.tsx:87`) still starts the bot at `easy`; the online page starts it at `normal`.
+
+### 13.2 Sound: guns bus, defaults and sliders (`bfed1d6`)
+
+Reader question: where do the volume numbers live and why are gunshots quieter?
+
+| Item | Value | Where |
+|---|---|---|
+| Default "All sound" | 0.8 (master volume multiplier) | `DEFAULT_VOLUMES`, `sfx.ts:23` |
+| Default "Gunshots" | 0.45 (gain of the `guns` bus) | `DEFAULT_VOLUMES`, `sfx.ts:23` |
+| Final master gain | `MASTER (0.75) * volumes.master`, or 0 when muted (M) | `sfx.ts` `ensure`, `setVolume`, `toggleMute` |
+| Storage key | `floor42:volume`, JSON `{"master":0.8,"guns":0.45}` | `VOLUME_KEY`, `sfx.ts:18` |
+| Mute key (unchanged) | `merge-conflict:muted` | `MUTE_KEY` |
+
+- **A separate bus.** `Bus` gained `'guns'`. `shot()` sets a module-local `busOverride = 'guns'` while `shotVoice()` builds the voices, and the routing helper connects every node to `buses[busOverride ?? bus]`. All layers of a gunshot (crack, body, thump, extras) therefore land on the guns bus without changing each layer's own code. `try/finally` resets the override even if a voice throws. Hits, explosions, glass and KO sounds stay on `sfx`.
+- **Reading and writing.** `readVolumes()` merges the stored JSON over the defaults and falls back to defaults if storage is missing or the JSON is bad. `setVolume(kind, value)` clamps to 0..1, updates the live gain nodes at once (no restart), and writes the new pair back, ignoring storage errors. `sfx.volumes` returns a copy.
+- **The sliders.** `SoundSliders` in `ArenaGame.tsx` renders two range inputs (0 to 100, "All sound" and "Gunshots") inside the Esc Esc menu, above Exit match. It reads the starting values from `game.volumes()` and calls `game.setVolume` on every change; `game.ts` exposes both as thin wrappers over `sfx`. Each slider has an `aria-label`.
+- **Gotcha.** The sliders are only reachable from the pause menu, so online you must be in the menu (the game keeps running unless both players agree to pause, section 10). The master slider scales everything, including the guns bus, so the effective gunshot level is `0.75 * master * guns`.
+
+### 13.3 Phones and tablets (`55edc4d`)
+
+Reader question: how does a touch screen drive a game built for a keyboard?
+
+**Principle.** Touch input is turned into the same `InputState` the keyboard produces, so the simulation and netcode are untouched. Touch devices always auto-aim.
+
+| Piece | File | What it does |
+|---|---|---|
+| `isTouchDevice()` | `src/game/input.ts:8` | True when `(pointer: coarse)` matches or `ontouchstart` exists. Called by `ArenaGame` (after mount, into state `touch`) and by `startArena` (`touch` constant). |
+| `setTouch(button, on)` | `input.ts` | Adds the button to `touchHeld`; on press also to `touchLatched`. |
+| `read()` | `input.ts` | Merges keyboard, `touchHeld` and `touchLatched` into one `InputState`, then clears `touchLatched`. |
+| `TouchControls` | `src/components/TouchControls.tsx` | Stick, five buttons, pause button. |
+| `useLandscape`, `RotateHint` | `TouchControls.tsx` | Detects portrait; full-screen "Turn your phone sideways" overlay. |
+| `game.touch(b, on)` | `src/game/render/game.ts` | Unlocks audio, then calls `controls.setTouch`. |
+
+**Latched presses.** The sim runs at a fixed 60 Hz but fingers touch and lift between ticks. A tap shorter than one tick would be pressed and released before `read()` sees it. `touchLatched` remembers "pressed since the last read", so the next tick sees the button down exactly once. `touchHeld` keeps long presses down. The sim's own edge detection (`prev`, section 2) then turns it into one press. `onBlur` clears `touchHeld` (a stuck button when the page loses focus) but not the latch.
+
+**The stick** (`Stick`, left half of the screen below the top bar). It floats: it appears where the thumb lands. The knob is limited to a radius of 56 px. Direction thresholds, as a share of that radius:
+
+| Direction | Threshold | Button pressed |
+|---|---|---|
+| Left or right | beyond 0.3 | `left` / `right` |
+| Up | beyond 0.6 | `up` (jump) |
+| Down | beyond 0.6 | `down` (drop through furniture) |
+
+Only one finger is tracked for the stick (`pointer` ref, pointer capture); other fingers can use the buttons at the same time, because each button captures its own pointer.
+
+**Buttons** (`Pad`, right side): Fire (large), Jump (`up`), Dash, Push, Swap (`reload`, small). Each calls `press(button, true/false)` on pointer down/up/cancel and suppresses the context menu. The pause button (top centre) calls `openMenu` in `ArenaGame`, which does what Esc twice does: request a pause, open the menu. That menu contains the sound sliders (13.2). Touch controls are hidden while the menu is open, the game is paused, the match is over or the rival left.
+
+**Fullscreen and landscape.** The first touch on the stick or any button calls `goFullscreen()`, once per page load (`askedFullscreen`). It requests fullscreen on `<html>` (standard or `webkit` prefixed call), then locks the orientation to landscape. Every failure is swallowed (`.catch(() => undefined)`), and if the browser exposes no fullscreen request the function returns without doing anything. So where the API is missing, nothing happens and the browser bars stay. This is how iPhone Safari is expected to behave: as far as I know it offers no Fullscreen API on iPhone, so the page would play with the browser bars visible. The code path for a missing API is confirmed; the iPhone behaviour itself is a platform fact I did not test. `useLandscape` compares `innerHeight` with `innerWidth` on resize and `orientationchange`; in portrait `RotateHint` covers the arena, and the match keeps running underneath.
+
+**Changes to existing code**
+
+| File | Change |
+|---|---|
+| `ArenaGame.tsx` | `aimMode` forced to `'auto'` on touch; compact fighter panels (`w-48` instead of `w-72`); keyboard hint panel and the "FLOOR 42" sign hidden; hints and the respawn picker moved to the top (`top-36`, `top-32`) clear of the buttons; hint keys shown as "Swap" and "Fire"; touch wording ("Tap pause to agree", "Rematch"); root is `h-[100dvh]` with `touch-none`. |
+| `ArenaGame.tsx` (key trap) | The hidden focused `<input>` (section 7) is not focused on touch devices: a focused field opens the on-screen keyboard. |
+| `game.ts` | Pixel ratio `min(devicePixelRatio, 1.5)` on touch, 2 otherwise; a window `pointerdown` listener calls `sfx.unlock()` (removed on dispose), so audio starts on the first touch, as browsers require. |
+| `layout.tsx` | Exported `viewport`: no pinch or double-tap zoom (`maximumScale: 1`, `userScalable: false`), `viewportFit: 'cover'`, theme colour `#0a0d18`. This applies to every page, not only the arena. |
+| `globals.css` | `turnPhone` keyframes for the rotate hint. |
+
+**How it was verified (from the commit message).** Chrome's Pixel 7 emulation driven with Playwright: stick and Fire held together, Jump, the pause menu, and an online match of a desktop browser against the emulated phone through the Fly server, both staying in sync. **Not yet tested on a real phone**, so real-device fullscreen behaviour, touch latency, frame rate with the 1.5 pixel ratio and iPhone Safari are unconfirmed. I did not re-run the emulation for this document.
+
+**Known limits (from the code)**
+- Pinch zoom is disabled for the whole site; this is an accessibility trade-off.
+- `isTouchDevice()` is true for any device with touch, including touch laptops, which then get touch controls and forced auto-aim. There is no switch to turn them off.
+- The stick tracks one finger and the layout is fixed pixel sizes (`h-64 w-72` button cluster); very small screens were not checked.
+- No automated tests cover touch input, like the rest of input, audio and rendering (section 12).
