@@ -34,10 +34,12 @@ const BACK_Z = -3.4;
 const buildCity = (scene: THREE.Scene) => {
   const sky = canvasTexture(4, 256, (g) => {
     const grad = g.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#1f1d3a');
-    grad.addColorStop(0.45, '#4a3f6b');
-    grad.addColorStop(0.75, '#c96a4f');
-    grad.addColorStop(1, '#f0b060');
+    // Late dusk: deep night above, only a thin warm band left on the horizon.
+    grad.addColorStop(0, '#070912');
+    grad.addColorStop(0.55, '#141a33');
+    grad.addColorStop(0.8, '#2a2346');
+    grad.addColorStop(0.93, '#6a3a3e');
+    grad.addColorStop(1, '#b8673f');
     g.fillStyle = grad;
     g.fillRect(0, 0, 4, 256);
   });
@@ -54,18 +56,20 @@ const buildCity = (scene: THREE.Scene) => {
     g.fillStyle = grad;
     g.fillRect(0, 0, 256, 256);
   });
-  const sun = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), new THREE.MeshBasicMaterial({ map: halo, transparent: true, depthWrite: false, fog: false }));
-  sun.position.set(18, -4, -110);
+  const sun = new THREE.Mesh(new THREE.PlaneGeometry(44, 44), new THREE.MeshBasicMaterial({ map: halo, transparent: true, opacity: 0.45, depthWrite: false, fog: false }));
+  sun.position.set(18, -12, -110);
   scene.add(sun);
 
+  // Office towers at night: dark glass, some floors still working (warm), a few screens (cool).
   const facade = canvasTexture(64, 128, (g) => {
-    g.fillStyle = '#2b2837';
+    g.fillStyle = '#121626';
     g.fillRect(0, 0, 64, 128);
     const r = rng(7);
     for (let y = 4; y < 128; y += 10) {
+      const floorLit = r() > 0.55; // whole floors light up together
       for (let x = 4; x < 64; x += 10) {
         const lit = r();
-        g.fillStyle = lit > 0.62 ? '#ffd27a' : lit > 0.5 ? '#ff9a5a' : '#3a3650';
+        g.fillStyle = floorLit && lit > 0.25 ? (lit > 0.9 ? '#9fd0ff' : '#ffcf7a') : lit > 0.93 ? '#ffb070' : '#1d2236';
         g.fillRect(x, y, 6, 6);
       }
     }
@@ -82,11 +86,21 @@ const buildCity = (scene: THREE.Scene) => {
     const tex = facade.clone();
     tex.repeat.set(Math.max(1, Math.round(w / 3)), Math.max(1, Math.round(h / 6)));
     tex.needsUpdate = true;
-    const b = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex }));
+    const b = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, color: 0xb8bcd0 }));
     const row = i % 2;
     b.scale.set(w, h, d);
     b.position.set(-120 + i * 4 + r() * 3, h / 2 - 36 + row * 2, -34 - row * 22 - r() * 10);
     scene.add(b);
+    // A lit crown on some roofs, an antenna on others.
+    if (r() < 0.4) {
+      const crown = new THREE.Mesh(new THREE.BoxGeometry(w * 1.02, 0.5, d * 1.02), new THREE.MeshBasicMaterial({ color: r() < 0.5 ? 0x3ec5ff : 0xffd27a }));
+      crown.position.set(b.position.x, b.position.y + h / 2 - 0.6, b.position.z);
+      scene.add(crown);
+    } else if (h > 22) {
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 6, 5), new THREE.MeshBasicMaterial({ color: 0x1a1e2c }));
+      mast.position.set(b.position.x, b.position.y + h / 2 + 3, b.position.z);
+      scene.add(mast);
+    }
     // Aircraft warning lights on the tall ones.
     if (h > 30) {
       const light = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3030, fog: false }));
@@ -95,6 +109,16 @@ const buildCity = (scene: THREE.Scene) => {
       scene.add(light);
       warning.push(light);
     }
+  }
+  // A far row of dark silhouettes, for depth.
+  const far = new THREE.MeshBasicMaterial({ color: 0x0c1020 });
+  for (let i = 0; i < 40; i++) {
+    const w = 6 + r() * 10;
+    const h = 20 + r() * 50;
+    const b = new THREE.Mesh(geo, far);
+    b.scale.set(w, h, 6);
+    b.position.set(-160 + i * 8 + r() * 4, h / 2 - 40, -95 - r() * 10);
+    scene.add(b);
   }
   return warning;
 };
@@ -344,8 +368,10 @@ export interface ArenaView {
 }
 
 export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => {
-  scene.background = new THREE.Color(0x1f1d3a);
-  scene.fog = new THREE.Fog(0x4a3f6b, 45, 130);
+  // The fog only reaches the city outside (the room is ~40 m from the camera), so the dusk outside
+  // never tints the fight inside.
+  scene.background = new THREE.Color(0x070912);
+  scene.fog = new THREE.Fog(0x0c1020, 70, 170);
 
   // Light: a cool sky fill, a warm key with shadows, and a dusk rim from the city.
   scene.add(new THREE.HemisphereLight(0xe6ecff, 0x8a7a66, 1.25));
@@ -362,7 +388,8 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   sc.far = 60;
   key.shadow.bias = -0.0005;
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0xff9a5a, 0.9);
+  // A faint cool rim from the city: it separates the fighters from the windows without colouring the room.
+  const rim = new THREE.DirectionalLight(0x8fa6ff, 0.35);
   rim.position.set(4, 5, -20);
   scene.add(rim);
 
@@ -458,7 +485,8 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   for (const ty of [5.6, 9.4]) scene.add(put(mesh(box(W, 0.08, 0.1), mat(PALETTE.ink), false), 0, ty, BACK_Z - 0.05));
   const windowGlass = new THREE.Mesh(
     new THREE.PlaneGeometry(W, H - 0.6),
-    new THREE.MeshBasicMaterial({ color: 0x9fc4ff, transparent: true, opacity: 0.08, depthWrite: false }),
+    // Tinted office glass: the city reads a step darker than the room.
+    new THREE.MeshBasicMaterial({ color: 0x0a1020, transparent: true, opacity: 0.35, depthWrite: false }),
   );
   scene.add(put(windowGlass, 0, 0.6 + (H - 0.6) / 2, BACK_Z - 0.1));
 
