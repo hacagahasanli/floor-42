@@ -144,9 +144,16 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
             >
               Quick match
             </button>
+            <Link
+              href={`/arena?p1=${character}&bot=normal`}
+              className="panel-cut bg-cream/10 px-7 py-3 font-bold uppercase tracking-wider hover:bg-cream/20"
+            >
+              Play vs bot
+            </Link>
           </div>
           <p className="max-w-sm text-sm text-cream/60">
             Invite a friend makes a private room and gives you a link. Quick match puts you with whoever else is waiting.
+            Nobody around? Play the bot.
           </p>
         </>
       )}
@@ -175,6 +182,10 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
             <p className="text-cream/80">Waiting for someone to join the quick match…</p>
           )}
           <span className="animate-pulse text-xs tracking-widest text-cream/50">WAITING FOR RIVAL</span>
+          {/* Leaving this page leaves the room, so nobody joins an empty match. */}
+          <Link href={`/arena?p1=${character}&bot=normal`} className="text-sm text-cream/70 underline underline-offset-4 hover:text-cream">
+            Nobody yet? Play the bot instead
+          </Link>
         </div>
       )}
 
