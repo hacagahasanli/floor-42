@@ -2,7 +2,10 @@ import * as THREE from 'three';
 
 import { mat, mesh, PALETTE } from './palette';
 
-import type { CharacterId } from '../sim/types';
+import type { CharacterId, GunKind } from '../sim/types';
+
+/** Floor 42's guns, plus empty hands. */
+type WeaponKind = GunKind | 'fists';
 
 /**
  * Low-poly fighters built from primitives. Each one has a different silhouette:
@@ -14,15 +17,31 @@ import type { CharacterId } from '../sim/types';
 export interface Rig {
   root: THREE.Group;
   body: THREE.Group;
+  /** Upper arms (pivot at the shoulder) and forearms (pivot at the elbow). */
   armL: THREE.Group;
   armR: THREE.Group;
+  foreL: THREE.Group;
+  foreR: THREE.Group;
+  armLen: number;
+  shoulderL: THREE.Vector3;
+  shoulderR: THREE.Vector3;
+  /** Thighs (pivot at the hip) and shins (pivot at the knee). */
   legL: THREE.Group;
   legR: THREE.Group;
+  shinL: THREE.Group;
+  shinR: THREE.Group;
+  legLen: number;
   weapon: THREE.Group;
   hand: THREE.Object3D;
   chestY: number;
   phase: number;
   turn: number;
+  head: THREE.Group;
+  /** The plate carrier, shown while you wear armor. */
+  vest: THREE.Group;
+  /** Where the hips and legs face on the map (they lag the upper body and follow the run). */
+  hipYaw: number;
+  hipInit: boolean;
 }
 
 interface Spec {
@@ -234,7 +253,7 @@ const SPECS: Record<CharacterId, Spec> = {
   },
 };
 
-export const buildRig = (id: CharacterId): Rig => {
+export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): Rig => {
   const s = SPECS[id];
   const root = new THREE.Group();
   const body = new THREE.Group();
@@ -255,6 +274,69 @@ export const buildRig = (id: CharacterId): Rig => {
 
   s.extras({ head, torso, spec: s });
 
+  // ---- kit: everyone is dressed for a fight (the Intern brought their own huge backpack).
+  const olive = mat(0x4f5638);
+  const oliveDark = mat(0x3b412a);
+  const strapMat = mat(0x2a2d24);
+  const tan = mat(0xa08c64);
+  const back = -s.torsoD / 2;
+  if (kit === 'battle' && id !== 'intern') {
+    const pack = mesh(box(s.torsoW * 0.78, s.torsoH * 0.72, 0.26), olive);
+    pack.position.set(0, s.torsoH * 0.52, back - 0.13);
+    const flap = mesh(box(s.torsoW * 0.7, s.torsoH * 0.22, 0.05), oliveDark);
+    flap.position.set(0, s.torsoH * 0.78, back - 0.27);
+    const pouchL = mesh(box(0.1, s.torsoH * 0.36, 0.18), oliveDark);
+    pouchL.position.set(-s.torsoW * 0.44, s.torsoH * 0.42, back - 0.12);
+    const pouchR = pouchL.clone();
+    pouchR.position.x = s.torsoW * 0.44;
+    const roll = mesh(new THREE.CylinderGeometry(0.09, 0.09, s.torsoW * 0.82, 10).rotateZ(Math.PI / 2), tan);
+    roll.position.set(0, s.torsoH * 0.93, back - 0.13);
+    torso.add(pack, flap, pouchL, pouchR, roll);
+  }
+  if (kit === 'battle') {
+    for (const sx of [-1, 1]) {
+      // Shoulder straps over the chest.
+      const strap = mesh(box(0.06, s.torsoH * 0.62, 0.03), strapMat, false);
+      strap.position.set(sx * s.torsoW * 0.26, s.torsoH * 0.62, s.torsoD / 2 + 0.012);
+      torso.add(strap);
+    }
+  } else {
+    // Office: the access badge on its lanyard.
+    for (const sx of [-1, 1]) {
+      const cord = mesh(box(0.02, s.torsoH * 0.42, 0.012), mat(0x3ec5ff), false);
+      cord.position.set(sx * 0.07, s.torsoH * 0.78, s.torsoD / 2 + 0.01);
+      cord.rotation.z = sx * 0.25;
+      torso.add(cord);
+    }
+    const badge = mesh(box(0.13, 0.17, 0.015), mat(0xf4f6fb), false);
+    badge.position.set(0, s.torsoH * 0.5, s.torsoD / 2 + 0.018);
+    const photo = mesh(box(0.06, 0.06, 0.004), mat(0x3ec5ff), false);
+    photo.position.set(0, s.torsoH * 0.52, s.torsoD / 2 + 0.027);
+    torso.add(badge, photo);
+  }
+  const belt = mesh(box(s.torsoW + 0.04, 0.08, s.torsoD + 0.04), strapMat);
+  belt.position.y = 0.05;
+  const buckle = mesh(box(0.07, 0.06, 0.02), mat(0x9a9a8a), false);
+  buckle.position.set(0, 0.05, s.torsoD / 2 + 0.03);
+  const holster = mesh(box(0.08, 0.2, 0.13), oliveDark);
+  holster.position.set(s.torsoW / 2 + 0.05, -0.05, 0.02);
+  const beltPouchL = mesh(box(0.1, 0.11, 0.07), olive);
+  beltPouchL.position.set(-s.torsoW * 0.3, 0.02, s.torsoD / 2 + 0.05);
+  const beltPouchR = beltPouchL.clone();
+  beltPouchR.position.x = s.torsoW * 0.3;
+  torso.add(belt, buckle, holster, beltPouchL, beltPouchR);
+  const vest = new THREE.Group();
+  const plate = mesh(box(s.torsoW + 0.07, s.torsoH * 0.58, s.torsoD + 0.08), oliveDark);
+  plate.position.y = s.torsoH * 0.6;
+  vest.add(plate);
+  for (let i = -1; i <= 1; i++) {
+    const mag = mesh(box(0.1, 0.15, 0.06), olive);
+    mag.position.set(i * 0.12, s.torsoH * 0.45, s.torsoD / 2 + 0.07);
+    vest.add(mag);
+  }
+  vest.visible = false;
+  torso.add(vest);
+
   const makeLimb = (len: number, r: number, color: number, endColor: number, end: 'hand' | 'shoe') => {
     const g = new THREE.Group();
     const limb = mesh(cyl(r, len), mat(color));
@@ -267,17 +349,66 @@ export const buildRig = (id: CharacterId): Rig => {
     return g;
   };
 
+  // Two-bone arms: an upper arm with a forearm hinged at the elbow, so hands can reach a grip.
+  const makeArm = () => {
+    const half = s.armLen / 2;
+    const upper = new THREE.Group();
+    const u = mesh(cyl(s.armR, half + 0.02), mat(s.top));
+    u.position.y = -half / 2;
+    upper.add(u);
+    const elbow = mesh(ico(s.armR * 1.02, 0), mat(s.top));
+    elbow.position.y = -half;
+    upper.add(elbow);
+    const fore = new THREE.Group();
+    fore.position.y = -half;
+    const f = mesh(cyl(s.armR * 0.92, half), mat(s.top));
+    f.position.y = -half / 2;
+    fore.add(f);
+    const hand = mesh(ico(s.armR * 1.15, 0), mat(s.skin));
+    hand.position.y = -half - 0.02;
+    fore.add(hand);
+    upper.add(fore);
+    return { upper, fore };
+  };
   const shoulderY = s.legLen + s.torsoH - 0.06;
-  const armL = makeLimb(s.armLen, s.armR, s.top, s.skin, 'hand');
-  const armR = makeLimb(s.armLen, s.armR, s.top, s.skin, 'hand');
+  const left = makeArm();
+  const right = makeArm();
+  const armL = left.upper;
+  const armR = right.upper;
   armL.position.set(-(s.torsoW / 2 + s.armR), shoulderY, 0);
   armR.position.set(s.torsoW / 2 + s.armR, shoulderY, 0);
   body.add(armL, armR);
 
-  const legL = makeLimb(s.legLen, s.legR, s.pants, s.shoes, 'shoe');
-  const legR = makeLimb(s.legLen, s.legR, s.pants, s.shoes, 'shoe');
+  // Two-bone legs: a thigh and a shin hinged at the knee, the shoe on the shin.
+  const makeLeg = () => {
+    const half = s.legLen / 2;
+    const thigh = new THREE.Group();
+    const t = mesh(cyl(s.legR * 1.08, half + 0.02), mat(s.pants));
+    t.position.y = -half / 2;
+    thigh.add(t);
+    const knee = mesh(ico(s.legR * 1.05, 0), mat(s.pants));
+    knee.position.y = -half;
+    thigh.add(knee);
+    const shin = new THREE.Group();
+    shin.position.y = -half;
+    const sh = mesh(cyl(s.legR * 0.95, half), mat(s.pants));
+    sh.position.y = -half / 2;
+    shin.add(sh);
+    const shoe = mesh(box(s.legR * 2.2, s.legR * 1.2, s.legR * 3.2), mat(s.shoes));
+    shoe.position.set(0, -half, s.legR * 0.7);
+    shin.add(shoe);
+    thigh.add(shin);
+    return { thigh, shin };
+  };
+  const ll = makeLeg();
+  const lr = makeLeg();
+  const legL = ll.thigh;
+  const legR = lr.thigh;
   legL.position.set(-s.torsoW * 0.24, s.legLen, 0);
   legR.position.set(s.torsoW * 0.24, s.legLen, 0);
+  // Legs yaw first, then stride, so a twisted stance still swings along the hips' direction.
+  legL.rotation.order = 'YXZ';
+  legR.rotation.order = 'YXZ';
   body.add(legL, legR);
 
   const chestY = s.legLen + s.torsoH * 0.6;
@@ -288,7 +419,13 @@ export const buildRig = (id: CharacterId): Rig => {
   weapon.add(hand);
   body.add(weapon);
 
-  return { root, body, armL, armR, legL, legR, weapon, hand, chestY, phase: 0, turn: 0 };
+  return {
+    root, body, armL, armR, foreL: left.fore, foreR: right.fore, armLen: s.armLen,
+    shinL: ll.shin, shinR: lr.shin, legLen: s.legLen,
+    head, vest, hipYaw: 0, hipInit: false,
+    shoulderL: armL.position.clone(), shoulderR: armR.position.clone(),
+    legL, legR, weapon, hand, chestY, phase: 0, turn: 0,
+  };
 };
 
 export interface PoseInput {
@@ -381,4 +518,450 @@ export const disposeObject = (obj: THREE.Object3D) => {
   obj.traverse((o) => {
     if (o instanceof THREE.Mesh) o.geometry.dispose();
   });
+};
+
+/**
+ * Where each gun sits relative to the chest (body space, model facing +z): x to the right,
+ * y up, `grip` how far forward the firing hand is, `support` how much further the other hand
+ * reaches along the gun (0 = both hands on the grip).
+ */
+const HOLD: Record<WeaponKind, { x: number; y: number; grip: number; support: number }> = {
+  fists: { x: 0, y: 0, grip: 0.3, support: 0 },
+  pistol: { x: 0.02, y: 0.06, grip: 0.46, support: 0 },
+  uzi: { x: 0.04, y: 0.05, grip: 0.42, support: 0 },
+  bomb: { x: 0.1, y: 0.02, grip: 0.36, support: 0 },
+  smg: { x: 0.13, y: 0.02, grip: 0.24, support: 0.4 },
+  shotgun: { x: 0.13, y: 0.03, grip: 0.24, support: 0.44 },
+  railgun: { x: 0.13, y: 0.04, grip: 0.24, support: 0.46 },
+  launcher: { x: 0.2, y: 0.16, grip: 0.18, support: 0.32 },
+};
+
+const tmpE = new THREE.Euler();
+const tmpGrip = new THREE.Vector3();
+const tmpSupport = new THREE.Vector3();
+const DOWN = new THREE.Vector3(0, -1, 0);
+const vA = new THREE.Vector3();
+const vB = new THREE.Vector3();
+const vC = new THREE.Vector3();
+const vD = new THREE.Vector3();
+const qA = new THREE.Quaternion();
+
+/**
+ * Point an upper arm and forearm so the hand lands on `target` (both in body space). Elbows
+ * bend down and outwards. If the target is out of reach the arm straightens towards it.
+ */
+const reach = (upper: THREE.Group, fore: THREE.Group, shoulder: THREE.Vector3, target: THREE.Vector3, len: number, side: 1 | -1) => {
+  const a = len / 2;
+  const toT = vA.subVectors(target, shoulder);
+  const d = Math.min(Math.max(toT.length(), 0.05), len * 0.999);
+  const u = vD.copy(toT).normalize();
+  // Elbow direction: out to the side and down, made perpendicular to the shoulder-hand line.
+  const pole = vB.set(side * 0.8, -1, -0.2);
+  pole.sub(vC.copy(u).multiplyScalar(pole.dot(u))).normalize();
+  const cosA = Math.min(1, d / (2 * a));
+  const sinA = Math.sqrt(1 - cosA * cosA);
+  const elbowDir = vC.copy(u).multiplyScalar(cosA).addScaledVector(pole, sinA).normalize();
+  upper.quaternion.setFromUnitVectors(DOWN, elbowDir);
+  // Forearm: from the elbow towards the hand, expressed in the upper arm's frame.
+  const elbow = vB.copy(shoulder).addScaledVector(elbowDir, a);
+  const handDir = vA.copy(shoulder).addScaledVector(u, d).sub(elbow).normalize();
+  handDir.applyQuaternion(qA.copy(upper.quaternion).invert());
+  fore.quaternion.setFromUnitVectors(DOWN, handDir);
+};
+
+export interface TopDownPose {
+  dt: number;
+  time: number;
+  /** World velocity on the map (m/s). */
+  vx: number;
+  vy: number;
+  /** Where the body faces on the map (radians, 0 = +x). */
+  yaw: number;
+  /** How fast the visual yaw is turning (rad/s): the body banks into turns. */
+  yawRate: number;
+  onGround: boolean;
+  dashing: boolean;
+  /** Seconds since the last shot: drives the recoil kick. */
+  sinceShot: number;
+  /** What's in the hands: decides the grip and where each hand goes. */
+  gun: WeaponKind;
+  /** 0..1 through a reload, or null. */
+  reload: number | null;
+  /** -1 (left) .. 1 (right). */
+  lean: number;
+  /** 0..1 through a vault over a rail or sill, or null. */
+  vault: number | null;
+  /** 0..1 through the landing roll, or null. */
+  roll: number | null;
+}
+
+/** How hard each gun kicks: the shotgun and the sniper rock the whole body. */
+const KICK: Record<WeaponKind, number> = { fists: 0.3, pistol: 0.6, uzi: 0.3, bomb: 0.4, smg: 0.35, shotgun: 1.3, railgun: 1.5, launcher: 1.4 };
+
+/**
+ * Top-down animation, built to feel physical:
+ * - the stride follows the real velocity (strafing steps sideways, back-pedalling runs the cycle
+ *   backwards), the torso counter-twists, the head and the gun bob with each step;
+ * - each gun kicks by its own weight: muzzle climb, the gun driven back, the shoulders rocked;
+ * - reloading drops the support hand to the magazine and tilts the gun;
+ * - leaning tilts the body out to the side;
+ * - a vault plants a hand on the rail, tucks the legs and swings over;
+ * - the landing after a parachute drop is a forward roll.
+ */
+export const poseTopDown = (rig: Rig, p: TopDownPose) => {
+  const { dt } = p;
+  const speed = Math.hypot(p.vx, p.vy);
+  const amp = Math.min(1, speed / 6.5);
+  const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+
+  // ---- the hips: they follow the run, the upper body follows the aim. Running sideways or
+  // back-pedalling twists the waist (legs one way, gun the other) up to ~60 degrees; standing,
+  // the feet stay planted until the twist gets too big, then step round under you.
+  if (!rig.hipInit) {
+    rig.hipYaw = p.yaw;
+    rig.hipInit = true;
+  }
+  let hipWant = rig.hipYaw;
+  if (speed > 0.6) {
+    const move = Math.atan2(p.vy, p.vx);
+    hipWant = Math.abs(wrap(move - p.yaw)) > 1.9 ? move + Math.PI : move; // back-pedal: hips face the gun
+  } else if (Math.abs(wrap(p.yaw - rig.hipYaw)) > 0.75) hipWant = p.yaw;
+  const stepping = speed <= 0.6 && Math.abs(wrap(hipWant - rig.hipYaw)) > 0.05;
+  rig.hipYaw += wrap(hipWant - rig.hipYaw) * (1 - Math.exp(-(speed > 0.6 ? 10 : 7) * dt));
+  // Never twist past what a waist can do: beyond it the hips are dragged round.
+  const maxTwist = 1.05;
+  const tw = wrap(rig.hipYaw - p.yaw);
+  if (Math.abs(tw) > maxTwist) rig.hipYaw = p.yaw + Math.sign(tw) * maxTwist;
+  const twist = wrap(rig.hipYaw - p.yaw);
+  if (stepping) rig.phase += dt * 9; // a quick shuffle while turning on the spot
+  // The head turns a little ahead of the body into a turn.
+  rig.head.rotation.y = damp(rig.head.rotation.y, Math.max(-0.45, Math.min(0.45, -p.yawRate * 0.08)), 10, dt);
+
+  const rel = Math.atan2(p.vy, p.vx) - rig.hipYaw;
+  const fwd = speed > 0.05 ? Math.cos(rel) : 0;
+  const side = speed > 0.05 ? Math.sin(rel) : 0;
+  const running = p.onGround && speed > 0.3 && p.vault === null && p.roll === null;
+  rig.phase += dt * (running ? 3.2 + speed * 1.2 : 0) * (fwd < -0.35 ? -1 : 1);
+  const swing = running ? Math.sin(rig.phase) * amp : 0;
+  const bob = running ? Math.abs(Math.sin(rig.phase)) : 0;
+
+  // ---- the landing roll: curl up and turn over around the hips, then stand.
+  if (p.roll !== null) {
+    const k = p.roll;
+    const turn = k * Math.PI * 2;
+    const hip = 0.55;
+    // Kept in (-PI, PI] so the body doesn't spin back a whole turn when the roll ends.
+    rig.body.rotation.set(turn > Math.PI ? turn - Math.PI * 2 : turn, 0, 0);
+    rig.body.position.set(0, hip - hip * Math.cos(turn) - 0.35 * Math.sin(k * Math.PI), -hip * Math.sin(turn) * 0.4);
+    const tuck = Math.sin(k * Math.PI);
+    rig.legL.rotation.set(-1.6 * tuck, 0, 0);
+    rig.legR.rotation.set(-1.4 * tuck, 0, 0);
+    rig.shinL.rotation.set(2.0 * tuck, 0, 0);
+    rig.shinR.rotation.set(1.8 * tuck, 0, 0);
+    rig.armL.quaternion.setFromEuler(tmpE.set(-1.2 * tuck, 0, 0.3));
+    rig.armR.quaternion.setFromEuler(tmpE.set(-1.2 * tuck, 0, -0.3));
+    rig.foreL.quaternion.setFromEuler(tmpE.set(-1.4 * tuck, 0, 0));
+    rig.foreR.quaternion.setFromEuler(tmpE.set(-1.4 * tuck, 0, 0));
+    rig.weapon.visible = false;
+    return;
+  }
+  rig.body.rotation.y = damp(rig.body.rotation.y, running ? -swing * 0.12 * Math.abs(fwd) : 0, 12, dt); // torso twist
+
+  // ---- legs: stride along the direction of travel; tucked during a vault.
+  const along = Math.max(Math.abs(fwd), 0.25);
+  let kneeL: number;
+  let kneeR: number;
+  if (p.vault !== null) {
+    const tuck = Math.sin(Math.min(1, p.vault / 0.8) * Math.PI);
+    rig.legL.rotation.x = damp(rig.legL.rotation.x, -1.3 * tuck, 25, dt);
+    rig.legR.rotation.x = damp(rig.legR.rotation.x, -0.9 * tuck, 25, dt);
+    rig.legL.rotation.z = damp(rig.legL.rotation.z, 0.5 * tuck, 25, dt);
+    rig.legR.rotation.z = damp(rig.legR.rotation.z, 0.5 * tuck, 25, dt);
+    kneeL = 1.9 * tuck;
+    kneeR = 1.6 * tuck;
+  } else {
+    // A real run cycle: the leg swinging through bends hard at the knee and lifts the foot; the
+    // standing leg stays nearly straight. Standing still: a ready stance, knees a little bent.
+    const c = running ? Math.cos(rig.phase) : 0;
+    const ready = 0.22;
+    rig.legL.rotation.x = damp(rig.legL.rotation.x, -swing * 1.0 * along - ready * 0.6, 16, dt);
+    rig.legR.rotation.x = damp(rig.legR.rotation.x, swing * 1.0 * along - ready * 0.6, 16, dt);
+    rig.legL.rotation.z = damp(rig.legL.rotation.z, -swing * 0.45 * side - 0.04, 16, dt);
+    rig.legR.rotation.z = damp(rig.legR.rotation.z, swing * 0.45 * side + 0.04, 16, dt);
+    kneeL = ready + (running ? Math.max(0, c) * 1.5 * amp + 0.15 * amp : 0);
+    kneeR = ready + (running ? Math.max(0, -c) * 1.5 * amp + 0.15 * amp : 0);
+  }
+  rig.shinL.rotation.x = damp(rig.shinL.rotation.x, kneeL, 18, dt);
+  rig.shinR.rotation.x = damp(rig.shinR.rotation.x, kneeR, 18, dt);
+  // Legs face the hips (local yaw is the opposite sign of map yaw). A small step on the spot lifts
+  // the feet while turning.
+  rig.legL.rotation.y = -twist;
+  rig.legR.rotation.y = -twist;
+  if (stepping) {
+    const lift = Math.max(0, Math.sin(rig.phase)) * 0.5;
+    rig.shinL.rotation.x += lift;
+    rig.legL.rotation.x -= lift * 0.4;
+  }
+  // Keep the lower foot on the ground: the body drops as far as the bent legs shorten it.
+  const reachOf = (thigh: number, knee: number) => (Math.cos(thigh) + Math.cos(thigh + knee)) / 2;
+  const legDrop = rig.legLen * (1 - Math.max(reachOf(rig.legL.rotation.x, rig.shinL.rotation.x), reachOf(rig.legR.rotation.x, rig.shinR.rotation.x)));
+
+  // ---- body: lean into the run, bank into turns, lean out (Q/E), the kick of the gun.
+  const sinceShot = p.sinceShot;
+  const kickT = sinceShot < 0.25 ? sinceShot / 0.25 : 1;
+  // A kick that snaps back and settles with a small overshoot.
+  const kick = (1 - kickT) * Math.cos(kickT * Math.PI * 1.5) * KICK[p.gun];
+  // Running leans the body into it like a soldier on the move; firing straightens it a little.
+  let leanX = p.dashing ? 0.45 : 0.26 * fwd * amp + 0.05 - kick * 0.07;
+  let bank = Math.max(-0.18, Math.min(0.18, -p.yawRate * 0.035)) + 0.08 * side * amp - p.lean * 0.38;
+  if (p.vault !== null) {
+    // Swing over sideways with the weight on the planted hand.
+    leanX = 0.35 * Math.sin(p.vault * Math.PI);
+    bank = -0.55 * Math.sin(p.vault * Math.PI);
+  }
+  rig.body.rotation.x = damp(rig.body.rotation.x, leanX, 14, dt);
+  rig.body.rotation.z = damp(rig.body.rotation.z, bank, 10, dt);
+  const breathe = running ? 0 : Math.sin(p.time * 2.1) * 0.012;
+  rig.body.position.set(
+    damp(rig.body.position.x, p.lean * 0.22, 10, dt),
+    (running ? bob * 0.06 * amp : breathe) - legDrop,
+    -kick * 0.05,
+  );
+
+  // ---- the gun: at the chest, stock at the right shoulder; bobs with the steps, kicks by its
+  // weight, tilts and drops a little during a reload.
+  const h = HOLD[p.gun];
+  const step = running ? Math.sin(rig.phase * 2) * 0.03 * amp : 0;
+  const sway = running ? Math.sin(rig.phase) * 0.05 * amp : Math.sin(p.time * 1.3) * 0.02;
+  const r = p.reload;
+  const reloadTilt = r === null ? 0 : Math.sin(Math.min(1, r * 1.3) * Math.PI) * 0.55;
+  rig.weapon.visible = p.gun !== 'fists' && p.vault === null;
+  rig.weapon.position.set(h.x + sway * 0.4, rig.chestY + h.y + step - reloadTilt * 0.12, -Math.max(0, kick) * 0.12);
+  // Running without firing for a moment: the gun drops to low ready, muzzle down; it comes up
+  // the moment you shoot.
+  const lowReady = running && sinceShot > 0.8 && p.gun !== 'pistol' && p.gun !== 'uzi' ? 0.35 * amp : 0;
+  rig.weapon.rotation.x = damp(rig.weapon.rotation.x, -kick * 0.35 + sway * 0.4 + reloadTilt * 0.5 + lowReady, 30 - lowReady * 40, dt);
+  rig.weapon.rotation.y = damp(rig.weapon.rotation.y, sway * 0.6, 10, dt);
+  rig.weapon.rotation.z = damp(rig.weapon.rotation.z, reloadTilt * 0.6 + p.lean * 0.2, 12, dt);
+  rig.hand.position.set(0, 0, h.grip);
+
+  if (p.vault !== null) {
+    // Both hands planted on the rail ahead, sliding back as the body goes over it.
+    const k = p.vault;
+    const z = 0.55 - Math.max(0, k - 0.15) * 1.4;
+    const y = 0.95 - rig.body.position.y;
+    tmpGrip.set(0.22, y, z);
+    tmpSupport.set(-0.22, y, z);
+    if (k < 0.75) {
+      reach(rig.armR, rig.foreR, rig.shoulderR, tmpGrip, rig.armLen, 1);
+      reach(rig.armL, rig.foreL, rig.shoulderL, tmpSupport, rig.armLen, -1);
+    } else {
+      rig.armL.quaternion.setFromEuler(tmpE.set(-0.6, 0, 0.5));
+      rig.armR.quaternion.setFromEuler(tmpE.set(-0.6, 0, -0.5));
+    }
+    return;
+  }
+
+  if (p.gun === 'fists') {
+    // Arms pump with the stride, elbows bent; a jab on each punch.
+    const jab = Math.max(0, 1 - sinceShot / 0.2);
+    const swingArm = (upper: THREE.Group, fore: THREE.Group, sign: number) => {
+      const punch = sign > 0 ? jab : 0;
+      upper.quaternion.setFromEuler(tmpE.set(p.onGround ? sign * swing * 0.9 * along - punch * 1.4 : -0.4, 0, sign * 0.1));
+      fore.quaternion.setFromEuler(tmpE.set(-0.6 - Math.max(0, sign * swing) * 0.6 + punch * 0.5, 0, 0));
+    };
+    swingArm(rig.armL, rig.foreL, -1);
+    swingArm(rig.armR, rig.foreR, 1);
+    return;
+  }
+  // Two-bone IK: right hand on the grip, left hand on the fore-end (or cupping the pistol grip);
+  // during a reload the left hand goes down to the magazine well and back.
+  rig.weapon.updateMatrix();
+  tmpGrip.set(0, -0.02, h.grip).applyMatrix4(rig.weapon.matrix);
+  if (r !== null && r < 0.85) {
+    const drop = Math.sin(Math.min(1, r / 0.85) * Math.PI);
+    tmpSupport.set(-0.05, -0.12 - drop * 0.35, h.grip + 0.1).applyMatrix4(rig.weapon.matrix);
+  } else {
+    tmpSupport.set(h.support === 0 ? -0.05 : 0, h.support === 0 ? -0.04 : 0.03, h.grip + h.support).applyMatrix4(rig.weapon.matrix);
+  }
+  reach(rig.armR, rig.foreR, rig.shoulderR, tmpGrip, rig.armLen, 1);
+  reach(rig.armL, rig.foreL, rig.shoulderL, tmpSupport, rig.armLen, -1);
+};
+
+/**
+ * Hanging under the parachute: hands up on the risers, legs loose and swinging a little,
+ * the body tilted the way you steer. With the gun out (you fired in the last moments) the right
+ * hand brings the pistol down and forward while the left keeps hold of a riser.
+ */
+export const poseChute = (rig: Rig, p: { dt: number; time: number; seed: number; steerX: number; steerZ: number; shooting: boolean }) => {
+  const { dt, time, seed } = p;
+  rig.body.position.set(0, 0, 0);
+  rig.body.rotation.x = damp(rig.body.rotation.x, p.steerZ * 0.12, 4, dt);
+  rig.body.rotation.z = damp(rig.body.rotation.z, -p.steerX * 0.12, 4, dt);
+  rig.body.rotation.y = 0;
+  const dangle = Math.sin(time * 1.7 + seed) * 0.18;
+  rig.legL.rotation.set(dangle - 0.1, 0, -0.05);
+  rig.legR.rotation.set(-dangle * 0.8 - 0.05, 0, 0.05);
+  rig.shinL.rotation.set(0.35 + dangle * 0.5, 0, 0);
+  rig.shinR.rotation.set(0.25 - dangle * 0.4, 0, 0);
+  rig.armL.quaternion.setFromEuler(tmpE.set(Math.PI - 0.35, 0, -0.35));
+  rig.foreL.quaternion.setFromEuler(tmpE.set(0.25, 0, 0));
+  rig.weapon.visible = p.shooting;
+  if (p.shooting) {
+    const h = HOLD.pistol;
+    rig.weapon.position.set(h.x + 0.1, rig.chestY + h.y, 0);
+    rig.weapon.rotation.set(0, 0, 0);
+    rig.hand.position.set(0, 0, h.grip);
+    rig.weapon.updateMatrix();
+    tmpGrip.set(0, -0.02, h.grip).applyMatrix4(rig.weapon.matrix);
+    reach(rig.armR, rig.foreR, rig.shoulderR, tmpGrip, rig.armLen, 1);
+  } else {
+    rig.armR.quaternion.setFromEuler(tmpE.set(Math.PI - 0.35, 0, 0.35));
+    rig.foreR.quaternion.setFromEuler(tmpE.set(0.25, 0, 0));
+  }
+};
+
+/**
+ * Free fall, face down: arms out and bent up towards the sky, knees bent with the feet up behind,
+ * the limbs fluttering in the wind. The caller tips the root so the body lies flat.
+ */
+export const poseFreefall = (rig: Rig, p: { dt: number; time: number; seed: number }) => {
+  const f = Math.sin(p.time * 7 + p.seed) * 0.06;
+  rig.body.position.set(0, 0, 0);
+  rig.body.rotation.set(1.3, 0, Math.sin(p.time * 0.8 + p.seed) * 0.04);
+  rig.weapon.visible = false;
+  // Limbs in the body's frame: -z is the back, which faces the sky.
+  rig.armL.quaternion.setFromEuler(tmpE.set(0.55 + f, 0, -1.25));
+  rig.armR.quaternion.setFromEuler(tmpE.set(0.55 - f, 0, 1.25));
+  rig.foreL.quaternion.setFromEuler(tmpE.set(1.1, 0, 0));
+  rig.foreR.quaternion.setFromEuler(tmpE.set(1.1, 0, 0));
+  rig.legL.rotation.set(0.35 - f, 0, -0.25);
+  rig.legR.rotation.set(0.35 + f, 0, 0.25);
+  rig.shinL.rotation.set(1.25, 0, 0);
+  rig.shinR.rotation.set(1.25, 0, 0);
+};
+
+export interface SidePose {
+  dt: number;
+  time: number;
+  vx: number;
+  vy: number;
+  onGround: boolean;
+  /** 1 facing right, -1 facing left. */
+  facing: 1 | -1;
+  /** Aim angle in world space: 0 = right, PI/2 = up. */
+  aim: number;
+  /** -1 / 1 while sliding down a wall on that side, else 0. */
+  wall: number;
+  dashing: boolean;
+  stunned: boolean;
+  gun: GunKind;
+  /** Seconds since the last shot. */
+  sinceShot: number;
+  /** 0..1 through a reload, or null. */
+  reload: number | null;
+  /** 0..1 while the Force Push is out. */
+  pushing: number;
+}
+
+/**
+ * Floor 42's side-on animation, with the same body as the battle royale: two-bone arms that hold
+ * the gun by the grip and fore-end and point it where you aim (up and down too), two-bone legs
+ * with knees, a real run cycle (and back-pedalling when you run away from where you aim), a knee
+ * drive on the jump, legs braced on a wall slide, the lean of a dash, a gun that kicks by its
+ * weight, a reload with the hand at the magazine, and the free hand shoving on a Force Push.
+ * The body turns round through the camera when you change sides, on a spring.
+ */
+export const poseSide = (rig: Rig, p: SidePose) => {
+  const { dt } = p;
+  // Turn three-quarters to the side you face; a spring a little under critical damping.
+  const turnTarget = p.facing * (Math.PI / 2 - 0.3);
+  const w = 16;
+  const ud = rig.root.userData as { turnV?: number };
+  const v = ud.turnV ?? 0;
+  ud.turnV = v + (w * w * (turnTarget - rig.turn) - 2 * 0.75 * w * v) * dt;
+  rig.turn += ud.turnV * dt;
+  rig.root.rotation.y = rig.turn;
+
+  const speed = Math.abs(p.vx);
+  const amp = Math.min(1, speed / 7);
+  const fwd = speed > 0.3 ? Math.sign(p.vx) * p.facing : 0; // 1 forward, -1 back-pedalling
+  const running = p.onGround && speed > 0.5 && !p.dashing;
+  rig.phase += dt * (running ? 3.4 + speed * 1.15 : 0) * (fwd < 0 ? -1 : 1);
+  const swing = running ? Math.sin(rig.phase) * amp : 0;
+  const c = running ? Math.cos(rig.phase) : 0;
+
+  // ---- legs
+  let tl: number;
+  let tr: number;
+  let kl: number;
+  let kr: number;
+  if (p.wall !== 0 && !p.onGround) {
+    // Braced on the wall: knees up, feet against it.
+    tl = -0.9; tr = -0.5; kl = 1.4; kr = 1.0;
+  } else if (!p.onGround) {
+    // Rising: drive one knee up; falling: legs reach down for the floor.
+    const rise = Math.max(0, Math.min(1, p.vy / 8));
+    tl = -0.2 - 0.9 * rise; tr = 0.25 - 0.2 * rise;
+    kl = 0.4 + 1.2 * rise; kr = 0.5 + 0.3 * rise;
+  } else if (p.dashing) {
+    tl = -0.7; tr = 0.6; kl = 0.5; kr = 1.1;
+  } else {
+    const ready = 0.24;
+    tl = -swing * 1.0 - ready * 0.6;
+    tr = swing * 1.0 - ready * 0.6;
+    kl = ready + (running ? Math.max(0, c) * 1.5 * amp + 0.15 * amp : 0);
+    kr = ready + (running ? Math.max(0, -c) * 1.5 * amp + 0.15 * amp : 0);
+  }
+  const lk = p.onGround ? 18 : 12;
+  rig.legL.rotation.x = damp(rig.legL.rotation.x, tl, lk, dt);
+  rig.legR.rotation.x = damp(rig.legR.rotation.x, tr, lk, dt);
+  rig.legL.rotation.y = 0;
+  rig.legR.rotation.y = 0;
+  rig.legL.rotation.z = damp(rig.legL.rotation.z, -0.04, 10, dt);
+  rig.legR.rotation.z = damp(rig.legR.rotation.z, 0.04, 10, dt);
+  rig.shinL.rotation.x = damp(rig.shinL.rotation.x, kl, lk, dt);
+  rig.shinR.rotation.x = damp(rig.shinR.rotation.x, kr, lk, dt);
+  const reachOf = (thigh: number, knee: number) => (Math.cos(thigh) + Math.cos(thigh + knee)) / 2;
+  const legDrop = p.onGround ? rig.legLen * (1 - Math.max(reachOf(rig.legL.rotation.x, rig.shinL.rotation.x), reachOf(rig.legR.rotation.x, rig.shinR.rotation.x))) : 0;
+
+  // ---- body
+  const kickT = p.sinceShot < 0.25 ? p.sinceShot / 0.25 : 1;
+  const kick = (1 - kickT) * Math.cos(kickT * Math.PI * 1.5) * KICK[p.gun];
+  let lean = 0.22 * fwd * amp + 0.04 - kick * 0.07;
+  if (p.dashing) lean = 0.55;
+  if (p.pushing > 0) lean = 0.3 * p.pushing;
+  if (!p.onGround && p.vy > 0) lean = 0.12;
+  rig.body.rotation.x = damp(rig.body.rotation.x, lean, 12, dt);
+  rig.body.rotation.y = damp(rig.body.rotation.y, running ? -swing * 0.1 : 0, 12, dt);
+  rig.body.rotation.z = p.stunned ? Math.sin(p.time * 30) * 0.12 : damp(rig.body.rotation.z, 0, 10, dt);
+  const bob = running ? Math.abs(Math.sin(rig.phase)) * 0.06 * amp : Math.sin(p.time * 2.1) * 0.012;
+  rig.body.position.set(0, bob - legDrop, -Math.max(0, kick) * 0.05);
+  rig.head.rotation.y = 0;
+
+  // ---- the gun: pointed where you aim (up and down), kicked by its weight, tilted on a reload.
+  const h = HOLD[p.gun];
+  const elev = Math.atan2(Math.sin(p.aim), Math.abs(Math.cos(p.aim)));
+  const r = p.reload;
+  const reloadTilt = r === null ? 0 : Math.sin(Math.min(1, r * 1.3) * Math.PI) * 0.5;
+  const sway = running ? Math.sin(rig.phase) * 0.04 * amp : Math.sin(p.time * 1.3) * 0.015;
+  rig.weapon.visible = true;
+  rig.weapon.position.set(h.x, rig.chestY + h.y + (running ? Math.sin(rig.phase * 2) * 0.025 * amp : 0), -Math.max(0, kick) * 0.12);
+  rig.weapon.rotation.x = damp(rig.weapon.rotation.x, -elev - kick * 0.3 + sway * 0.3 + reloadTilt * 0.5, 28, dt);
+  rig.weapon.rotation.y = 0;
+  rig.weapon.rotation.z = damp(rig.weapon.rotation.z, reloadTilt * 0.6, 12, dt);
+  rig.hand.position.set(0, 0, h.grip);
+  rig.weapon.updateMatrix();
+  tmpGrip.set(0, -0.02, h.grip).applyMatrix4(rig.weapon.matrix);
+  reach(rig.armR, rig.foreR, rig.shoulderR, tmpGrip, rig.armLen, 1);
+  if (p.pushing > 0) {
+    // The free hand shoves straight out, palm first.
+    tmpSupport.set(-0.1, rig.chestY + 0.15, 0.25 + 0.55 * p.pushing);
+  } else if (r !== null && r < 0.85) {
+    const drop = Math.sin(Math.min(1, r / 0.85) * Math.PI);
+    tmpSupport.set(-0.05, -0.12 - drop * 0.35, h.grip + 0.1).applyMatrix4(rig.weapon.matrix);
+  } else {
+    tmpSupport.set(h.support === 0 ? -0.05 : 0, h.support === 0 ? -0.04 : 0.03, h.grip + h.support).applyMatrix4(rig.weapon.matrix);
+  }
+  reach(rig.armL, rig.foreL, rig.shoulderL, tmpSupport, rig.armLen, -1);
 };

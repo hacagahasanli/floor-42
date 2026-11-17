@@ -44,6 +44,19 @@ const buildCity = (scene: THREE.Scene) => {
   const skyPlane = new THREE.Mesh(new THREE.PlaneGeometry(500, 160), new THREE.MeshBasicMaterial({ map: sky, fog: false }));
   skyPlane.position.set(0, 12, -120);
   scene.add(skyPlane);
+  // The low sun between the towers, with a soft halo.
+  const halo = canvasTexture(256, 256, (g) => {
+    const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    grad.addColorStop(0, 'rgba(255,236,190,1)');
+    grad.addColorStop(0.18, 'rgba(255,200,120,0.95)');
+    grad.addColorStop(0.45, 'rgba(255,140,80,0.35)');
+    grad.addColorStop(1, 'rgba(255,120,80,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 256, 256);
+  });
+  const sun = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), new THREE.MeshBasicMaterial({ map: halo, transparent: true, depthWrite: false, fog: false }));
+  sun.position.set(18, -4, -110);
+  scene.add(sun);
 
   const facade = canvasTexture(64, 128, (g) => {
     g.fillStyle = '#2b2837';
@@ -74,8 +87,18 @@ const buildCity = (scene: THREE.Scene) => {
     b.scale.set(w, h, d);
     b.position.set(-120 + i * 4 + r() * 3, h / 2 - 36 + row * 2, -34 - row * 22 - r() * 10);
     scene.add(b);
+    // Aircraft warning lights on the tall ones.
+    if (h > 30) {
+      const light = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3030, fog: false }));
+      light.position.set(b.position.x, b.position.y + h / 2 + 0.4, b.position.z);
+      light.userData.phase = r() * 6;
+      scene.add(light);
+      warning.push(light);
+    }
   }
+  return warning;
 };
+const warning: THREE.Mesh[] = [];
 
 // ---------- Furniture, one builder per platform style. Top surface sits at p.y. ----------
 
@@ -109,6 +132,42 @@ const books = (g: THREE.Group, x0: number, x1: number, y: number, z: number, see
   }
 };
 
+/** A screen of code, a different slice of it on every monitor. */
+const codeScreen = (seed: number) =>
+  canvasTexture(256, 150, (g) => {
+    g.fillStyle = '#0f1420';
+    g.fillRect(0, 0, 256, 150);
+    const r = rng(seed * 31 + 7);
+    const cols = ['#3ddc84', '#3ec5ff', '#ffd23f', '#ff6a8a', '#c7cede', '#8b93ad'];
+    for (let y = 10; y < 146; y += 11) {
+      let x = 8 + Math.floor(r() * 3) * 12;
+      const n = 1 + Math.floor(r() * 4);
+      for (let i = 0; i < n && x < 240; i++) {
+        const w = 14 + r() * 50;
+        g.fillStyle = cols[Math.floor(r() * cols.length)];
+        g.fillRect(x, y, w, 5);
+        x += w + 6;
+      }
+    }
+  });
+
+/** A rolling office chair: five-star base, seat, back. */
+const chair = (x: number, z: number) => {
+  const g = new THREE.Group();
+  const dark = mat(0x23262f);
+  for (let i = 0; i < 5; i++) {
+    const leg = mesh(box(0.38, 0.04, 0.05), dark, false);
+    leg.position.set(0, 0.06, 0);
+    leg.rotation.y = (i / 5) * Math.PI * 2;
+    leg.translateX(0.18);
+    g.add(leg);
+  }
+  g.add(put(mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), mat(0x8a8f99), false), 0, 0.28, 0));
+  g.add(put(mesh(box(0.5, 0.08, 0.48), dark), 0, 0.5, 0));
+  g.add(put(mesh(box(0.48, 0.55, 0.06), dark), 0, 0.82, 0.24));
+  return put(g, x, 0, z);
+};
+
 const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
   desk: (p) => {
     const g = new THREE.Group();
@@ -118,7 +177,16 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     g.add(put(mesh(box(w, 0.04, 0.04), mat(PALETTE.ink), false), cx, p.y - 0.06, 0.45));
     legs(g, p.x0, p.x1, p.y - 0.08, -0.95, 0.35);
     g.add(lamp(p.x0 + 0.4, p.y, -0.85));
-    g.add(put(mesh(box(0.5, 0.05, 0.36), mat(PALETTE.white)), p.x1 - 1.1, p.y + 0.025, -0.75));
+    // Two monitors with code on them, a keyboard, a mug, and an office chair pushed back.
+    for (const [k, off] of [[0, -0.55], [1, 0.25]] as const) {
+      const mx = cx + off;
+      g.add(put(mesh(box(0.06, 0.32, 0.06), mat(PALETTE.ink), false), mx, p.y + 0.16, -0.95));
+      g.add(put(mesh(box(0.74, 0.46, 0.05), mat(0x1a1d26)), mx, p.y + 0.5, -0.98));
+      g.add(put(new THREE.Mesh(new THREE.PlaneGeometry(0.68, 0.4), new THREE.MeshBasicMaterial({ map: codeScreen(k + Math.round(p.x0 * 10)) })), mx, p.y + 0.5, -0.952));
+    }
+    g.add(put(mesh(box(0.55, 0.03, 0.18), mat(0x2a2d36)), cx - 0.15, p.y + 0.015, -0.55));
+    g.add(put(mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.11, 10), mat(PALETTE.paper)), p.x1 - 0.5, p.y + 0.055, -0.6));
+    g.add(chair(cx - 0.2, 0.15));
     // A drawer unit under one end.
     g.add(put(mesh(box(0.5, p.y - 0.15, 0.6), mat(PALETTE.lilac)), p.x1 - 0.45, (p.y - 0.15) / 2, -0.5));
     return g;
@@ -192,6 +260,8 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const cx = (p.x0 + p.x1) / 2;
     g.add(put(mesh(box(w, 0.12, 1.4), mat(PALETTE.stone)), cx, p.y - 0.06, -0.6));
     g.add(put(mesh(box(w, 0.05, 1.42), mat(PALETTE.ink), false), cx, p.y - 0.14, -0.6));
+    // A blue LED strip under the front edge.
+    g.add(put(new THREE.Mesh(box(w, 0.03, 0.03), new THREE.MeshBasicMaterial({ color: 0x3ec5ff })), cx, p.y - 0.16, 0.11));
     // Back rail only, so nothing hides the fight.
     g.add(put(mesh(box(w, 0.05, 0.05), mat(PALETTE.ink), false), cx, p.y + 1, -1.28));
     for (let x = p.x0 + 0.2; x <= p.x1; x += 1.4) g.add(put(mesh(box(0.05, 1, 0.05), mat(PALETTE.ink), false), x, p.y + 0.5, -1.28));
@@ -296,32 +366,82 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   rim.position.set(4, 5, -20);
   scene.add(rim);
 
-  buildCity(scene);
+  const blinkers = buildCity(scene);
 
   const W = ARENA.right - ARENA.left;
   const H = ARENA.ceiling;
 
-  const tiles = canvasTexture(128, 128, (g) => {
-    g.fillStyle = '#c9cfdb';
-    g.fillRect(0, 0, 128, 128);
-    g.strokeStyle = '#aeb6c6';
-    g.lineWidth = 3;
-    g.strokeRect(0, 0, 128, 128);
+  // Warm oak boards, a little glossy.
+  const tiles = canvasTexture(512, 256, (g) => {
+    const r = rng(77);
+    for (let row = 0; row < 8; row++) {
+      let x = -Math.floor(r() * 200);
+      while (x < 512) {
+        const len = 140 + r() * 180;
+        const l = 52 + r() * 10;
+        g.fillStyle = `hsl(${28 + r() * 6}, ${38 + r() * 10}%, ${l}%)`;
+        g.fillRect(x, row * 32, len, 32);
+        // Grain.
+        g.strokeStyle = `rgba(90,55,30,${0.08 + r() * 0.08})`;
+        for (let k = 0; k < 4; k++) {
+          g.beginPath();
+          g.moveTo(x, row * 32 + 5 + k * 7 + r() * 3);
+          g.bezierCurveTo(x + len * 0.3, row * 32 + 4 + k * 7 + r() * 6, x + len * 0.7, row * 32 + 6 + k * 7, x + len, row * 32 + 5 + k * 7 + r() * 3);
+          g.stroke();
+        }
+        g.fillStyle = 'rgba(60,35,20,0.45)';
+        g.fillRect(x, row * 32, 2, 32);
+        x += len;
+      }
+      g.fillStyle = 'rgba(60,35,20,0.4)';
+      g.fillRect(0, row * 32, 512, 1.5);
+    }
   });
   tiles.wrapS = THREE.RepeatWrapping;
   tiles.wrapT = THREE.RepeatWrapping;
-  tiles.repeat.set(W / 1.5, 4.5);
-  const floor = new THREE.Mesh(box(W + 1.2, 0.5, 6.6), new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.9 }));
+  tiles.repeat.set(W / 4, 1.6);
+  const floor = new THREE.Mesh(box(W + 1.2, 0.5, 6.6), new THREE.MeshStandardMaterial({ map: tiles, roughness: 0.42, metalness: 0.05 }));
   floor.position.set(0, -0.25, -0.5);
   floor.receiveShadow = true;
   scene.add(floor);
   scene.add(put(mesh(box(W + 1.2, 0.1, 0.1), mat(PALETTE.ink), false), 0, -0.02, 2.8));
+  // A navy rug with a gold border under the meeting table.
+  const rugTex = canvasTexture(256, 128, (g) => {
+    g.fillStyle = '#1d2747';
+    g.fillRect(0, 0, 256, 128);
+    g.strokeStyle = '#ffd23f';
+    g.lineWidth = 4;
+    g.strokeRect(10, 10, 236, 108);
+    g.strokeStyle = 'rgba(255,210,63,0.35)';
+    g.lineWidth = 2;
+    g.strokeRect(20, 20, 216, 88);
+  });
+  const rug = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 3.6), new THREE.MeshStandardMaterial({ map: rugTex, roughness: 1 }));
+  rug.rotation.x = -Math.PI / 2;
+  rug.receiveShadow = true;
+  scene.add(put(rug, 0, 0.005, -0.5));
   // The building below floor 42.
   scene.add(put(mesh(box(W + 10, 14, 0.6), mat(PALETTE.ink), false), 0, -7.5, 2.6));
 
   scene.add(put(mesh(box(W + 1.2, 0.4, 6.6), mat(PALETTE.cream)), 0, H + 0.2, -0.5));
+  const coneMat = new THREE.MeshBasicMaterial({ color: 0xffe8b8, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   for (let x = ARENA.left + 3; x <= ARENA.right - 3; x += 6) {
     scene.add(put(new THREE.Mesh(box(2.6, 0.04, 1), new THREE.MeshBasicMaterial({ color: 0xfff6e0 })), x, H - 0.01, -0.6));
+    // A soft cone of light under each panel.
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(2.4, 5, 24, 1, true), coneMat);
+    scene.add(put(cone, x, H - 2.5, -0.9));
+  }
+  // Exposed ducts along the ceiling.
+  const duct = new THREE.MeshStandardMaterial({ color: 0x8a909c, metalness: 0.6, roughness: 0.4 });
+  for (const z of [-2.6, 1.6]) {
+    const d = mesh(new THREE.CylinderGeometry(0.28, 0.28, W, 14).rotateZ(Math.PI / 2), duct, false);
+    scene.add(put(d, 0, H - 0.5, z));
+  }
+  // Warm interior light against the dusk outside.
+  for (const x of [-11, 0, 11]) {
+    const l = new THREE.PointLight(0xffd9a0, 18, 18, 1.6);
+    l.position.set(x, H - 2, 0.5);
+    scene.add(l);
   }
   // Ceiling vents: IT supplies drop out of these.
   for (let x = ARENA.left + 6; x < ARENA.right; x += 12) {
@@ -331,7 +451,10 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
 
   // Back wall: a low sill, pillars, floor-to-ceiling windows onto the city.
   scene.add(put(mesh(box(W, 0.6, 0.3), mat(PALETTE.cream)), 0, 0.3, BACK_Z));
-  for (let x = ARENA.left; x <= ARENA.right + 0.01; x += 6) scene.add(put(mesh(box(0.5, H, 0.5), mat(PALETTE.lilac)), x, H / 2, BACK_Z));
+  for (let x = ARENA.left; x <= ARENA.right + 0.01; x += 6) {
+    scene.add(put(mesh(box(0.5, H, 0.5), mat(0x3a3f4c)), x, H / 2, BACK_Z));
+    scene.add(put(mesh(box(0.54, H * 0.42, 0.54), mat(0x8a5a36)), x, H * 0.21, BACK_Z));
+  }
   for (const ty of [5.6, 9.4]) scene.add(put(mesh(box(W, 0.08, 0.1), mat(PALETTE.ink), false), 0, ty, BACK_Z - 0.05));
   const windowGlass = new THREE.Mesh(
     new THREE.PlaneGeometry(W, H - 0.6),
@@ -406,6 +529,39 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   printer.add(put(mesh(box(0.8, 0.05, 0.4), mat(PALETTE.white)), 0, 0.82, 0.1));
   printer.add(put(new THREE.Mesh(box(0.1, 0.06, 0.01), new THREE.MeshBasicMaterial({ color: 0xff6464 })), 0.3, 0.6, 0.36));
   scene.add(put(printer, 7.4, 0, -2.6));
+  // The neon sign of the floor, glowing on the back wall.
+  const neon = canvasTexture(512, 160, (g) => {
+    g.clearRect(0, 0, 512, 160);
+    g.font = 'bold 96px Bungee, Impact, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.shadowColor = '#ffd23f';
+    g.shadowBlur = 28;
+    g.fillStyle = '#fff3b0';
+    g.fillText('FLOOR 42', 256, 84);
+    g.shadowBlur = 0;
+    g.strokeStyle = '#ffd23f';
+    g.lineWidth = 3;
+    g.strokeText('FLOOR 42', 256, 84);
+  });
+  const neonSign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.3), new THREE.MeshBasicMaterial({ map: neon, transparent: true, depthWrite: false }));
+  // On the open stretch of wall between the pillars at -12 and -6, above the desks.
+  scene.add(put(neonSign, -9, 3.6, BACK_Z + 0.3));
+  // A server rack with blinking lights.
+  const rack = new THREE.Group();
+  rack.add(put(mesh(box(0.9, 2.2, 0.7), mat(0x1a1d26)), 0, 1.1, 0));
+  const leds: THREE.Mesh[] = [];
+  for (let u = 0; u < 9; u++) {
+    rack.add(put(mesh(box(0.8, 0.16, 0.02), mat(0x2a2f3a), false), 0, 0.3 + u * 0.22, 0.36));
+    for (let k = 0; k < 3; k++) {
+      const led = new THREE.Mesh(box(0.04, 0.04, 0.01), new THREE.MeshBasicMaterial({ color: k === 2 ? 0xffb347 : 0x3ddc84 }));
+      led.position.set(0.22 + k * 0.08, 0.3 + u * 0.22, 0.375);
+      led.userData.phase = u * 1.7 + k * 0.9;
+      rack.add(led);
+      leds.push(led);
+    }
+  }
+  scene.add(put(rack, 1.9, 0, -2.9));
   const cooler = new THREE.Group();
   cooler.add(put(mesh(box(0.6, 1.1, 0.6), mat(PALETTE.paper)), 0, 0.55, 0));
   cooler.add(put(mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.55, 9), mat(0x7ea6e0, { opacity: 0.7 })), 0, 1.38, 0));
@@ -441,6 +597,10 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
       }
       const s = 1 + Math.sin(time * 5) * 0.12;
       for (const m of markers) m.scale.set(s, s, s);
+      // Warning lights blink, server LEDs flicker, the neon hums.
+      for (const b of blinkers) b.visible = Math.sin(time * 2.2 + (b.userData.phase as number)) > 0.6;
+      for (const l of leds) l.visible = Math.sin(time * 7 + (l.userData.phase as number) * 3.1) > -0.3;
+      (neonSign.material as THREE.MeshBasicMaterial).opacity = 0.92 + Math.sin(time * 37) * 0.04 + (Math.sin(time * 1.3) > 0.97 ? -0.4 : 0);
     },
   };
 };

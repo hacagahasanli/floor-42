@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-import { buildRig, poseRig } from './characters';
+import { buildRig, poseSide } from './characters';
 import { buildGun } from './guns';
 import { mat, mesh, PALETTE } from './palette';
 
@@ -9,7 +9,6 @@ import type { CharacterId, GunKind } from '../sim/types';
 
 /** A turntable for one character, cycling through the guns and aiming around. */
 const DEMO: GunKind[] = ['pistol', 'smg', 'shotgun', 'railgun', 'launcher'];
-const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true, uzi: false, bomb: false };
 
 export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -75,24 +74,12 @@ export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
     const kind = DEMO[Math.floor(time / 2) % DEMO.length];
     const sinceShot = (time % 0.6) * 2;
 
-    poseRig(rig, {
-      dt,
-      time,
-      vx: 0,
-      vy: 0,
-      onGround: true,
-      facing: 1,
-      aim: 0,
-      sideways: false,
-      wall: 0,
-      dashing: false,
-      stunned: false,
-      twoHanded: TWO_HANDED[kind],
-      sinceShot,
-      recoil: 0.8,
-      reloading: false,
-      pushing: 0,
+    poseSide(rig, {
+      dt, time, vx: 0, vy: 0, onGround: true, facing: 1, aim: 0, wall: 0, dashing: false, stunned: false,
+      gun: kind, sinceShot, reload: null, pushing: 0,
     });
+    // On the turntable the model faces the viewer; the turntable does the turning.
+    rig.root.rotation.y = 0;
     turntable.updateMatrixWorld(true);
 
     for (const k of DEMO) guns[k].root.visible = k === kind;

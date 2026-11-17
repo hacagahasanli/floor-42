@@ -30,7 +30,7 @@ const CODE_TO_ACTION = new Map<string, Button>(
   Object.entries(KEYMAP).flatMap(([action, codes]) => codes.map((c) => [c, action as Button])),
 );
 
-export const createControls = (canvas: HTMLCanvasElement) => {
+export const createControls = (canvas: HTMLCanvasElement, listen = true) => {
   const down = new Set<string>();
   /** Mouse in normalised device coordinates (-1..1). */
   const mouse = { x: 0, y: 0 };
@@ -66,12 +66,14 @@ export const createControls = (canvas: HTMLCanvasElement) => {
     touchHeld.clear();
   };
 
-  window.addEventListener('keydown', onDown);
-  window.addEventListener('keyup', onUp);
-  window.addEventListener('blur', onBlur);
-  window.addEventListener('pointermove', onMove);
-  canvas.addEventListener('pointerdown', onPointerDown);
-  window.addEventListener('pointerup', onPointerUp);
+  if (listen) {
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+  }
 
   return {
     mouse,

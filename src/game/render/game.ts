@@ -12,7 +12,7 @@ import { ARENA, CHARACTERS, DT, GUNS, PUSH } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
 import { buildArena } from './arena';
-import { buildRig, poseRig } from './characters';
+import { buildRig, poseSide } from './characters';
 import { buildGun } from './guns';
 import { createVfx } from './vfx';
 
@@ -73,10 +73,11 @@ export interface ArenaOptions {
   aimMode?: AimMode;
   /** Online match: the server owns the game, this client predicts. */
   online?: OnlineSession;
+  /** A backdrop (the home page): no sound, no keyboard. */
+  backdrop?: boolean;
 }
 
 const randomSeed = () => (Math.random() * 1e9) | 0;
-const TWO_HANDED: Record<GunKind, boolean> = { pistol: false, smg: true, shotgun: true, railgun: true, launcher: true, uzi: false, bomb: false };
 
 export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const touch = isTouchDevice();
@@ -100,7 +101,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   let state: GameState = online ? online.state : createGame([opts.player, opts.opponent], randomSeed());
   let bot = createBot(1, randomSeed(), level);
   let demoBot = createBot(0, randomSeed(), level);
-  const controls = createControls(canvas);
+  const controls = createControls(canvas, !opts.backdrop);
   let aimMode: AimMode = opts.aimMode ?? 'auto';
   const sfx = createSfx();
   let muted = sfx.muted; // remembered across visits
@@ -526,7 +527,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       }
       rig.root.position.set(sm.x + shudder, sm.y, 0);
       const g = GUNS[f.weapon.kind];
-      poseRig(rig, {
+      poseSide(rig, {
         dt: poseDt,
         time,
         vx: f.vx,
@@ -534,14 +535,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         onGround: f.onGround,
         facing: f.facing,
         aim: f.aim,
-        sideways: true,
         wall: f.wall,
         dashing: f.dashTime > 0,
         stunned: f.stun > 0,
-        twoHanded: TWO_HANDED[f.weapon.kind],
+        gun: f.weapon.kind,
         sinceShot: f.firing,
-        recoil: Math.min(1, 0.3 + g.recoil * 0.1),
-        reloading: f.weapon.reload > 0,
+        reload: f.weapon.reload > 0 ? 1 - f.weapon.reload / g.reloadTime : null,
         pushing: f.pushTime > 0 ? Math.sin((1 - f.pushTime / PUSH.duration) * Math.PI) : 0,
       });
       // Squash and stretch from state changes: take-off stretches, a hard landing squashes.
@@ -723,13 +722,16 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
   // Audio may only start after a user gesture.
   const onKey = (e: KeyboardEvent) => {
+    if (opts.backdrop) return;
     sfx.unlock();
     if (e.code === 'KeyM') muted = sfx.toggleMute();
     if (e.code === 'KeyT') aimMode = aimMode === 'auto' ? 'mouse' : 'auto';
   };
   window.addEventListener('keydown', onKey);
   // On phones audio starts with the first touch.
-  const onFirstTouch = () => sfx.unlock();
+  const onFirstTouch = () => {
+    if (!opts.backdrop) sfx.unlock();
+  };
   window.addEventListener('pointerdown', onFirstTouch);
 
   let raf = 0;
