@@ -12,7 +12,7 @@ import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
 import { buildArena } from './arena';
-import { buildRig, poseSide } from './characters';
+import { buildRig, poseDeath, poseSide } from './characters';
 import { buildGun } from './guns';
 import { createVfx } from './vfx';
 
@@ -31,6 +31,7 @@ export interface HudFighter {
   kos: number;
   push: number; // 0..1 ready
   dash: number; // 0..1 ready
+  stats: { damage: number; accuracy: number; deaths: number; bestStreak: number };
   gun: string;
   mag: number;
   reserve: number; // Infinity for the pistol
@@ -110,8 +111,15 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const arena = buildArena(scene, state.pickups.length);
   const vfx = createVfx(scene);
 
+  /** A soft fill light that rides in front of each fighter: they stand out from the room. */
+  const fighterLight = () => {
+    const l = new THREE.PointLight(0xfff4e6, 5, 4.5, 1.6);
+    l.position.set(0, 1.4, 1.6);
+    return l;
+  };
   const rigs: Rig[] = state.fighters.map((f) => {
     const rig = buildRig(f.character);
+    rig.root.add(fighterLight());
     scene.add(rig.root);
     return rig;
   });
@@ -122,6 +130,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     scene.remove(rigs[i].root);
     rigs[i].root.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
     rigs[i] = buildRig(character);
+    rigs[i].root.add(fighterLight());
     scene.add(rigs[i].root);
     rigCharacters[i] = character;
   };
@@ -385,6 +394,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         break;
       }
       case 'ko':
+        downAt[e.fighter] = time;
+        downY[e.fighter] = state.fighters[e.fighter].y;
         vfx.burst(e.x, e.y, 40, 'ko', { speed: 9, up: 4, life: 0.9, size: 1.4 });
         vfx.ring(e.x, e.y, 0xf0c24a, { grow: 14, life: 0.5 });
         feedback('huge');
@@ -504,6 +515,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
   const tmpV = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();
+  const downAt: number[] = [];
+  const downY: number[] = [];
+  /** The top of whatever is under x at or below y: a platform or the floor. */
+  const groundBelow = (x: number, y: number) =>
+    ARENA.platforms.reduce((best, p) => (x >= p.x0 && x <= p.x1 && p.y <= y + 0.01 && p.y > best ? p.y : best), ARENA.floor);
   const fwd = new THREE.Vector3();
   const renderFrame = (dt: number, alpha: number) => {
     resize();
@@ -512,7 +528,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       syncRig(i, f.character);
       const rig = rigs[i];
       const out = f.respawn > 0;
-      rig.root.visible = !out && !(f.invulnerable > 0 && Math.floor(time * 16) % 2 === 0);
+      // Knocked out: the body falls to the floor or the platform below and lies there until the
+      // respawn (the last half second it fades out).
+      const down = out && downAt[i] !== undefined;
+      rig.root.visible = (down && f.respawn > 0.35) || (!out && !(f.invulnerable > 0 && Math.floor(time * 16) % 2 === 0));
       const shudder = state.hitstop > 0 && f.stun > 0 ? (Math.random() - 0.5) * 0.14 : 0;
       const tx = prevF[i].x + (f.x - prevF[i].x) * alpha;
       const ty = prevF[i].y + (f.y - prevF[i].y) * alpha;
@@ -528,6 +547,18 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       }
       rig.root.position.set(sm.x + shudder, sm.y, 0);
       const g = GUNS[f.weapon.kind];
+      if (down) {
+        const t = time - downAt[i];
+        const floorY = groundBelow(f.x, downY[i]);
+        rig.root.position.set(f.x, Math.max(floorY, downY[i] - 0.5 * 30 * t * t), 0);
+        poseDeath(rig, t, i);
+        rig.root.rotation.y = rig.turn;
+        rig.root.updateMatrixWorld(true);
+        gunFor(i, f.weapon.kind).root.visible = false;
+        flashes[i].visible = false;
+        if (i === me) aimLine.visible = false;
+        return;
+      }
       poseSide(rig, {
         dt: poseDt,
         time,
@@ -712,6 +743,13 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
           kos: f.kos,
           push: 1 - f.pushCooldown / PUSH.cooldown,
           dash: 1 - f.dashCooldown / PHYS.dashCooldown,
+          // An older server may not send stats yet: show zeros rather than break.
+          stats: {
+            damage: Math.round(f.stats?.damage ?? 0),
+            accuracy: f.stats && f.stats.shots > 0 ? Math.round((f.stats.hits / f.stats.shots) * 100) : 0,
+            deaths: f.stats?.deaths ?? 0,
+            bestStreak: f.stats?.bestStreak ?? 0,
+          },
           gun: g.name,
           mag: f.weapon.mag,
           reserve: f.weapon.reserve,

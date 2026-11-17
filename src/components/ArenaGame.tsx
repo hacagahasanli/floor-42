@@ -565,50 +565,88 @@ export const ArenaGame = ({
           )}
 
           {end && !rivalLeft && (
-            <div className="absolute inset-0 flex items-center justify-center bg-ink-deep/70">
-              <div className="panel-cut flex flex-col items-center gap-4 bg-ink p-8 text-center">
-                <div className="text-xs font-bold tracking-[0.3em] text-blue">CONFLICT RESOLVED</div>
-                <div className="font-display text-4xl text-gold">{end.title}</div>
-                <div className="text-cream/70">{end.sub}</div>
-                <div className="font-display text-xl text-cream">
-                  {hud.fighters[0].kos} – {hud.fighters[1].kos}
+            <div className="absolute inset-0 z-30 flex animate-[fadeIn_0.6s_ease-out] items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.75),rgba(10,13,24,0.95))] px-6 backdrop-blur-sm">
+              <div className="flex w-full max-w-3xl flex-col gap-7">
+                <div className="flex flex-col gap-2">
+                  <span className={`text-xs font-bold tracking-[0.35em] ${hud.winner === 0 && !demo ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}>
+                    {hud.winner === 0 && !demo ? 'CONFLICT RESOLVED · YOUR WAY' : hud.winner === null || hud.winner === -1 ? 'STILL CONFLICTED' : 'CONFLICT RESOLVED · THEIR WAY'}
+                  </span>
+                  <h2 className="font-display text-5xl leading-none text-gold sm:text-6xl">{end.title}</h2>
+                  <p className="text-lg text-cream/75">{end.sub}</p>
                 </div>
+
+                {/* You against them, stat by stat; the better number lights up. */}
+                <div className="panel-cut grid grid-cols-[1fr_auto_1fr] items-center gap-x-6 gap-y-3 bg-ink/90 p-6">
+                  <span className="font-display text-2xl" style={{ color: accent(hud.fighters[0].character) }}>
+                    {hud.fighters[0].name} <span className="text-xs text-cream/50">{demo ? 'BOT' : 'YOU'}</span>
+                  </span>
+                  <span />
+                  <span className="text-right font-display text-2xl" style={{ color: accent(hud.fighters[1].character) }}>
+                    {hud.fighters[1].name} <span className="text-xs text-cream/50">{online ? 'RIVAL' : 'BOT'}</span>
+                  </span>
+                  {(
+                    [
+                      ['KOs', hud.fighters[0].kos, hud.fighters[1].kos, ''],
+                      ['Damage dealt', hud.fighters[0].stats.damage, hud.fighters[1].stats.damage, ''],
+                      ['Accuracy', hud.fighters[0].stats.accuracy, hud.fighters[1].stats.accuracy, '%'],
+                      ['Best streak', hud.fighters[0].stats.bestStreak, hud.fighters[1].stats.bestStreak, ''],
+                      ['Times down', hud.fighters[0].stats.deaths, hud.fighters[1].stats.deaths, ''],
+                    ] as const
+                  ).map(([label, a, b, unit], row) => {
+                    const lowerWins = label === 'Times down';
+                    const aWins = lowerWins ? a < b : a > b;
+                    const bWins = lowerWins ? b < a : b > a;
+                    return (
+                      <div key={label} className="contents animate-[riseIn_0.5s_ease-out_both]" style={{ animationDelay: `${0.2 + row * 0.07}s` }}>
+                        <span className={`font-display text-3xl tabular-nums ${aWins ? 'text-gold' : 'text-cream/70'}`}>
+                          {a}
+                          {unit}
+                        </span>
+                        <span className="text-center text-[11px] font-semibold uppercase tracking-widest text-cream/50">{label}</span>
+                        <span className={`text-right font-display text-3xl tabular-nums ${bWins ? 'text-gold' : 'text-cream/70'}`}>
+                          {b}
+                          {unit}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 {online && (
-                  <div className="flex flex-col items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs uppercase tracking-widest text-cream/50">Next round as</span>
-                    <div className="flex gap-2">
-                      {ROSTER.map((r) => {
-                        const chosen = (hud.nextCharacter ?? hud.character) === r.id;
-                        return (
-                          <button
-                            key={r.id}
-                            type="button"
-                            onClick={() => gameRef.current?.pickCharacter(r.id)}
-                            className={`panel-cut border-2 px-3 py-1.5 font-display text-sm ${chosen ? 'border-gold bg-ink-deep' : 'border-cream/10 bg-ink-deep/60 hover:border-cream/30'}`}
-                            style={{ color: r.accent }}
-                          >
-                            {r.name}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {ROSTER.map((r) => {
+                      const chosen = (hud.nextCharacter ?? hud.character) === r.id;
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => gameRef.current?.pickCharacter(r.id)}
+                          className={`panel-cut border-2 px-3 py-1.5 font-display text-sm ${chosen ? 'border-gold bg-ink-deep' : 'border-cream/10 bg-ink-deep/60 hover:border-cream/30'}`}
+                          style={{ color: r.accent }}
+                        >
+                          {r.name}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
+                    autoFocus
                     onClick={rematch}
                     disabled={rematchAsked}
-                    className="panel-cut bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep disabled:opacity-60"
+                    className="panel-cut bg-gold px-10 py-4 font-display text-xl uppercase text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.3)] hover:brightness-110 disabled:opacity-60"
                   >
-                    {rematchAsked ? 'Waiting for rival…' : touch ? 'Rematch' : 'Rematch (Enter)'}
+                    {rematchAsked ? 'Waiting for rival…' : touch ? 'Rematch →' : 'Rematch (Enter) →'}
                   </button>
                   {online ? (
-                    <button type="button" onClick={exit} className="panel-cut bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
-                      Leave
+                    <button type="button" onClick={exit} className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20">
+                      Back to lobby
                     </button>
                   ) : (
-                    <Link href="/characters" className="panel-cut bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
+                    <Link href="/characters" className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20">
                       Change fighter
                     </Link>
                   )}

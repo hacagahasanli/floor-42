@@ -374,8 +374,8 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   scene.fog = new THREE.Fog(0x3a4478, 70, 180);
 
   // Light: a cool sky fill, a warm key with shadows, and a dusk rim from the city.
-  scene.add(new THREE.HemisphereLight(0xe6ecff, 0x8a7a66, 1.25));
-  const key = new THREE.DirectionalLight(0xfff1dc, 2.1);
+  scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x6a5c4c, 0.95));
+  const key = new THREE.DirectionalLight(0xfff1dc, 1.75);
   key.position.set(-6, 22, 14);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -466,7 +466,7 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   }
   // Warm interior light against the dusk outside.
   for (const x of [-11, 0, 11]) {
-    const l = new THREE.PointLight(0xffd9a0, 11, 18, 1.6);
+    const l = new THREE.PointLight(0xffd9a0, 8, 18, 1.6);
     l.position.set(x, H - 2, 0.5);
     scene.add(l);
   }
@@ -595,6 +595,48 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   cooler.add(put(mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.55, 9), mat(0x7ea6e0, { opacity: 0.7 })), 0, 1.38, 0));
   scene.add(put(cooler, -1.2, 0, -2.8));
 
+  // A bit of life: a wall clock that keeps real time, steam off the coffee machine, a printer
+  // that blinks while it "prints", a desk fan that turns.
+  const clock = new THREE.Group();
+  clock.add(put(mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.06, 28).rotateX(Math.PI / 2), mat(PALETTE.paper)), 0, 0, 0));
+  clock.add(put(mesh(new THREE.TorusGeometry(0.42, 0.04, 6, 28), mat(PALETTE.ink), false), 0, 0, 0.02));
+  const hand = (len: number, w: number) => {
+    const h = new THREE.Group();
+    h.add(put(new THREE.Mesh(box(w, len, 0.02), new THREE.MeshBasicMaterial({ color: 0x1a1d26 })), 0, len / 2, 0));
+    h.position.z = 0.045;
+    clock.add(h);
+    return h;
+  };
+  const hourHand = hand(0.22, 0.05);
+  const minuteHand = hand(0.33, 0.035);
+  scene.add(put(clock, 9, 5.6, BACK_Z + 0.3));
+  const steamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, depthWrite: false });
+  const steam = Array.from({ length: 6 }, (_, i) => {
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 1), steamMat.clone());
+    m.userData.t = i / 6;
+    scene.add(m);
+    return m;
+  });
+  const machineX = ARENA.platforms.find((p) => p.style === 'counter');
+  const steamAt = machineX ? { x: (machineX.x0 + machineX.x1) / 2 + 0.2, y: machineX.y + 0.75, z: -0.85 } : { x: 11, y: 2, z: -0.85 };
+  const fan = new THREE.Group();
+  fan.add(put(mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.04, 10), mat(PALETTE.ink), false), 0, 0.02, 0));
+  fan.add(put(mesh(box(0.03, 0.4, 0.03), mat(PALETTE.ink), false), 0, 0.22, 0));
+  const blades = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const bl = mesh(box(0.06, 0.24, 0.01), mat(PALETTE.stone), false);
+    bl.position.y = 0.12;
+    const arm = new THREE.Group();
+    arm.add(bl);
+    arm.rotation.z = (i / 3) * Math.PI * 2;
+    blades.add(arm);
+  }
+  blades.position.set(0, 0.42, 0.06);
+  fan.add(blades);
+  const firstDesk = ARENA.platforms.find((p) => p.style === 'desk');
+  if (firstDesk) scene.add(put(fan, firstDesk.x1 - 0.5, firstDesk.y, -0.95));
+  const printerLight = printer.children[2] as THREE.Mesh;
+
   // Pulsing floor markers under items you can pick up.
   const markers: THREE.Mesh[] = [];
   for (let i = 0; i < itemCount; i++) {
@@ -625,6 +667,18 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
       }
       const s = 1 + Math.sin(time * 5) * 0.12;
       for (const m of markers) m.scale.set(s, s, s);
+      const now = new Date();
+      minuteHand.rotation.z = -((now.getMinutes() + now.getSeconds() / 60) / 60) * Math.PI * 2;
+      hourHand.rotation.z = -(((now.getHours() % 12) + now.getMinutes() / 60) / 12) * Math.PI * 2;
+      blades.rotation.z -= dt * 14;
+      printerLight.visible = Math.sin(time * 9) > 0;
+      for (const m of steam) {
+        m.userData.t = ((m.userData.t as number) + dt * 0.35) % 1;
+        const k = m.userData.t as number;
+        m.position.set(steamAt.x + Math.sin(k * 7 + time) * 0.06, steamAt.y + k * 0.9, steamAt.z);
+        m.scale.setScalar(0.6 + k * 1.6);
+        (m.material as THREE.MeshBasicMaterial).opacity = 0.3 * (1 - k);
+      }
       // Warning lights blink, server LEDs flicker, the neon hums.
       for (const b of blinkers) b.visible = Math.sin(time * 2.2 + (b.userData.phase as number)) > 0.6;
       for (const l of leds) l.visible = Math.sin(time * 7 + (l.userData.phase as number) * 3.1) > -0.3;

@@ -77,6 +77,8 @@ export interface Fighter {
   nextCharacter: CharacterId | null;
   firing: number; // seconds since the last shot, for muzzle flash / recoil
   lastHitBy: number | null;
+  /** Match stats for the end screen. A shotgun blast counts as one shot. */
+  stats: { damage: number; shots: number; hits: number; deaths: number; streak: number; bestStreak: number };
   prev: InputState;
 }
 

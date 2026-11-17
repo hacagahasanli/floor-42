@@ -53,6 +53,7 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     dropTime: 0,
     hp: c.hp,
     kos: 0,
+    stats: { damage: 0, shots: 0, hits: 0, deaths: 0, streak: 0, bestStreak: 0 },
     stun: 0,
     pushCooldown: 0,
     pushTime: 0,
@@ -175,6 +176,10 @@ const knockOut = (state: GameState, f: Fighter) => {
   if (scorerId === undefined) return;
   const scorer = state.fighters[scorerId];
   scorer.kos += 1;
+  f.stats.deaths += 1;
+  f.stats.streak = 0;
+  scorer.stats.streak += 1;
+  scorer.stats.bestStreak = Math.max(scorer.stats.bestStreak, scorer.stats.streak);
   if (scorer.kos >= RULES.kosToWin) {
     state.phase = 'over';
     state.winner = scorer.id;
@@ -202,7 +207,15 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
   if (k > 6) target.onGround = false;
   target.stun = Math.max(target.stun, k > 6 ? 0.06 + k * 0.012 : 0);
   target.hp -= hit.damage;
-  if (hit.attacker !== target.id) target.lastHitBy = hit.attacker;
+  if (hit.attacker !== target.id) {
+    target.lastHitBy = hit.attacker;
+    const a = state.fighters[hit.attacker];
+    if (a) {
+      a.stats.damage += Math.min(hit.damage, hit.damage + Math.min(0, target.hp));
+      // One hit per shot: pellets and splash from the same shot count once.
+      if (a.stats.hits < a.stats.shots) a.stats.hits += 1;
+    }
+  }
   if (hit.push) target.pushed = 0.6;
   state.events.push({ type: 'hit', fighter: target.id, x: target.x, y: target.y + c.height * 0.6, power: k, damage: hit.damage });
   if (k > 10) state.hitstop = Math.max(state.hitstop, Math.min(6, Math.round(k * 0.25)));
@@ -275,6 +288,7 @@ const fire = (state: GameState, f: Fighter) => {
   if (!f.onGround) f.vy -= Math.sin(f.aim) * g.recoil * 0.6;
   f.firing = 0;
   state.events.push({ type: 'shot', fighter: f.id, gun: f.weapon.kind, x: m.x, y: m.y, angle: f.aim });
+  f.stats.shots += 1;
 };
 
 /** The gun a fighter is standing on, if any. */
