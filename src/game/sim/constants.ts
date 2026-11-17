@@ -63,7 +63,7 @@ export const RULES = {
   kosToWin: 5,
   roundSeconds: 150,
   countdownSeconds: 2.4,
-  respawnSeconds: 1.6,
+  respawnSeconds: 3,
   spawnInvulnerable: 1.4,
   gunRespawn: 12,
 };

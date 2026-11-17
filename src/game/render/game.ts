@@ -5,7 +5,7 @@ import type { AimMode } from '../input';
 import { createSfx } from '../sfx';
 import { createBot } from '../sim/bot';
 import { ARENA, CHARACTERS, DT, GUNS, PUSH } from '../sim/constants';
-import { createGame, muzzle, pickupCandidate, step } from '../sim/step';
+import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
 import { buildArena } from './arena';
 import { buildRig, poseRig } from './characters';
@@ -45,6 +45,13 @@ export interface HudState {
   aimMode: AimMode;
   /** Online: round-trip time to the game server in ms. */
   ping: number | null;
+  paused: boolean;
+  /** Pause requests: [you, rival]. */
+  pauseRequests: [boolean, boolean];
+  /** Seconds until you respawn, or null while alive. */
+  respawnIn: number | null;
+  character: CharacterId;
+  nextCharacter: CharacterId | null;
   endReason: EndReason | null;
 }
 
@@ -96,6 +103,16 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     scene.add(rig.root);
     return rig;
   });
+  const rigCharacters = state.fighters.map((f) => f.character);
+  /** A fighter respawned as someone else: swap the model. */
+  const syncRig = (i: number, character: CharacterId) => {
+    if (rigCharacters[i] === character) return;
+    scene.remove(rigs[i].root);
+    rigs[i].root.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
+    rigs[i] = buildRig(character);
+    scene.add(rigs[i].root);
+    rigCharacters[i] = character;
+  };
 
   // Gun in each fighter's hands, rebuilt when the weapon changes.
   const heldGuns: (GunView | null)[] = state.fighters.map(() => null);
@@ -320,6 +337,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     resize();
     const poseDt = state.hitstop > 0 ? 0 : dt;
     state.fighters.forEach((f, i) => {
+      syncRig(i, f.character);
       const rig = rigs[i];
       const out = f.respawn > 0;
       rig.root.visible = !out && !(f.invulnerable > 0 && Math.floor(time * 16) % 2 === 0);
@@ -453,6 +471,13 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       fps: Math.round(fps),
       lastKo: lastKo ? { ...lastKo, fighter: lastKo.fighter === me ? 0 : 1 } : null,
       ping: online ? online.latency : null,
+      paused: state.paused,
+      pauseRequests: online
+        ? [online.pauseRequests[me] ?? false, online.pauseRequests[1 - me] ?? false]
+        : [state.paused, state.paused],
+      respawnIn: state.fighters[me].respawn > 0 ? state.fighters[me].respawn : null,
+      character: state.fighters[me].character,
+      nextCharacter: state.fighters[me].nextCharacter,
       hint: hintFor(),
       muted,
       aimMode,
@@ -548,9 +573,34 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     emitHud();
   };
 
+  // Pause: online both players must agree; against the bot it is instant.
+  const requestPause = () => {
+    if (online) online.requestPause();
+    else state.paused = true;
+    emitHud();
+  };
+  const cancelPause = () => {
+    if (online) online.cancelPause();
+    emitHud();
+  };
+  const resume = () => {
+    if (online) online.resume();
+    else state.paused = false;
+    emitHud();
+  };
+  const pickCharacter = (c: CharacterId) => {
+    if (online) online.chooseCharacter(c);
+    else chooseCharacter(state, me, c);
+    emitHud();
+  };
+
   return {
     restart,
     serverStart,
+    requestPause,
+    cancelPause,
+    resume,
+    pickCharacter,
     setAimMode: (m: AimMode) => {
       aimMode = m;
     },

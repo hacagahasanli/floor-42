@@ -68,6 +68,8 @@ export interface Fighter {
   respawn: number;
   invulnerable: number;
   weapon: Weapon;
+  /** Picked while dead: you respawn as this character. */
+  nextCharacter: CharacterId | null;
   firing: number; // seconds since the last shot, for muzzle flash / recoil
   lastHitBy: number | null;
   prev: InputState;
@@ -128,6 +130,8 @@ export interface GameState {
   phaseTime: number;
   winner: number | null; // fighter id, -1 for a draw
   endReason: EndReason | null;
+  /** Both players agreed to pause: nothing moves until someone resumes. */
+  paused: boolean;
   hitstop: number;
   seed: number; // deterministic RNG state (spread, drops)
   dropTimer: number;

@@ -1,6 +1,6 @@
 import { createBot } from './bot';
 import { ARENA, CHARACTERS, DT, GUNS, RULES, WALL_SPLAT_DAMAGE } from './constants';
-import { createGame, newWeapon, step } from './step';
+import { chooseCharacter, createGame, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
 import type { GameEvent, GameState, GunKind, InputState } from './types';
@@ -236,6 +236,29 @@ describe('KOs', () => {
     run(s, Math.ceil(RULES.respawnSeconds / DT) + 15);
     expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
     expect(s.fighters[1].weapon.kind).toBe('pistol');
+  });
+});
+
+describe('pause and respawn', () => {
+  it('nothing moves while paused', () => {
+    const s = fighting();
+    s.paused = true;
+    const x = s.fighters[0].x;
+    run(s, 30, { right: true });
+    expect(s.fighters[0].x).toBe(x);
+  });
+
+  it('you wait 3 seconds after a KO and can come back as someone else', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, -3);
+    s.fighters[1].hp = 1;
+    run(s, 20, { fire: true, ...at(s, 1) });
+    expect(s.fighters[1].respawn).toBeGreaterThan(2);
+    chooseCharacter(s, 1, 'standup');
+    run(s, Math.ceil(RULES.respawnSeconds / DT) + 15);
+    expect(s.fighters[1].respawn).toBeLessThanOrEqual(0);
+    expect(s.fighters[1].character).toBe('standup');
   });
 });
 

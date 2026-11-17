@@ -2,7 +2,7 @@ import { Room } from '@colyseus/core';
 
 import { decodeInput, encodeSnapshot, mergePresses, SNAPSHOT_EVERY_TICKS } from '../src/game/net/protocol';
 import { CHARACTERS } from '../src/game/sim/constants';
-import { createGame, step } from '../src/game/sim/step';
+import { chooseCharacter, createGame, step } from '../src/game/sim/step';
 import { EMPTY_INPUT } from '../src/game/sim/types';
 
 import type { JoinOptions, StartMessage, WireInput } from '../src/game/net/protocol';
@@ -17,6 +17,7 @@ interface Seat {
   currentWire: WireInput;
   ack: number;
   rematch: boolean;
+  pause: boolean;
 }
 
 const isCharacter = (v: unknown): v is CharacterId => typeof v === 'string' && v in CHARACTERS;
@@ -30,6 +31,8 @@ export class DuelRoom extends Room {
   maxClients = 2;
   private seats: (Seat | null)[] = [null, null];
   private game: GameState | null = null;
+  /** Counts server ticks even while the game is paused, so snapshots keep flowing. */
+  private serverTick = 0;
 
   onCreate(options: JoinOptions) {
     if (options?.private) void this.setPrivate(true);
@@ -51,6 +54,35 @@ export class DuelRoom extends Room {
       if (this.seats.every((s) => s?.rematch)) this.startGame();
     });
 
+    // Pause needs both players: one asks (Esc Esc), the other agrees the same way.
+    this.onMessage('pause', (client: Client) => {
+      const seat = this.seatOf(client);
+      if (!seat || !this.game || this.game.phase === 'over') return;
+      seat.pause = true;
+      if (this.seats.every((x) => x?.pause)) this.game.paused = true;
+      this.sendPause();
+    });
+    this.onMessage('cancelPause', (client: Client) => {
+      const seat = this.seatOf(client);
+      if (!seat || this.game?.paused) return;
+      seat.pause = false;
+      this.sendPause();
+    });
+    this.onMessage('resume', (client: Client) => {
+      if (!this.seatOf(client) || !this.game) return;
+      this.game.paused = false;
+      for (const x of this.seats) if (x) x.pause = false;
+      this.sendPause();
+    });
+
+    // While dead you may pick who you come back as.
+    this.onMessage('character', (client: Client, character: unknown) => {
+      const seat = this.seatOf(client);
+      if (!seat || !this.game || !isCharacter(character)) return;
+      seat.character = character;
+      chooseCharacter(this.game, this.seats.indexOf(seat), character);
+    });
+
     this.setSimulationInterval(() => this.tick(), 1000 / 60);
   }
 
@@ -64,6 +96,7 @@ export class DuelRoom extends Room {
       currentWire: [0, 0, 0, 0],
       ack: 0,
       rematch: false,
+      pause: false,
     };
     if (this.seats.every(Boolean)) {
       void this.lock();
@@ -82,6 +115,13 @@ export class DuelRoom extends Room {
     void this.unlock();
   }
 
+  private sendPause() {
+    this.broadcast('pauseState', {
+      requests: this.seats.map((x) => !!x?.pause),
+      paused: !!this.game?.paused,
+    });
+  }
+
   private seatOf(client: Client) {
     return this.seats.find((s) => s?.client === client) ?? null;
   }
@@ -91,6 +131,7 @@ export class DuelRoom extends Room {
     this.game = createGame([a.character, b.character], (Math.random() * 1e9) | 0);
     for (const s of [a, b]) {
       s.rematch = false;
+      s.pause = false;
       s.queue = [];
       s.current = { ...EMPTY_INPUT };
     }
@@ -123,7 +164,8 @@ export class DuelRoom extends Room {
       return seat.current;
     });
     step(game, inputs);
-    if (game.tick % SNAPSHOT_EVERY_TICKS === 0) {
+    this.serverTick += 1;
+    if (this.serverTick % SNAPSHOT_EVERY_TICKS === 0) {
       const [a, b] = this.seats;
       const raw = encodeSnapshot({
         ack: [a?.ack ?? 0, b?.ack ?? 0],

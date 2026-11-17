@@ -59,6 +59,7 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     respawn: 0,
     invulnerable: 0,
     weapon: newWeapon('pistol'),
+    nextCharacter: null,
     firing: 1,
     lastHitBy: null,
     prev: { ...EMPTY_INPUT },
@@ -85,6 +86,7 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1): Ga
     phaseTime: RULES.countdownSeconds,
     winner: null,
     endReason: null,
+    paused: false,
     hitstop: 0,
     seed,
     dropTimer: ARENA.dropEvery,
@@ -96,8 +98,18 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1): Ga
   };
 };
 
+/** Pick the character you come back as. Takes effect at your next respawn. */
+export const chooseCharacter = (state: GameState, id: number, character: CharacterId) => {
+  const f = state.fighters[id];
+  if (f && character in CHARACTERS) f.nextCharacter = character;
+};
+
 const respawnFighter = (f: Fighter) => {
   const spawn = ARENA.spawns[f.id % ARENA.spawns.length];
+  if (f.nextCharacter) {
+    f.character = f.nextCharacter;
+    f.nextCharacter = null;
+  }
   Object.assign(f, {
     x: spawn.x,
     y: spawn.y + 2,
@@ -598,6 +610,7 @@ const updatePickups = (state: GameState) => {
 /** Advances the game by one fixed tick (DT). Mutates and returns the state. */
 export const step = (state: GameState, inputs: InputState[]): GameState => {
   state.events = [];
+  if (state.paused) return state;
   state.tick += 1;
 
   // Hitstop: the world holds still for a few ticks so big hits land with weight.

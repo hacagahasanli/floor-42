@@ -85,6 +85,10 @@ const Controls = ({ aim }: { aim: AimMode }) => (
     <span className="flex items-center gap-1">
       <Key k="Q" /> push
     </span>
+    <span className="flex items-center gap-1">
+      <Key k="Esc" />
+      <Key k="Esc" /> pause / exit
+    </span>
   </div>
 );
 
@@ -113,6 +117,10 @@ export const ArenaGame = ({
   const [hud, setHud] = useState<HudState | null>(null);
   const [rematchAsked, setRematchAsked] = useState(false);
   const [rivalLeft, setRivalLeft] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const lastEsc = useRef(0);
+  const hudRef = useRef<HudState | null>(null);
+  hudRef.current = hud;
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -144,6 +152,39 @@ export const ArenaGame = ({
       offLeft();
     };
   }, [online]);
+
+  const exit = () => {
+    if (online) void online.room.leave();
+    window.location.href = online ? '/play' : '/';
+  };
+
+  // Esc twice: ask to pause (online the rival has to agree the same way) and open the menu.
+  // Keys 1-4 pick who you come back as while you're waiting to respawn.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const h = hudRef.current;
+      if (!h) return;
+      if (e.code === 'Escape') {
+        const now = performance.now();
+        const double = now - lastEsc.current < 450;
+        lastEsc.current = double ? 0 : now;
+        if (!double || h.phase === 'over') return;
+        if (!h.paused) gameRef.current?.requestPause();
+        setMenuOpen(true);
+        return;
+      }
+      const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
+      if (n >= 0 && h.respawnIn !== null) gameRef.current?.pickCharacter(ROSTER[n].id);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    if (hud?.paused) gameRef.current?.resume();
+    else gameRef.current?.cancelPause();
+  };
 
   const rematch = () => {
     setRematchAsked(true);
@@ -182,6 +223,13 @@ export const ArenaGame = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [hud?.phase]);
+
+  // The rival resumed: close our pause menu too.
+  const wasPaused = useRef(false);
+  useEffect(() => {
+    if (wasPaused.current && hud && !hud.paused) setMenuOpen(false);
+    wasPaused.current = !!hud?.paused;
+  }, [hud?.paused]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleAim = () => gameRef.current?.setAimMode(hud?.aimMode === 'mouse' ? 'auto' : 'mouse');
   const showKo = hud?.lastKo && hud.phase === 'fight' && hud.fighters[hud.lastKo.fighter]?.out;
@@ -237,6 +285,72 @@ export const ArenaGame = ({
                     <Key k={h.key} /> {h.text}
                   </span>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {online && !hud.paused && hud.pauseRequests[1] && !hud.pauseRequests[0] && (
+            <div className="pointer-events-none absolute inset-x-0 top-28 flex justify-center">
+              <div className="panel-cut bg-gold/95 px-6 py-2 text-center text-ink-deep">
+                <div className="font-display text-xl">Your rival wants to pause</div>
+                <div className="text-xs font-bold uppercase tracking-widest">Press Esc twice to agree</div>
+              </div>
+            </div>
+          )}
+
+          {hud.respawnIn !== null && hud.phase === 'fight' && !hud.paused && (
+            <div className="absolute inset-x-0 bottom-16 flex justify-center">
+              <div className="panel-cut flex flex-col items-center gap-3 bg-ink-deep/90 px-6 py-4">
+                <div className="text-sm text-cream/80">
+                  Back in <span className="font-display text-xl text-gold">{Math.ceil(hud.respawnIn)}</span> · come back as:
+                </div>
+                <div className="flex gap-2">
+                  {ROSTER.map((r, n) => {
+                    const chosen = (hud.nextCharacter ?? hud.character) === r.id;
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => gameRef.current?.pickCharacter(r.id)}
+                        className={`panel-cut border-2 px-3 py-1.5 font-display text-sm ${chosen ? 'border-gold bg-ink' : 'border-cream/10 bg-ink/60 hover:border-cream/30'}`}
+                        style={{ color: r.accent }}
+                      >
+                        <span className="mr-1.5 text-[10px] text-cream/50">{n + 1}</span>
+                        {r.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(hud.paused || menuOpen) && hud.phase !== 'over' && !rivalLeft && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-ink-deep/70">
+              <div className="panel-cut flex w-80 flex-col items-center gap-4 bg-ink p-7 text-center">
+                {hud.paused ? (
+                  <>
+                    <div className="font-display text-4xl text-gold">Paused</div>
+                    <button
+                      type="button"
+                      onClick={closeMenu}
+                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                    >
+                      Resume
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="font-display text-2xl text-gold">Pause requested</div>
+                    <p className="text-sm text-cream/70">Waiting for your rival to press Esc twice. The game keeps going until they do.</p>
+                    <button type="button" onClick={closeMenu} className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                      Keep playing
+                    </button>
+                  </>
+                )}
+                <button type="button" onClick={exit} className="panel-cut w-full bg-orange/90 px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                  Exit match
+                </button>
               </div>
             </div>
           )}

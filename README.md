@@ -31,7 +31,7 @@ A rocket crosses the whole office in a second.
 ![Three.js](https://img.shields.io/badge/Three.js-r187-000)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/tests-25%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-27%20passing-2ea44f)
 ![60 fps](https://img.shields.io/badge/target-60%20fps-ffd23f)
 
 [Play locally](#play-locally) · [Controls](#controls) · [Guns](#guns) · [How it works](#how-it-works) · [Status](#status)
@@ -81,6 +81,9 @@ Keyboard only. Your gun aims at the opponent by itself.
 | M | mute |
 
 Reloading is automatic (R reloads early). Enter starts a rematch.
+
+**Esc twice** asks to pause: online your rival has to press Esc twice too, then the game stops for both of you. The same menu has *Exit match*.
+After a KO you are back in **3 seconds**, and while you wait you can pick who you come back as (keys 1–4).
 
 ## Guns
 

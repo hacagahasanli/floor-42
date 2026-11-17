@@ -1,6 +1,6 @@
 import { Client } from '@colyseus/sdk';
 
-import { createGame, step } from '../sim/step';
+import { chooseCharacter, createGame, step } from '../sim/step';
 import { EMPTY_INPUT } from '../sim/types';
 
 import { decodeInput, decodeSnapshot, encodeInput, ROOM_NAME } from './protocol';
@@ -38,14 +38,23 @@ export const createOnlineSession = (room: Room, start: StartMessage) => {
   let pending: Snapshot | null = null;
   let rival: InputState = { ...EMPTY_INPUT };
   let latency = 0;
+  let pauseRequests: boolean[] = [false, false];
+  /** The latest pause decision; an older snapshot must not undo it. */
+  let serverPaused = false;
 
   const offSnap = room.onMessage('snap', (raw: string) => {
     pending = decodeSnapshot(raw);
+  });
+  const offPause = room.onMessage('pauseState', (msg: { requests: boolean[]; paused: boolean }) => {
+    pauseRequests = msg.requests;
+    serverPaused = msg.paused;
+    state.paused = msg.paused;
   });
   const ping = setInterval(() => room.ping((ms) => (latency = ms)), 2000);
 
   const reconcile = (snap: Snapshot) => {
     state = snap.state;
+    state.paused = serverPaused;
     rival = decodeInput(snap.inputs[1 - slot]);
     const acked = snap.ack[slot];
     history = history.filter((w) => w[0] > acked);
@@ -64,6 +73,17 @@ export const createOnlineSession = (room: Room, start: StartMessage) => {
     },
     get latency() {
       return latency;
+    },
+    /** Who asked for a pause, by slot. */
+    get pauseRequests() {
+      return pauseRequests;
+    },
+    requestPause: () => room.send('pause'),
+    cancelPause: () => room.send('cancelPause'),
+    resume: () => room.send('resume'),
+    chooseCharacter: (c: CharacterId) => {
+      chooseCharacter(state, slot, c);
+      room.send('character', c);
     },
     /** One fixed tick: reconcile if a snapshot came in, then predict. Returns this tick's events. */
     tick: (input: InputState): GameEvent[] => {
@@ -87,10 +107,13 @@ export const createOnlineSession = (room: Room, start: StartMessage) => {
       state = createGame(msg.characters);
       history = [];
       pending = null;
+      pauseRequests = [false, false];
+      serverPaused = false;
     },
     rematch: () => room.send('rematch'),
     dispose: () => {
       offSnap();
+      offPause();
       clearInterval(ping);
     },
   };
