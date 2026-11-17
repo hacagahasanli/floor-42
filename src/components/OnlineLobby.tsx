@@ -6,9 +6,12 @@ import { useEffect, useRef, useState } from 'react';
 import { ArenaGame } from '~/components/ArenaGame';
 import { InstallHint } from '~/components/InstallHint';
 import { createOnlineSession, joinRoom } from '~/game/net/client';
+import { createHostSession } from '~/game/net/host';
+import { connectPeer } from '~/game/net/peer';
 import { ROSTER } from '~/game/roster';
 
 import type { JoinMode, OnlineSession } from '~/game/net/client';
+import type { PeerLink } from '~/game/net/peer';
 import type { StartMessage } from '~/game/net/protocol';
 import type { CharacterId } from '~/game/sim/types';
 import type { Room } from '@colyseus/sdk';
@@ -16,6 +19,7 @@ import type { Room } from '@colyseus/sdk';
 type Stage =
   | { kind: 'menu' }
   | { kind: 'connecting' }
+  | { kind: 'linking' }
   | { kind: 'waiting'; roomId: string; invite: boolean }
   | { kind: 'playing'; online: { session: OnlineSession; room: Room }; characters: [CharacterId, CharacterId] }
   | { kind: 'error'; message: string };
@@ -39,10 +43,12 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   }, []);
 
   const sessionRef = useRef<OnlineSession | null>(null);
+  const linkRef = useRef<PeerLink | null>(null);
   // Leave the room only when the page goes away.
   useEffect(
     () => () => {
       sessionRef.current?.dispose();
+      linkRef.current?.close();
       void roomRef.current?.leave();
     },
     [],
@@ -66,9 +72,25 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
       room.onMessage('waiting', (msg: { roomId: string }) =>
         setStage({ kind: 'waiting', roomId: msg.roomId, invite: mode.kind === 'private' }),
       );
+      // Both players are in: try a direct line between the two browsers before the match starts.
+      room.onMessage('peer', (msg: { slot: number }) => {
+        setStage({ kind: 'linking' });
+        void connectPeer(room, msg.slot === 0).then((link) => {
+          linkRef.current = link;
+          room.send('direct', { ok: !!link });
+        });
+      });
       room.onMessage('start', (msg: StartMessage) => {
         if (session) return; // later starts (rematches) are handled inside the arena
-        session = createOnlineSession(room, msg);
+        const link = linkRef.current;
+        if (msg.direct && link) {
+          // Direct: the inviter's browser runs the game, the other predicts against it.
+          session = msg.slot === 0 ? createHostSession(room, link, msg) : createOnlineSession(room, msg, link);
+        } else {
+          link?.close();
+          linkRef.current = null;
+          session = createOnlineSession(room, msg);
+        }
         sessionRef.current = session;
         setStage({ kind: 'playing', online: { session, room }, characters: msg.characters });
       });
@@ -191,6 +213,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
       )}
 
       {stage.kind === 'connecting' && <p className="text-cream/70">Connecting to the game server…</p>}
+      {stage.kind === 'linking' && <p className="text-cream/70">Your rival is here. Connecting the two of you directly…</p>}
 
       {stage.kind === 'waiting' && (
         <div className="panel-cut flex max-w-lg flex-col items-center gap-4 bg-ink p-6">

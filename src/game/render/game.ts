@@ -49,6 +49,8 @@ export interface HudState {
   aimMode: AimMode;
   /** Online: round-trip time to the game server in ms. */
   ping: number | null;
+  /** Online: true when playing over the direct line, false through the server. */
+  direct: boolean | null;
   paused: boolean;
   /** Screen shake and flashes on (false = reduce motion). */
   motion: boolean;
@@ -687,6 +689,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       fps: Math.round(fps),
       lastKo: lastKo ? { ...lastKo, fighter: lastKo.fighter === me ? 0 : 1 } : null,
       ping: online ? online.latency : null,
+      direct: online ? online.direct : null,
       paused: state.paused,
       motion: motion === 1,
       pauseRequests: online

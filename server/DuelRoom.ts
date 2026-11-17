@@ -18,14 +18,21 @@ interface Seat {
   ack: number;
   rematch: boolean;
   pause: boolean;
+  /** Reported after the WebRTC handshake: null = not answered yet. */
+  direct: boolean | null;
 }
 
 const isCharacter = (v: unknown): v is CharacterId => typeof v === 'string' && v in CHARACTERS;
 
 /**
- * One 1v1 match. The server owns the game: it runs the same deterministic
- * simulation as the browser at 60 Hz, decides every hit, and sends snapshots.
- * Clients only send inputs.
+ * One 1v1 match, in one of two modes:
+ * - server: the server owns the game. It runs the same deterministic simulation as the browser
+ *   at 60 Hz, decides every hit and sends snapshots; clients only send inputs.
+ * - direct: when the two browsers manage a WebRTC connection between themselves (tried for a few
+ *   seconds when the second player joins), the inviter's browser runs the game and the traffic
+ *   goes player to player, which is far faster when both are in the same city. The server then
+ *   only introduces them, handles pause, rematch, drop and leave, and relays messages if the
+ *   direct line breaks.
  */
 export class DuelRoom extends Room {
   maxClients = 2;
@@ -33,6 +40,9 @@ export class DuelRoom extends Room {
   private game: GameState | null = null;
   /** Counts server ticks even while the game is paused, so snapshots keep flowing. */
   private serverTick = 0;
+  /** Direct mode: the host's browser runs the game; this room doesn't simulate. */
+  private direct = false;
+  private handshake: ReturnType<typeof setTimeout> | null = null;
 
   onCreate(options: JoinOptions) {
     if (options?.private) void this.setPrivate(true);
@@ -47,9 +57,23 @@ export class DuelRoom extends Room {
       }
     });
 
+    // WebRTC introductions: offers, answers and candidates go to the other player as they are.
+    this.onMessage('signal', (client: Client, msg: unknown) => this.other(client)?.client.send('signal', msg));
+    // Direct mode's fallback when the direct line drops: pass game messages through.
+    this.onMessage('relay', (client: Client, raw: unknown) => {
+      if (typeof raw === 'string' && raw.length < 200_000) this.other(client)?.client.send('relay', raw);
+    });
+    this.onMessage('direct', (client: Client, msg: { ok?: boolean }) => {
+      const seat = this.seatOf(client);
+      if (!seat || !this.handshake) return;
+      seat.direct = !!msg?.ok;
+      if (this.seats.every((x) => x && x.direct !== null)) this.finishHandshake();
+    });
+
     this.onMessage('rematch', (client: Client) => {
       const seat = this.seatOf(client);
-      if (!seat || this.game?.phase !== 'over') return;
+      // In direct mode the host's browser knows when the match is over, not this room.
+      if (!seat || (!this.direct && this.game?.phase !== 'over')) return;
       seat.rematch = true;
       if (this.seats.every((s) => s?.rematch)) this.startGame();
     });
@@ -97,10 +121,14 @@ export class DuelRoom extends Room {
       ack: 0,
       rematch: false,
       pause: false,
+      direct: null,
     };
     if (this.seats.every(Boolean)) {
       void this.lock();
-      this.startGame();
+      // First try to connect the two browsers directly; start in any case within 6 seconds.
+      // Clients that don't know about direct play never answer and simply get server mode.
+      this.seats.forEach((x, slot) => x!.client.send('peer', { slot }));
+      this.handshake = setTimeout(() => this.finishHandshake(), 6000);
     } else {
       client.send('waiting', { roomId: this.roomId });
     }
@@ -129,8 +157,24 @@ export class DuelRoom extends Room {
     if (slot < 0) return;
     this.seats[slot] = null;
     this.game = null;
+    this.direct = false;
+    if (this.handshake) clearTimeout(this.handshake);
+    this.handshake = null;
     this.broadcast('left', {});
     void this.unlock();
+  }
+
+  private finishHandshake() {
+    if (!this.handshake) return;
+    clearTimeout(this.handshake);
+    this.handshake = null;
+    this.direct = this.seats.every((x) => x?.direct === true);
+    this.startGame();
+  }
+
+  private other(client: Client) {
+    const seat = this.seatOf(client);
+    return seat ? (this.seats.find((x) => x && x !== seat) ?? null) : null;
   }
 
   private sendPause() {
@@ -154,14 +198,14 @@ export class DuelRoom extends Room {
       s.current = { ...EMPTY_INPUT };
     }
     [a, b].forEach((s, slot) => {
-      const msg: StartMessage = { slot, characters: [a.character, b.character] };
+      const msg: StartMessage = { slot, characters: [a.character, b.character], direct: this.direct };
       s.client.send('start', msg);
     });
   }
 
   private tick() {
     const game = this.game;
-    if (!game) return;
+    if (!game || this.direct) return;
     const inputs = this.seats.map((seat) => {
       if (!seat) return { ...EMPTY_INPUT };
       seat.queue.sort((x, y) => x[0] - y[0]);

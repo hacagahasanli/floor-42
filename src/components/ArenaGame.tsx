@@ -621,7 +621,11 @@ export const ArenaGame = ({
             >
               Shake: {hud.motion ? 'on' : 'off'}
             </button>
-            {hud.ping !== null && <span>{hud.ping} ms</span>}
+            {hud.ping !== null && (
+              <span title={hud.direct ? 'Playing over a direct line to your rival' : 'Playing through the game server'}>
+                {hud.direct ? 'direct' : 'server'} · {hud.ping} ms
+              </span>
+            )}
             {hud.muted && <span>muted (M)</span>}
             <span>{hud.fps} fps</span>
           </div>

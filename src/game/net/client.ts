@@ -5,6 +5,7 @@ import { EMPTY_INPUT } from '../sim/types';
 
 import { decodeInput, decodeSnapshot, encodeInput, ROOM_NAME } from './protocol';
 
+import type { PeerLink } from './peer';
 import type { JoinOptions, Snapshot, StartMessage, WireInput } from './protocol';
 import type { CharacterId, GameEvent, GameState, InputState } from '../sim/types';
 import type { Room } from '@colyseus/sdk';
@@ -14,8 +15,14 @@ export const GAME_SERVER = process.env.NEXT_PUBLIC_GAME_SERVER ?? 'wss://floor42
 
 export type JoinMode = { kind: 'quick' } | { kind: 'private' } | { kind: 'join'; roomId: string };
 
+/** Dev only: ?server=ws://localhost:2567 points this tab at a local game server. */
+const serverUrl = () => {
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return GAME_SERVER;
+  return new URLSearchParams(window.location.search).get('server') ?? GAME_SERVER;
+};
+
 export const joinRoom = async (mode: JoinMode, character: CharacterId): Promise<Room> => {
-  const client = new Client(GAME_SERVER);
+  const client = new Client(serverUrl());
   const options: JoinOptions = { character, private: mode.kind === 'private' };
   if (mode.kind === 'join') return client.joinById(mode.roomId, options);
   if (mode.kind === 'private') return client.create(ROOM_NAME, options);
@@ -30,7 +37,7 @@ export const joinRoom = async (mode: JoinMode, character: CharacterId): Promise<
  * server's state, which is the truth, and replay the inputs the server has not
  * processed yet. The rival's input is assumed to stay what the server last saw.
  */
-export const createOnlineSession = (room: Room, start: StartMessage) => {
+export const createOnlineSession = (room: Room, start: StartMessage, link: PeerLink | null = null) => {
   const slot = start.slot;
   let state: GameState = createGame(start.characters);
   let tick = 0;
@@ -42,21 +49,31 @@ export const createOnlineSession = (room: Room, start: StartMessage) => {
   /** The latest pause decision; an older snapshot must not undo it. */
   let serverPaused = false;
 
-  const offSnap = room.onMessage('snap', (raw: string) => {
-    pending = decodeSnapshot(raw);
-  });
+  // Snapshots come from the server, or in a direct match from the host's browser.
+  const offSnap = link
+    ? link.on((m) => {
+        if (m.t === 'snap') pending = decodeSnapshot(m.raw);
+      })
+    : room.onMessage('snap', (raw: string) => {
+        pending = decodeSnapshot(raw);
+      });
+  /** The last tick the authority confirmed; unconfirmed inputs are re-sent with every packet. */
+  let acked = 0;
   const offPause = room.onMessage('pauseState', (msg: { requests: boolean[]; paused: boolean }) => {
     pauseRequests = msg.requests;
     serverPaused = msg.paused;
     state.paused = msg.paused;
   });
-  const ping = setInterval(() => room.ping((ms) => (latency = ms)), 2000);
+  const ping = setInterval(() => {
+    if (link) latency = link.rtt;
+    else room.ping((ms) => (latency = ms));
+  }, link ? 500 : 2000);
 
   const reconcile = (snap: Snapshot) => {
     state = snap.state;
     state.paused = serverPaused;
     rival = decodeInput(snap.inputs[1 - slot]);
-    const acked = snap.ack[slot];
+    acked = snap.ack[slot];
     history = history.filter((w) => w[0] > acked);
     for (const w of history) {
       const inputs: InputState[] = [];
@@ -68,6 +85,7 @@ export const createOnlineSession = (room: Room, start: StartMessage) => {
 
   return {
     slot,
+    direct: !!link,
     get state() {
       return state;
     },
@@ -83,7 +101,8 @@ export const createOnlineSession = (room: Room, start: StartMessage) => {
     resume: () => room.send('resume'),
     chooseCharacter: (c: CharacterId) => {
       chooseCharacter(state, slot, c);
-      room.send('character', c);
+      if (link) link.send({ t: 'char', c }, true);
+      else room.send('character', c);
     },
     /** One fixed tick: reconcile if a snapshot came in, then predict. Returns this tick's events. */
     tick: (input: InputState): GameEvent[] => {
@@ -95,7 +114,10 @@ export const createOnlineSession = (room: Room, start: StartMessage) => {
       const w = encodeInput(tick, input);
       history.push(w);
       if (history.length > 240) history.shift();
-      room.send('input', [w]);
+      if (link) {
+        // Unreliable line: every packet carries the last few unconfirmed inputs.
+        link.send({ t: 'in', w: history.filter((h) => h[0] > acked).slice(-6) });
+      } else room.send('input', [w]);
       const inputs: InputState[] = [];
       inputs[slot] = input;
       inputs[1 - slot] = rival;

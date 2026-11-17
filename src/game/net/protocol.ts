@@ -43,6 +43,8 @@ export interface JoinOptions {
 export interface StartMessage {
   slot: number;
   characters: [CharacterId, CharacterId];
+  /** True when the two browsers play over a direct line and slot 0's browser runs the game. */
+  direct?: boolean;
 }
 
 export interface Snapshot {
