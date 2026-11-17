@@ -1,8 +1,10 @@
 <div align="center">
 
-# Merge Conflict
+# Floor 42
 
-### Two developers, one file, a floor full of guns. Settle it on floor 42.
+### Code review got personal. Settle it on floor 42.
+
+A game by **Merge Conflict**, the studio where coworkers settle their conflicts.
 
 **A fast side-on office shootout in the browser. Two hits and you're out.**<br>
 Your gun **aims itself**, so the whole game is moving, jumping and timing your shots.
@@ -29,7 +31,7 @@ A rocket crosses the whole office in a second.
 ![Three.js](https://img.shields.io/badge/Three.js-r187-000)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/sim%20tests-22%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-25%20passing-2ea44f)
 ![60 fps](https://img.shields.io/badge/target-60%20fps-ffd23f)
 
 [Play locally](#play-locally) · [Controls](#controls) · [Guns](#guns) · [How it works](#how-it-works) · [Status](#status)
@@ -52,9 +54,15 @@ npm run dev
 
 Open http://localhost:3000.
 
-- `/characters`: pick your fighter and an opponent
-- `/arena?p1=legacy&p2=standup&bot=hard`: jump straight into a fight
-- add `&demo` to watch bot against bot
+- `/play`: **online 1v1**. *Invite a friend* gives you a link to send; *Quick match* pairs you with whoever is waiting. Rematch with Enter.
+- `/characters`: practice against a bot (`/arena?p1=legacy&p2=standup&bot=hard`, add `&demo` to watch bot against bot)
+
+The browser connects to the game server on Fly.io by default. To run your own server locally:
+
+```bash
+npm run server                                        # Colyseus on ws://localhost:2567
+NEXT_PUBLIC_GAME_SERVER=ws://localhost:2567 npm run dev
+```
 
 ## Controls
 
@@ -92,8 +100,12 @@ A shot coming down onto or up into furniture is stopped. A shot skimming along a
 src/game/sim      pure TypeScript simulation, fixed 60 Hz, deterministic, no DOM
 src/game/render   Three.js view: low-poly characters, the office, guns, particles
 src/game/sfx.ts   WebAudio sound synthesis
-src/components    Next.js pages and the HUD
+src/game/net      online play: wire protocol, client prediction and reconciliation
+server            Colyseus game server (runs the same simulation, decides every hit)
+src/components    Next.js pages, the HUD and the online lobby
 ```
+
+Full technical write-up: [docs/TECHNICAL.md](docs/TECHNICAL.md).
 
 - **The rules don't know about the screen.** `step(state, inputs)` advances the game by one tick. The renderer only reads the state. The same `step` will run on the game server, which will decide every hit, so nobody can cheat from the browser.
 - **Fixed timestep, smooth picture.** Logic runs at exactly 60 ticks a second on any monitor. Frames in between are interpolated.
@@ -111,6 +123,6 @@ npm run type-check
 | --- | --- |
 | Single player against a bot, desktop keyboard | ✅ playable |
 | Four characters, five guns, one arena | ✅ |
-| Two players on one keyboard | next |
-| Online rooms (invite by link, quick match) on a Colyseus server | planned |
+| Online 1v1: invite link, quick match, rematch (Colyseus on Fly.io, server-authoritative, client prediction) | ✅ |
+| Public deploy of the pages | next (Cloudflare Pages, mc.mergeconflict.gg) |
 | Mobile and touch | not planned yet |

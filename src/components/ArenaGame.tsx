@@ -8,6 +8,9 @@ import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
 
 import type { AimMode } from '~/game/input';
+import type { OnlineSession } from '~/game/net/client';
+import type { StartMessage } from '~/game/net/protocol';
+import type { Room } from '@colyseus/sdk';
 import type { HudFighter, HudState } from '~/game/render/game';
 import type { BotLevel } from '~/game/sim/bot';
 import type { CharacterId } from '~/game/sim/types';
@@ -96,23 +99,56 @@ export const ArenaGame = ({
   opponent,
   demo = false,
   level = 'normal',
+  online,
 }: {
   player: CharacterId;
   opponent: CharacterId;
   demo?: boolean;
   level?: BotLevel;
+  online?: { session: OnlineSession; room: Room };
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<ReturnType<typeof startArena> | null>(null);
   const keyTrapRef = useRef<HTMLInputElement>(null);
   const [hud, setHud] = useState<HudState | null>(null);
+  const [rematchAsked, setRematchAsked] = useState(false);
+  const [rivalLeft, setRivalLeft] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    const game = startArena(canvasRef.current, { player, opponent, demo, level, aimMode: readAim(), onHud: setHud });
+    const game = startArena(canvasRef.current, {
+      player,
+      opponent,
+      demo,
+      level,
+      aimMode: readAim(),
+      onHud: setHud,
+      online: online?.session,
+    });
     gameRef.current = game;
     return () => game.dispose();
-  }, [player, opponent, demo, level]);
+  }, [player, opponent, demo, level, online]);
+
+  // Online: the server starts each new round and tells us if the rival leaves.
+  useEffect(() => {
+    if (!online) return;
+    const offStart = online.room.onMessage('start', (msg: StartMessage) => {
+      setRematchAsked(false);
+      gameRef.current?.serverStart(msg);
+    });
+    const offLeft = online.room.onMessage('left', () => setRivalLeft(true));
+    // Leaving the room is the lobby's job (it owns the connection), not this effect's:
+    // React re-runs effects in development, which would otherwise drop the match.
+    return () => {
+      offStart();
+      offLeft();
+    };
+  }, [online]);
+
+  const rematch = () => {
+    setRematchAsked(true);
+    gameRef.current?.restart();
+  };
 
   // Remember the aim mode (T toggles it inside the game).
   useEffect(() => {
@@ -141,7 +177,7 @@ export const ArenaGame = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Enter' && hud?.phase === 'over') gameRef.current?.restart();
+      if (e.code === 'Enter' && hud?.phase === 'over') rematch();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -173,7 +209,7 @@ export const ArenaGame = ({
               </span>
               <span className="text-[10px] font-semibold tracking-widest text-cream/50">FIRST TO {RULES.kosToWin}</span>
             </div>
-            <FighterPanel f={hud.fighters[1]} label={`BOT · ${level}`} align="right" />
+            <FighterPanel f={hud.fighters[1]} label={online ? 'RIVAL' : `BOT · ${level}`} align="right" />
           </div>
 
           {hud.phase === 'countdown' && (
@@ -205,7 +241,18 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {end && (
+          {rivalLeft && (
+            <div className="absolute inset-0 flex items-center justify-center bg-ink-deep/80">
+              <div className="panel-cut flex flex-col items-center gap-4 bg-ink p-8 text-center">
+                <div className="font-display text-3xl text-gold">Your rival left</div>
+                <Link href="/play" className="panel-cut bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                  Find another match
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {end && !rivalLeft && (
             <div className="absolute inset-0 flex items-center justify-center bg-ink-deep/70">
               <div className="panel-cut flex flex-col items-center gap-4 bg-ink p-8 text-center">
                 <div className="text-xs font-bold tracking-[0.3em] text-blue">CONFLICT RESOLVED</div>
@@ -217,10 +264,11 @@ export const ArenaGame = ({
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => gameRef.current?.restart()}
-                    className="panel-cut bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                    onClick={rematch}
+                    disabled={rematchAsked}
+                    className="panel-cut bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep disabled:opacity-60"
                   >
-                    Rematch (Enter)
+                    {rematchAsked ? 'Waiting for rival…' : 'Rematch (Enter)'}
                   </button>
                   <Link href="/characters" className="panel-cut bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
                     Change fighter
@@ -242,6 +290,7 @@ export const ArenaGame = ({
                 Aim: {hud.aimMode} <span className="text-cream/40">(T)</span>
               </button>
             )}
+            {hud.ping !== null && <span>{hud.ping} ms</span>}
             {hud.muted && <span>muted (M)</span>}
             <span>{hud.fps} fps</span>
           </div>

@@ -91,7 +91,7 @@ export const CharacterSelect = () => {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <Link href="/" className="font-mono text-xs text-cream/50 hover:text-cream">
-            ← Merge Conflict
+            ← Floor 42
           </Link>
           <h1 className="font-display text-3xl">Choose a fighter</h1>
           <p className="text-sm text-cream/60">Everyone dies in two hits. Pick by speed, size and how hard you are to shove.</p>

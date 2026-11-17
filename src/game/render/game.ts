@@ -13,6 +13,8 @@ import { buildGun } from './guns';
 import { createVfx } from './vfx';
 
 import type { Rig } from './characters';
+import type { OnlineSession } from '../net/client';
+import type { StartMessage } from '../net/protocol';
 import type { GunView } from './guns';
 import type { BotLevel } from '../sim/bot';
 import type { CharacterId, EndReason, GameEvent, GameState, GunKind, Phase } from '../sim/types';
@@ -41,6 +43,8 @@ export interface HudState {
   hint: { key: string; text: string }[];
   muted: boolean;
   aimMode: AimMode;
+  /** Online: round-trip time to the game server in ms. */
+  ping: number | null;
   endReason: EndReason | null;
 }
 
@@ -52,6 +56,8 @@ export interface ArenaOptions {
   demo?: boolean;
   level?: BotLevel;
   aimMode?: AimMode;
+  /** Online match: the server owns the game, this client predicts. */
+  online?: OnlineSession;
 }
 
 const randomSeed = () => (Math.random() * 1e9) | 0;
@@ -71,7 +77,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   camera.position.set(0, ARENA.ceiling / 2, 40);
 
   const level = opts.level ?? 'normal';
-  let state: GameState = createGame([opts.player, opts.opponent], randomSeed());
+  const online = opts.online;
+  /** Which fighter you are. Offline you are always 0. */
+  const me = online?.slot ?? 0;
+  let state: GameState = online ? online.state : createGame([opts.player, opts.opponent], randomSeed());
   let bot = createBot(1, randomSeed(), level);
   let demoBot = createBot(0, randomSeed(), level);
   const controls = createControls(canvas);
@@ -156,6 +165,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
   const prevF = state.fighters.map((f) => ({ x: f.x, y: f.y }));
   const savePrev = () => state.fighters.forEach((f, i) => Object.assign(prevF[i], { x: f.x, y: f.y }));
+  const smooth = state.fighters.map((f) => ({ x: f.x, y: f.y }));
 
   let shake = 0;
   let flash = 0;
@@ -246,7 +256,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         sfx.pickup();
         break;
       case 'reload':
-        if (e.fighter === 0) sfx.reload();
+        if (e.fighter === me) sfx.reload();
         break;
       case 'empty':
         sfx.empty();
@@ -291,7 +301,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const mouseAim = () => {
     ndc.set(controls.mouse.x, controls.mouse.y);
     raycaster.setFromCamera(ndc, camera);
-    if (!raycaster.ray.intersectPlane(plane, aimPoint)) return autoAim(0);
+    if (!raycaster.ray.intersectPlane(plane, aimPoint)) return autoAim(me);
     return { x: aimPoint.x, y: aimPoint.y };
   };
 
@@ -314,7 +324,19 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       const out = f.respawn > 0;
       rig.root.visible = !out && !(f.invulnerable > 0 && Math.floor(time * 16) % 2 === 0);
       const shudder = state.hitstop > 0 && f.stun > 0 ? (Math.random() - 0.5) * 0.14 : 0;
-      rig.root.position.set(prevF[i].x + (f.x - prevF[i].x) * alpha + shudder, prevF[i].y + (f.y - prevF[i].y) * alpha, 0);
+      const tx = prevF[i].x + (f.x - prevF[i].x) * alpha;
+      const ty = prevF[i].y + (f.y - prevF[i].y) * alpha;
+      // Online, the rival's position gets corrected by the server; ease into it instead of snapping.
+      const sm = smooth[i];
+      if (online && i !== me && Math.hypot(tx - sm.x, ty - sm.y) < 4) {
+        const k = 1 - Math.exp(-22 * dt);
+        sm.x += (tx - sm.x) * k;
+        sm.y += (ty - sm.y) * k;
+      } else {
+        sm.x = tx;
+        sm.y = ty;
+      }
+      rig.root.position.set(sm.x + shudder, sm.y, 0);
       const g = GUNS[f.weapon.kind];
       poseRig(rig, {
         dt: poseDt,
@@ -350,7 +372,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       fl.position.copy(fwd);
       fl.scale.setScalar(f.weapon.kind === 'shotgun' || f.weapon.kind === 'launcher' ? 1.8 : 1);
 
-      if (i === 0 && !opts.demo) {
+      if (i === me && !opts.demo) {
         const len = 2.2;
         aimLine.visible = rig.root.visible && state.phase === 'fight';
         aimLine.scale.set(len, 1, 1);
@@ -413,10 +435,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   };
 
   const hintFor = (): HudState['hint'] => {
-    const me = state.fighters[0];
-    if (opts.demo || state.phase !== 'fight' || me.respawn > 0) return [];
-    const near = pickupCandidate(state, me);
-    if (near && me.weapon.kind !== 'pistol') return [{ key: 'E', text: `swap for the ${GUNS[near.kind].name}` }];
+    const self = state.fighters[me];
+    if (opts.demo || state.phase !== 'fight' || self.respawn > 0) return [];
+    const near = pickupCandidate(state, self);
+    if (near && self.weapon.kind !== 'pistol') return [{ key: 'E', text: `swap for the ${GUNS[near.kind].name}` }];
     return [];
   };
 
@@ -426,14 +448,16 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     opts.onHud({
       phase: state.phase,
       time: state.phaseTime,
-      winner: state.winner,
+      // The HUD always shows you first.
+      winner: state.winner === null || state.winner < 0 ? state.winner : state.winner === me ? 0 : 1,
       fps: Math.round(fps),
-      lastKo,
+      lastKo: lastKo ? { ...lastKo, fighter: lastKo.fighter === me ? 0 : 1 } : null,
+      ping: online ? online.latency : null,
       hint: hintFor(),
       muted,
       aimMode,
       endReason: state.endReason,
-      fighters: state.fighters.map((f) => {
+      fighters: [state.fighters[me], state.fighters[1 - me]].map((f) => {
         const g = GUNS[f.weapon.kind];
         return {
           name: CHARACTERS[f.character].name,
@@ -471,8 +495,13 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     acc += dt;
     while (acc >= DT) {
       savePrev();
-      const aim = aimMode === 'mouse' ? mouseAim() : autoAim(0);
-      step(state, [opts.demo ? demoBot(state) : controls.read(aim.x, aim.y, aimMode), bot(state)]);
+      const aim = aimMode === 'mouse' ? mouseAim() : autoAim(me);
+      if (online) {
+        online.tick(controls.read(aim.x, aim.y, aimMode));
+        state = online.state;
+      } else {
+        step(state, [opts.demo ? demoBot(state) : controls.read(aim.x, aim.y, aimMode), bot(state)]);
+      }
       if (!started && state.phase === 'fight') {
         started = true;
         sfx.start();
@@ -495,6 +524,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   }
 
   const restart = () => {
+    if (online) {
+      online.rematch();
+      return;
+    }
     state = createGame([opts.player, opts.opponent], randomSeed());
     bot = createBot(1, randomSeed(), level);
     demoBot = createBot(0, randomSeed(), level);
@@ -504,8 +537,20 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     emitHud();
   };
 
+  /** Online: the server started a new round (both players asked for a rematch). */
+  const serverStart = (msg: StartMessage) => {
+    if (!online) return;
+    online.restart(msg);
+    state = online.state;
+    started = false;
+    lastKo = null;
+    savePrev();
+    emitHud();
+  };
+
   return {
     restart,
+    serverStart,
     setAimMode: (m: AimMode) => {
       aimMode = m;
     },

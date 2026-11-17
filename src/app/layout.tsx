@@ -9,8 +9,8 @@ const display = Bungee({ weight: '400', subsets: ['latin'], variable: '--font-bu
 const ui = Chakra_Petch({ weight: ['400', '500', '600', '700'], subsets: ['latin'], variable: '--font-chakra' });
 
 export const metadata: Metadata = {
-  title: { default: 'Merge Conflict', template: '%s | Merge Conflict' },
-  description: 'A two-player office shootout on floor 42. Two hits and you are out.',
+  title: { default: 'Floor 42 · Merge Conflict', template: '%s · Floor 42' },
+  description: 'Code review got personal. A two-player office shootout from Merge Conflict: settle it on floor 42, two hits and you are out.',
 };
 
 const RootLayout = ({ children }: { children: ReactNode }) => (
