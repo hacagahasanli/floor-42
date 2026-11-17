@@ -10,7 +10,7 @@ const ui = Chakra_Petch({ weight: ['400', '500', '600', '700'], subsets: ['latin
 
 export const metadata: Metadata = {
   title: { default: 'Merge Conflict', template: '%s | Merge Conflict' },
-  description: 'A two-player office shootout on floor 42. Keep it quiet, or the CTO comes out.',
+  description: 'A two-player office shootout on floor 42. Two hits and you are out.',
 };
 
 const RootLayout = ({ children }: { children: ReactNode }) => (

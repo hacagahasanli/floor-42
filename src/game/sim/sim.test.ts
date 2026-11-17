@@ -1,5 +1,5 @@
 import { createBot } from './bot';
-import { ARENA, CHARACTERS, CTO, DT, GUNS, NOISE, RULES, WALL_SPLAT_DAMAGE } from './constants';
+import { ARENA, CHARACTERS, DT, GUNS, RULES, WALL_SPLAT_DAMAGE } from './constants';
 import { createGame, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
@@ -172,6 +172,15 @@ describe('guns', () => {
     expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
   });
 
+  it('rockets fly straight and reach across the office', () => {
+    const s = fighting();
+    place(s, 0, -16);
+    place(s, 1, 16);
+    arm(s, 0, 'launcher');
+    const events = run(s, 120, { fire: true, ...at(s, 1) });
+    expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
+  });
+
   it('walking over a gun with a pistol picks it up', () => {
     const s = createGame(['hotfix', 'legacy']);
     s.phase = 'fight';
@@ -211,54 +220,6 @@ describe('Force Push', () => {
     const events = run(s, 30, {}, { push: true, aimX: -10, aimY: 1 });
     expect(events.some((e) => e.type === 'deflect')).toBe(true);
     expect(s.fighters[0].hp).toBeLessThan(CHARACTERS.hotfix.hp);
-  });
-});
-
-describe('the CTO', () => {
-  it('gunfire fills the noise meter and brings the CTO out', () => {
-    const s = fighting();
-    place(s, 0, -8);
-    s.noise = NOISE.max - 1;
-    const events = run(s, 3, { fire: true, aimX: -8, aimY: 9 });
-    expect(events.some((e) => e.type === 'ctoComing')).toBe(true);
-    run(s, Math.ceil(CTO.coming / DT) + 1);
-    expect(s.cto.phase).toBe('watching');
-  });
-
-  it('noise calms down when nobody shoots', () => {
-    const s = fighting();
-    s.noise = 50;
-    run(s, 60);
-    expect(s.noise).toBeLessThan(50 - NOISE.decay * 0.9);
-  });
-
-  it('shooting while the CTO watches loses the round', () => {
-    const s = fighting();
-    place(s, 0, -8);
-    place(s, 1, 8);
-    Object.assign(s.cto, { phase: 'watching', t: 0 });
-    const events = run(s, 2, { fire: true, ...at(s, 1) });
-    expect(events.some((e) => e.type === 'caught' && e.fighter === 0)).toBe(true);
-    expect(s.phase).toBe('over');
-    expect(s.winner).toBe(1);
-    expect(s.endReason).toBe('caught');
-  });
-
-  it('the bot holds fire while the CTO is out', () => {
-    const s = fighting();
-    const bot = createBot(1, 3, 'hard');
-    Object.assign(s.cto, { phase: 'watching', t: 0 });
-    for (let i = 0; i < 120; i++) step(s, [{ ...EMPTY_INPUT }, bot(s)]);
-    expect(s.phase).toBe('fight');
-  });
-
-  it('goes back to the office and the fight resumes', () => {
-    const s = fighting();
-    Object.assign(s.cto, { phase: 'watching', t: 0 });
-    s.noise = 80;
-    run(s, Math.ceil((CTO.watching + CTO.leaving) / DT) + 2);
-    expect(s.cto.phase).toBe('away');
-    expect(s.noise).toBe(0);
   });
 });
 

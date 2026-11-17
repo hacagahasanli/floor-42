@@ -8,7 +8,7 @@ const HomePage = () => (
       <span className="block text-orange">CONFLICT &gt;&gt;&gt;&gt;</span>
     </h1>
     <p className="max-w-md text-lg text-cream/80">
-      Two developers, one file, a floor full of guns. Settle it before the noise brings the CTO out of the glass office.
+      Two developers, one file, a floor full of guns. Two hits and you&apos;re out, so find cover.
     </p>
     <div className="flex flex-wrap justify-center gap-3">
       <Link href="/characters" className="panel-cut bg-gold px-7 py-3 font-bold uppercase tracking-wider text-ink-deep hover:brightness-110">

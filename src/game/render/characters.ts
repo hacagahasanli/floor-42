@@ -234,45 +234,8 @@ const SPECS: Record<CharacterId, Spec> = {
   },
 };
 
-/** The CTO: not a fighter. Navy blazer, silver hair, a tablet that is always open. */
-const CTO_SPEC: Spec = {
-  legLen: 0.92,
-  legR: 0.095,
-  torsoW: 0.6,
-  torsoH: 0.72,
-  torsoD: 0.36,
-  headR: 0.2,
-  armLen: 0.74,
-  armR: 0.08,
-  skin: PALETTE.skinA,
-  top: 0x22305a,
-  pants: 0x2b3045,
-  shoes: 0x14161c,
-  extras: ({ head, torso, spec }) => {
-    const shirt = mesh(box(0.2, spec.torsoH * 0.9, 0.04), mat(0xbcd4f0));
-    shirt.position.set(0, spec.torsoH * 0.55, spec.torsoD / 2);
-    torso.add(shirt);
-    for (const sx of [-1, 1]) {
-      const lapel = mesh(box(0.1, 0.36, 0.03), mat(0x1a2547));
-      lapel.position.set(sx * 0.12, spec.torsoH - 0.2, spec.torsoD / 2 + 0.02);
-      lapel.rotation.z = sx * 0.3;
-      torso.add(lapel);
-    }
-    // Swept silver hair and thin frames.
-    const hair = mesh(new THREE.SphereGeometry(spec.headR * 1.06, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.45), mat(0xc8ccd6));
-    hair.position.set(0, 0.03, -0.02);
-    hair.rotation.x = -0.25;
-    head.add(hair);
-    for (const sx of [-1, 1]) {
-      const lens = mesh(box(0.11, 0.05, 0.02), mat(0x14161c), false);
-      lens.position.set(sx * 0.08, 0.04, spec.headR * 0.97);
-      head.add(lens);
-    }
-  },
-};
-
-export const buildRig = (id: CharacterId | 'cto'): Rig => {
-  const s = id === 'cto' ? CTO_SPEC : SPECS[id];
+export const buildRig = (id: CharacterId): Rig => {
+  const s = SPECS[id];
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);

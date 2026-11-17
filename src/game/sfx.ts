@@ -131,16 +131,6 @@ export const createSfx = () => {
       tone('sawtooth', 440, 55, 0.7, 0.3);
       noise('lowpass', 3000, 100, 0.6, 0.5);
     },
-    ctoComing: () => {
-      // Door handle, then two warning beeps.
-      noise('bandpass', 400, 200, 0.12, 0.3, 2);
-      setTimeout(() => tone('square', 660, 660, 0.15, 0.12), 250);
-      setTimeout(() => tone('square', 660, 660, 0.15, 0.12), 550);
-    },
-    caught: () => {
-      tone('sawtooth', 220, 110, 0.6, 0.3);
-      tone('square', 233, 116, 0.6, 0.15);
-    },
     start: () => {
       tone('square', 440, 440, 0.12, 0.12);
       setTimeout(() => tone('square', 880, 880, 0.25, 0.15), 140);

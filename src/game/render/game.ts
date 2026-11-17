@@ -4,10 +4,10 @@ import { createControls } from '../input';
 import type { AimMode } from '../input';
 import { createSfx } from '../sfx';
 import { createBot } from '../sim/bot';
-import { ARENA, CHARACTERS, CTO, DT, GUNS, NOISE, PUSH } from '../sim/constants';
+import { ARENA, CHARACTERS, DT, GUNS, PUSH } from '../sim/constants';
 import { createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
-import { buildArena, CTO_OFFICE } from './arena';
+import { buildArena } from './arena';
 import { buildRig, poseRig } from './characters';
 import { buildGun } from './guns';
 import { createVfx } from './vfx';
@@ -15,7 +15,7 @@ import { createVfx } from './vfx';
 import type { Rig } from './characters';
 import type { GunView } from './guns';
 import type { BotLevel } from '../sim/bot';
-import type { CharacterId, CtoPhase, EndReason, GameEvent, GameState, GunKind, Phase } from '../sim/types';
+import type { CharacterId, EndReason, GameEvent, GameState, GunKind, Phase } from '../sim/types';
 
 export interface HudFighter {
   name: string;
@@ -41,11 +41,7 @@ export interface HudState {
   hint: { key: string; text: string }[];
   muted: boolean;
   aimMode: AimMode;
-  noise: number; // 0..1
-  cto: CtoPhase;
-  ctoTime: number; // seconds left in the current CTO phase
   endReason: EndReason | null;
-  caught: number | null;
 }
 
 export interface ArenaOptions {
@@ -80,7 +76,6 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   let demoBot = createBot(0, randomSeed(), level);
   const controls = createControls(canvas);
   let aimMode: AimMode = opts.aimMode ?? 'auto';
-  let caughtId: number | null = null;
   const sfx = createSfx();
   let muted = false;
 
@@ -92,11 +87,6 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     scene.add(rig.root);
     return rig;
   });
-
-  const ctoRig = buildRig('cto');
-  scene.add(ctoRig.root);
-  const tablet = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.03, 0.24), new THREE.MeshStandardMaterial({ color: 0x14161c }));
-  scene.add(tablet);
 
   // Gun in each fighter's hands, rebuilt when the weapon changes.
   const heldGuns: (GunView | null)[] = state.fighters.map(() => null);
@@ -265,21 +255,6 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         vfx.burst(e.x, ARENA.ceiling - 0.3, 12, 'dust', { speed: 2, up: -1, gravity: 3, life: 0.6, size: 1.5 });
         sfx.drop();
         break;
-      case 'ctoComing':
-        arena.setAlarm(true);
-        sfx.ctoComing();
-        break;
-      case 'ctoWatching':
-        break;
-      case 'ctoLeft':
-        arena.setAlarm(false);
-        break;
-      case 'caught':
-        caughtId = e.fighter;
-        arena.setAlarm(true);
-        flash = 0.25;
-        sfx.caught();
-        break;
       case 'rail':
         break;
     }
@@ -429,84 +404,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       b.mesh.scale.x = b.mesh.scale.z = 0.4 + (b.life / 0.3) * 0.8;
     }
 
-    poseCto(dt);
     arena.update(dt, time);
     vfx.update(dt);
     updateCamera(dt);
     renderer.toneMappingExposure = 1.05 + flash * 3;
     flash = Math.max(0, flash - dt);
     renderer.render(scene, camera);
-  };
-
-  // The CTO: sits in the glass office; when it gets loud, walks out, watches, walks back.
-  const seat = new THREE.Vector3(CTO_OFFICE.seat.x, 0, CTO_OFFICE.seat.z);
-  const door = new THREE.Vector3(CTO_OFFICE.door.x, 0, CTO_OFFICE.door.z + 0.3);
-  const spot = new THREE.Vector3();
-  const pathPoint = (k: number, out: THREE.Vector3) => {
-    // seat -> door -> watching spot, k in 0..1
-    spot.set(state.cto.x, 0, 1.6);
-    const a = seat.distanceTo(door);
-    const b = door.distanceTo(spot);
-    const d = k * (a + b);
-    if (d <= a) return out.lerpVectors(seat, door, d / a);
-    return out.lerpVectors(door, spot, (d - a) / b);
-  };
-  const ctoPos = new THREE.Vector3();
-  const ctoPrev = new THREE.Vector3();
-  const poseCto = (dt: number) => {
-    const c = state.cto;
-    let k = 0;
-    let sitting = true;
-    if (c.phase === 'coming') {
-      k = Math.max(0, (c.t - 0.4) / (CTO.coming - 0.4));
-      sitting = c.t < 0.4;
-    } else if (c.phase === 'watching') {
-      k = 1;
-      sitting = false;
-    } else if (c.phase === 'leaving') {
-      k = 1 - c.t / CTO.leaving;
-      sitting = false;
-    }
-    ctoPrev.copy(ctoPos);
-    pathPoint(Math.min(1, k), ctoPos);
-    const moving = dt > 0 ? ctoPrev.distanceTo(ctoPos) / dt : 0;
-    poseRig(ctoRig, {
-      dt,
-      time,
-      vx: moving > 0.2 ? 6 : 0,
-      vy: 0,
-      onGround: true,
-      facing: 1,
-      aim: 0,
-      sideways: false,
-      wall: 0,
-      dashing: false,
-      stunned: false,
-      twoHanded: false,
-      sinceShot: 1,
-      recoil: 0,
-      reloading: false,
-      pushing: 0,
-    });
-    ctoRig.root.position.copy(ctoPos);
-    if (sitting) {
-      ctoRig.root.position.y = -0.42;
-      ctoRig.legL.rotation.x = ctoRig.legR.rotation.x = -1.45;
-      ctoRig.root.rotation.y = 0;
-    } else if (moving > 0.2) {
-      const dir = ctoPos.clone().sub(ctoPrev);
-      ctoRig.root.rotation.y = Math.atan2(dir.x, dir.z);
-    } else {
-      // Watching: slowly looking left and right, arms folded.
-      ctoRig.root.rotation.y = Math.sin(time * 0.9) * 0.9;
-      ctoRig.armL.rotation.x = ctoRig.armR.rotation.x = -1.1;
-      ctoRig.armL.rotation.z = 0.9;
-      ctoRig.armR.rotation.z = -0.9;
-    }
-    ctoRig.root.updateMatrixWorld(true);
-    ctoRig.hand.getWorldPosition(tmpV);
-    tablet.position.copy(tmpV);
-    tablet.visible = !sitting && moving > 0.2;
   };
 
   const hintFor = (): HudState['hint'] => {
@@ -529,12 +432,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       hint: hintFor(),
       muted,
       aimMode,
-      noise: state.noise / NOISE.max,
-      cto: state.cto.phase,
-      ctoTime:
-        state.cto.phase === 'coming' ? CTO.coming - state.cto.t : state.cto.phase === 'watching' ? CTO.watching - state.cto.t : 0,
       endReason: state.endReason,
-      caught: caughtId,
       fighters: state.fighters.map((f) => {
         const g = GUNS[f.weapon.kind];
         return {
@@ -601,8 +499,6 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     bot = createBot(1, randomSeed(), level);
     demoBot = createBot(0, randomSeed(), level);
     started = false;
-    caughtId = null;
-    arena.setAlarm(false);
     savePrev();
     lastKo = null;
     emitHud();

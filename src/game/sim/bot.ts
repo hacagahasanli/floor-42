@@ -56,8 +56,6 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
     let move: -1 | 0 | 1 = 0;
     const aimErr = (rand() - 0.5) * 2 * cfg.aimError;
     if (state.phase !== 'fight' || me.respawn > 0) return { move, presses, fire: false, aimErr };
-    // The CTO is out: hold fire and look busy.
-    if (state.cto.phase === 'coming' || state.cto.phase === 'watching') return { move: 0, presses: [], fire: false, aimErr };
 
     const dx = foe.x - me.x;
     const dy = foe.y - me.y;
@@ -99,8 +97,6 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
 
   return (state: GameState): InputState => {
     if (state.tick % cfg.reaction === 0) plan = think(state);
-    // Never fight in front of the CTO, even mid-decision.
-    const ctoOut = state.cto.phase === 'coming' || state.cto.phase === 'watching';
     const me = state.fighters[myId];
     const foe = state.fighters.find((f) => f.id !== myId)!;
     const fc = CHARACTERS[foe.character];
@@ -112,11 +108,11 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
       ...EMPTY_INPUT,
       left: plan.move < 0,
       right: plan.move > 0,
-      fire: plan.fire && !ctoOut,
+      fire: plan.fire,
       aimX: tx,
-      aimY: ty + plan.aimErr * d + (me.weapon.kind === 'launcher' ? d * 0.12 : 0),
+      aimY: ty + plan.aimErr * d,
     };
-    for (const p of plan.presses) if (!(ctoOut && p === 'push')) out[p] = !last[p];
+    for (const p of plan.presses) out[p] = !last[p];
     last = out;
     return out;
   };

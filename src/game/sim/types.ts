@@ -116,26 +116,9 @@ export type GameEvent =
   | { type: 'pickup'; fighter: number; gun: GunKind }
   | { type: 'reload'; fighter: number }
   | { type: 'empty'; fighter: number }
-  | { type: 'drop'; x: number }
-  | { type: 'ctoComing' }
-  | { type: 'ctoWatching' }
-  | { type: 'ctoLeft' }
-  | { type: 'caught'; fighter: number };
+  | { type: 'drop'; x: number };
 
-/**
- * The CTO sits in the glass office. Noise brings them out; anyone who fires or
- * shoves while they are watching loses the round.
- */
-export type CtoPhase = 'away' | 'coming' | 'watching' | 'leaving';
-
-export interface Cto {
-  phase: CtoPhase;
-  t: number; // seconds in this phase
-  x: number; // where they stand while watching
-  cooldown: number; // after leaving, they stay in their office at least this long
-}
-
-export type EndReason = 'kos' | 'time' | 'caught';
+export type EndReason = 'kos' | 'time';
 
 export type Phase = 'countdown' | 'fight' | 'over';
 
@@ -146,9 +129,6 @@ export interface GameState {
   winner: number | null; // fighter id, -1 for a draw
   endReason: EndReason | null;
   hitstop: number;
-  /** Office noise, 0..NOISE.max. Fills with gunfire and decays when it's quiet. */
-  noise: number;
-  cto: Cto;
   seed: number; // deterministic RNG state (spread, drops)
   dropTimer: number;
   nextId: number;

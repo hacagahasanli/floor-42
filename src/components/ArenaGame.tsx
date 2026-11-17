@@ -61,46 +61,6 @@ const FighterPanel = ({ f, label, align }: { f: HudFighter; label: string; align
   </div>
 );
 
-/** Office noise. Full means the CTO walks out. */
-const NoiseMeter = ({ hud }: { hud: HudState }) => {
-  const out = hud.cto === 'coming' || hud.cto === 'watching';
-  const level = out ? 1 : hud.noise;
-  const color = level > 0.75 ? '#ff3d6e' : level > 0.45 ? '#ffd23f' : '#3ddc84';
-  return (
-    <div className="flex w-56 flex-col items-center gap-1">
-      <div className="flex w-full items-center justify-between text-[10px] font-semibold tracking-widest text-cream/60">
-        <span>NOISE</span>
-        <span>{out ? 'CTO IS OUT' : level > 0.75 ? 'TOO LOUD' : 'CTO IN OFFICE'}</span>
-      </div>
-      <div className="panel-cut h-2 w-full bg-ink-deep/80">
-        <div className="h-full transition-[width] duration-200" style={{ width: `${level * 100}%`, background: color }} />
-      </div>
-    </div>
-  );
-};
-
-const CtoBanner = ({ hud }: { hud: HudState }) => {
-  if (hud.phase !== 'fight') return null;
-  if (hud.cto === 'coming') {
-    return (
-      <Banner tone="warn" title="The CTO is getting up" sub={`Stop shooting · ${Math.ceil(hud.ctoTime)}s`} />
-    );
-  }
-  if (hud.cto === 'watching') {
-    return <Banner tone="danger" title="The CTO is watching" sub={`Don't shoot, don't shove · ${Math.ceil(hud.ctoTime)}s`} />;
-  }
-  return null;
-};
-
-const Banner = ({ tone, title, sub }: { tone: 'warn' | 'danger'; title: string; sub: string }) => (
-  <div className="pointer-events-none absolute inset-x-0 top-28 flex justify-center">
-    <div className={`panel-cut px-6 py-2 text-center ${tone === 'danger' ? 'bg-orange/90 text-ink-deep' : 'bg-gold/90 text-ink-deep'}`}>
-      <div className="font-display text-2xl leading-tight">{title}</div>
-      <div className="text-xs font-bold uppercase tracking-widest">{sub}</div>
-    </div>
-  </div>
-);
-
 const Controls = ({ aim }: { aim: AimMode }) => (
   <div className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-cream/50">
     <span className="flex items-center gap-1">
@@ -126,10 +86,6 @@ const Controls = ({ aim }: { aim: AimMode }) => (
 );
 
 const END_TEXT = (hud: HudState, demo: boolean) => {
-  if (hud.endReason === 'caught' && hud.caught !== null) {
-    const who = hud.caught === 0 && !demo ? 'You' : hud.fighters[hud.caught].name;
-    return { title: `${who} got caught`, sub: 'Fighting in front of the CTO. Instant loss.' };
-  }
   if (hud.winner === -1 || hud.winner === null) return { title: 'Draw', sub: 'Time ran out with nothing resolved.' };
   const name = hud.winner === 0 && !demo ? 'You win' : `${hud.fighters[hud.winner].name} wins`;
   return { title: name, sub: hud.endReason === 'time' ? 'More KOs when time ran out.' : `First to ${RULES.kosToWin} KOs.` };
@@ -215,7 +171,7 @@ export const ArenaGame = ({
               <span className="font-display text-3xl leading-none tabular-nums text-cream">
                 {hud.phase === 'countdown' ? RULES.roundSeconds : Math.ceil(hud.time)}
               </span>
-              <NoiseMeter hud={hud} />
+              <span className="text-[10px] font-semibold tracking-widest text-cream/50">FIRST TO {RULES.kosToWin}</span>
             </div>
             <FighterPanel f={hud.fighters[1]} label={`BOT · ${level}`} align="right" />
           </div>
@@ -226,12 +182,10 @@ export const ArenaGame = ({
                 {hud.time > 1.2 ? <span className="text-cream">git merge</span> : <span className="text-orange">CONFLICT!</span>}
               </div>
               <div className="panel-cut bg-ink-deep/80 px-4 py-2 text-sm text-cream/80">
-                Two hits and you&apos;re out. Keep the noise down: if the CTO walks out, whoever fires loses.
+                Two hits and you&apos;re out. Furniture stops bullets: use it.
               </div>
             </div>
           )}
-
-          <CtoBanner hud={hud} />
 
           {showKo && hud.lastKo && (
             <div className="pointer-events-none absolute inset-x-0 top-1/3 flex justify-center">

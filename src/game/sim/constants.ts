@@ -128,31 +128,11 @@ export const GUNS: Record<GunKind, GunStats> = {
   smg: { name: 'SMG', rate: 0.11, mag: 20, reserve: 40, reloadTime: 1.4, damage: 34, knockback: 2.5, speed: 32, spread: 0.1, pellets: 1, life: 1, projectile: 'bullet', recoil: 0.4, carry: 0.97 },
   shotgun: { name: 'Shotgun', rate: 0.9, mag: 4, reserve: 8, reloadTime: 1.5, damage: 20, knockback: 4, speed: 28, spread: 0.26, pellets: 6, life: 0.32, projectile: 'pellet', recoil: 7, carry: 0.93 },
   railgun: { name: 'Railgun', rate: 1.6, mag: 2, reserve: 2, reloadTime: 1.8, damage: 100, knockback: 14, speed: 160, spread: 0, pellets: 1, life: 0.35, projectile: 'rail', recoil: 9, carry: 0.88 },
-  launcher: { name: 'Launcher', rate: 1.1, mag: 1, reserve: 3, reloadTime: 1.1, damage: 110, knockback: 22, speed: 20, spread: 0.02, pellets: 1, life: 3, projectile: 'grenade', recoil: 4, carry: 0.88 },
+  launcher: { name: 'Rockets', rate: 1.1, mag: 1, reserve: 3, reloadTime: 1.1, damage: 110, knockback: 22, speed: 22, spread: 0.01, pellets: 1, life: 2.2, projectile: 'grenade', recoil: 4, carry: 0.88 },
 };
 
-/** How much noise each thing makes, and how fast the office calms down. */
-export const NOISE = {
-  max: 100,
-  decay: 7, // per second
-  shot: { pistol: 7, smg: 3.5, shotgun: 12, railgun: 16, launcher: 8 } as Record<GunKind, number>,
-  explosion: 22,
-  wallSplat: 14,
-  push: 3,
-  ko: 6,
-};
-
-export const CTO = {
-  /** Where the glass office is (render and walking start point). */
-  officeX: 6.4,
-  coming: 2.5, // warning: they get up and walk out
-  watching: 6,
-  leaving: 2,
-  cooldown: 10,
-  walkSpeed: 3,
-};
-
-export const GRENADE = { gravity: 26, radius: 2.8, selfDamage: 0.45 };
+/** Rockets fly straight: auto-aim points at the target, so no drop. */
+export const GRENADE = { gravity: 0, radius: 2.8, selfDamage: 0.45 };
 
 export const PUSH = {
   cooldown: 2.5,

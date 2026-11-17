@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-import { ARENA, CTO } from '../sim/constants';
+import { ARENA } from '../sim/constants';
 
 import { mat, mesh, PALETTE } from './palette';
 
@@ -271,75 +271,7 @@ export interface ArenaView {
   crack: (side: -1 | 1, y: number) => void;
   update: (dt: number, time: number) => void;
   markers: THREE.Mesh[];
-  /** Turns the CTO office alarm on or off. */
-  setAlarm: (on: boolean) => void;
 }
-
-/** Where the CTO sits, and the door they walk out of. */
-export const CTO_OFFICE = {
-  x0: CTO.officeX - 2,
-  x1: CTO.officeX + 2.2,
-  front: -1.1,
-  seat: { x: CTO.officeX + 0.9, z: -2.1 },
-  door: { x: CTO.officeX - 1.5, z: -1.1 },
-  height: 3.2,
-};
-
-const buildCtoOffice = (scene: THREE.Scene) => {
-  const o = CTO_OFFICE;
-  const g = new THREE.Group();
-  const w = o.x1 - o.x0;
-  const cx = (o.x0 + o.x1) / 2;
-  const back = BACK_Z + 0.2;
-  const depth = o.front - back;
-  const glassMat = new THREE.MeshStandardMaterial({
-    color: 0xbfe0ff,
-    transparent: true,
-    opacity: 0.18,
-    roughness: 0.05,
-    metalness: 0.4,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  });
-  // Front glass, with the door gap on the left.
-  const doorW = 1.1;
-  const front = new THREE.Mesh(new THREE.PlaneGeometry(w - doorW, o.height), glassMat);
-  g.add(put(front, cx + doorW / 2, o.height / 2, o.front));
-  for (const side of [o.x0, o.x1]) {
-    const pane = new THREE.Mesh(new THREE.PlaneGeometry(depth, o.height), glassMat);
-    pane.rotation.y = Math.PI / 2;
-    g.add(put(pane, side, o.height / 2, back + depth / 2));
-  }
-  // Frame.
-  const frame = mat(PALETTE.ink);
-  g.add(put(mesh(box(w, 0.08, depth), frame, false), cx, o.height, back + depth / 2));
-  for (const x of [o.x0, o.x0 + doorW, o.x1]) g.add(put(mesh(box(0.08, o.height, 0.08), frame, false), x, o.height / 2, o.front));
-  // Carpet, desk, monitor, a good chair.
-  g.add(put(mesh(box(w - 0.1, 0.02, depth - 0.1), mat(0x3a2f4a)), cx, 0.01, back + depth / 2));
-  g.add(put(mesh(box(1.6, 0.06, 0.8), mat(0x6a4a30)), o.seat.x - 0.1, 0.78, o.seat.z + 0.75));
-  g.add(put(mesh(box(1.4, 0.74, 0.7), mat(0x5a3e28)), o.seat.x - 0.1, 0.38, o.seat.z + 0.75));
-  const screen = put(mesh(box(0.7, 0.42, 0.04), mat(PALETTE.ink)), o.seat.x - 0.1, 1.08, o.seat.z + 1.05);
-  screen.rotation.y = Math.PI;
-  g.add(screen);
-  g.add(put(mesh(box(0.6, 0.9, 0.12), mat(0x14161c)), o.seat.x, 0.95, o.seat.z - 0.3));
-  // Name on the glass.
-  const label = canvasTexture(256, 64, (c) => {
-    c.clearRect(0, 0, 256, 64);
-    c.fillStyle = 'rgba(255,255,255,0.85)';
-    c.font = 'bold 40px sans-serif';
-    c.textAlign = 'center';
-    c.fillText('CTO', 128, 46);
-  });
-  g.add(put(new THREE.Mesh(new THREE.PlaneGeometry(1, 0.25), new THREE.MeshBasicMaterial({ map: label, transparent: true })), cx + 0.6, o.height - 0.4, o.front + 0.01));
-  // The alarm lamp on the roof.
-  const lampMat = new THREE.MeshBasicMaterial({ color: 0x551111 });
-  const lamp = put(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.22, 10), lampMat), o.x0 + 0.6, o.height + 0.15, o.front - 0.3);
-  g.add(lamp);
-  const glow = new THREE.PointLight(0xff3344, 0, 9);
-  g.add(put(glow, o.x0 + 0.6, o.height + 0.5, o.front + 0.4));
-  scene.add(g);
-  return { lampMat, glow };
-};
 
 export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => {
   scene.background = new THREE.Color(0x1f1d3a);
@@ -484,7 +416,7 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   printer.add(put(mesh(box(1, 0.8, 0.7), mat(PALETTE.paper)), 0, 0.4, 0));
   printer.add(put(mesh(box(0.8, 0.05, 0.4), mat(PALETTE.white)), 0, 0.82, 0.1));
   printer.add(put(new THREE.Mesh(box(0.1, 0.06, 0.01), new THREE.MeshBasicMaterial({ color: 0xff6464 })), 0.3, 0.6, 0.36));
-  scene.add(put(printer, -6.6, 0, -2.6));
+  scene.add(put(printer, 7.4, 0, -2.6));
   const cooler = new THREE.Group();
   cooler.add(put(mesh(box(0.6, 1.1, 0.6), mat(PALETTE.paper)), 0, 0.55, 0));
   cooler.add(put(mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.55, 9), mat(0x7ea6e0, { opacity: 0.7 })), 0, 1.38, 0));
@@ -502,15 +434,9 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
     markers.push(ring);
   }
 
-  const office = buildCtoOffice(scene);
-  let alarm = false;
-
   let nextCrack = 0;
   return {
     markers,
-    setAlarm: (on) => {
-      alarm = on;
-    },
     crack: (side, y) => {
       const candidates = cracks.filter((c) => c.mesh.userData.side === side);
       const c = candidates[nextCrack++ % candidates.length];
@@ -526,9 +452,6 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
       }
       const s = 1 + Math.sin(time * 5) * 0.12;
       for (const m of markers) m.scale.set(s, s, s);
-      const blink = alarm && Math.sin(time * 14) > 0;
-      office.lampMat.color.setHex(blink ? 0xff3344 : alarm ? 0x991a22 : 0x551111);
-      office.glow.intensity = blink ? 6 : 0;
     },
   };
 };

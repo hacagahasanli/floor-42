@@ -1,4 +1,4 @@
-import { ARENA, CHARACTERS, CTO, DT, GRENADE, GUNS, NOISE, PHYS, PUSH, RULES, WALL_SPLAT_DAMAGE, WALL_SPLAT_SPEED } from './constants';
+import { ARENA, CHARACTERS, DT, GRENADE, GUNS, PHYS, PUSH, RULES, WALL_SPLAT_DAMAGE, WALL_SPLAT_SPEED } from './constants';
 import { EMPTY_INPUT } from './types';
 
 import type { CharacterId, Fighter, GameState, GunKind, InputState, Pickup, Projectile, Weapon } from './types';
@@ -86,8 +86,6 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1): Ga
     winner: null,
     endReason: null,
     hitstop: 0,
-    noise: 0,
-    cto: { phase: 'away', t: 0, x: CTO.officeX, cooldown: 0 },
     seed,
     dropTimer: ARENA.dropEvery,
     nextId: 1,
@@ -118,27 +116,12 @@ const respawnFighter = (f: Fighter) => {
   });
 };
 
-const makeNoise = (state: GameState, amount: number) => {
-  if (state.phase !== 'fight') return;
-  state.noise = Math.min(NOISE.max, state.noise + amount);
-};
-
-/** Fighting in front of the CTO: you lose the round on the spot. */
-const caught = (state: GameState, f: Fighter) => {
-  if (state.phase !== 'fight') return;
-  state.phase = 'over';
-  state.endReason = 'caught';
-  state.winner = state.fighters.find((o) => o.id !== f.id)?.id ?? -1;
-  state.events.push({ type: 'caught', fighter: f.id });
-};
-
 const knockOut = (state: GameState, f: Fighter) => {
   f.hp = 0;
   f.respawn = RULES.respawnSeconds;
   f.pushTime = 0;
   state.events.push({ type: 'ko', fighter: f.id, by: f.lastHitBy, x: f.x, y: f.y + 1 });
   state.hitstop = 9;
-  makeNoise(state, NOISE.ko);
   if (state.phase !== 'fight') return;
   const scorerId = f.lastHitBy !== null && f.lastHitBy !== f.id ? f.lastHitBy : state.fighters.find((o) => o.id !== f.id)?.id;
   if (scorerId === undefined) return;
@@ -181,12 +164,14 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
 
 const explode = (state: GameState, p: Projectile) => {
   state.events.push({ type: 'explosion', x: p.x, y: p.y, radius: GRENADE.radius });
-  makeNoise(state, NOISE.explosion);
   for (const o of state.fighters) {
     const c = CHARACTERS[o.character];
     const dx = o.x - p.x;
     const dy = o.y + c.height / 2 - p.y;
-    const d = Math.hypot(dx, dy);
+    // Distance to the nearest point of the body, so a direct hit is a full hit.
+    const nx = Math.min(Math.max(p.x, o.x - c.width / 2), o.x + c.width / 2);
+    const ny = Math.min(Math.max(p.y, o.y), o.y + c.height);
+    const d = Math.hypot(nx - p.x, ny - p.y);
     if (d > GRENADE.radius) continue;
     // Near the blast is lethal; the edge still hurts.
     const falloff = 0.5 + 0.5 * (1 - d / GRENADE.radius);
@@ -202,9 +187,7 @@ const explode = (state: GameState, p: Projectile) => {
 };
 
 const fire = (state: GameState, f: Fighter) => {
-  if (state.cto.phase === 'watching') caught(state, f);
   const g = GUNS[f.weapon.kind];
-  makeNoise(state, NOISE.shot[f.weapon.kind]);
   const m = muzzle(f);
   for (let i = 0; i < g.pellets; i++) {
     const angle = f.aim + (nextRandom(state) - 0.5) * 2 * g.spread;
@@ -396,8 +379,6 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   }
 
   if (canAct && pressed('push') && f.pushCooldown <= 0) {
-    if (state.cto.phase === 'watching') caught(state, f);
-    makeNoise(state, NOISE.push);
     f.pushTime = PUSH.duration;
     f.pushCooldown = PUSH.cooldown;
     f.pushHit = [];
@@ -442,7 +423,6 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
       f.hp -= WALL_SPLAT_DAMAGE;
       state.hitstop = Math.max(state.hitstop, 7);
       state.events.push({ type: 'wallSplat', side, y: f.y + c.height * 0.6 });
-      makeNoise(state, NOISE.wallSplat);
       if (f.hp <= 0) knockOut(state, f);
     } else if (into > 0) {
       f.vx = 0;
@@ -512,7 +492,9 @@ const updateProjectiles = (state: GameState) => {
     if (p.x > ARENA.right) cut((ARENA.right - px) / ddx);
     if (p.y < ARENA.floor) cut((ARENA.floor - py) / ddy);
     if (p.y > ARENA.ceiling) cut((ARENA.ceiling - py) / ddy);
-    if (p.kind !== 'rail') {
+    // A shot skimming along a desk top at chest height grazes past; only shots coming
+    // down onto or up into furniture are stopped.
+    if (p.kind !== 'rail' && Math.abs(ddy) > Math.abs(ddx) * 0.15) {
       for (const pl of ARENA.platforms) {
         if ((py - pl.y) * (p.y - pl.y) > 0 || ddy === 0) continue;
         const t = (pl.y - py) / ddy;
@@ -613,31 +595,6 @@ const updatePickups = (state: GameState) => {
   state.events.push({ type: 'drop', x });
 };
 
-const updateCto = (state: GameState) => {
-  if (state.phase !== 'fight') return;
-  const cto = state.cto;
-  const loud = state.noise >= NOISE.max;
-  state.noise = Math.max(0, state.noise - NOISE.decay * DT);
-  cto.t += DT;
-  if (cto.phase === 'away') {
-    cto.cooldown = Math.max(0, cto.cooldown - DT);
-    if (loud && cto.cooldown <= 0) {
-      // Too loud: the CTO gets up and comes to see what's going on.
-      Object.assign(cto, { phase: 'coming', t: 0, x: -8 + nextRandom(state) * 16 });
-      state.events.push({ type: 'ctoComing' });
-    }
-  } else if (cto.phase === 'coming' && cto.t >= CTO.coming) {
-    Object.assign(cto, { phase: 'watching', t: 0 });
-    state.events.push({ type: 'ctoWatching' });
-  } else if (cto.phase === 'watching' && cto.t >= CTO.watching) {
-    Object.assign(cto, { phase: 'leaving', t: 0 });
-    state.noise = 0;
-    state.events.push({ type: 'ctoLeft' });
-  } else if (cto.phase === 'leaving' && cto.t >= CTO.leaving) {
-    Object.assign(cto, { phase: 'away', t: 0, cooldown: CTO.cooldown });
-  }
-};
-
 /** Advances the game by one fixed tick (DT). Mutates and returns the state. */
 export const step = (state: GameState, inputs: InputState[]): GameState => {
   state.events = [];
@@ -669,7 +626,6 @@ export const step = (state: GameState, inputs: InputState[]): GameState => {
   for (const f of state.fighters) updateFighter(state, f, inputs[f.id] ?? EMPTY_INPUT);
   updateProjectiles(state);
   updatePickups(state);
-  updateCto(state);
   return state;
 };
 
