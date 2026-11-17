@@ -541,6 +541,14 @@ export const ArenaGame = ({
                 Aim: {hud.aimMode} <span className="text-cream/40">(T)</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => gameRef.current?.toggleMotion()}
+              className="panel-cut bg-cream/10 px-2 py-1 font-semibold uppercase tracking-wider text-cream/80 hover:bg-cream/20"
+              title="Screen shake and flashes"
+            >
+              Shake: {hud.motion ? 'on' : 'off'}
+            </button>
             {hud.ping !== null && <span>{hud.ping} ms</span>}
             {hud.muted && <span>muted (M)</span>}
             <span>{hud.fps} fps</span>

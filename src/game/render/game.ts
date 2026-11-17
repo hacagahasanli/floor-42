@@ -46,6 +46,8 @@ export interface HudState {
   /** Online: round-trip time to the game server in ms. */
   ping: number | null;
   paused: boolean;
+  /** Screen shake and flashes on (false = reduce motion). */
+  motion: boolean;
   /** Pause requests: [you, rival]. */
   pauseRequests: [boolean, boolean];
   /** Seconds until you respawn, or null while alive. */
@@ -93,7 +95,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const controls = createControls(canvas);
   let aimMode: AimMode = opts.aimMode ?? 'auto';
   const sfx = createSfx();
-  let muted = false;
+  let muted = sfx.muted; // remembered across visits
 
   const arena = buildArena(scene, state.pickups.length);
   const vfx = createVfx(scene);
@@ -213,8 +215,98 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const savePrev = () => state.fighters.forEach((f, i) => Object.assign(prevF[i], { x: f.x, y: f.y }));
   const smooth = state.fighters.map((f) => ({ x: f.x, y: f.y }));
 
-  let shake = 0;
-  let flash = 0;
+  // ---------- Game feel (see the web-game-feel skill): one tiered feedback() per event.
+  const MOTION_KEY = 'merge-conflict:motion';
+  let motion = (() => {
+    try {
+      return window.localStorage.getItem(MOTION_KEY) === '0' ? 0 : 1;
+    } catch {
+      return 1;
+    }
+  })();
+  type Tier = 'tiny' | 'light' | 'heavy' | 'huge';
+  const TIERS: Record<Tier, { trauma: number; flash: number; fov: number }> = {
+    tiny: { trauma: 0, flash: 0, fov: 0 },
+    light: { trauma: 0.15, flash: 0.06, fov: 0 },
+    heavy: { trauma: 0.45, flash: 0.09, fov: 0.6 },
+    huge: { trauma: 0.8, flash: 0.12, fov: 2.2 },
+  };
+  let trauma = 0;
+  let fovKick = 0;
+  let flash = 0; // screen exposure flash, only for huge moments
+  const hitFlash = state.fighters.map(() => 0);
+  const feedback = (tier: Tier, target?: number) => {
+    const t = TIERS[tier];
+    trauma = Math.min(1, trauma + t.trauma * motion);
+    fovKick = Math.max(fovKick, t.fov * motion);
+    if (target !== undefined && t.flash) hitFlash[target] = Math.max(hitFlash[target], t.flash * (motion ? 1 : 0.5));
+    if (tier === 'huge') flash = Math.max(flash, 0.12 * motion);
+  };
+
+  // Hit flash: rigs share cached materials, so swap each mesh to one white material and back.
+  const WHITE = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const setFlash = (rig: Rig, on: boolean) => {
+    rig.root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      if (on && !o.userData.orig) {
+        o.userData.orig = o.material;
+        o.material = WHITE;
+      } else if (!on && o.userData.orig) {
+        o.material = o.userData.orig;
+        o.userData.orig = undefined;
+      }
+    });
+  };
+
+  // Squash and stretch: a critically damped spring on the rig's vertical scale, around the feet.
+  const squash = state.fighters.map(() => ({ s: 0, v: 0 }));
+  const wasGround = state.fighters.map((f) => f.onGround);
+  const lastVy = state.fighters.map(() => 0);
+  const kick = (i: number, amount: number) => {
+    squash[i].s = amount;
+    squash[i].v = 0;
+  };
+
+  // Damage numbers: pooled sprites, one cached texture per value.
+  const numberTex = new Map<string, THREE.CanvasTexture>();
+  const texFor = (text: string, color: string) => {
+    const key = `${text}|${color}`;
+    let t = numberTex.get(key);
+    if (!t) {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 128;
+      const g = c.getContext('2d')!;
+      g.font = 'bold 84px sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.lineWidth = 12;
+      g.strokeStyle = '#0a0d18';
+      g.strokeText(text, 128, 64);
+      g.fillStyle = color;
+      g.fillText(text, 128, 64);
+      t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      numberTex.set(key, t);
+    }
+    return t;
+  };
+  const numbers = Array.from({ length: 10 }, () => {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }));
+    sprite.renderOrder = 11;
+    sprite.visible = false;
+    scene.add(sprite);
+    return { sprite, life: 0, x: 0, y: 0, size: 1 };
+  });
+  let nextNumber = 0;
+  const popNumber = (x: number, y: number, damage: number) => {
+    const n = numbers[nextNumber++ % numbers.length];
+    const big = damage >= 50;
+    (n.sprite.material as THREE.SpriteMaterial).map = texFor(`-${Math.round(damage)}`, big ? '#ff3d6e' : '#ffd23f');
+    (n.sprite.material as THREE.SpriteMaterial).needsUpdate = true;
+    Object.assign(n, { life: 0.7, x: x + (Math.random() - 0.5) * 0.6, y: y + 0.4, size: big ? 1.5 : 1.1 });
+    n.sprite.visible = true;
+  };
   let lastKo: HudState['lastKo'] = null;
   let time = 0;
   let started = false;
@@ -238,65 +330,64 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const handleEvent = (e: GameEvent) => {
     switch (e.type) {
       case 'shot':
-        sfx.shot(e.gun);
+        sfx.shot(e.gun, e.x);
         if (e.gun === 'railgun') {
           fireBeam(e.x, e.y, e.angle);
-          shake = Math.max(shake, 0.25);
+          feedback(e.fighter === me ? 'light' : 'tiny');
         }
-        if (e.gun === 'shotgun') shake = Math.max(shake, 0.15);
+        if (e.gun === 'shotgun' && e.fighter === me) feedback('light');
         break;
       case 'hit':
         vfx.burst(e.x, e.y, 4 + Math.round(e.damage / 3), 'spark', { speed: 3 + e.power * 0.3, life: 0.3 });
         if (e.damage > 15) vfx.ring(e.x, e.y, 0xfff1a8, { grow: 5, life: 0.22 });
-        shake = Math.max(shake, Math.min(0.4, e.power * 0.02));
-        sfx.hit(e.power);
+        feedback(e.damage >= 50 || e.power > 12 ? 'heavy' : 'light', e.fighter);
+        if (e.damage >= 1) popNumber(e.x, e.y, e.damage);
+        sfx.hit(e.power, e.x);
         break;
       case 'impact':
         vfx.burst(e.x, e.y, 3, 'dust', { speed: 2, up: 1, gravity: 6, life: 0.25, size: 0.7 });
-        sfx.impact();
+        sfx.impact(e.x);
         break;
       case 'explosion':
         vfx.burst(e.x, e.y, 40, 'hot', { speed: 9, up: 2, life: 0.6, size: 1.6 });
         vfx.burst(e.x, e.y, 24, 'spark', { speed: 6, up: 2, life: 0.5, size: 1.4 });
         vfx.burst(e.x, e.y, 18, 'dust', { speed: 4, up: 1, gravity: -1, life: 1, size: 2.4 });
         vfx.ring(e.x, e.y, 0xffb347, { grow: e.radius * 4, life: 0.35 });
-        shake = Math.max(shake, 0.7);
-        flash = Math.max(flash, 0.12);
-        sfx.explosion();
+        feedback('huge');
+        sfx.explosion(e.x);
         break;
       case 'push':
         vfx.ring(e.x + e.facing * 0.6, e.y, 0xf0c24a, { grow: 7, life: 0.35, facing: e.facing });
         vfx.burst(e.x + e.facing * 0.8, e.y, 10, 'dust', { speed: 4, dirX: e.facing, up: 0.5, gravity: 2, life: 0.35 });
-        sfx.push();
+        feedback('light');
+        sfx.push(e.x);
         break;
       case 'deflect':
         vfx.burst(e.x, e.y, 8, 'guard', { speed: 4, life: 0.3 });
-        sfx.deflect();
+        sfx.deflect(e.x);
         break;
       case 'wallSplat': {
         const x = e.side < 0 ? ARENA.left : ARENA.right;
         arena.crack(e.side, e.y);
         vfx.burst(x - e.side * 0.2, e.y, 30, 'glass', { speed: 7, dirX: -e.side, life: 0.8, size: 1.3 });
-        shake = 0.7;
-        flash = 0.12;
-        sfx.glass();
+        feedback('heavy');
+        sfx.glass(x);
         break;
       }
       case 'ko':
         vfx.burst(e.x, e.y, 40, 'ko', { speed: 9, up: 4, life: 0.9, size: 1.4 });
         vfx.ring(e.x, e.y, 0xf0c24a, { grow: 14, life: 0.5 });
-        shake = 0.8;
-        flash = 0.18;
+        feedback('huge');
         lastKo = { fighter: e.fighter, at: time };
-        sfx.ko();
+        sfx.ko(e.x);
         break;
       case 'jump':
         vfx.burst(e.x, e.y + 0.05, e.wallKick ? 10 : 5, e.wallKick ? 'glass' : 'dust', { speed: 2.5, up: 1, gravity: 4, life: 0.35 });
-        sfx.jump();
+        sfx.jump(e.x);
         break;
       case 'dash':
         vfx.burst(e.x, e.y + 0.4, 8, 'dust', { speed: 2, up: 0.6, gravity: 2, life: 0.3 });
-        sfx.dash();
+        sfx.dash(e.x);
         break;
       case 'pickup':
         sfx.pickup();
@@ -309,7 +400,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         break;
       case 'drop':
         vfx.burst(e.x, ARENA.ceiling - 0.3, 12, 'dust', { speed: 2, up: -1, gravity: 3, life: 0.6, size: 1.5 });
-        sfx.drop();
+        sfx.drop(e.x);
         break;
       case 'rail':
         break;
@@ -317,16 +408,28 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   };
 
   // Camera: fixed, far back, the whole office in view.
+  const camBase = camera.position.clone();
   const updateCamera = (dt: number) => {
     const tanHalf = Math.tan((camera.fov * Math.PI) / 360);
     const dist = Math.max((ARENA.right + 1.5) / (tanHalf * camera.aspect), (ARENA.ceiling / 2 + 2) / tanHalf);
     const k = 1 - Math.exp(-3 * dt);
-    camera.position.x += (0 - camera.position.x) * k;
-    camera.position.y += (ARENA.ceiling / 2 + 0.6 - camera.position.y) * k;
-    camera.position.z += (dist - camera.position.z) * k;
-    const s = shake * shake;
-    camera.lookAt((Math.random() - 0.5) * s, ARENA.ceiling / 2 + (Math.random() - 0.5) * s, 0);
-    shake = Math.max(0, shake - dt * 2.5);
+    camBase.x += (0 - camBase.x) * k;
+    camBase.y += (ARENA.ceiling / 2 + 0.6 - camBase.y) * k;
+    camBase.z += (dist - camBase.z) * k;
+    // Trauma shake: amount = trauma², offsets from smooth noise (summed sines), never Math.random().
+    const amt = trauma * trauma;
+    const n = (f: number, p: number) => Math.sin(time * f + p) * 0.6 + Math.sin(time * f * 2.3 + p) * 0.4;
+    camera.position.set(camBase.x + n(23, 1.3) * 0.45 * amt, camBase.y + n(19, 4.1) * 0.32 * amt, camBase.z);
+    camera.lookAt(n(23, 1.3) * 0.2 * amt, ARENA.ceiling / 2 + n(19, 4.1) * 0.15 * amt, 0);
+    camera.rotateZ(n(17, 2.7) * 0.02 * amt);
+    trauma = Math.max(0, trauma - dt * 1.5);
+    // A short zoom punch on huge moments.
+    const fov = 36 - fovKick;
+    if (camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+    fovKick = Math.max(0, fovKick - dt * 6);
   };
 
   const resize = () => {
@@ -403,6 +506,26 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         reloading: f.weapon.reload > 0,
         pushing: f.pushTime > 0 ? Math.sin((1 - f.pushTime / PUSH.duration) * Math.PI) : 0,
       });
+      // Squash and stretch from state changes: take-off stretches, a hard landing squashes.
+      if (!out) {
+        if (wasGround[i] && !f.onGround && f.vy > 5) kick(i, 0.16);
+        if (!wasGround[i] && f.onGround && lastVy[i] < -10) {
+          kick(i, -0.22);
+          sfx.land(f.x);
+          vfx.burst(f.x, f.y + 0.05, 6, 'dust', { speed: 2.5, up: 0.8, gravity: 4, life: 0.35 });
+        }
+      }
+      wasGround[i] = f.onGround;
+      lastVy[i] = f.vy;
+      const sq = squash[i];
+      const K = 320;
+      sq.v += (-K * sq.s - 2 * Math.sqrt(K) * sq.v) * dt;
+      sq.s += sq.v * dt;
+      const sy = 1 + sq.s * motion;
+      rig.root.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
+      // Hit flash.
+      hitFlash[i] = Math.max(0, hitFlash[i] - dt);
+      setFlash(rig, hitFlash[i] > 0 && rig.root.visible);
       rig.root.updateMatrixWorld(true);
 
       const gun = gunFor(i, f.weapon.kind);
@@ -483,6 +606,20 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       b.mesh.scale.x = b.mesh.scale.z = 0.4 + (b.life / 0.3) * 0.8;
     }
 
+    for (const n of numbers) {
+      if (!n.sprite.visible) continue;
+      n.life -= dt;
+      if (n.life <= 0) {
+        n.sprite.visible = false;
+        continue;
+      }
+      const k = 1 - n.life / 0.7;
+      const rise = 1 - (1 - k) * (1 - k); // ease out
+      n.sprite.position.set(n.x, n.y + rise * 0.9, 0.6);
+      const pop = k < 0.15 ? 0.6 + (k / 0.15) * 0.6 : 1.2 - Math.min(0.2, (k - 0.15) * 0.4);
+      n.sprite.scale.set(1.6 * n.size * pop, 0.8 * n.size * pop, 1);
+      (n.sprite.material as THREE.SpriteMaterial).opacity = Math.min(1, n.life / 0.25);
+    }
     arena.update(dt, time);
     vfx.update(dt);
     updateCamera(dt);
@@ -511,6 +648,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       lastKo: lastKo ? { ...lastKo, fighter: lastKo.fighter === me ? 0 : 1 } : null,
       ping: online ? online.latency : null,
       paused: state.paused,
+      motion: motion === 1,
       pauseRequests: online
         ? [online.pauseRequests[me] ?? false, online.pauseRequests[1 - me] ?? false]
         : [state.paused, state.paused],
@@ -638,6 +776,15 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     serverStart,
     requestPause,
     cancelPause,
+    toggleMotion: () => {
+      motion = motion ? 0 : 1;
+      try {
+        window.localStorage.setItem(MOTION_KEY, String(motion));
+      } catch {
+        /* storage unavailable */
+      }
+      emitHud();
+    },
     resume,
     pickCharacter,
     setAimMode: (m: AimMode) => {

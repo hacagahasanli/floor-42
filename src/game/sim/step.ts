@@ -200,7 +200,7 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
   target.hp -= hit.damage;
   if (hit.attacker !== target.id) target.lastHitBy = hit.attacker;
   if (hit.push) target.pushed = 0.6;
-  state.events.push({ type: 'hit', x: target.x, y: target.y + c.height * 0.6, power: k, damage: hit.damage });
+  state.events.push({ type: 'hit', fighter: target.id, x: target.x, y: target.y + c.height * 0.6, power: k, damage: hit.damage });
   if (k > 10) state.hitstop = Math.max(state.hitstop, Math.min(6, Math.round(k * 0.25)));
   if (target.hp <= 0) knockOut(state, target);
   return true;
