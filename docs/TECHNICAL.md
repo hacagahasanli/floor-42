@@ -5,7 +5,9 @@ Goal: after reading this you can find any rule in the code, change a number safe
 
 Everything below was read from the source. Paths are relative to the repo root; `file:line` points at the lines as of this writing. Numbers come from `src/game/sim/constants.ts` unless stated.
 
-Everything described here is built, including online multiplayer (section 10). Updated for commits up to `1b03043`.
+Everything described here is built, including online multiplayer (section 10). Updated for commits up to `9d30b50`.
+
+Project tooling, one line: the game was built with agent skills from the owner's local repo `~/Desktop/projects/game-dev-skills` (not published). Three were written for this project (`web-multiplayer-netcode`, `web-game-feel`, `web-game-audio`); five third-party skills in it are Apache-2.0.
 
 ---
 
@@ -17,7 +19,7 @@ Floor 42 is a side-on, 1v1 office shootout that runs in the browser.
 - Two hits knock a fighter out: 100 hp, the pistol does 50 per hit.
 - First to 5 KOs wins (`RULES.kosToWin`), or the higher KO count when the 150 s round ends (`RULES.roundSeconds`).
 - Your gun **auto-aims** at the opponent by default; you only move, jump, dash, push and fire. Mouse aim is an option.
-- Five guns: pistol (infinite ammo, you spawn with it), SMG, shotgun, railgun, rocket launcher.
+- Guns: pistol (infinite ammo, you spawn with it), SMG, Uzi, shotgun, and two power weapons (sniper rail, rockets). Bombs drop from the ceiling and are thrown once. Small guns lose damage with distance.
 - Furniture (desks, walkways, cabinets) is cover: bullets stop on it.
 - **Force Push** (Q): a short-range shove that also reflects bullets.
 - Single-player against a bot (three levels). Online 1v1 at `/play` (invite link or quick match).
@@ -42,7 +44,7 @@ src/
       constants.ts         arena layout, rules, physics, gun stats
       step.ts              step(state, inputs): advance one tick
       bot.ts               single-player opponent
-      sim.test.ts          27 tests (30 with net/protocol.test.ts)
+      sim.test.ts          34 tests (37 with net/protocol.test.ts)
     render/                THE LOOK. Three.js scene built from primitives
       game.ts              startArena(): game loop, sim <-> scene glue
       arena.ts             office geometry, canvas textures, skyline
@@ -212,22 +214,30 @@ While `dashTime > 0` the fighter is skipped by the projectile hit test (`step.ts
 
 Source: `GUNS` in `constants.ts:126`. `rate` is seconds between shots while fire is held. `mag` is the magazine; `reserve` is spare ammo (the pistol's is `Infinity`). Speed is world units per second.
 
-| Gun | rate (s) | mag | reserve | reload (s) | damage | pellets | spread (rad) | speed | life (s) | knockback | recoil | carry | kind |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Pistol | 0.38 | 8 | inf | 1.0 | 50 | 1 | 0.02 | 30 | 1.3 | 4 | 0 | 1.00 | bullet |
-| SMG | 0.11 | 20 | 40 | 1.4 | 34 | 1 | 0.10 | 32 | 1.0 | 2.5 | 0.4 | 0.97 | bullet |
-| Shotgun | 0.9 | 4 | 8 | 1.5 | 20 | 6 | 0.26 | 28 | 0.32 | 4 | 7 | 0.93 | pellet |
-| Railgun | 1.6 | 2 | 2 | 1.8 | 100 | 1 | 0 | 160 | 0.35 | 14 | 9 | 0.88 | rail |
-| Rockets | 1.1 | 1 | 3 | 1.1 | 110 | 1 | 0.01 | 22 | 2.2 | 22 | 4 | 0.88 | grenade |
+| Gun | rate (s) | mag | reserve | reload (s) | damage | pellets | spread (rad) | speed | life (s) | knockback | recoil | carry | kind | falloff (near / far / min) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Pistol | 0.38 | 8 | inf | 1.0 | 50 | 1 | 0.02 | 30 | 1.3 | 4 | 0 | 1.00 | bullet | 6 / 20 / 0.5 |
+| SMG | 0.11 | 20 | 40 | 1.4 | 34 | 1 | 0.10 | 32 | 1.0 | 2.5 | 0.4 | 0.97 | bullet | 5 / 16 / 0.5 |
+| Uzi | 0.055 | 32 | 32 | 1.2 | 12 | 1 | 0.15 | 30 | 0.8 | 1.2 | 0.2 | 1.00 | bullet | 4 / 12 / 0.5 |
+| Shotgun | 0.9 | 4 | 8 | 1.5 | 20 | 6 | 0.26 | 28 | 0.32 | 4 | 7 | 0.93 | pellet | 2 / 7 / 0.4 |
+| Sniper rail (`railgun`) | 1.4 | 3 | 3 | 1.8 | 100 | 1 | 0 | 160 | 0.35 | 14 | 9 | 0.88 | rail | none |
+| Rockets (`launcher`) | 1.1 | 2 | 4 | 1.1 | 110 | 1 | 0.01 | 22 | 2.2 | 22 | 4 | 0.88 | grenade | none |
+| Bomb | 0.5 | 1 | 0 | 1.0 | 110 | 1 | 0 | 16 | 1.8 | 20 | 0 | 1.00 | bomb | none (see Bombs) |
 
-Hits to KO from 100 hp: pistol 2, SMG 3, shotgun 5 of 6 pellets (so a point-blank blast usually kills), railgun 1, rocket 1 on a direct hit (110 damage at the blast centre). The comment at `constants.ts:125` states the design intent: lethal on purpose.
+**Falloff.** Small guns lose damage with the distance the shot has travelled. `GunStats.falloff = {near, far, min}`: full damage up to `near`, then a straight line down to `min` x damage at `far` and beyond. Each projectile records where it was fired (`Projectile.ox`, `oy`), and `updateProjectiles` scales the damage at the moment of the hit from the distance to the target's centre (`step.ts`, "Damage falls off with the distance the shot travelled"). A pistol hit from 20 or more units away does 25, so it takes four. The sniper rail and rockets have no falloff: they always kill in one.
+
+Hits to KO from 100 hp, up close: pistol 2, SMG 3, Uzi 9, shotgun 5 of 6 pellets (so a point-blank blast usually kills), sniper rail 1, rocket 1 on a direct hit (110 damage at the blast centre). The comment above `GUNS` in `constants.ts` states the design intent: deadly up close, more hits at range, and one-shot weapons kept rare.
 
 Notes:
 - Spread is a random cone, drawn from the seeded RNG (`step.ts:193`). Shotgun pellet speed also varies by 0.85 to 1.15.
 - Recoil pushes the shooter backwards; in the air it also pushes vertically. This is what makes rocket-jumping possible.
 - `life` caps range: shotgun pellets vanish after 0.32 s, about 9 units.
 - Running dry on a special gun drops you back to a fresh pistol (`step.ts:255-259`). A magazine that empties with reserve left reloads automatically.
-- Walking over a pickup with only the pistol takes it automatically; with another gun, E swaps (`step.ts:388-390`). There is **one gun per floor** (three floors). `ARENA.gunSpawns` (`constants.ts`) has three entries, each with a list of `spots` on that floor and a list of `kinds`. `placeGun` (`step.ts`) picks a random spot and a random kind using the seeded RNG, at match start and again `RULES.gunRespawn = 15` s after someone takes it. Ground floor: SMG or shotgun; middle floor: SMG, shotgun or rocket launcher; mezzanine: railgun or rocket launcher. On top of that, one ceiling drop (`ARENA.dropSlots = 1`) falls every `ARENA.dropEvery = 25` s and is gone once taken. `Pickup.spawn` is the index into `gunSpawns` (or `null` for a ceiling drop); it replaced the earlier fixed `home` position.
+- Pickups: with only the pistol in hand, walking over a gun takes it. Otherwise press **E or R** to swap for the gun you stand on (R still reloads when there is nothing to swap, `step.ts`, the `swap` line). Bombs are always picked up on contact.
+- **One gun per floor** (three floors). `ARENA.gunSpawns` (`constants.ts`) has three entries, each with `spots` on that floor and a `kinds` list that is a weighted table (a kind listed twice has two tickets). `placeGun` picks a random spot and a random kind with the seeded RNG, at match start and again after someone takes it. Pickups remember their entry in `Pickup.spawn` (`null` for a ceiling drop).
+  - Ground and middle floors use `GUN_TABLE`: SMG 3 tickets, shotgun 3, Uzi 2. Respawn `RULES.gunRespawn = 15` s.
+  - The top floor (mezzanine) uses `POWER_TABLE`: sniper rail 2 tickets, rockets 3. These are the only one-shot guns, so every match offers one, but only on the top floor. Respawn is per spawn (`respawn: 30` on that entry), 30 s. Each carries six shots in total (rail 3 + 3, rockets 2 + 4), then you fall back to the pistol.
+  - Ceiling drops (`dropKinds`) are bombs only: `dropSlots = 2`, one every `dropEvery = 18` s, gone once taken.
 
 ### Projectiles
 
@@ -239,6 +249,7 @@ Notes:
 | `pellet` | Shotgun. Same as bullet, shorter life, drawn shorter. |
 | `rail` | Pierces fighters (remembers who it hit in `hit[]`) and **ignores furniture**. Stopped only by the room walls. |
 | `grenade` | The rocket. Explodes on a fighter, on a wall/floor/ceiling, on furniture, or when `life` runs out. |
+| `bomb` | The thrown bomb. Same explosion triggers as a rocket, but it arcs under gravity (see Bombs). |
 
 ### Why a segment test, not a point test
 
@@ -271,6 +282,13 @@ knockback scales with 0.4 + 0.6 * falloff
 ```
 
 Measuring to the nearest body point rather than the centre means a rocket that hits someone's shoulder counts as a direct hit (d = 0, full damage), instead of being treated as 0.5 units away from their middle. Self-damage is 45% (`GRENADE.selfDamage`), so you can survive your own rocket jump.
+
+### Bombs
+
+A bomb is picked up automatically when you walk over it (`takePickup`, `step.ts`). Instead of replacing your gun it is put in `Fighter.stash`; the bomb becomes your weapon with one round. When it is thrown, `updateWeapon` restores the stashed gun (or a pistol if there was none). Picking one up while already holding a bomb keeps the original stash. Dying clears the stash.
+
+- **Aim is a lob, not a line.** `lobAngle(x, y, tx, ty, v, g)` (`step.ts`) solves the projectile equation for the low-arc launch angle that lands on the target point at speed `v` under gravity `g`, and falls back to 45 degrees if the target is out of reach. The target point is `Fighter.aimTx, aimTy`, which `updateFighter` copies from the input every tick: with auto-aim that is the rival's chest, in mouse mode it is the pointer. Bomb physics: `BOMB = {gravity: 26, radius: 3.2, selfDamage: 0.45}`, launch speed 16, fuse `life` 1.8 s.
+- **Explosion falloff is linear and steeper than a rocket's.** Rockets deal `0.5 + 0.5 * (1 - d / radius)` of their damage; a bomb deals `max(0.15, 1 - d / radius)` (`explode`). With 110 base damage, standing right next to it kills; at the edge it does about 17.
 
 ### Railgun
 
@@ -309,7 +327,7 @@ How it behaves like a person instead of a perfect machine:
 
 - **Reaction delay.** It only re-plans when `state.tick % reaction === 0` (`bot.ts:99`). Between plans it keeps its last decision (move direction, whether to fire) and only keeps tracking the target's position.
 - **Aim error.** On each plan it draws one error, and aims at the target's chest offset by `error * distance`. The error stays fixed until the next plan, like a shaky hand.
-- **Preferred range per gun** (`RANGE`): pistol 8 to 15, SMG 6 to 11, shotgun 2.5 to 5, railgun 12 to 24, rockets 9 to 16 (`bot.ts:24`). Too close, it backs off (and jumps if cornered against a wall); too far, it approaches 70% of the time; in range, it strafes or holds. At 50 hp or less it adds 3 units to both limits and plays further back.
+- **Preferred range per gun** (`RANGE`): pistol 8 to 15, SMG 6 to 11, shotgun 2.5 to 5, railgun 12 to 24, rockets 9 to 16, Uzi 3 to 8, bomb 5 to 11 (`bot.ts:24`). Too close, it backs off (and jumps if cornered against a wall); too far, it approaches 70% of the time; in range, it strafes or holds. At 50 hp or less it adds 3 units to both limits and plays further back.
 - **Decision rules**: with only the pistol it walks to a nearby gun; it Force Pushes when within 2.4 and level; dashes sometimes when the foe has just fired; jumps or drops toward the foe's height; wall-kicks when on a wall.
 - **Presses are edges.** One-shot actions alternate (`out[p] = !last[p]`) so the sim's `pressed()` sees a fresh press.
 
@@ -337,7 +355,7 @@ Three.js is a 3D library: you build a **scene** (objects), a **camera**, and cal
 
 - Every model is assembled from primitives (boxes, cylinders, icospheres) in code; there are no model files and no image assets. Fighters: `buildRig` (`characters.ts:237`). Guns: `guns.ts`. Office: `buildArena` (`arena.ts:276`).
 - **Flat-shaded low-poly.** Materials come from one cached factory, `mat()` (`palette.ts:25`), which sets `flatShading: true` so each face has one colour. Colours are in `PALETTE` (`palette.ts:4`), a night office with git-diff accents.
-- **Canvas textures.** Surfaces that need a pattern (sky gradient, skyline facade, floor tiles, the whiteboard with merge-conflict markers, the "FLOOR 42" sign, the glass-crack decal) are drawn with the 2D canvas API at startup and wrapped in `THREE.CanvasTexture` (`arena.ts:9-18`). Decor uses a small seeded RNG so it is identical on every load (`arena.ts:21`).
+- **Canvas textures.** Surfaces that need a pattern (sky gradient, skyline facade, floor tiles, the whiteboard with merge-conflict markers, the glass-crack decal) are drawn with the 2D canvas API at startup and wrapped in `THREE.CanvasTexture` (`arena.ts:9-18`). Decor uses a small seeded RNG so it is identical on every load (`arena.ts:21`).
 - Renderer: antialiasing, PCF soft shadows, ACES filmic tone mapping (`game.ts:61-67`). Pixel ratio capped at 2.
 
 ### Procedural animation
@@ -363,7 +381,25 @@ Creating and destroying meshes during play causes garbage collection pauses. So 
 
 ### Camera
 
-Fixed and far back: a perspective camera (fov 36) placed so the whole office width and height always fit, whatever the window aspect (`updateCamera`, `game.ts:264-274`; distance formula at `:266`). Position eases toward the target with exponential smoothing. Screen shake is a random offset of the look-at point, which decays over time. Shake uses `Math.random`, which is acceptable because it is render-only.
+Fixed and far back: a perspective camera (fov 36) placed so the whole office width and height always fit, whatever the window aspect (`updateCamera`, `game.ts:264-274`; distance formula at `:266`). Position eases toward the target with exponential smoothing. Shake is described in the next section.
+
+### Game feel (`game.ts`)
+
+Added in `3da54fc`, following the owner's `web-game-feel` skill. The principle: the sim reports what happened as events; the renderer turns each event into one call, `feedback(tier, target?)` (`game.ts`, `TIERS`), and that call scales every effect together.
+
+| Tier | Camera trauma | Screen flash | Zoom punch (fov degrees) | Used for |
+|---|---|---|---|---|
+| tiny | 0 | 0 | 0 | other player's railgun shot |
+| light | 0.15 | 0.06 | 0 | your own shotgun/rail shot, push, small hits |
+| heavy | 0.45 | 0.09 | 0.6 | hits with 50+ damage or `power > 12`, glass splat |
+| huge | 0.8 | 0.12 | 2.2 | explosions, KOs |
+
+- **Trauma shake.** `trauma` (0 to 1) accumulates per feedback and decays at 1.5 per second. The shake amount is `trauma squared`, and offsets come from smooth noise (a sum of two sines per axis), not `Math.random()`, so it moves smoothly instead of jittering. It offsets camera position, look-at and a small roll (`updateCamera`). The fov zoom punch decays at 6 degrees per second.
+- **Hit flash.** `hit` events now carry `fighter` (the one hit). Character models share cached materials, so flashing cannot change a material colour; `setFlash` swaps every mesh of that rig to one white `MeshBasicMaterial` for the flash time and restores the originals.
+- **Squash and stretch.** A spring on each rig's vertical scale (`K = 320`, critically damped), kicked on take-off (stretch) and on hard landings (`vy < -10`, squash). The hard landing also plays `sfx.land` and a dust burst. Volume is conserved by scaling x and z by `1 / sqrt(y)`.
+- **Damage numbers.** A pool of 10 sprites; one cached canvas texture per distinct text and colour. Gold normally, red for hits of 50 or more; they rise and fade over 0.7 s.
+- **Shake toggle.** A "Shake: on/off" button in the HUD calls `toggleMotion` and stores `0` or `1` under `merge-conflict:motion` in `localStorage`. Off sets the multiplier to 0 for trauma, zoom, squash and screen flash, and halves the hit flash.
+- **Online.** Effects fire from the events of the locally predicted step only (section 10), so they play once. Another player's shots use the `tiny` tier so the screen does not shake for events you did not cause.
 
 ### HUD throttled to 10 Hz
 
@@ -387,8 +423,8 @@ A development-only handle `window.__mc` exposes the state for automated checks (
 | Dash | Shift |
 | Fire (hold) | Space (also left click in mouse mode) |
 | Force Push | Q |
-| Pick up / swap gun | E |
-| Reload | R |
+| Swap for the gun you stand on | E or R |
+| Reload (when there is no gun to swap for) | R |
 | Toggle aim mode | T |
 | Mute | M |
 | Rematch after a match | Enter |
@@ -418,9 +454,19 @@ Side effect: because a text input has focus, a screen reader announces an edit f
 
 No audio files. Every sound is made with the Web Audio API at the time it plays: oscillators with a pitch sweep (`tone`, `sfx.ts:37`) and filtered noise from one second of random samples generated at startup (`noise`, `sfx.ts:52`), each shaped with an exponential attack/decay envelope (`env`, `sfx.ts:31`). The `shot`, `hit`, `explosion`, `glass`, `ko`, etc. functions combine these.
 
-Browsers refuse to start audio until the user interacts with the page. `createSfx` therefore creates the `AudioContext` lazily: `sfx.unlock()` is called on every keydown (`game.ts:456-457`) and `ensure()` creates or resumes it (`sfx.ts:14`). Sounds requested before the first key press are silently skipped. M mutes by setting master gain to 0; master gain is otherwise 0.7.
+Browsers refuse to start audio until the user interacts with the page. `createSfx` therefore creates the `AudioContext` lazily: `sfx.unlock()` is called on every keydown (`game.ts:456-457`) and `ensure()` creates or resumes it (`sfx.ts:14`). Sounds requested before the first key press are silently skipped. M mutes by setting master gain to 0; master gain is otherwise 0.75 (`MASTER`). The mute choice is remembered in `localStorage` under `merge-conflict:muted`.
 
-Since `90aefa7` the output is layered: a gunshot is three voices, a high-passed noise crack, a band-passed noise body and a falling sine thump (`sfx.ts:127-129`); shotguns add pump clicks and rockets a noise hiss. Every voice goes to a dry bus and, scaled, to a generated room reverb (a `ConvolverNode` whose impulse response is built in code, `makeRoom`), and both feed a `DynamicsCompressor` before the master gain (`sfx.ts:41-56`). Still no audio files.
+Since `3da54fc` the audio follows the owner's `web-game-audio` skill (`sfx.ts`, header comment):
+
+- **Buses.** Every voice goes through a stereo panner to a category bus (`sfx` 1.0, `ui` 0.7, `amb` 0.5), then a `DynamicsCompressor`, then the master gain. A scaled copy of each voice also goes to a generated room reverb (a `ConvolverNode` whose 0.9 s impulse response is decaying noise built in code, `makeRoom`).
+- **Layered gunshots.** A shot is a crack (high-passed noise), a body (band-passed noise) and a thump (a falling sine), with extras per gun: shotgun pump clicks, rocket hiss, slide click.
+- **Pan from world x.** `panOf(x) = x / 19.5`, clamped to about plus or minus 0.8, so sounds come from where they happen. Events now pass `e.x` to the sfx calls.
+- **Variation.** Every voice gets a random detune (about plus or minus 70 cents) and a gain between 0.9 and 1.1, so repeated shots do not sound identical.
+- **Voice budget.** At most 6 gunshot voices at once (`SHOT_BUDGET`); extras are skipped. Each slot frees after 120 ms.
+- **Ducking.** `duck()` briefly lowers the `amb` bus on big moments. Today that bus has no source (see below), so the ducking has no audible effect.
+- **No ambience.** An ambient noise loop was added and then removed in `c550396`: it sounded like old-TV static. The room is silent between fights. The `amb` bus and `duck` remain in the code.
+
+Still no audio files.
 
 Sounds are triggered from sim events in `handleEvent`, so audio and visuals stay in step with the rules without the sim knowing about either.
 
@@ -430,7 +476,7 @@ Sounds are triggered from sim events in `handleEvent`, so audio and visuals stay
 
 Files: `src/game/sim/sim.test.ts` (vitest, Node environment, no DOM). Helpers build a fighting state with pickups and drops disabled (`fighting()`), place fighters, arm them, and run N ticks with scripted input.
 
-What the 30 tests cover (27 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
+What the 37 tests cover (34 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
 
 | Group | Tests |
 |---|---|
@@ -439,6 +485,7 @@ What the 30 tests cover (27 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
 | Guns | pistol hits where aimed and misses when aimed away; furniture blocks bullets; auto-reload; spent special gun falls back to pistol; two pistol hits KO; point-blank shotgun is a one-shot KO; railgun goes through furniture; grenade throws everyone including the shooter; rockets fly straight across the office; walking over a gun with a pistol picks it up; dash dodges bullets |
 | Force Push | splats into the glass (checks `WALL_SPLAT_DAMAGE`); reflects bullets at the shooter |
 | KOs | KO scores for the shooter and the fighter respawns with a pistol; 3 s wait after a KO and coming back as someone else |
+| Falloff, Uzi, power weapons, bombs, swap | small guns hurt less from across the office; the sniper rail still kills in one at range; the top floor always offers a power weapon with six shots and lower floors never do; the Uzi fires fast but weakly; a bomb is picked up over your gun and the gun returns after the throw; a lobbed bomb lands near the target and is lethal next to it; R swaps for the gun you stand on |
 | Level and pause | fighters start far apart; exactly one gun per floor at the start; a taken gun returns on the same floor; nothing moves while `paused` |
 | Bot | two bots score within a round; same seeds give the same result |
 | Wire protocol (`protocol.test.ts`) | input encode/decode round trip; a press in a skipped input survives a merge; a full game state round-trips including `Infinity` |
@@ -448,12 +495,12 @@ Not covered: the grazing-shot rule at exact slope boundaries, ceiling-drop spawn
 Run:
 
 ```bash
-npm run test:run     # one-off run; expected: 30 passed
+npm run test:run     # one-off run; expected: 37 passed
 npm test             # watch mode
 npm run type-check   # tsc --noEmit
 ```
 
-`npm run test:run` was executed while updating this guide: `30 passed` (2 files), about 0.3 s. `npm run type-check` was not run for this document.
+`npm run test:run` was executed while updating this guide: `37 passed` (2 files), about 0.3 s. `npm run type-check` was not run for this document.
 
 ---
 
@@ -594,6 +641,11 @@ Rows marked (notes) come from the owner's project notes and commit history, not 
 | Rockets fly straight (`GRENADE.gravity = 0`) | Auto-aim aims at the target, so a falling rocket would miss for no visible reason. |
 | Simulation separated from rendering, written without a physics engine | Needed for a server-authoritative design, for fast headless tests, and for deterministic replay (sections 2 and 3). |
 | Playtest log, owner's first real online match (commits `90aefa7`, `1b03043`): pause by agreement (Esc twice, both must agree online); 3 s respawn (was 1.6 s) at a random spawn far from the rival; pick your next character while dead (keys 1 to 4), and pick or rematch from the result modal instead of leaving to `/characters`; 20 s reconnect for a dropped rival, then a 3 x 60 s wait flow with the same link; one gun per floor at random spots and kinds, slower gun respawn (15 s, was 12 s), one ceiling drop every 25 s (was 3 slots every 10 s); an in-world "E SWAP" prompt; the bot holds longer distances and backs off; layered gunshots, room reverb and compressor | Feedback from the match (notes; the log records the changes, the reasons are the owner's). What the diff shows: before these commits, spawns were two fixed points chosen by fighter id and guns were ten fixed spots. |
+| Playtest log, second playtest (commits `3da54fc`, `c550396`, `9d30b50`), distance: small guns lose damage with range (per-gun `falloff`, section 4); a new Uzi | Feedback from the playtest (notes). In code: pistol, SMG, Uzi and shotgun scale down to 50 to 40 percent at range; the rail and rockets do not. |
+| Playtest log, rarity: power weapons were made rarer in `c550396`, then judged "too rare" and moved to a dedicated top-floor table in `9d30b50` | Feedback (notes). In code: `GUN_TABLE` (SMG, shotgun, Uzi) on the lower floors, `POWER_TABLE` (rail, rockets) on the top floor only, 30 s respawn, six shots each. Every match sees them, but you have to climb. |
+| Playtest log, bombs: ceiling drops became bombs (2 slots every 18 s), picked up automatically, thrown on a low arc, stashed gun returned | Feedback (notes). In code: a bomb does not replace your gun, travels on an arc instead of a line, and its linear blast falloff makes the adjacent case lethal. |
+| Playtest log, controls: R swaps guns as well as reloading (E still works); the on-screen prompt says "R SWAP" | Feedback (notes). In code: reload still happens when there is nothing to swap. |
+| Playtest log, HUD and sound: the "FLOOR 42" sign moved from the 3D wall to the HUD; the ambience loop was removed | Feedback (notes). The loop sounded like old-TV static (`sfx.ts` header). |
 | Own visual theme: Bungee for display, Chakra Petch for UI, navy with git-diff colours (HEAD green, incoming red, conflict yellow) | A distinct identity; `src/app/layout.tsx`, `palette.ts`, `globals.css`. |
 | Hosting plan: Cloudflare Pages for the static pages (free); Fly.io only for multiplayer servers, with autostop (notes) | Static pages cost nothing; a server only runs while someone plays. The Fly.io part is live (section 10); Cloudflare Pages was not checked for this guide. |
 | Studio "Merge Conflict" at mergeconflict.gg, with games on subdomains (notes) | One brand, one game per subdomain. Not checked for this guide. |
