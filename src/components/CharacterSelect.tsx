@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+import { AimChoice } from '~/components/AimChoice';
 import { accentOf, FighterCards, FighterHero, MenuShell, readCharacter, saveCharacter, Steps, usePortraits } from '~/components/MenuShell';
 import { ROSTER } from '~/game/roster';
 import { CHARACTERS } from '~/game/sim/constants';
@@ -45,6 +46,8 @@ export const CharacterSelect = () => {
             <span className="text-right text-xs text-cream/50">Two hits for everyone: speed, size and shove differ</span>
           </div>
           <FighterCards value={player} onPick={pick} portraits={portraits} />
+
+          <AimChoice />
 
           <div className="panel-cut flex flex-col gap-2 bg-ink/80 p-3 backdrop-blur">
             <span className="text-[10px] font-semibold tracking-widest text-cream/50">YOUR RIVAL</span>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
+import { AimChoice } from '~/components/AimChoice';
 import { ArenaGame } from '~/components/ArenaGame';
 import { InstallHint } from '~/components/InstallHint';
 import { accentOf, FighterCards, FighterHero, MenuShell, readCharacter, saveCharacter, Steps, usePortraits } from '~/components/MenuShell';
@@ -146,6 +147,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
                 <span className="text-right text-xs text-cream/50">First to {RULES.kosToWin} KOs takes the merge</span>
               </div>
               <FighterCards value={character} onPick={pick} portraits={portraits} />
+              <AimChoice />
               <div className="grid gap-2 sm:grid-cols-[1.3fr_1fr_1fr]">
                 <button
                   type="button"

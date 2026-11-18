@@ -10,6 +10,7 @@ import {
   TouchControls,
   useLandscape,
 } from '~/components/TouchControls';
+import { AIM_KEY, readAim } from '~/components/AimChoice';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
@@ -25,17 +26,9 @@ import type { VolumeKind } from '~/game/sfx';
 import type { CharacterId } from '~/game/sim/types';
 
 const accent = (id: CharacterId) => ROSTER.find((r) => r.id === id)?.accent ?? '#fff';
-const AIM_KEY = 'merge-conflict:aim';
 const WAIT_SECONDS = 60;
 const MAX_WAITS = 3;
 
-const readAim = (): AimMode => {
-  try {
-    return window.localStorage.getItem(AIM_KEY) === 'mouse' ? 'mouse' : 'auto';
-  } catch {
-    return 'auto';
-  }
-};
 
 const Key = ({ k }: { k: string }) => (
   <kbd className="inline-flex min-w-5 items-center justify-center rounded-sm border border-b-2 border-cream/30 bg-cream/10 px-1 text-[10px] font-bold leading-4 text-cream">

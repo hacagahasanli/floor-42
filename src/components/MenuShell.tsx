@@ -127,7 +127,8 @@ export const FighterHero = ({ id, label }: { id: CharacterId; label: string }) =
           <span className="text-sm text-cream/70">{entry.role}</span>
           <p className="hidden max-w-xs text-sm text-cream/80 sm:block [@media(max-height:500px)]:hidden">{entry.pitch}</p>
         </div>
-        <div className="flex max-w-[11rem] flex-col gap-3 sm:max-w-[15rem]">
+        {/* On a dark panel: the turntable's white plinth can sit right behind the numbers. */}
+        <div className="panel-cut flex max-w-[12.5rem] flex-col gap-3 bg-ink-deep/80 p-3 backdrop-blur-sm sm:max-w-[16.5rem]">
           <Bar label="Speed" value={s.speed / STAT_MAX.speed} text={`${s.speed} m/s`} color="#3ec5ff" />
           <Bar label="Jump" value={s.jump / STAT_MAX.jump} text={`${s.airJumps + 1}× jump`} color="#3ddc84" />
           <Bar label="Weight" value={s.weight / STAT_MAX.weight} text={s.weight >= 1.2 ? 'hard to shove' : s.weight <= 0.85 ? 'light' : 'average'} color="#ffd23f" />

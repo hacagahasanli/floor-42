@@ -395,7 +395,9 @@ export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): 
     sh.position.y = -half / 2;
     shin.add(sh);
     const shoe = mesh(box(s.legR * 2.2, s.legR * 1.2, s.legR * 3.2), mat(s.shoes));
-    shoe.position.set(0, -half, s.legR * 0.7);
+    // The sole, not the middle of the shoe, sits at the end of the leg: standing on a table or
+    // a walkway the feet rest on its top instead of sinking into it.
+    shoe.position.set(0, -half + s.legR * 0.6, s.legR * 0.7);
     shin.add(shoe);
     thigh.add(shin);
     return { thigh, shin };
