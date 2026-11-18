@@ -131,7 +131,8 @@ export const RULES = {
   hp: 100,
   kosToWin: 5,
   roundSeconds: 150,
-  countdownSeconds: 2.4,
+  /** The title card (2 s: what this game is about), then "git merge" ... "CONFLICT!". */
+  countdownSeconds: 3.6,
   respawnSeconds: 3,
   spawnInvulnerable: 1.4,
   /** A taken gun comes back this soon, so whoever just respawned finds one quickly. */

@@ -470,10 +470,25 @@ export const ArenaGame = ({
             />
           </div>
 
-          {hud.phase === 'countdown' && (
+          {/* Every round opens on what the game is about, then the merge goes wrong. */}
+          {hud.phase === 'countdown' && hud.time > 1.6 && (
+            <div className="pointer-events-none absolute inset-0 z-[4] flex flex-col items-center justify-center gap-4 bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.55),rgba(10,13,24,0.15)_70%)] px-6 text-center">
+              <div className="font-mono text-xs tracking-[0.3em] text-green/90 [animation:fadeIn_0.4s_ease-out]">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</div>
+              <div className="font-display text-4xl leading-none text-gold drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] [animation:riseIn_0.5s_ease-out] sm:text-7xl">
+                CODE REVIEW
+                <br />
+                GOT PERSONAL
+              </div>
+              <div className="max-w-md text-sm text-cream/85 [animation:fadeIn_0.8s_ease-out] sm:text-base">
+                Two developers. One floor of guns. First to {RULES.kosToWin} KOs takes the merge.
+              </div>
+              <div className="font-mono text-xs tracking-[0.3em] text-orange/90 [animation:fadeIn_0.4s_ease-out]">&gt;&gt;&gt;&gt;&gt;&gt;&gt; their-branch</div>
+            </div>
+          )}
+          {hud.phase === 'countdown' && hud.time <= 1.6 && (
             <div className="pointer-events-none absolute inset-x-0 top-1/3 flex flex-col items-center gap-3">
               <div className="font-display text-5xl drop-shadow-lg">
-                {hud.time > 1.2 ? (
+                {hud.time > 0.8 ? (
                   <span className="text-cream">git merge</span>
                 ) : (
                   <span className="text-orange">CONFLICT!</span>
@@ -529,7 +544,7 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {hud.respawnIn !== null && hud.phase === 'fight' && !hud.paused && (
+          {hud.respawnIn !== null && hud.phase === 'fight' && !hud.paused && !demo && (
             <div
               className={`absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-32' : 'bottom-16'}`}
             >
