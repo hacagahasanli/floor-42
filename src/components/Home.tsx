@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
-import { SupportLink } from '~/components/SupportLink';
+import { SupportCard } from '~/components/SupportLink';
 
 import type { CharacterId } from '~/game/sim/types';
 
@@ -124,6 +124,7 @@ export const Home = () => {
                 Practice vs bot
               </Link>
             </div>
+            <SupportCard />
           </div>
 
           {/* The conflict on the whiteboard that started it all. */}
@@ -191,10 +192,6 @@ export const Home = () => {
             </div>
           ))}
         </section>
-
-        <footer className="flex items-center justify-center pt-2">
-          <SupportLink />
-        </footer>
       </div>
     </main>
   );

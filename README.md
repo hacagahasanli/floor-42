@@ -128,7 +128,7 @@ npm run type-check
 
 ## Support
 
-Floor 42 is free. If you enjoyed it, you can [☕ support the studio](https://mergeconflictgames.itch.io/support).
+Floor 42 is free. If you enjoyed it, you can [☕ support the studio](https://merge-conflict-drab.vercel.app/donate.html).
 
 ## Status
 
