@@ -178,8 +178,12 @@ describe('guns', () => {
     place(s, 0, -16);
     place(s, 1, 16);
     arm(s, 0, 'launcher');
-    const events = run(s, 120, { fire: true, ...at(s, 1) });
+    const events = run(s, 180, { fire: true, ...at(s, 1) });
     expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
+  });
+
+  it('a rocket is far slower than a bullet, so you can see it coming', () => {
+    expect(GUNS.launcher.speed).toBeLessThan(GUNS.pistol.speed / 2);
   });
 
   it('walking over a gun with a pistol picks it up', () => {

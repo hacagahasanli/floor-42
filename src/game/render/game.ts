@@ -207,6 +207,39 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     scene.add(m);
     return m;
   });
+  /**
+   * The launcher's rocket, seen side-on: an olive body with a yellow band, a red nose, fins, a
+   * flickering flame and an orange light out of the back, smoke left behind. Built along +x.
+   */
+  const rockets = Array.from({ length: 6 }, () => {
+    const g = new THREE.Group();
+    const std = (c: number) => new THREE.MeshStandardMaterial({ color: c, flatShading: true });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.62, 10).rotateZ(Math.PI / 2), std(0x5a6a3a));
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.06, 10).rotateZ(Math.PI / 2), std(0xe9c46a));
+    band.position.x = 0.16;
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.24, 10).rotateZ(-Math.PI / 2), std(0xc0392b));
+    nose.position.x = 0.43;
+    g.add(body, band, nose);
+    for (let k = 0; k < 4; k++) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.02), std(0x3a4428));
+      fin.position.set(-0.26, Math.cos((k * Math.PI) / 2) * 0.11, Math.sin((k * Math.PI) / 2) * 0.11);
+      fin.rotation.x = (k * Math.PI) / 2;
+      g.add(fin);
+    }
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.42, 8).rotateZ(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.9 }));
+    flame.position.x = -0.52;
+    const core = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.22, 8).rotateZ(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xfff3c4 }));
+    core.position.x = -0.43;
+    const light = new THREE.PointLight(0xff9a3c, 2.5, 5);
+    light.position.x = -0.5;
+    g.add(flame, core, light);
+    g.userData.flame = flame;
+    g.scale.setScalar(1.5); // big enough to read across the whole office
+    g.visible = false;
+    scene.add(g);
+    return g;
+  });
+  let smokeClock = 0;
   // Railgun beams fade out after the shot.
   const beams = Array.from({ length: 4 }, () => {
     const m = new THREE.Mesh(
@@ -647,11 +680,27 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
     let t = 0;
     let gr = 0;
+    let rk = 0;
+    smokeClock += dt;
+    const smokeTick = smokeClock > 0.03;
+    if (smokeTick) smokeClock = 0;
     for (const p of state.projectiles) {
       const back = 1 - alpha;
       const x = p.x - p.vx * DT * back;
       const y = p.y - p.vy * DT * back;
-      if (p.kind === 'grenade' || p.kind === 'bomb') {
+      if (p.kind === 'grenade') {
+        // The launcher's rocket: nose along the flight, flame flickering, a smoke trail.
+        const m = rockets[rk++];
+        if (!m) continue;
+        m.visible = true;
+        m.position.set(x, y, 0.1);
+        m.rotation.set(Math.sin(time * 20) * 0.3, 0, Math.atan2(p.vy, p.vx));
+        (m.userData.flame as THREE.Mesh).scale.set(0.8 + Math.random() * 0.5, 1, 1);
+        if (smokeTick) {
+          const a = Math.atan2(p.vy, p.vx);
+          vfx.burst(x - Math.cos(a) * 0.6, y - Math.sin(a) * 0.6, 1, 'dust', { speed: 0.5, up: 0.4, gravity: -0.4, life: 0.8, size: 0.9 });
+        }
+      } else if (p.kind === 'bomb') {
         const m = grenades[gr++];
         if (!m) continue;
         m.visible = true;
@@ -671,6 +720,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     }
     for (; t < tracers.length; t++) tracers[t].visible = false;
     for (; gr < grenades.length; gr++) grenades[gr].visible = false;
+    for (; rk < rockets.length; rk++) rockets[rk].visible = false;
     for (const b of beams) {
       b.life = Math.max(0, b.life - dt);
       b.mesh.visible = b.life > 0;

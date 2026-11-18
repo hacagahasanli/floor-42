@@ -332,10 +332,11 @@ export const GUNS: Record<GunKind, GunStats> = {
     reloadTime: 1.1,
     damage: 110,
     knockback: 22,
-    speed: 22,
+    // Slow on purpose: a rocket you can see coming (and dodge), several times slower than a bullet.
+    speed: 14,
     spread: 0.01,
     pellets: 1,
-    life: 2.2,
+    life: 3,
     projectile: 'grenade',
     recoil: 4,
     carry: 0.88,
