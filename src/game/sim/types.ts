@@ -70,6 +70,8 @@ export interface Fighter {
   pushed: number; // > 0 right after being shoved: hitting a wall now splats
   respawn: number;
   invulnerable: number;
+  /** Seconds since you last took damage: after a while, health comes back. */
+  sinceHit: number;
   weapon: Weapon;
   /** The gun you were holding when you picked up a bomb; you get it back after the throw. */
   stash: Weapon | null;

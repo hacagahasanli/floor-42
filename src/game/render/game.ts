@@ -8,7 +8,7 @@ import { createSfx } from '../sfx';
 
 import type { VolumeKind } from '../sfx';
 import { createBot } from '../sim/bot';
-import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS } from '../sim/constants';
+import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS, RULES } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
 import { buildArena } from './arena';
@@ -28,6 +28,8 @@ export interface HudFighter {
   character: CharacterId;
   hp: number;
   maxHp: number;
+  /** Health is coming back right now (shown as a green shimmer on the bar). */
+  healing: boolean;
   kos: number;
   push: number; // 0..1 ready
   dash: number; // 0..1 ready
@@ -740,6 +742,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
           character: f.character,
           hp: Math.max(0, f.hp),
           maxHp: CHARACTERS[f.character].hp,
+          healing: f.respawn <= 0 && f.hp > 0 && f.hp < CHARACTERS[f.character].hp && (f.sinceHit ?? 0) >= RULES.regenAfter,
           kos: f.kos,
           push: 1 - f.pushCooldown / PUSH.cooldown,
           dash: 1 - f.dashCooldown / PHYS.dashCooldown,

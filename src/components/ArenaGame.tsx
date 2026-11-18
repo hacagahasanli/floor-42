@@ -3,7 +3,13 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
-import { RotateHint, safeArea, TOUCH_STRIPS, TouchControls, useLandscape } from '~/components/TouchControls';
+import {
+  RotateHint,
+  safeArea,
+  TOUCH_STRIPS,
+  TouchControls,
+  useLandscape,
+} from '~/components/TouchControls';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
@@ -41,17 +47,35 @@ const Key = ({ k }: { k: string }) => (
 const Ready = ({ label, value }: { label: string; value: number }) => {
   const ready = value >= 1;
   return (
-    <span className={`flex items-center gap-1 ${ready ? 'text-gold' : 'text-cream/40'}`} title={ready ? `${label} ready` : `${label} recharging`}>
+    <span
+      className={`flex items-center gap-1 ${ready ? 'text-gold' : 'text-cream/40'}`}
+      title={ready ? `${label} ready` : `${label} recharging`}
+    >
       <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
       <span className="h-1.5 w-8 overflow-hidden rounded bg-cream/15">
-        <span className={`block h-full ${ready ? 'bg-gold' : 'bg-cream/50'}`} style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />
+        <span
+          className={`block h-full ${ready ? 'bg-gold' : 'bg-cream/50'}`}
+          style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }}
+        />
       </span>
     </span>
   );
 };
 
-const FighterPanel = ({ f, label, align, compact }: { f: HudFighter; label: string; align: 'left' | 'right'; compact?: boolean }) => (
-  <div className={`flex ${compact ? 'w-48' : 'w-72'} flex-col gap-1 ${align === 'right' ? 'items-end text-right' : ''}`}>
+const FighterPanel = ({
+  f,
+  label,
+  align,
+  compact,
+}: {
+  f: HudFighter;
+  label: string;
+  align: 'left' | 'right';
+  compact?: boolean;
+}) => (
+  <div
+    className={`flex ${compact ? 'w-48' : 'w-72'} flex-col gap-1 ${align === 'right' ? 'items-end text-right' : ''}`}
+  >
     <div className={`flex items-baseline gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
       <span className="font-display text-lg leading-none" style={{ color: accent(f.character) }}>
         {f.name}
@@ -61,13 +85,25 @@ const FighterPanel = ({ f, label, align, compact }: { f: HudFighter; label: stri
     <div className="panel-cut h-3 w-full bg-ink-deep/80">
       <div
         className={`h-full transition-[width] duration-150 ${align === 'right' ? 'ml-auto' : ''}`}
-        style={{ width: `${(f.hp / f.maxHp) * 100}%`, background: f.hp / f.maxHp > 0.5 ? accent(f.character) : '#ff3d6e' }}
+        style={{
+          width: `${(f.hp / f.maxHp) * 100}%`,
+          background: f.hp / f.maxHp > 0.5 ? accent(f.character) : '#ff3d6e',
+        }}
       />
+      {/* Healing: the empty part of the bar shimmers green as it refills. */}
+      {f.healing && (
+        <div className="pointer-events-none -mt-3 h-3 w-full animate-pulse bg-[#3ddc84]/25" />
+      )}
     </div>
-    <div className={`flex items-center gap-3 text-[11px] text-cream/70 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+    <div
+      className={`flex items-center gap-3 text-[11px] text-cream/70 ${align === 'right' ? 'flex-row-reverse' : ''}`}
+    >
       <span className="flex gap-1">
         {Array.from({ length: RULES.kosToWin }, (_, i) => (
-          <span key={i} className={`inline-block h-2.5 w-2.5 rotate-45 ${i < f.kos ? 'bg-gold' : 'bg-cream/15'}`} />
+          <span
+            key={i}
+            className={`inline-block h-2.5 w-2.5 rotate-45 ${i < f.kos ? 'bg-gold' : 'bg-cream/15'}`}
+          />
         ))}
       </span>
       <span className="font-semibold text-cream">{f.gun}</span>
@@ -117,9 +153,14 @@ const Controls = ({ aim }: { aim: AimMode }) => (
 );
 
 const END_TEXT = (hud: HudState, demo: boolean) => {
-  if (hud.winner === -1 || hud.winner === null) return { title: 'Draw', sub: 'Time ran out with nothing resolved.' };
+  if (hud.winner === -1 || hud.winner === null)
+    return { title: 'Draw', sub: 'Time ran out with nothing resolved.' };
   const name = hud.winner === 0 && !demo ? 'You win' : `${hud.fighters[hud.winner].name} wins`;
-  return { title: name, sub: hud.endReason === 'time' ? 'More KOs when time ran out.' : `First to ${RULES.kosToWin} KOs.` };
+  return {
+    title: name,
+    sub:
+      hud.endReason === 'time' ? 'More KOs when time ran out.' : `First to ${RULES.kosToWin} KOs.`,
+  };
 };
 
 const VOLUME_LABELS: { kind: VolumeKind; label: string }[] = [
@@ -149,7 +190,9 @@ const SoundSliders = ({ game }: { game: ReturnType<typeof startArena> | null }) 
             className="h-2 flex-1 cursor-pointer accent-[#ffd23f]"
             aria-label={label}
           />
-          <span className="w-8 text-right text-xs tabular-nums text-cream/60">{Math.round(v[kind] * 100)}</span>
+          <span className="w-8 text-right text-xs tabular-nums text-cream/60">
+            {Math.round(v[kind] * 100)}
+          </span>
         </label>
       ))}
     </div>
@@ -194,7 +237,12 @@ export const ArenaGame = ({
     if (!touch || demo) return;
     const apply = () => {
       const sa = safeArea();
-      gameRef.current?.setInsets({ left: TOUCH_STRIPS.left + sa.left, right: TOUCH_STRIPS.right + sa.right, top: TOUCH_STRIPS.top, bottom: 0 });
+      gameRef.current?.setInsets({
+        left: TOUCH_STRIPS.left + sa.left,
+        right: TOUCH_STRIPS.right + sa.right,
+        top: TOUCH_STRIPS.top,
+        bottom: 0,
+      });
     };
     apply();
     window.addEventListener('resize', apply);
@@ -237,9 +285,12 @@ export const ArenaGame = ({
     });
     // Leaving the room is the lobby's job (it owns the connection), not this effect's:
     // React re-runs effects in development, which would otherwise drop the match.
-    const offDropped = online.room.onMessage('dropped', (msg: { slot: number; seconds: number }) => {
-      if (msg.slot !== online.session.slot) setDropLeft(msg.seconds);
-    });
+    const offDropped = online.room.onMessage(
+      'dropped',
+      (msg: { slot: number; seconds: number }) => {
+        if (msg.slot !== online.session.slot) setDropLeft(msg.seconds);
+      },
+    );
     const offBack = online.room.onMessage('back', () => setDropLeft(null));
     return () => {
       offStart();
@@ -278,7 +329,10 @@ export const ArenaGame = ({
     setWaitLeft(WAIT_SECONDS);
     setAsking(false);
   };
-  const inviteLink = online && typeof window !== 'undefined' ? `${window.location.origin}/play?room=${online.room.roomId}` : '';
+  const inviteLink =
+    online && typeof window !== 'undefined'
+      ? `${window.location.origin}/play?room=${online.room.roomId}`
+      : '';
   const copyInvite = async () => {
     await navigator.clipboard.writeText(inviteLink);
     setLinkCopied(true);
@@ -379,7 +433,10 @@ export const ArenaGame = ({
 
   return (
     <main className="relative h-[100dvh] w-screen touch-none select-none overflow-hidden bg-ink-deep">
-      <canvas ref={canvasRef} className={`block h-full w-full ${hud?.aimMode === 'mouse' ? 'cursor-crosshair' : ''}`} />
+      <canvas
+        ref={canvasRef}
+        className={`block h-full w-full ${hud?.aimMode === 'mouse' ? 'cursor-crosshair' : ''}`}
+      />
       <input
         ref={keyTrapRef}
         aria-label="Game keyboard input"
@@ -392,12 +449,19 @@ export const ArenaGame = ({
       {hud && (
         <>
           <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between bg-gradient-to-b from-ink-deep/90 to-transparent px-4 pb-8 pt-3">
-            <FighterPanel f={hud.fighters[0]} label={demo ? 'BOT' : 'YOU'} align="left" compact={touch} />
+            <FighterPanel
+              f={hud.fighters[0]}
+              label={demo ? 'BOT' : 'YOU'}
+              align="left"
+              compact={touch}
+            />
             <div className="flex flex-col items-center gap-1.5">
               <span className="font-display text-3xl leading-none tabular-nums text-cream">
                 {hud.phase === 'countdown' ? RULES.roundSeconds : Math.ceil(hud.time)}
               </span>
-              <span className="text-[10px] font-semibold tracking-widest text-cream/50">FIRST TO {RULES.kosToWin}</span>
+              <span className="text-[10px] font-semibold tracking-widest text-cream/50">
+                FIRST TO {RULES.kosToWin}
+              </span>
               {!touch && (
                 <span className="panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1">
                   <span className="font-display text-base text-gold">FLOOR 42</span>
@@ -405,13 +469,22 @@ export const ArenaGame = ({
                 </span>
               )}
             </div>
-            <FighterPanel f={hud.fighters[1]} label={online ? 'RIVAL' : `BOT · ${level}`} align="right" compact={touch} />
+            <FighterPanel
+              f={hud.fighters[1]}
+              label={online ? 'RIVAL' : `BOT · ${level}`}
+              align="right"
+              compact={touch}
+            />
           </div>
 
           {hud.phase === 'countdown' && (
             <div className="pointer-events-none absolute inset-x-0 top-1/3 flex flex-col items-center gap-3">
               <div className="font-display text-5xl drop-shadow-lg">
-                {hud.time > 1.2 ? <span className="text-cream">git merge</span> : <span className="text-orange">CONFLICT!</span>}
+                {hud.time > 1.2 ? (
+                  <span className="text-cream">git merge</span>
+                ) : (
+                  <span className="text-orange">CONFLICT!</span>
+                )}
               </div>
               <div className="panel-cut bg-ink-deep/80 px-4 py-2 text-sm text-cream/80">
                 Two hits and you&apos;re out. Furniture stops bullets: use it.
@@ -421,16 +494,31 @@ export const ArenaGame = ({
 
           {showKo && hud.lastKo && (
             <div className="pointer-events-none absolute inset-x-0 top-1/3 flex justify-center">
-              <div className="font-display text-4xl text-gold drop-shadow-lg">{hud.fighters[hud.lastKo.fighter].name} is out</div>
+              <div className="font-display text-4xl text-gold drop-shadow-lg">
+                {hud.fighters[hud.lastKo.fighter].name} is out
+              </div>
             </div>
           )}
 
           {hud.hint.length > 0 && (
-            <div className={`pointer-events-none absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-36' : 'bottom-10'}`}>
+            <div
+              className={`pointer-events-none absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-36' : 'bottom-10'}`}
+            >
               <div className="panel-cut flex items-center gap-3 bg-ink-deep/85 px-4 py-1.5 text-sm text-cream">
                 {hud.hint.map((h) => (
                   <span key={h.key} className="flex items-center gap-2">
-                    <Key k={touch ? (h.key === 'R' ? 'Swap' : h.key === 'Space' ? 'Fire' : h.key) : h.key} /> {h.text}
+                    <Key
+                      k={
+                        touch
+                          ? h.key === 'R'
+                            ? 'Swap'
+                            : h.key === 'Space'
+                              ? 'Fire'
+                              : h.key
+                          : h.key
+                      }
+                    />{' '}
+                    {h.text}
                   </span>
                 ))}
               </div>
@@ -441,16 +529,22 @@ export const ArenaGame = ({
             <div className="pointer-events-none absolute inset-x-0 top-28 flex justify-center">
               <div className="panel-cut bg-gold/95 px-6 py-2 text-center text-ink-deep">
                 <div className="font-display text-xl">Your rival wants to pause</div>
-                <div className="text-xs font-bold uppercase tracking-widest">{touch ? 'Tap pause to agree' : 'Press Esc twice to agree'}</div>
+                <div className="text-xs font-bold uppercase tracking-widest">
+                  {touch ? 'Tap pause to agree' : 'Press Esc twice to agree'}
+                </div>
               </div>
             </div>
           )}
 
           {hud.respawnIn !== null && hud.phase === 'fight' && !hud.paused && (
-            <div className={`absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-32' : 'bottom-16'}`}>
+            <div
+              className={`absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-32' : 'bottom-16'}`}
+            >
               <div className="panel-cut flex flex-col items-center gap-3 bg-ink-deep/90 px-6 py-4">
                 <div className="text-sm text-cream/80">
-                  Back in <span className="font-display text-xl text-gold">{Math.ceil(hud.respawnIn)}</span> · come back as:
+                  Back in{' '}
+                  <span className="font-display text-xl text-gold">{Math.ceil(hud.respawnIn)}</span>{' '}
+                  · come back as:
                 </div>
                 <div className="flex gap-2">
                   {ROSTER.map((r, n) => {
@@ -476,7 +570,9 @@ export const ArenaGame = ({
           {dropLeft !== null && !rivalLeft && (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-ink-deep/70">
               <div className="panel-cut flex w-[26rem] flex-col items-center gap-3 bg-ink p-7 text-center">
-                <div className="font-display text-2xl text-gold">Your rival&apos;s connection dropped</div>
+                <div className="font-display text-2xl text-gold">
+                  Your rival&apos;s connection dropped
+                </div>
                 <p className="text-sm text-cream/70">
                   The game is on hold while they reconnect:{' '}
                   <span className="font-display text-cream">{Math.max(0, dropLeft)}s</span>
@@ -502,14 +598,24 @@ export const ArenaGame = ({
                 ) : (
                   <>
                     <div className="font-display text-2xl text-gold">Pause requested</div>
-                    <p className="text-sm text-cream/70">Waiting for your rival to pause too. The game keeps going until they do.</p>
-                    <button type="button" onClick={closeMenu} className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                    <p className="text-sm text-cream/70">
+                      Waiting for your rival to pause too. The game keeps going until they do.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={closeMenu}
+                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                    >
                       Keep playing
                     </button>
                   </>
                 )}
                 <SoundSliders game={gameRef.current} />
-                <button type="button" onClick={exit} className="panel-cut w-full bg-orange/90 px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                <button
+                  type="button"
+                  onClick={exit}
+                  className="panel-cut w-full bg-orange/90 px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                >
                   Exit match
                 </button>
               </div>
@@ -522,8 +628,13 @@ export const ArenaGame = ({
                 {expired ? (
                   <>
                     <div className="font-display text-3xl text-orange">Link expired</div>
-                    <p className="text-sm text-cream/70">Your rival didn&apos;t come back. Start a new match and send a new link.</p>
-                    <Link href="/play" className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                    <p className="text-sm text-cream/70">
+                      Your rival didn&apos;t come back. Start a new match and send a new link.
+                    </p>
+                    <Link
+                      href="/play"
+                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                    >
                       New match
                     </Link>
                   </>
@@ -535,10 +646,18 @@ export const ArenaGame = ({
                         ? `Wait one more minute? This is the last one: after it the link expires.`
                         : `Keep waiting another minute for your rival?`}
                     </p>
-                    <button type="button" onClick={keepWaiting} className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                    <button
+                      type="button"
+                      onClick={keepWaiting}
+                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                    >
                       {waitRound + 1 >= MAX_WAITS ? 'Wait (last time)' : 'Keep waiting'}
                     </button>
-                    <button type="button" onClick={exit} className="panel-cut w-full bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={exit}
+                      className="panel-cut w-full bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider"
+                    >
                       Leave
                     </button>
                   </>
@@ -552,10 +671,18 @@ export const ArenaGame = ({
                         {Math.floor(waitLeft / 60)}:{String(waitLeft % 60).padStart(2, '0')}
                       </span>
                     </p>
-                    <button type="button" onClick={copyInvite} className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep">
+                    <button
+                      type="button"
+                      onClick={copyInvite}
+                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                    >
                       {linkCopied ? 'Link copied' : 'Copy the link again'}
                     </button>
-                    <button type="button" onClick={exit} className="panel-cut w-full bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider">
+                    <button
+                      type="button"
+                      onClick={exit}
+                      className="panel-cut w-full bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider"
+                    >
                       Leave
                     </button>
                   </>
@@ -568,42 +695,88 @@ export const ArenaGame = ({
             <div className="absolute inset-0 z-30 flex animate-[fadeIn_0.6s_ease-out] items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.75),rgba(10,13,24,0.95))] px-6 backdrop-blur-sm">
               <div className="flex w-full max-w-3xl flex-col gap-7">
                 <div className="flex flex-col gap-2">
-                  <span className={`text-xs font-bold tracking-[0.35em] ${hud.winner === 0 && !demo ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}>
-                    {hud.winner === 0 && !demo ? 'CONFLICT RESOLVED · YOUR WAY' : hud.winner === null || hud.winner === -1 ? 'STILL CONFLICTED' : 'CONFLICT RESOLVED · THEIR WAY'}
+                  <span
+                    className={`text-xs font-bold tracking-[0.35em] ${hud.winner === 0 && !demo ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
+                  >
+                    {hud.winner === 0 && !demo
+                      ? 'CONFLICT RESOLVED · YOUR WAY'
+                      : hud.winner === null || hud.winner === -1
+                        ? 'STILL CONFLICTED'
+                        : 'CONFLICT RESOLVED · THEIR WAY'}
                   </span>
-                  <h2 className="font-display text-5xl leading-none text-gold sm:text-6xl">{end.title}</h2>
+                  <h2 className="font-display text-5xl leading-none text-gold sm:text-6xl">
+                    {end.title}
+                  </h2>
                   <p className="text-lg text-cream/75">{end.sub}</p>
                 </div>
 
                 {/* You against them, stat by stat; the better number lights up. */}
                 <div className="panel-cut grid grid-cols-[1fr_auto_1fr] items-center gap-x-6 gap-y-3 bg-ink/90 p-6">
-                  <span className="font-display text-2xl" style={{ color: accent(hud.fighters[0].character) }}>
-                    {hud.fighters[0].name} <span className="text-xs text-cream/50">{demo ? 'BOT' : 'YOU'}</span>
+                  <span
+                    className="font-display text-2xl"
+                    style={{ color: accent(hud.fighters[0].character) }}
+                  >
+                    {hud.fighters[0].name}{' '}
+                    <span className="text-xs text-cream/50">{demo ? 'BOT' : 'YOU'}</span>
                   </span>
                   <span />
-                  <span className="text-right font-display text-2xl" style={{ color: accent(hud.fighters[1].character) }}>
-                    {hud.fighters[1].name} <span className="text-xs text-cream/50">{online ? 'RIVAL' : 'BOT'}</span>
+                  <span
+                    className="text-right font-display text-2xl"
+                    style={{ color: accent(hud.fighters[1].character) }}
+                  >
+                    {hud.fighters[1].name}{' '}
+                    <span className="text-xs text-cream/50">{online ? 'RIVAL' : 'BOT'}</span>
                   </span>
                   {(
                     [
                       ['KOs', hud.fighters[0].kos, hud.fighters[1].kos, ''],
-                      ['Damage dealt', hud.fighters[0].stats.damage, hud.fighters[1].stats.damage, ''],
-                      ['Accuracy', hud.fighters[0].stats.accuracy, hud.fighters[1].stats.accuracy, '%'],
-                      ['Best streak', hud.fighters[0].stats.bestStreak, hud.fighters[1].stats.bestStreak, ''],
-                      ['Times down', hud.fighters[0].stats.deaths, hud.fighters[1].stats.deaths, ''],
+                      [
+                        'Damage dealt',
+                        hud.fighters[0].stats.damage,
+                        hud.fighters[1].stats.damage,
+                        '',
+                      ],
+                      [
+                        'Accuracy',
+                        hud.fighters[0].stats.accuracy,
+                        hud.fighters[1].stats.accuracy,
+                        '%',
+                      ],
+                      [
+                        'Best streak',
+                        hud.fighters[0].stats.bestStreak,
+                        hud.fighters[1].stats.bestStreak,
+                        '',
+                      ],
+                      [
+                        'Times down',
+                        hud.fighters[0].stats.deaths,
+                        hud.fighters[1].stats.deaths,
+                        '',
+                      ],
                     ] as const
                   ).map(([label, a, b, unit], row) => {
                     const lowerWins = label === 'Times down';
                     const aWins = lowerWins ? a < b : a > b;
                     const bWins = lowerWins ? b < a : b > a;
                     return (
-                      <div key={label} className="contents animate-[riseIn_0.5s_ease-out_both]" style={{ animationDelay: `${0.2 + row * 0.07}s` }}>
-                        <span className={`font-display text-3xl tabular-nums ${aWins ? 'text-gold' : 'text-cream/70'}`}>
+                      <div
+                        key={label}
+                        className="contents animate-[riseIn_0.5s_ease-out_both]"
+                        style={{ animationDelay: `${0.2 + row * 0.07}s` }}
+                      >
+                        <span
+                          className={`font-display text-3xl tabular-nums ${aWins ? 'text-gold' : 'text-cream/70'}`}
+                        >
                           {a}
                           {unit}
                         </span>
-                        <span className="text-center text-[11px] font-semibold uppercase tracking-widest text-cream/50">{label}</span>
-                        <span className={`text-right font-display text-3xl tabular-nums ${bWins ? 'text-gold' : 'text-cream/70'}`}>
+                        <span className="text-center text-[11px] font-semibold uppercase tracking-widest text-cream/50">
+                          {label}
+                        </span>
+                        <span
+                          className={`text-right font-display text-3xl tabular-nums ${bWins ? 'text-gold' : 'text-cream/70'}`}
+                        >
                           {b}
                           {unit}
                         </span>
@@ -614,7 +787,9 @@ export const ArenaGame = ({
 
                 {online && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs uppercase tracking-widest text-cream/50">Next round as</span>
+                    <span className="text-xs uppercase tracking-widest text-cream/50">
+                      Next round as
+                    </span>
                     {ROSTER.map((r) => {
                       const chosen = (hud.nextCharacter ?? hud.character) === r.id;
                       return (
@@ -639,14 +814,25 @@ export const ArenaGame = ({
                     disabled={rematchAsked}
                     className="panel-cut bg-gold px-10 py-4 font-display text-xl uppercase text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.3)] hover:brightness-110 disabled:opacity-60"
                   >
-                    {rematchAsked ? 'Waiting for rival…' : touch ? 'Rematch →' : 'Rematch (Enter) →'}
+                    {rematchAsked
+                      ? 'Waiting for rival…'
+                      : touch
+                        ? 'Rematch →'
+                        : 'Rematch (Enter) →'}
                   </button>
                   {online ? (
-                    <button type="button" onClick={exit} className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20">
+                    <button
+                      type="button"
+                      onClick={exit}
+                      className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20"
+                    >
                       Back to lobby
                     </button>
                   ) : (
-                    <Link href="/characters" className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20">
+                    <Link
+                      href="/characters"
+                      className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20"
+                    >
                       Change fighter
                     </Link>
                   )}
@@ -657,9 +843,15 @@ export const ArenaGame = ({
 
           {!demo && !touch && <Controls aim={hud.aimMode} />}
           {!demo && touch && hud.phase !== 'over' && !rivalLeft && !menuOpen && !hud.paused && (
-            <TouchControls press={(b, on) => gameRef.current?.touch(b, on)} onPause={openMenu} ready={{ dash: hud.fighters[0].dash, push: hud.fighters[0].push }} />
+            <TouchControls
+              press={(b, on) => gameRef.current?.touch(b, on)}
+              onPause={openMenu}
+              ready={{ dash: hud.fighters[0].dash, push: hud.fighters[0].push }}
+            />
           )}
-          <div className={`absolute flex items-center gap-3 text-[10px] text-cream/50 ${touch ? 'right-3 top-20' : 'bottom-3 right-3'}`}>
+          <div
+            className={`absolute flex items-center gap-3 text-[10px] text-cream/50 ${touch ? 'right-3 top-20' : 'bottom-3 right-3'}`}
+          >
             {!demo && !touch && (
               <button
                 type="button"
@@ -679,7 +871,13 @@ export const ArenaGame = ({
               Shake: {hud.motion ? 'on' : 'off'}
             </button>
             {hud.ping !== null && (
-              <span title={hud.direct ? 'Playing over a direct line to your rival' : 'Playing through the game server'}>
+              <span
+                title={
+                  hud.direct
+                    ? 'Playing over a direct line to your rival'
+                    : 'Playing through the game server'
+                }
+              >
                 {hud.direct ? 'direct' : 'server'} · {hud.ping} ms
               </span>
             )}

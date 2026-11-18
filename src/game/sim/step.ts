@@ -1,7 +1,28 @@
-import { ARENA, BOMB, CHARACTERS, DT, GRENADE, GUNS, PHYS, PUSH, RULES, WALL_SPLAT_DAMAGE, WALL_SPLAT_SPEED } from './constants';
+import {
+  ARENA,
+  BOMB,
+  CHARACTERS,
+  DT,
+  GRENADE,
+  GUNS,
+  PHYS,
+  PUSH,
+  RULES,
+  WALL_SPLAT_DAMAGE,
+  WALL_SPLAT_SPEED,
+} from './constants';
 import { EMPTY_INPUT } from './types';
 
-import type { CharacterId, Fighter, GameState, GunKind, InputState, Pickup, Projectile, Weapon } from './types';
+import type {
+  CharacterId,
+  Fighter,
+  GameState,
+  GunKind,
+  InputState,
+  Pickup,
+  Projectile,
+  Weapon,
+} from './types';
 
 const approach = (v: number, target: number, delta: number) =>
   v < target ? Math.min(v + delta, target) : Math.max(v - delta, target);
@@ -61,6 +82,7 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     pushed: 0,
     respawn: 0,
     invulnerable: 0,
+    sinceHit: 0,
     weapon: newWeapon('pistol'),
     stash: null,
     nextCharacter: null,
@@ -84,7 +106,16 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1): Ga
     spawn: i,
   }));
   for (let i = 0; i < ARENA.dropSlots; i++) {
-    pickups.push({ id: pickups.length, kind: 'smg', x: 0, y: ARENA.ceiling, vy: 0, active: false, respawn: Infinity, spawn: null });
+    pickups.push({
+      id: pickups.length,
+      kind: 'smg',
+      x: 0,
+      y: ARENA.ceiling,
+      vy: 0,
+      active: false,
+      respawn: Infinity,
+      spawn: null,
+    });
   }
   const state: GameState = {
     tick: 0,
@@ -110,7 +141,9 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1): Ga
 
 /** Put a fighter on a random spawn point, preferring ones far from everyone else. */
 const placeAtSpawn = (state: GameState, f: Fighter) => {
-  const others = state.fighters.filter((o) => o !== f && o.respawn <= 0 && (o.x !== 0 || o.y !== 0));
+  const others = state.fighters.filter(
+    (o) => o !== f && o.respawn <= 0 && (o.x !== 0 || o.y !== 0),
+  );
   const scored = ARENA.spawns.map((p) => ({
     p,
     d: others.length ? Math.min(...others.map((o) => Math.hypot(o.x - p.x, o.y - p.y))) : 99,
@@ -161,6 +194,7 @@ const respawnFighter = (state: GameState, f: Fighter) => {
     weapon: newWeapon('pistol'),
     stash: null,
     invulnerable: RULES.spawnInvulnerable,
+    sinceHit: 0,
     lastHitBy: null,
   });
 };
@@ -172,7 +206,10 @@ const knockOut = (state: GameState, f: Fighter) => {
   state.events.push({ type: 'ko', fighter: f.id, by: f.lastHitBy, x: f.x, y: f.y + 1 });
   state.hitstop = 9;
   if (state.phase !== 'fight') return;
-  const scorerId = f.lastHitBy !== null && f.lastHitBy !== f.id ? f.lastHitBy : state.fighters.find((o) => o.id !== f.id)?.id;
+  const scorerId =
+    f.lastHitBy !== null && f.lastHitBy !== f.id
+      ? f.lastHitBy
+      : state.fighters.find((o) => o.id !== f.id)?.id;
   if (scorerId === undefined) return;
   const scorer = state.fighters[scorerId];
   scorer.kos += 1;
@@ -207,6 +244,7 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
   if (k > 6) target.onGround = false;
   target.stun = Math.max(target.stun, k > 6 ? 0.06 + k * 0.012 : 0);
   target.hp -= hit.damage;
+  if (hit.damage > 0) target.sinceHit = 0;
   if (hit.attacker !== target.id) {
     target.lastHitBy = hit.attacker;
     const a = state.fighters[hit.attacker];
@@ -217,7 +255,14 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
     }
   }
   if (hit.push) target.pushed = 0.6;
-  state.events.push({ type: 'hit', fighter: target.id, x: target.x, y: target.y + c.height * 0.6, power: k, damage: hit.damage });
+  state.events.push({
+    type: 'hit',
+    fighter: target.id,
+    x: target.x,
+    y: target.y + c.height * 0.6,
+    power: k,
+    damage: hit.damage,
+  });
   if (k > 10) state.hitstop = Math.max(state.hitstop, Math.min(6, Math.round(k * 0.25)));
   if (target.hp <= 0) knockOut(state, target);
   return true;
@@ -238,7 +283,8 @@ const explode = (state: GameState, p: Projectile) => {
     const d = Math.hypot(nx - p.x, ny - p.y);
     if (d > blast.radius) continue;
     // Near the blast is lethal; the edge still hurts.
-    const falloff = p.kind === 'bomb' ? Math.max(0.15, 1 - d / blast.radius) : 0.5 + 0.5 * (1 - d / blast.radius);
+    const falloff =
+      p.kind === 'bomb' ? Math.max(0.15, 1 - d / blast.radius) : 0.5 + 0.5 * (1 - d / blast.radius);
     const self = o.id === p.owner ? blast.selfDamage : 1;
     applyHit(state, o, {
       attacker: p.owner,
@@ -265,7 +311,8 @@ const fire = (state: GameState, f: Fighter) => {
   const m = muzzle(f);
   for (let i = 0; i < g.pellets; i++) {
     let angle = f.aim + (nextRandom(state) - 0.5) * 2 * g.spread;
-    if (g.projectile === 'bomb') angle = lobAngle(m.x, m.y, f.aimTx, f.aimTy, g.speed, BOMB.gravity);
+    if (g.projectile === 'bomb')
+      angle = lobAngle(m.x, m.y, f.aimTx, f.aimTy, g.speed, BOMB.gravity);
     const speed = g.speed * (g.pellets > 1 ? 0.85 + nextRandom(state) * 0.3 : 1);
     state.projectiles.push({
       id: state.nextId++,
@@ -287,7 +334,14 @@ const fire = (state: GameState, f: Fighter) => {
   f.vx -= Math.cos(f.aim) * g.recoil;
   if (!f.onGround) f.vy -= Math.sin(f.aim) * g.recoil * 0.6;
   f.firing = 0;
-  state.events.push({ type: 'shot', fighter: f.id, gun: f.weapon.kind, x: m.x, y: m.y, angle: f.aim });
+  state.events.push({
+    type: 'shot',
+    fighter: f.id,
+    gun: f.weapon.kind,
+    x: m.x,
+    y: m.y,
+    angle: f.aim,
+  });
   f.stats.shots += 1;
 };
 
@@ -296,7 +350,8 @@ export const pickupCandidate = (state: GameState, f: Fighter): Pickup | null => 
   const c = CHARACTERS[f.character];
   for (const p of state.pickups) {
     if (!p.active) continue;
-    if (Math.abs(p.x - f.x) < c.width / 2 + 0.6 && p.y > f.y - 0.6 && p.y < f.y + c.height) return p;
+    if (Math.abs(p.x - f.x) < c.width / 2 + 0.6 && p.y > f.y - 0.6 && p.y < f.y + c.height)
+      return p;
   }
   return null;
 };
@@ -367,10 +422,21 @@ const updatePush = (state: GameState, f: Fighter) => {
   for (const o of state.fighters) {
     if (o.id === f.id || f.pushHit.includes(o.id)) continue;
     const oc = CHARACTERS[o.character];
-    const overlap = o.x + oc.width / 2 > x0 && o.x - oc.width / 2 < x1 && o.y + oc.height > cy - PUSH.span / 2 && o.y < cy + PUSH.span / 2;
+    const overlap =
+      o.x + oc.width / 2 > x0 &&
+      o.x - oc.width / 2 < x1 &&
+      o.y + oc.height > cy - PUSH.span / 2 &&
+      o.y < cy + PUSH.span / 2;
     if (!overlap) continue;
     f.pushHit.push(o.id);
-    applyHit(state, o, { attacker: f.id, dx: f.facing, dy: PUSH.lift, damage: PUSH.damage, knockback: PUSH.knockback, push: true });
+    applyHit(state, o, {
+      attacker: f.id,
+      dx: f.facing,
+      dy: PUSH.lift,
+      damage: PUSH.damage,
+      knockback: PUSH.knockback,
+      push: true,
+    });
   }
   // Force Push also sends enemy shots back where they came from.
   for (const p of state.projectiles) {
@@ -399,6 +465,10 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   f.pushCooldown = Math.max(0, f.pushCooldown - DT);
   f.pushed = Math.max(0, f.pushed - DT);
   f.invulnerable = Math.max(0, f.invulnerable - DT);
+  // Out of the fight for a while, you heal: an old wound no longer makes the next hit a KO.
+  f.sinceHit += DT;
+  if (f.respawn <= 0 && f.hp > 0 && f.sinceHit >= RULES.regenAfter)
+    f.hp = Math.min(CHARACTERS[f.character].hp, f.hp + RULES.regenPerSecond * DT);
 
   if (f.respawn > 0) {
     f.respawn -= DT;
@@ -480,7 +550,8 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   const near = canAct ? pickupCandidate(state, f) : null;
   // Only a pistol: walk over a gun to take it. Bombs are always picked up. Otherwise press E or R to swap.
   const swap = pressed('pickup') || pressed('reload');
-  if (near && (swap || f.weapon.kind === 'pistol' || near.kind === 'bomb')) takePickup(state, f, near);
+  if (near && (swap || f.weapon.kind === 'pistol' || near.kind === 'bomb'))
+    takePickup(state, f, near);
 
   updateWeapon(state, f, input, canAct);
   updatePush(state, f);
@@ -617,7 +688,9 @@ const updateProjectiles = (state: GameState) => {
       // Damage falls off with the distance the shot travelled.
       const fo = GUNS[p.gun].falloff;
       const travelled = Math.hypot(o.x - p.ox, o.y + oc.height / 2 - p.oy);
-      const scale = fo ? 1 - (1 - fo.min) * Math.min(1, Math.max(0, (travelled - fo.near) / (fo.far - fo.near))) : 1;
+      const scale = fo
+        ? 1 - (1 - fo.min) * Math.min(1, Math.max(0, (travelled - fo.near) / (fo.far - fo.near)))
+        : 1;
       const landed = applyHit(state, o, {
         attacker: p.owner,
         dx: p.vx,
@@ -642,7 +715,16 @@ const updateProjectiles = (state: GameState) => {
 };
 
 /** Liang–Barsky style test: does the segment touch the box? */
-const segmentHitsBox = (ax: number, ay: number, bx: number, by: number, x0: number, y0: number, x1: number, y1: number) => {
+const segmentHitsBox = (
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+) => {
   let t0 = 0;
   let t1 = 1;
   const dx = bx - ax;

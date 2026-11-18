@@ -396,3 +396,24 @@ describe('bot', () => {
     expect(play()).toEqual(play());
   });
 });
+
+describe('healing', () => {
+  it('a few seconds after the last hit, health slowly comes back (a wound does not stay forever)', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, 8);
+    const f = s.fighters[0];
+    f.hp = 50;
+    f.sinceHit = 0;
+    const idle = (secs: number) => {
+      for (let i = 0; i < secs / DT; i++) step(s, [{ ...EMPTY_INPUT }, { ...EMPTY_INPUT }]);
+    };
+    idle(RULES.regenAfter - 0.5);
+    expect(f.hp).toBe(50); // not yet
+    idle(1.5);
+    expect(f.hp).toBeGreaterThan(50);
+    expect(f.hp).toBeLessThan(100); // slowly
+    idle(5);
+    expect(f.hp).toBe(CHARACTERS[f.character].hp);
+  });
+});

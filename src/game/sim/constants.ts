@@ -2,7 +2,15 @@ import type { CharacterId, GunKind } from './types';
 
 export const DT = 1 / 60;
 
-export type PlatformStyle = 'desk' | 'table' | 'counter' | 'fridge' | 'shelf' | 'cabinet' | 'walkway' | 'tray';
+export type PlatformStyle =
+  | 'desk'
+  | 'table'
+  | 'counter'
+  | 'fridge'
+  | 'shelf'
+  | 'cabinet'
+  | 'walkway'
+  | 'tray';
 
 export interface Platform {
   x0: number;
@@ -20,9 +28,14 @@ export interface Platform {
  * The power weapons live on the mezzanine instead (POWER_TABLE), so every match sees them.
  */
 export const GUN_TABLE: GunKind[] = [
-  'smg', 'smg', 'smg',
-  'shotgun', 'shotgun', 'shotgun',
-  'uzi', 'uzi',
+  'smg',
+  'smg',
+  'smg',
+  'shotgun',
+  'shotgun',
+  'shotgun',
+  'uzi',
+  'uzi',
 ];
 
 /** The top floor only ever offers a power weapon: worth the climb, six shots, then it's gone. */
@@ -65,9 +78,48 @@ export const ARENA = {
    * Taking it starts a timer before the next one appears. The kind is drawn from GUN_TABLE.
    */
   gunSpawns: [
-    { spots: [{ x: 0, y: 1.0 }, { x: -8, y: 1.1 }, { x: 16.9, y: 2.8 }], kinds: GUN_TABLE },
-    { spots: [{ x: -5.4, y: 4.4 }, { x: 5.4, y: 4.4 }, { x: 0, y: 7.2 }], kinds: GUN_TABLE },
-    { spots: [{ x: -15, y: 9.4 }, { x: 15, y: 9.4 }, { x: 0, y: 10.6 }], kinds: POWER_TABLE, respawn: 30 },
+    {
+      spots: [
+        { x: 0, y: 1.0 },
+        { x: -8, y: 1.1 },
+        { x: 16.9, y: 2.8 },
+      ],
+      kinds: GUN_TABLE,
+    },
+    {
+      spots: [
+        { x: -5.4, y: 4.4 },
+        { x: 5.4, y: 4.4 },
+        { x: 0, y: 7.2 },
+      ],
+      kinds: GUN_TABLE,
+    },
+    // A second gun on the two lower floors, near the other spawns.
+    {
+      spots: [
+        { x: -13, y: 1.1 },
+        { x: 10.5, y: 1.2 },
+        { x: 4, y: 1.0 },
+      ],
+      kinds: GUN_TABLE,
+    },
+    {
+      spots: [
+        { x: -7.5, y: 4.4 },
+        { x: 7.5, y: 4.4 },
+      ],
+      kinds: GUN_TABLE,
+    },
+    // The top floor's power weapon stays last (tests and the HUD count on it).
+    {
+      spots: [
+        { x: -15, y: 9.4 },
+        { x: 15, y: 9.4 },
+        { x: 0, y: 10.6 },
+      ],
+      kinds: POWER_TABLE,
+      respawn: 15,
+    },
   ] as { spots: { x: number; y: number }[]; kinds: GunKind[]; respawn?: number }[],
   /** Bombs fall from the ceiling vents now and then. */
   dropEvery: 18,
@@ -82,7 +134,11 @@ export const RULES = {
   countdownSeconds: 2.4,
   respawnSeconds: 3,
   spawnInvulnerable: 1.4,
-  gunRespawn: 15,
+  /** A taken gun comes back this soon, so whoever just respawned finds one quickly. */
+  gunRespawn: 6,
+  /** Untouched for this long, health refills at this rate (a hit is ~50: back in ~3 s). */
+  regenAfter: 4,
+  regenPerSecond: 15,
 };
 
 export const PHYS = {
@@ -114,10 +170,46 @@ export interface CharacterStats {
 }
 
 export const CHARACTERS: Record<CharacterId, CharacterStats> = {
-  hotfix: { name: 'Hotfix', speed: 9.4, jump: 16.5, weight: 0.92, hp: 100, height: 2.0, width: 0.7, airJumps: 1 },
-  legacy: { name: 'Legacy', speed: 7.6, jump: 15.2, weight: 1.38, hp: 100, height: 1.85, width: 1.0, airJumps: 1 },
-  standup: { name: 'Standup', speed: 10.6, jump: 17, weight: 0.8, hp: 100, height: 1.5, width: 0.7, airJumps: 2 },
-  intern: { name: 'Intern', speed: 9.0, jump: 16.2, weight: 1.0, hp: 100, height: 1.7, width: 0.8, airJumps: 1 },
+  hotfix: {
+    name: 'Hotfix',
+    speed: 9.4,
+    jump: 16.5,
+    weight: 0.92,
+    hp: 100,
+    height: 2.0,
+    width: 0.7,
+    airJumps: 1,
+  },
+  legacy: {
+    name: 'Legacy',
+    speed: 7.6,
+    jump: 15.2,
+    weight: 1.38,
+    hp: 100,
+    height: 1.85,
+    width: 1.0,
+    airJumps: 1,
+  },
+  standup: {
+    name: 'Standup',
+    speed: 10.6,
+    jump: 17,
+    weight: 0.8,
+    hp: 100,
+    height: 1.5,
+    width: 0.7,
+    airJumps: 2,
+  },
+  intern: {
+    name: 'Intern',
+    speed: 9.0,
+    jump: 16.2,
+    weight: 1.0,
+    hp: 100,
+    height: 1.7,
+    width: 0.8,
+    airJumps: 1,
+  },
 };
 
 export interface GunStats {
@@ -147,13 +239,122 @@ export interface GunStats {
  * The rocket and the rail always kill in one, which is why they are rare.
  */
 export const GUNS: Record<GunKind, GunStats> = {
-  pistol: { name: 'Pistol', rate: 0.38, mag: 8, reserve: Infinity, reloadTime: 1, damage: 50, knockback: 4, speed: 30, spread: 0.02, pellets: 1, life: 1.3, projectile: 'bullet', recoil: 0, carry: 1, falloff: { near: 6, far: 20, min: 0.5 } },
-  smg: { name: 'SMG', rate: 0.11, mag: 20, reserve: 40, reloadTime: 1.4, damage: 34, knockback: 2.5, speed: 32, spread: 0.1, pellets: 1, life: 1, projectile: 'bullet', recoil: 0.4, carry: 0.97, falloff: { near: 5, far: 16, min: 0.5 } },
-  uzi: { name: 'Uzi', rate: 0.055, mag: 32, reserve: 32, reloadTime: 1.2, damage: 12, knockback: 1.2, speed: 30, spread: 0.15, pellets: 1, life: 0.8, projectile: 'bullet', recoil: 0.2, carry: 1, falloff: { near: 4, far: 12, min: 0.5 } },
-  shotgun: { name: 'Shotgun', rate: 0.9, mag: 4, reserve: 8, reloadTime: 1.5, damage: 20, knockback: 4, speed: 28, spread: 0.26, pellets: 6, life: 0.32, projectile: 'pellet', recoil: 7, carry: 0.93, falloff: { near: 2, far: 7, min: 0.4 } },
-  railgun: { name: 'Sniper rail', rate: 1.4, mag: 3, reserve: 3, reloadTime: 1.8, damage: 100, knockback: 14, speed: 160, spread: 0, pellets: 1, life: 0.35, projectile: 'rail', recoil: 9, carry: 0.88 },
-  launcher: { name: 'Rockets', rate: 1.1, mag: 2, reserve: 4, reloadTime: 1.1, damage: 110, knockback: 22, speed: 22, spread: 0.01, pellets: 1, life: 2.2, projectile: 'grenade', recoil: 4, carry: 0.88 },
-  bomb: { name: 'Bomb', rate: 0.5, mag: 1, reserve: 0, reloadTime: 1, damage: 110, knockback: 20, speed: 16, spread: 0, pellets: 1, life: 1.8, projectile: 'bomb', recoil: 0, carry: 1 },
+  pistol: {
+    name: 'Pistol',
+    rate: 0.38,
+    mag: 8,
+    reserve: Infinity,
+    reloadTime: 1,
+    damage: 50,
+    knockback: 4,
+    speed: 30,
+    spread: 0.02,
+    pellets: 1,
+    life: 1.3,
+    projectile: 'bullet',
+    recoil: 0,
+    carry: 1,
+    falloff: { near: 6, far: 20, min: 0.5 },
+  },
+  smg: {
+    name: 'SMG',
+    rate: 0.11,
+    mag: 20,
+    reserve: 40,
+    reloadTime: 1.4,
+    damage: 34,
+    knockback: 2.5,
+    speed: 32,
+    spread: 0.1,
+    pellets: 1,
+    life: 1,
+    projectile: 'bullet',
+    recoil: 0.4,
+    carry: 0.97,
+    falloff: { near: 5, far: 16, min: 0.5 },
+  },
+  uzi: {
+    name: 'Uzi',
+    rate: 0.055,
+    mag: 32,
+    reserve: 32,
+    reloadTime: 1.2,
+    damage: 12,
+    knockback: 1.2,
+    speed: 30,
+    spread: 0.15,
+    pellets: 1,
+    life: 0.8,
+    projectile: 'bullet',
+    recoil: 0.2,
+    carry: 1,
+    falloff: { near: 4, far: 12, min: 0.5 },
+  },
+  shotgun: {
+    name: 'Shotgun',
+    rate: 0.9,
+    mag: 4,
+    reserve: 8,
+    reloadTime: 1.5,
+    damage: 20,
+    knockback: 4,
+    speed: 28,
+    spread: 0.26,
+    pellets: 6,
+    life: 0.32,
+    projectile: 'pellet',
+    recoil: 7,
+    carry: 0.93,
+    falloff: { near: 2, far: 7, min: 0.4 },
+  },
+  railgun: {
+    name: 'Sniper rail',
+    rate: 1.4,
+    mag: 3,
+    reserve: 3,
+    reloadTime: 1.8,
+    damage: 100,
+    knockback: 14,
+    speed: 160,
+    spread: 0,
+    pellets: 1,
+    life: 0.35,
+    projectile: 'rail',
+    recoil: 9,
+    carry: 0.88,
+  },
+  launcher: {
+    name: 'Rockets',
+    rate: 1.1,
+    mag: 2,
+    reserve: 4,
+    reloadTime: 1.1,
+    damage: 110,
+    knockback: 22,
+    speed: 22,
+    spread: 0.01,
+    pellets: 1,
+    life: 2.2,
+    projectile: 'grenade',
+    recoil: 4,
+    carry: 0.88,
+  },
+  bomb: {
+    name: 'Bomb',
+    rate: 0.5,
+    mag: 1,
+    reserve: 0,
+    reloadTime: 1,
+    damage: 110,
+    knockback: 20,
+    speed: 16,
+    spread: 0,
+    pellets: 1,
+    life: 1.8,
+    projectile: 'bomb',
+    recoil: 0,
+    carry: 1,
+  },
 };
 
 export const GRENADE = { gravity: 0, radius: 2.8, selfDamage: 0.45 };
