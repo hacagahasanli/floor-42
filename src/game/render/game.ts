@@ -113,15 +113,20 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const arena = buildArena(scene, state.pickups.length);
   const vfx = createVfx(scene);
 
-  /** A soft fill light that rides in front of each fighter: they stand out from the room. */
-  const fighterLight = () => {
-    const l = new THREE.PointLight(0xfff4e6, 5, 4.5, 1.6);
-    l.position.set(0, 1.4, 1.6);
+  /**
+   * A soft fill light that rides in front of each fighter: they stand out from the room.
+   * Every light lives in the scene for the whole match and is never hidden, only dimmed: three.js
+   * recompiles every lit material when the number of visible lights changes, which froze the game
+   * for 100+ ms (far more on phones) the moment a fighter was knocked out or the first rocket flew.
+   */
+  const FILL = 5;
+  const fillLights = state.fighters.map(() => {
+    const l = new THREE.PointLight(0xfff4e6, FILL, 4.5, 1.6);
+    scene.add(l);
     return l;
-  };
+  });
   const rigs: Rig[] = state.fighters.map((f) => {
     const rig = buildRig(f.character);
-    rig.root.add(fighterLight());
     scene.add(rig.root);
     return rig;
   });
@@ -132,7 +137,6 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     scene.remove(rigs[i].root);
     rigs[i].root.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
     rigs[i] = buildRig(character);
-    rigs[i].root.add(fighterLight());
     scene.add(rigs[i].root);
     rigCharacters[i] = character;
   };
@@ -230,10 +234,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     flame.position.x = -0.52;
     const core = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.22, 8).rotateZ(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xfff3c4 }));
     core.position.x = -0.43;
-    const light = new THREE.PointLight(0xff9a3c, 2.5, 5);
-    light.position.x = -0.5;
-    g.add(flame, core, light);
+    g.add(flame, core);
     g.userData.flame = flame;
+    // The engine glow: in the scene, never hidden (see FILL above), dark while the rocket is unused.
+    const light = new THREE.PointLight(0xff9a3c, 0, 5);
+    scene.add(light);
+    g.userData.light = light;
     g.scale.setScalar(1.5); // big enough to read across the whole office
     g.visible = false;
     scene.add(g);
@@ -655,6 +661,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       }
     });
     if (opts.demo) aimLine.visible = false;
+    rigs.forEach((rig, i) => {
+      const l = fillLights[i];
+      l.position.set(rig.root.position.x, rig.root.position.y + 1.4, 1.6);
+      l.intensity = rig.root.visible ? FILL : 0;
+    });
 
     state.pickups.forEach((p, i) => {
       const v = pickupFor(i, p.kind);
@@ -696,6 +707,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         m.position.set(x, y, 0.1);
         m.rotation.set(Math.sin(time * 20) * 0.3, 0, Math.atan2(p.vy, p.vx));
         (m.userData.flame as THREE.Mesh).scale.set(0.8 + Math.random() * 0.5, 1, 1);
+        const glow = m.userData.light as THREE.PointLight;
+        const ra = Math.atan2(p.vy, p.vx);
+        glow.position.set(x - Math.cos(ra) * 0.75, y - Math.sin(ra) * 0.75, 0.1);
+        glow.intensity = 2.5;
         if (smokeTick) {
           const a = Math.atan2(p.vy, p.vx);
           vfx.burst(x - Math.cos(a) * 0.6, y - Math.sin(a) * 0.6, 1, 'dust', { speed: 0.5, up: 0.4, gravity: -0.4, life: 0.8, size: 0.9 });
@@ -720,7 +735,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     }
     for (; t < tracers.length; t++) tracers[t].visible = false;
     for (; gr < grenades.length; gr++) grenades[gr].visible = false;
-    for (; rk < rockets.length; rk++) rockets[rk].visible = false;
+    for (; rk < rockets.length; rk++) {
+      rockets[rk].visible = false;
+      (rockets[rk].userData.light as THREE.PointLight).intensity = 0;
+    }
     for (const b of beams) {
       b.life = Math.max(0, b.life - dt);
       b.mesh.visible = b.life > 0;
@@ -860,10 +878,40 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     }
     raf = requestAnimationFrame(frame);
   };
+  // Compile every shader the match can need now, before the first frame, instead of on the first
+  // gunshot, rocket, hit flash or knockout mid-fight (each new program stalls the GPU process, a
+  // visible freeze on phones): show every pooled object once, plus every gun and fighter model,
+  // compile, then put things back.
+  const prewarm = () => {
+    const extra = new THREE.Group();
+    (Object.keys(GUNS) as GunKind[]).forEach((k) => extra.add(buildGun(k).root));
+    (Object.keys(CHARACTERS) as CharacterId[]).forEach((c) => extra.add(buildRig(c).root));
+    extra.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), WHITE));
+    scene.add(extra);
+    const numberMat = numbers[0].sprite.material as THREE.SpriteMaterial;
+    numberMat.map = texFor('-50', '#ff3d6e');
+    numberMat.needsUpdate = true;
+    const hidden: THREE.Object3D[] = [];
+    scene.traverse((o) => {
+      if (!o.visible) {
+        hidden.push(o);
+        o.visible = true;
+      }
+    });
+    try {
+      renderer.compile(scene, camera);
+    } finally {
+      hidden.forEach((o) => (o.visible = false));
+      scene.remove(extra);
+      extra.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
+    }
+  };
+  prewarm();
+  if (!opts.backdrop) sfx.warm();
   raf = requestAnimationFrame(frame);
   // Dev-only handle for automated checks.
   if (process.env.NODE_ENV !== 'production') {
-    (window as unknown as { __mc?: unknown }).__mc = { state: () => state, muzzle: () => muzzle(state.fighters[0]) };
+    (window as unknown as { __mc?: unknown }).__mc = { state: () => state, me, renderer, view: () => smooth, muzzle: () => muzzle(state.fighters[0]) };
   }
 
   const restart = () => {

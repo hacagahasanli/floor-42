@@ -42,6 +42,29 @@ const readMuted = () => {
   }
 };
 
+/**
+ * One audio context for the whole visit, opened on the first click or key press anywhere (the
+ * lobby's buttons count). Opening it costs 100+ ms on a slow phone; doing that on the first key
+ * press of a match froze the fight for an instant.
+ */
+let shared: AudioContext | null = null;
+const openContext = () => {
+  if (shared) return shared;
+  const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AC) return null;
+  shared = new AC();
+  return shared;
+};
+if (typeof window !== 'undefined') {
+  const early = () => {
+    openContext();
+    window.removeEventListener('pointerdown', early, true);
+    window.removeEventListener('keydown', early, true);
+  };
+  window.addEventListener('pointerdown', early, true);
+  window.addEventListener('keydown', early, true);
+}
+
 export const createSfx = () => {
   let ctx: AudioContext | null = null;
   let master: GainNode | null = null;
@@ -83,9 +106,9 @@ export const createSfx = () => {
       if (ctx.state === 'suspended') void ctx.resume();
       return ctx;
     }
-    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return null;
-    ctx = new AC();
+    ctx = openContext();
+    if (!ctx) return null;
+    if (ctx.state === 'suspended') void ctx.resume();
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14;
     comp.knee.value = 8;
@@ -290,6 +313,10 @@ export const createSfx = () => {
 
   return {
     unlock: () => ensure(),
+    /** Build the sound graph now if the page already has an audio context (opened in the lobby). */
+    warm: () => {
+      if (shared) ensure();
+    },
     get muted() {
       return muted;
     },
