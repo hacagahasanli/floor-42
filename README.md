@@ -4,7 +4,9 @@
 
 ### Code review got personal. Settle it on floor 42.
 
-A game by **Merge Conflict**, the studio where coworkers settle their conflicts.
+A game by **[Merge Conflict](https://merge-conflict-drab.vercel.app)**, the studio where coworkers settle their conflicts.
+
+### [▶ Play now](https://floor-42.vercel.app/play) · [Practice vs bot](https://floor-42.vercel.app/characters) · [Studio](https://merge-conflict-drab.vercel.app) · [Last Commit Standing](https://last-commit-standing.vercel.app)
 
 **A fast side-on office shootout in the browser. Two hits and you're out.**<br>
 Your gun **aims itself**, so the whole game is moving, jumping and timing your shots.
@@ -131,5 +133,5 @@ npm run type-check
 | Single player against a bot, desktop keyboard | ✅ playable |
 | Four characters, five guns, one arena | ✅ |
 | Online 1v1: invite link, quick match, rematch (Colyseus on Fly.io, server-authoritative, client prediction) | ✅ |
-| Public deploy of the pages | next (Cloudflare Pages, mc.mergeconflict.gg) |
+| Public deploy of the pages | ✅ live at [floor-42.vercel.app](https://floor-42.vercel.app) |
 | Mobile and touch | not planned yet |
