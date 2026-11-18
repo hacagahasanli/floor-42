@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
+import { SupportLink } from '~/components/SupportLink';
 
 import type { CharacterId } from '~/game/sim/types';
 
@@ -190,6 +191,10 @@ export const Home = () => {
             </div>
           ))}
         </section>
+
+        <footer className="flex items-center justify-center pt-2">
+          <SupportLink />
+        </footer>
       </div>
     </main>
   );

@@ -126,6 +126,10 @@ npm run test:run    # simulation tests: guns, cover, rockets, Force Push, KOs, b
 npm run type-check
 ```
 
+## Support
+
+Floor 42 is free. If you enjoyed it, you can [☕ support the studio](https://mergeconflictgames.itch.io/support).
+
 ## Status
 
 | | |

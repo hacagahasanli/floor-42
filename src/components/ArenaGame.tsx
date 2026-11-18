@@ -11,6 +11,7 @@ import {
   useLandscape,
 } from '~/components/TouchControls';
 import { AIM_KEY, readAim } from '~/components/AimChoice';
+import { SupportLink } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
@@ -626,6 +627,7 @@ export const ArenaGame = ({
                 >
                   Exit match
                 </button>
+                <SupportLink />
               </div>
             </div>
           )}
@@ -845,6 +847,9 @@ export const ArenaGame = ({
                     </Link>
                   )}
                 </div>
+                <p className="flex flex-wrap items-center gap-x-2 text-sm text-cream/60">
+                  Enjoyed it? <SupportLink />
+                </p>
               </div>
             </div>
           )}
