@@ -295,6 +295,54 @@ describe('Force Push', () => {
     expect(s.fighters[1].hp).toBeLessThanOrEqual(CHARACTERS.legacy.hp - WALL_SPLAT_DAMAGE);
   });
 
+  // A splat bounces you up off the glass, but the fall you made that same tick still has to
+  // land: otherwise you sink into the floor, or drop straight through furniture by the glass.
+  describe('a splat while falling never goes through what is under you', () => {
+    /**
+     * Fighter `id` shoved into the glass on `side`, just above the surface at `y`, falling at the
+     * speed you reach dropping from the floor above (the 5 m/s bounce can't lift you back out).
+     */
+    const splatFalling = (id: number, side: -1 | 1, y: number) => {
+      const s = fighting();
+      const halfW = CHARACTERS[s.fighters[id].character].width / 2;
+      const limit = side < 0 ? ARENA.left + halfW : ARENA.right - halfW;
+      place(s, 1 - id, 0, 1.0);
+      Object.assign(s.fighters[id], { x: limit - side * 0.3, y: y + 0.05, vx: side * 20, vy: -22, pushed: 0.6, onGround: false });
+      return s;
+    };
+    /** Runs `ticks` ticks (the first must be the splat) and returns the lowest feet height seen. */
+    const lowest = (s: GameState, id: number, ticks: number) => {
+      let low = Infinity;
+      for (let i = 0; i < ticks; i++) {
+        const events = run(s, 1);
+        if (i === 0) expect(events.some((e) => e.type === 'wallSplat' && e.fighter === id)).toBe(true);
+        low = Math.min(low, s.fighters[id].y);
+      }
+      return low;
+    };
+
+    it('on the floor', () => {
+      const s = splatFalling(1, 1, ARENA.floor);
+      expect(lowest(s, 1, 60)).toBeGreaterThanOrEqual(ARENA.floor);
+    });
+
+    it('on the fridge by the right glass', () => {
+      const fridge = ARENA.platforms.find((p) => p.style === 'fridge')!;
+      const s = splatFalling(1, 1, fridge.y);
+      expect(lowest(s, 1, 60)).toBeGreaterThanOrEqual(fridge.y);
+      expect(s.fighters[1].onGround).toBe(true);
+      expect(s.fighters[1].y).toBe(fridge.y);
+    });
+
+    it('on the mezzanine balcony by the left glass', () => {
+      const balcony = ARENA.platforms.find((p) => p.x0 < -17 && p.style === 'walkway')!;
+      const s = splatFalling(0, -1, balcony.y);
+      expect(lowest(s, 0, 60)).toBeGreaterThanOrEqual(balcony.y);
+      expect(s.fighters[0].onGround).toBe(true);
+      expect(s.fighters[0].y).toBe(balcony.y);
+    });
+  });
+
   it('sends incoming bullets back at the shooter', () => {
     const s = fighting();
     place(s, 0, -10);

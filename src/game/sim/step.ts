@@ -602,7 +602,10 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   }
 
   f.onGround = false;
-  if (f.vy <= 0) {
+  // Land when the body moved down (or not at all) this tick. Not `vy <= 0`: a wall splat above
+  // sets an upward bounce after the move, and the fall already made would then skip the floor
+  // or the furniture under you.
+  if (f.y <= prevY) {
     let landY: number | null = null;
     if (f.y <= ARENA.floor) landY = ARENA.floor;
     else if (f.dropTime <= 0) {
@@ -616,10 +619,13 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     }
     if (landY !== null) {
       f.y = landY;
-      f.vy = 0;
-      f.onGround = true;
-      f.airJumps = c.airJumps;
-      f.airDashes = 1;
+      // A splat's bounce still pops you up, from the surface instead of from inside it.
+      if (f.vy <= 0) {
+        f.vy = 0;
+        f.onGround = true;
+        f.airJumps = c.airJumps;
+        f.airDashes = 1;
+      }
     }
   }
   f.wall = f.onGround ? 0 : touching;
