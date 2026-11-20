@@ -5,9 +5,13 @@
  * - voices -> category bus (sfx, ui, ambience) -> master -> compressor, plus a room reverb send;
  * - gunshots are layered: crack (high-passed noise), body (band-passed noise), thump (falling sine);
  * - every voice gets random detune and gain, and a stereo pan from its world x;
- * - rapid fire has a voice budget; mute is remembered.
+ * - rapid fire has a voice budget; mute is remembered;
+ * - every other repeatable sound asks the budget gate (audioBudget.ts, docs/SOUND.md); a limiter sits after the master.
  * No ambience bed: a noise loop read as old-TV static, so the room stays quiet between fights.
  */
+import { BUDGET, createGate } from './audioBudget';
+
+import type { SoundName } from './audioBudget';
 
 export type Sfx = ReturnType<typeof createSfx>;
 
@@ -58,6 +62,9 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
   /** While a gunshot is being scheduled, all its voices go to the guns bus. */
   let busOverride: Bus | null = null;
   let shotVoices = 0;
+  const gate = createGate(BUDGET);
+  /** Over budget: the sound is dropped. */
+  const may = (name: SoundName) => !!ctx && gate.allow(name, ctx.currentTime * 1000);
   /** Recorded gun sounds (see ASSETS.md), decoded once the audio context exists. */
   const samples = new Map<string, AudioBuffer>();
   const loadSamples = (c: AudioContext) => {
@@ -99,7 +106,14 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
     comp.release.value = 0.12;
     master = ctx.createGain();
     master.gain.value = muted ? 0 : MASTER * volumes.master;
-    comp.connect(master).connect(ctx.destination);
+    // A fast limiter after the master: the compressor shapes the mix, this only catches a stray peak.
+    const limit = ctx.createDynamicsCompressor();
+    limit.threshold.value = -3;
+    limit.knee.value = 0;
+    limit.ratio.value = 20;
+    limit.attack.value = 0.001;
+    limit.release.value = 0.1;
+    comp.connect(master).connect(limit).connect(ctx.destination);
     const verb = ctx.createConvolver();
     verb.buffer = makeRoom(ctx);
     wet = ctx.createGain();
@@ -299,6 +313,8 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
     warm: () => {
       if (shared) ensure();
     },
+    /** Dev meter: plays and drops per gated sound. */
+    stats: () => gate.stats(),
     get muted() {
       return muted;
     },
@@ -315,13 +331,15 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
       if (buses.ui) buses.ui.gain.value = volumes.ui;
     },
     /** Menu sounds: a tick when focus moves, a confirm chime, a soft back. */
-    tick: () => tone('triangle', 1250, 1400, 0.035, 0.12, { room: 0.1, bus: 'ui' }),
+    tick: () => may('tick') && tone('triangle', 1250, 1400, 0.035, 0.12, { room: 0.1, bus: 'ui' }),
     confirm: () => {
+      if (!may('confirm')) return;
       tone('triangle', 660, 660, 0.08, 0.16, { room: 0.25, bus: 'ui' });
       tone('triangle', 990, 990, 0.14, 0.14, { delay: 0.07, room: 0.3, bus: 'ui' });
     },
-    back: () => tone('triangle', 700, 420, 0.1, 0.12, { room: 0.2, bus: 'ui' }),
+    back: () => may('back') && tone('triangle', 700, 420, 0.1, 0.12, { room: 0.2, bus: 'ui' }),
     hit: (power: number, x?: number) => {
+      if (!may('hit')) return;
       const p = Math.min(1, power / 20);
       const pan = panOf(x);
       tone('sine', 140 + p * 40, 45, 0.12 + p * 0.1, 0.6 + p * 0.3, { room: 0.3, pan });
@@ -329,6 +347,7 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
     },
     shot,
     explosion: (x?: number) => {
+      if (!may('explosion')) return;
       const pan = panOf(x);
       duck(-12, 0.9);
       tone('sine', 75, 22, 0.9, 1.2, { room: 0.8, pan });
@@ -338,30 +357,34 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
         noise('bandpass', 1500 + Math.random() * 2500, 600, 0.04, 0.2, 4, { delay: 0.08 + Math.random() * 0.4, room: 0.6, pan: pan + (Math.random() - 0.5) * 0.4 });
       }
     },
-    impact: (x?: number) => noise('bandpass', 4500, 2500, 0.03, 0.12, 3, { room: 0.4, pan: panOf(x) }),
+    impact: (x?: number) => may('impact') && noise('bandpass', 4500, 2500, 0.03, 0.12, 3, { room: 0.4, pan: panOf(x) }),
     land: (x?: number) => {
+      if (!may('land')) return;
       tone('sine', 90, 50, 0.08, 0.35, { room: 0.2, pan: panOf(x) });
       noise('lowpass', 600, 200, 0.06, 0.2, 1, { room: 0.2, pan: panOf(x) });
     },
     /** A magazine change (recorded), panned to whoever reloads. */
     reload: (x?: number, gain = 0.7) => {
+      if (!may('reload')) return;
       if (sample('reload', { pan: panOf(x), gain, room: 0.25 })) return;
       click(0, 3000, 0.25, panOf(x));
       click(0.18, 2200, 0.3, panOf(x));
     },
-    deflect: (x?: number) => tone('triangle', 1600, 2600, 0.12, 0.2, { pan: panOf(x) }),
-    empty: () => click(0, 4000, 0.2),
+    deflect: (x?: number) => may('deflect') && tone('triangle', 1600, 2600, 0.12, 0.2, { pan: panOf(x) }),
+    empty: () => may('empty') && click(0, 4000, 0.2),
     push: (x?: number) => {
+      if (!may('push')) return;
       tone('sawtooth', 120, 55, 0.3, 0.3, { pan: panOf(x) });
       noise('lowpass', 1400, 200, 0.3, 0.5, 1, { pan: panOf(x) });
     },
     glass: (x?: number) => {
+      if (!may('glass')) return;
       duck(-8, 0.6);
       noise('highpass', 6000, 3000, 0.4, 0.55, 1, { pan: panOf(x) });
       for (let i = 0; i < 6; i++) tone('sine', 2200 + Math.random() * 3200, 1600 + Math.random() * 2000, 0.3, 0.07, { delay: Math.random() * 0.15, pan: panOf(x) });
     },
-    jump: (x?: number) => tone('sine', 300, 520, 0.08, 0.1, { room: 0, pan: panOf(x) }),
-    dash: (x?: number) => noise('bandpass', 700, 2800, 0.13, 0.22, 1.2, { room: 0.2, pan: panOf(x) }),
+    jump: (x?: number) => may('jump') && tone('sine', 300, 520, 0.08, 0.1, { room: 0, pan: panOf(x) }),
+    dash: (x?: number) => may('dash') && noise('bandpass', 700, 2800, 0.13, 0.22, 1.2, { room: 0.2, pan: panOf(x) }),
     pickup: () => {
       click(0, 2600, 0.3);
       tone('triangle', 520, 780, 0.08, 0.12, { delay: 0.05, room: 0.2, bus: 'ui' });
@@ -371,6 +394,7 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
       tone('triangle', 660, 330, 0.2, 0.08, { delay: 0.1, pan: panOf(x), bus: 'ui' });
     },
     ko: (x?: number) => {
+      if (!may('ko')) return;
       duck(-14, 1.2);
       tone('sawtooth', 420, 50, 0.7, 0.3, { pan: panOf(x) });
       noise('lowpass', 3000, 100, 0.6, 0.5, 1, { pan: panOf(x) });
