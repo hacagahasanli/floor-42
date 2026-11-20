@@ -96,12 +96,16 @@ const Logo = ({ small }: { small?: boolean }) => (
       <span className="text-green">&lt;&lt;&lt;&lt;</span> MERGE CONFLICT PRESENTS{' '}
       <span className="text-orange">&gt;&gt;&gt;&gt;</span>
     </span>
-    <h1
-      className={`-skew-x-6 font-display leading-[0.85] text-cream drop-shadow-[0_6px_30px_rgba(0,0,0,0.7)] ${
-        small ? 'text-5xl' : 'text-6xl sm:text-7xl xl:text-8xl'
-      } [@media(max-height:500px)]:text-4xl`}
-    >
-      FLOOR <span className="text-gold [text-shadow:0_0_40px_rgba(255,210,63,0.45)]">42</span>
+    <h1 className="m-0">
+      {/* The brand wordmark (public/brand/logo.svg): a fixed-ratio vector, so a plain <img> is right here. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/logo.svg"
+        alt="Floor 42"
+        width={1078}
+        height={270}
+        className={`h-auto drop-shadow-[0_8px_30px_rgba(0,0,0,0.7)] ${small ? 'w-64' : 'w-72 sm:w-[22rem] xl:w-[26rem]'} [@media(max-height:500px)]:w-56`}
+      />
     </h1>
     <span className="font-display text-sm text-cream/75 sm:text-base [@media(max-height:500px)]:hidden">
       Code review got personal.
