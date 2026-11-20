@@ -103,9 +103,11 @@ const Logo = ({ small }: { small?: boolean }) => (
         className={`h-auto drop-shadow-[0_8px_30px_rgba(0,0,0,0.7)] ${small ? 'w-64' : 'w-72 sm:w-[22rem] xl:w-[26rem]'} [@media(max-height:500px)]:w-56`}
       />
     </h1>
-    <span className="font-display text-sm text-cream/75 sm:text-base [@media(max-height:500px)]:hidden">
-      Code review got personal.
-    </span>
+    {!small && (
+      <span className="font-display text-sm text-cream/75 sm:text-base [@media(max-height:500px)]:hidden">
+        Code review got personal.
+      </span>
+    )}
   </div>
 );
 
