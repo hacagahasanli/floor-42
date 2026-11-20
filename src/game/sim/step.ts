@@ -92,7 +92,8 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
   };
 };
 
-export const createGame = (characters: [CharacterId, CharacterId], seed = 1): GameState => {
+/** `net`: an online match (no hitstop, see GameState.net). */
+export const createGame = (characters: [CharacterId, CharacterId], seed = 1, net = false): GameState => {
   const fighters = characters.map((c, i) => createFighter(i, c));
   fighters.forEach((f) => Object.assign(f, { x: 0, y: 0 }));
   const pickups: Pickup[] = ARENA.gunSpawns.map((_, i) => ({
@@ -125,6 +126,7 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1): Ga
     endReason: null,
     paused: false,
     hitstop: 0,
+    ...(net ? { net: true } : {}),
     seed,
     dropTimer: ARENA.dropEvery,
     nextId: 1,
@@ -204,7 +206,7 @@ const knockOut = (state: GameState, f: Fighter) => {
   f.respawn = RULES.respawnSeconds;
   f.pushTime = 0;
   state.events.push({ type: 'ko', fighter: f.id, by: f.lastHitBy, x: f.x, y: f.y + 1 });
-  state.hitstop = 9;
+  if (!state.net) state.hitstop = 9;
   if (state.phase !== 'fight') return;
   const scorerId =
     f.lastHitBy !== null && f.lastHitBy !== f.id
@@ -262,8 +264,9 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
     y: target.y + c.height * 0.6,
     power: k,
     damage: hit.damage,
+    by: hit.attacker,
   });
-  if (k > 10) state.hitstop = Math.max(state.hitstop, Math.min(6, Math.round(k * 0.25)));
+  if (k > 10 && !state.net) state.hitstop = Math.max(state.hitstop, Math.min(6, Math.round(k * 0.25)));
   if (target.hp <= 0) knockOut(state, target);
   return true;
 };
@@ -272,7 +275,7 @@ const isExplosive = (k: Projectile['kind']) => k === 'grenade' || k === 'bomb';
 
 const explode = (state: GameState, p: Projectile) => {
   const blast = p.kind === 'bomb' ? BOMB : GRENADE;
-  state.events.push({ type: 'explosion', x: p.x, y: p.y, radius: blast.radius });
+  state.events.push({ type: 'explosion', x: p.x, y: p.y, radius: blast.radius, owner: p.owner });
   for (const o of state.fighters) {
     const c = CHARACTERS[o.character];
     const dx = o.x - p.x;
@@ -449,7 +452,7 @@ const updatePush = (state: GameState, f: Fighter) => {
     p.owner = f.id;
     p.life = Math.max(p.life, 0.6);
     p.hit = [];
-    state.events.push({ type: 'deflect', x: p.x, y: p.y });
+    state.events.push({ type: 'deflect', x: p.x, y: p.y, fighter: f.id });
   }
 };
 
@@ -507,17 +510,17 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     if (f.onGround) {
       f.vy = c.jump;
       f.onGround = false;
-      state.events.push({ type: 'jump', x: f.x, y: f.y, wallKick: false });
+      state.events.push({ type: 'jump', x: f.x, y: f.y, wallKick: false, fighter: f.id });
     } else if (f.wall !== 0) {
       f.vx = -f.wall * PHYS.wallKickX;
       f.vy = c.jump * 0.95;
       f.airJumps = c.airJumps;
       f.airDashes = 1;
-      state.events.push({ type: 'jump', x: f.x, y: f.y, wallKick: true });
+      state.events.push({ type: 'jump', x: f.x, y: f.y, wallKick: true, fighter: f.id });
     } else if (f.airJumps > 0) {
       f.airJumps -= 1;
       f.vy = c.jump * 0.88;
-      state.events.push({ type: 'jump', x: f.x, y: f.y, wallKick: false });
+      state.events.push({ type: 'jump', x: f.x, y: f.y, wallKick: false, fighter: f.id });
     }
   }
 
@@ -536,14 +539,14 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     }
     f.dashTime = PHYS.dashTime;
     f.dashCooldown = PHYS.dashCooldown;
-    state.events.push({ type: 'dash', x: f.x, y: f.y });
+    state.events.push({ type: 'dash', x: f.x, y: f.y, fighter: f.id });
   }
 
   if (canAct && pressed('push') && f.pushCooldown <= 0) {
     f.pushTime = PUSH.duration;
     f.pushCooldown = PUSH.cooldown;
     f.pushHit = [];
-    state.events.push({ type: 'push', x: f.x, y: f.y + c.height * 0.55, facing: f.facing });
+    state.events.push({ type: 'push', x: f.x, y: f.y + c.height * 0.55, facing: f.facing, fighter: f.id });
   }
 
   // Walking over a gun with only the pistol picks it up; E swaps any time.
@@ -585,8 +588,8 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
       f.vy = Math.max(f.vy, 5);
       f.stun = 0.5;
       f.hp -= WALL_SPLAT_DAMAGE;
-      state.hitstop = Math.max(state.hitstop, 7);
-      state.events.push({ type: 'wallSplat', side, y: f.y + c.height * 0.6 });
+      if (!state.net) state.hitstop = Math.max(state.hitstop, 7);
+      state.events.push({ type: 'wallSplat', side, y: f.y + c.height * 0.6, fighter: f.id });
       if (f.hp <= 0) knockOut(state, f);
     } else if (into > 0) {
       f.vx = 0;
@@ -635,7 +638,7 @@ const updateProjectiles = (state: GameState) => {
 
     const done = () => {
       if (isExplosive(p.kind)) explode(state, p);
-      else state.events.push({ type: 'impact', x: p.x, y: p.y });
+      else state.events.push({ type: 'impact', x: p.x, y: p.y, owner: p.owner });
       return false;
     };
 
@@ -787,8 +790,8 @@ export const step = (state: GameState, inputs: InputState[]): GameState => {
   if (state.paused) return state;
   state.tick += 1;
 
-  // Hitstop: the world holds still for a few ticks so big hits land with weight.
-  if (state.hitstop > 0) {
+  // Hitstop: the world holds still for a few ticks so big hits land with weight (offline only).
+  if (state.hitstop > 0 && !state.net) {
     state.hitstop -= 1;
     return state;
   }

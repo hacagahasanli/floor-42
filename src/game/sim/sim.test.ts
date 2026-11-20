@@ -421,3 +421,29 @@ describe('healing', () => {
     expect(f.hp).toBe(CHARACTERS[f.character].hp);
   });
 });
+
+describe('online games', () => {
+  it('never freeze the world on a knockout (no hitstop); offline games still do', () => {
+    const maxHitstop = (net: boolean) => {
+      const s = createGame(['hotfix', 'legacy'], 1, net);
+      s.phase = 'fight';
+      s.phaseTime = RULES.roundSeconds;
+      s.dropTimer = Infinity;
+      place(s, 0, -2);
+      place(s, 1, 2);
+      s.fighters[1].hp = 1;
+      arm(s, 0, 'shotgun');
+      let most = 0;
+      let ko = false;
+      for (let i = 0; i < 40; i++) {
+        step(s, [{ ...EMPTY_INPUT, fire: true, ...at(s, 1) }, { ...EMPTY_INPUT }]);
+        most = Math.max(most, s.hitstop);
+        ko ||= s.events.some((e) => e.type === 'ko');
+      }
+      expect(ko).toBe(true);
+      return most;
+    };
+    expect(maxHitstop(false)).toBeGreaterThan(0);
+    expect(maxHitstop(true)).toBe(0);
+  });
+});

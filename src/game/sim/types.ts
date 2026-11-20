@@ -118,16 +118,16 @@ export interface Projectile {
 
 export type GameEvent =
   | { type: 'shot'; fighter: number; gun: GunKind; x: number; y: number; angle: number }
-  | { type: 'hit'; fighter: number; x: number; y: number; power: number; damage: number }
-  | { type: 'impact'; x: number; y: number }
-  | { type: 'explosion'; x: number; y: number; radius: number }
+  | { type: 'hit'; fighter: number; x: number; y: number; power: number; damage: number; by?: number }
+  | { type: 'impact'; x: number; y: number; owner?: number }
+  | { type: 'explosion'; x: number; y: number; radius: number; owner?: number }
   | { type: 'rail'; x0: number; y0: number; x1: number; y1: number }
-  | { type: 'push'; x: number; y: number; facing: 1 | -1 }
-  | { type: 'deflect'; x: number; y: number }
-  | { type: 'wallSplat'; side: -1 | 1; y: number }
+  | { type: 'push'; x: number; y: number; facing: 1 | -1; fighter?: number }
+  | { type: 'deflect'; x: number; y: number; fighter?: number }
+  | { type: 'wallSplat'; side: -1 | 1; y: number; fighter?: number }
   | { type: 'ko'; fighter: number; by: number | null; x: number; y: number }
-  | { type: 'jump'; x: number; y: number; wallKick: boolean }
-  | { type: 'dash'; x: number; y: number }
+  | { type: 'jump'; x: number; y: number; wallKick: boolean; fighter?: number }
+  | { type: 'dash'; x: number; y: number; fighter?: number }
   | { type: 'pickup'; fighter: number; gun: GunKind }
   | { type: 'reload'; fighter: number }
   | { type: 'empty'; fighter: number }
@@ -146,6 +146,11 @@ export interface GameState {
   /** Both players agreed to pause: nothing moves until someone resumes. */
   paused: boolean;
   hitstop: number;
+  /**
+   * Online match: big hits don't freeze the world (no hitstop). Online, a freeze would start late
+   * on the far side, or start for a hit the guessing side predicted and the authority never had.
+   */
+  net?: boolean;
   seed: number; // deterministic RNG state (spread, drops)
   dropTimer: number;
   nextId: number;
