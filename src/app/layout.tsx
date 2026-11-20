@@ -13,7 +13,7 @@ const ui = Chakra_Petch({ weight: ['400', '500', '600', '700'], subsets: ['latin
 
 export const metadata: Metadata = {
   title: { default: `Floor 42 · ${STUDIO_NAME}`, template: '%s · Floor 42' },
-  description: `Code review got personal. A two-player office shootout from ${STUDIO_NAME}: settle it on floor 42, two hits and you are out.`,
+  description: `Code review got personal. A two-player office shootout from ${STUDIO_NAME}: settle it on floor 42, first to five KOs.`,
   // Added to the iPhone home screen, it opens full screen with no browser bars.
   appleWebApp: { capable: true, title: 'Floor 42', statusBarStyle: 'black-translucent' },
   metadataBase: new URL('https://floor42.nalbakigames.com'),

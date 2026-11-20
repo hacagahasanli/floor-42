@@ -253,7 +253,7 @@ export interface GunStats {
 }
 
 /**
- * Up close the small guns are deadly (pistol: two hits); at range they need more hits.
+ * Up close the small guns hit hard (a pistol shot is half your health); at range they need more hits.
  * The rocket and the rail always kill in one, which is why they are rare.
  */
 export const GUNS: Record<GunKind, GunStats> = {

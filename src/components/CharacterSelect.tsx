@@ -43,7 +43,7 @@ export const CharacterSelect = () => {
         <div className="flex flex-col gap-4">
           <div className="flex items-end justify-between gap-3">
             <h2 className="font-display text-xl">Choose a fighter</h2>
-            <span className="text-right text-xs text-cream/50">Two hits for everyone: speed, size and shove differ</span>
+            <span className="text-right text-xs text-cream/50">Same health and guns for everyone: speed, size and shove differ</span>
           </div>
           <FighterCards value={player} onPick={pick} portraits={portraits} />
 

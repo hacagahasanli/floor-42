@@ -607,7 +607,7 @@ export const ArenaGame = ({
                 )}
               </div>
               <div className="panel-cut bg-ink-deep/80 px-4 py-2 text-sm text-cream/80">
-                Two hits and you&apos;re out. Furniture stops bullets: use it.
+                Keep moving. Furniture stops bullets: use it.
               </div>
             </div>
           )}

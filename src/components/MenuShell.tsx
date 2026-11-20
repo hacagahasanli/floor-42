@@ -186,7 +186,7 @@ export const Steps = () => (
     {[
       ['01', 'Pick', 'Same guns for everyone. Speed, size, jumps and how hard you are to shove are what differ.'],
       ['02', 'Grab a gun', 'Pistol in hand; an SMG, a shotgun, a sniper rail and rockets lie around the floor. Desks stop bullets.'],
-      ['03', 'Two hits', 'Jump, kick off the glass, dash (every 5 s), Force Push them into the glass. First to five KOs wins.'],
+      ['03', 'Outplay them', 'Jump, kick off the glass, dash (every 5 s), Force Push them into the glass. First to five KOs wins.'],
     ].map(([n, title, text]) => (
       <div key={n} className="panel-cut flex gap-4 bg-ink/70 p-4 backdrop-blur">
         <span className="font-display text-2xl text-gold/80">{n}</span>

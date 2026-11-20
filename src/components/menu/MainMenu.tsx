@@ -359,8 +359,8 @@ const HowTo = ({ touch }: { touch: boolean }) => {
         {[
           [
             '01',
-            'Two hits',
-            `Two hits and you are out. First to ${RULES.kosToWin} KOs takes the merge.`,
+            'Knock them out',
+            `Everyone has ${RULES.hp} health. A pistol shot up close takes half, a rocket takes it all. First to ${RULES.kosToWin} KOs takes the merge.`,
           ],
           [
             '02',
@@ -543,7 +543,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       sub: 'Controls, camera, graphics, audio',
       onSelect: () => setSettingsOpen(true),
     },
-    { label: 'HOW TO PLAY', sub: 'Two hits and you are out', onSelect: () => setScreen('howto') },
+    { label: 'HOW TO PLAY', sub: `First to ${RULES.kosToWin} KOs takes the merge`, onSelect: () => setScreen('howto') },
     { label: 'CREDITS', sub: STUDIO_NAME, onSelect: () => setScreen('credits') },
   ];
 
@@ -604,14 +604,9 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
             aria-label="Choose your fighter"
             className="flex min-h-0 flex-1 flex-col justify-center gap-3 [animation:slideInLeft_0.3s_ease-out] [@media(max-height:500px)]:gap-1.5"
           >
-            <div className="flex items-end justify-between">
-              <h2 className="-skew-x-6 font-display text-2xl sm:text-3xl [@media(max-height:500px)]:text-lg">
-                CHOOSE YOUR FIGHTER
-              </h2>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-cream/45 max-sm:hidden [@media(max-height:500px)]:hidden">
-                same guns · two hits
-              </span>
-            </div>
+            <h2 className="-skew-x-6 font-display text-2xl sm:text-3xl [@media(max-height:500px)]:text-lg">
+              CHOOSE YOUR FIGHTER
+            </h2>
             <div
               role="radiogroup"
               aria-label="Fighter"

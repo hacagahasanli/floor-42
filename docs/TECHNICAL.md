@@ -16,7 +16,7 @@ Project tooling, one line: the game was built with agent skills from the owner's
 Floor 42 is a side-on, 1v1 office shootout that runs in the browser.
 
 - Two fighters on a 36-unit-wide office (`ARENA.left = -18`, `right = 18`, `ceiling = 13.5`). One world unit is roughly one metre.
-- Two hits knock a fighter out: 100 hp, the pistol does 50 per hit.
+- Every fighter has 100 hp. How many hits a KO takes depends on the gun and the range: the pistol does 50 up close, the Uzi 12, the rocket and the railgun knock you out in one (see `GUNS`).
 - First to 5 KOs wins (`RULES.kosToWin`), or the higher KO count when the 150 s round ends (`RULES.roundSeconds`).
 - Your gun **auto-aims** at the opponent by default; you only move, jump, dash, push and fire. Mouse aim is an option.
 - Guns: pistol (infinite ammo, you spawn with it), SMG, Uzi, shotgun, and two power weapons (sniper rail, rockets). Bombs drop from the ceiling and are thrown once. Small guns lose damage with distance.
@@ -640,7 +640,7 @@ Rows marked (notes) come from the owner's project notes and commit history, not 
 |---|---|
 | Replaced the melee prototype (first commit `a7ce688`) with a shooter | Playtest feedback (notes). Guns, cover and movement carried the game better. |
 | Auto-aim is the default, mouse aim is an opt-in (T) | The game should be about moving and timing, not aiming precision; also works on keyboard only. |
-| Two-hit lethality (pistol 50 damage, rocket and railgun one-shot) | Keeps fights short and makes cover, dash and push matter. Standing still and trading shots loses. |
+| High damage (pistol 50 up close, rocket and railgun one-shot) | Keeps fights short and makes cover, dash and push matter. Standing still and trading shots loses. |
 | The "CTO noise" mechanic was added and then removed | It broke the pace of the match. The code lives in commit `3c8d987`; removed in `a6a4b2c`. |
 | Rockets fly straight (`GRENADE.gravity = 0`) | Auto-aim aims at the target, so a falling rocket would miss for no visible reason. |
 | Simulation separated from rendering, written without a physics engine | Needed for a server-authoritative design, for fast headless tests, and for deterministic replay (sections 2 and 3). |

@@ -8,7 +8,7 @@ A game by **[Nalbaki Games](https://nalbakigames.com)**.
 
 ### [▶ Play now](https://floor42.nalbakigames.com/play) · [Practice vs bot](https://floor42.nalbakigames.com/characters) · [Studio](https://nalbakigames.com) · [Last Commit Standing](https://lastcommit.nalbakigames.com)
 
-**A fast side-on office shootout in the browser. Two hits and you're out.**<br>
+**A fast side-on office shootout in the browser. First to five KOs takes the merge.**<br>
 Your gun **aims itself**, so the whole game is moving, jumping and timing your shots.
 Desks, walkways and cabinets are **cover**. A **Force Push** shoves your rival into the glass and sends their bullets back at them.
 A rocket crosses the whole office in a second.
@@ -19,7 +19,7 @@ A rocket crosses the whole office in a second.
 
 ## What you get
 
-- **Two hits and you're out.** Pistol: two shots. Rocket, railgun, point-blank shotgun: one. Standing still and trading shots loses; cover, jumps and dashes win.
+- **Every gun hits differently.** Everyone has 100 health. A pistol shot up close takes half of it, an Uzi round only a sliver, and a rocket, the railgun or a point-blank shotgun blast takes all of it. Standing still and trading shots loses; cover, jumps and dashes win.
 - **Auto-aim by default.** Space shoots, the gun tracks your rival. Prefer aiming yourself? Press **T** for mouse aim (the choice is remembered).
 - **Five guns on the floor.** Everyone starts with a pistol that never runs dry. There is one gun per floor at a time, and it shows up at a random spot as a random kind. Walk over a gold ring for an SMG, a shotgun, a railgun that goes through furniture and people, or a rocket launcher whose blast throws you too (rocket jumps). More drops from the ceiling vents.
 - **Force Push.** A shove on a short cooldown. It knocks your rival back, splats them into the glass walls (the glass cracks) and **reflects incoming bullets** back at the shooter.
@@ -93,7 +93,7 @@ If your rival's connection drops, the game holds for 20 seconds while they recon
 
 | Gun | What it does | How often |
 | --- | --- | --- |
-| Pistol | 8 rounds, never runs out; two hits up close, more from across the office | always |
+| Pistol | 8 rounds, never runs out; half your health per shot up close, less from across the office | always |
 | SMG | fast, three hits up close, weaker at range | common |
 | Shotgun | six pellets, a one-shot KO point-blank, falls off fast | common |
 | Uzi | sprays very fast, every round does little | sometimes |
