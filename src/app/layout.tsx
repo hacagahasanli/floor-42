@@ -1,5 +1,7 @@
 import { Bungee, Chakra_Petch } from 'next/font/google';
 
+import { SettingsRoot } from '~/components/menu/SettingsRoot';
+
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
@@ -27,7 +29,10 @@ export const viewport: Viewport = {
 
 const RootLayout = ({ children }: { children: ReactNode }) => (
   <html lang="en" className={`${display.variable} ${ui.variable}`}>
-    <body className="min-h-screen font-sans">{children}</body>
+    <body className="min-h-screen font-sans">
+      <SettingsRoot />
+      {children}
+    </body>
   </html>
 );
 

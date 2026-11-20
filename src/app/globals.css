@@ -71,3 +71,100 @@
     transform: translateY(0);
   }
 }
+
+/* ---------- Settings that live in CSS (see src/components/menu/SettingsRoot.tsx) ---------- */
+
+/* Colour-blind-friendly: HEAD green and incoming red become sky blue and vermillion (Okabe-Ito). */
+:root[data-palette='cb'] {
+  --color-green: #56b4e9;
+  --color-orange: #e8730c;
+}
+
+/* Larger HUD text in a match. */
+:root[data-hud='large'] .hud-scale {
+  zoom: 1.25;
+}
+
+/* Reduced motion: no animations or slides anywhere. */
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* ---------- Main menu ---------- */
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-48px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes menuItemIn {
+  from {
+    opacity: 0;
+    transform: translateX(-28px) skewX(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) skewX(-8deg);
+  }
+}
+@keyframes scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Keyboard and gamepad focus: a gold ring that reads on any background. */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+/* Sliders in the Settings panel. */
+.mc-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+.mc-range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: linear-gradient(90deg, var(--color-gold) var(--fill, 50%), rgba(230, 235, 245, 0.14) var(--fill, 50%));
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+}
+.mc-range::-moz-range-track {
+  height: 6px;
+  background: linear-gradient(90deg, var(--color-gold) var(--fill, 50%), rgba(230, 235, 245, 0.14) var(--fill, 50%));
+}
+.mc-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  margin-top: -7px;
+  height: 20px;
+  width: 12px;
+  background: var(--color-cream);
+  transform: skewX(-12deg);
+  box-shadow: 0 0 0 2px var(--color-ink-deep);
+}
+.mc-range::-moz-range-thumb {
+  height: 20px;
+  width: 12px;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-cream);
+}
+.mc-range:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
