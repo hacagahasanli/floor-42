@@ -506,6 +506,8 @@ npm run type-check   # tsc --noEmit
 
 ## 10. Online multiplayer (built and deployed; updated through `1b03043`)
 
+> **Superseded in parts by section 14 (2026-11-19).** The snapshot and input handling below is the first version. Since then the authority (server or host browser) compensates lag with a capped rewind, snapshots are numbered and carry events, the client draws the rival from a buffered timeline, there is no hitstop online, and the HUD names the connection. Where this section and section 14 disagree, section 14 is current.
+
 Play it at `/play`. Server: `floor42-game` on Fly.io. This section was rewritten from the code after the feature landed. The server and client files were read; I did not run the server or the two-browser test myself. The three measured numbers below are the owner's, taken on 2026-11-17 from the owner's Mac.
 
 ### Pieces
@@ -664,13 +666,14 @@ Honest list, from reading the code.
 - Kill credit is the last attacker. A fighter killed by a wall splat they caused after being shoved credits the pusher, but no event distinguishes it.
 - The `rail` event type and `sign` export are declared but unused (`types.ts:109`, `step.ts:632`).
 
-**Online**
-- Prediction across hitstop (up to 9 frozen ticks) was not analysed separately; a two-browser test matched, which is evidence, not proof (section 10).
-- The rival is shown about one round trip behind (123 to 131 ms measured to Fly `fra`) plus the snapshot interval, and its input is a guess between snapshots.
+**Online** (see section 14 for what changed on 2026-11-19)
+- Online games have no hitstop (section 14); offline games keep it.
+- The rival is drawn from the authority's snapshots, half a round trip plus an adaptive 50 to 250 ms buffer in the past. During a stall longer than about 250 ms it slows to a stop and the HUD says "Connection unstable": nothing can show what has not arrived.
+- Lag compensation is capped at 150 ms: a player farther than that (one way) is judged partly late.
 - A clean leave ends the match with no forfeit result; a dropped connection gets 20 s to reconnect. The first player after an idle period waits for the Fly machine to start.
 
 **Code and testing**
-- Automated tests cover the simulation and the wire format. Rendering, input, audio, the React shell, `net/client.ts` and `DuelRoom` have none. `type-check` exists but there is no CI configuration in the repo.
+- Automated tests cover the simulation, the wire format, the authority loop (`net/authority.test.ts`) and the timeline (`net/timeline.test.ts`). Rendering, input, audio, the React shell, the WebRTC link and `DuelRoom` itself have no unit tests; the two-browser network lab (`tools/netlab`) covers them end to end but is not run in CI. `type-check` exists but there is no CI configuration in the repo.
 - Magic numbers inside `step.ts` (stun thresholds, the 0.15 graze slope, the 0.6 s push-flag time) are not in `constants.ts`.
 - The Dockerfile pins Colyseus versions while `package.json` uses ranges, and lists server files in `COPY` by hand.
 
@@ -764,3 +767,78 @@ Only one finger is tracked for the stick (`pointer` ref, pointer capture); other
 - `isTouchDevice()` is true for any device with touch, including touch laptops, which then get touch controls and forced auto-aim. There is no switch to turn them off.
 - The stick tracks one finger and the layout is fixed pixel sizes (`h-64 w-72` button cluster); very small screens were not checked.
 - No automated tests cover touch input, like the rest of input, audio and rendering (section 12).
+
+---
+
+## 14. Online play across countries (2026-11-19)
+
+Owner's report: an online match between two countries "froze for an instant, and the next thing I saw I was dead". Reproduced with two real Chromium browsers playing one invite match over an injected bad network (`tools/netlab`, its README says exactly how the network is impaired): 80 to 180 ms round trip, 20 to 60 ms jitter, 1 to 5 % loss, 300 to 800 ms stalls every few seconds, once with the direct line allowed and once with ICE blocked (no TURN), which falls back to server mode.
+
+### Root causes found (each measured, see the table below)
+
+1. **Shader recompiles on the first rocket and on knockouts** (`render/game.ts`). The rocket's engine light and each fighter's fill light were children of objects that get hidden and shown. three.js recompiles every lit material when the number of visible lights changes: 11 to 13 new shader programs and a 116 to 166 ms frame on a 4x throttled CPU (far more on a phone GPU) at exactly the moment a one-shot rocket was fired. Opening the audio context on the first key press of the match cost another 151 ms frame. This happened on both browsers, online or not.
+2. **Hitstop in an online match.** A big hit or a knockout froze the whole simulation for up to 9 ticks (150 ms). On the guest that freeze was either predicted from a guess (a kill on the rival the authority never had) or adopted late from a snapshot, after which the guest's own inputs inside it were lost. Measured: the guest's world held still, then a snapshot arrived with the guest at 32 hp, then dead: freeze, then dead.
+3. **Late inputs judged late.** The authority applied each of the guest's inputs on the first tick after it arrived and, while nothing arrived (a stall), kept the guest running with its last input. Hits were judged where the guest had been a round trip earlier: the guest's own screen showed it 1.2 units (p50) and up to 4 units away from where it was hit in direct mode, 2.3 (p50) to 8.8 units in server mode.
+4. **Unnumbered snapshots on an unordered line.** The direct line is unordered on purpose, but an older snapshot that arrived after a newer one was adopted anyway, rewinding the guest's world (60 to 160 times a minute in the test).
+5. **No buffer for the far side.** The rival was drawn from a guess (its last input held) and snapped to the truth whenever a snapshot came in; after a stall, everything that happened in it was adopted in one frame (several hits and a knockout at once).
+6. **A relayed snapshot ended the match.** When the direct line went quiet, messages went through the server's relay, but Colyseus accepts at most 4 KB per client message and disconnects a client that sends more. 87 % of snapshots are bigger once relayed (p50 4.5 KB, up to 7.9 KB), so the host was cut off and the guest saw "Your rival left".
+7. **A silent direct line looked healthy.** A data channel stays "open" for seconds after the network under it dies; messages sent into it vanish. The HUD also said "direct" in relay mode.
+8. **No TURN.** With STUN only, two strict NATs (common on mobile networks) cannot reach each other, so cross-country matches fell back to the server in Frankfurt.
+
+### What changed
+
+| Piece | File | Change |
+|---|---|---|
+| Lights and shaders | `render/game.ts` | Every point light stays in the scene and is dimmed, never hidden; every gun, fighter, pooled effect and material is compiled before the first frame. |
+| Audio | `sfx.ts` | One audio context per visit, opened on the first click anywhere (the lobby counts); the sound graph is built at arena start. |
+| No hitstop online | `sim/step.ts`, `sim/types.ts` | `createGame(..., net = true)` sets `state.net`; such a game never sets `hitstop`. Offline play is unchanged. Events now name who caused them (`by`, `owner`, `fighter`). |
+| Lag compensation | `net/authority.ts` (new, shared by the host browser and the server) | Each remote input is applied at the tick its sender pressed it (arrival minus the one-way delay, half the best of the last 10 round trips, at most `MAX_COMP_TICKS` = 5 ticks so jitter still fits), by rewinding and replaying, never more than `REWIND_CAP_TICKS` = 9 (150 ms). A slower input only adds its presses to the next tick (a jump is never lost). A late input moves its sender in the past (the dodge counts), but its shots and shoves start when it arrives: no bullet appears halfway to you. While an input is missing, the player keeps its last movement until the real one corrects it. |
+| Confirmed snapshots | `authority.ts`, `protocol.ts` | A snapshot carries the newest tick every remote input reached, plus each seat's inputs for the ticks after it (`next`): the client replays its real inputs over them and never adopts the authority's guesses about its own inputs. Snapshots are numbered (`seq`); an older one is never adopted. |
+| Events from the authority | `authority.ts`, `client.ts`, `timeline.ts` | The authority sends its events with their ticks (direct: on the reliable channel; server: inside the snapshot). A batch replaces its tick range, because a rewind can change them. The client shows its own actions from prediction and everything the rival caused when its timeline reaches that tick (`isOwnEvent`). |
+| Timeline | `net/timeline.ts` (new) | The rival, the rival's shots, and your health and knockout are drawn from a buffer of snapshots, interpolated, `delay` behind the newest. The delay is one snapshot interval plus the 95th percentile of measured arrival jitter, 50 to 250 ms. On underrun the rival keeps its velocity for 100 ms, then slows to a stop over 150 ms; when data returns the step is eased out over 100 ms and the clock catches up at most 1.6x (more than 1.5 s behind, it jumps). Your own fighter stays predicted; its corrections are eased out over about 90 ms. |
+| Direct line | `net/peer.ts` | If nothing arrives on the line for 600 ms (or the connection reports disconnected), every message also goes through the server relay until the line talks again; duplicates are dropped. Relayed messages over 3,000 characters are sent in parts. Optional TURN (below). `mode` is `direct`, `turn` or `relay`. |
+| HUD | `ArenaGame.tsx` | A badge always shows the path and round trip ("Direct · 42 ms", "Relay (TURN)", "Server relay", "Server", "· you host"). "Connection unstable" appears for 1.5 s after a snapshot or input gap over 250 ms, a timeline coasting to a stop, or inputs waiting over 450 ms. |
+| Server | `server/DuelRoom.ts`, `server/Dockerfile` | Runs the same authority loop for both seats, numbers snapshots, sends events, says `v: 2` in `start`, accepts `rtt` reports from version-2 clients. The Dockerfile now copies `src/game/net/authority.ts`. `NET_PROBE=1` logs every hit (test hook). |
+
+Compatibility: a new client on the old server gets no `v` in `start`, sends nothing new, and falls back to predicting every event itself; the old server's snapshots have no `seq` (always newer) and no `next` (pushed to the timeline as they are). An old client on the new server ignores `seq`, `next` and `ev` and adopts the confirmed state, which is consistent.
+
+### TURN (optional, configured by environment)
+
+Set at build time (Vercel project settings), never in the repo:
+
+```
+NEXT_PUBLIC_TURN_URL=turn:turn.example.com:3478,turns:turn.example.com:5349
+NEXT_PUBLIC_TURN_USERNAME=...
+NEXT_PUBLIC_TURN_CREDENTIAL=...
+```
+
+`NEXT_PUBLIC_` values end up in the page, so anyone can read them; use credentials that can only relay, with a usage cap, and rotate them. Options, cheapest first (checked 2026-11-19, verify before choosing):
+- Cloudflare Realtime TURN: $0.05 per GB after a free 1,000 GB a month ([pricing](https://developers.cloudflare.com/realtime/turn/faq/)). Its credentials are short-lived and minted with an API key, which belongs on a server: the clean setup is a small `/api/turn` route that mints them (not built yet); a long TTL works with the env variables above.
+- Self-hosted coturn on a small VPS near the players.
+- Twilio Network Traversal Service, about $0.40 per GB (reported by a third party, not checked).
+
+Measured in the lab: the host sent 7.4 MB and the guest 0.6 MB in a 60 s match (snapshots 30/s, inputs 60/s), about 130 KB/s together, so roughly 8 MB a minute through a TURN relay.
+
+### Tests
+
+`npm run test:run` covers: late inputs applied at their due tick and the result equal to an on-time run; the 150 ms cap (a later input only adds its presses, a dash still happens); compensation by the measured one-way delay; duplicates counted once; held movement corrected; replayed events handed out again; pause and character pick surviving a rewind; confirmed snapshots and replaying `next`; late shots fired on arrival, once; the timeline's smooth interpolation, adaptive delay, out-of-order fill, underrun without freeze or jump, catch-up at most 1.6x, events by tick with replacement; snapshot numbering; who shows which event; no hitstop online.
+
+### Before and after (same injected network, 3 seeded runs of 60 s per row)
+
+Host: 80 ms round trip, 20 ms jitter, 1 % loss, a 300 to 800 ms stall every 4 to 9 s. Guest: 180 ms, 60 ms, 5 %, a stall every 3 to 7 s. "Server" rows block ICE (no direct line). Desktop GPU (Apple M1 Pro), dev build, local server. Frame times pool both browsers; the rest is the guest unless noted.
+
+| Mode | Build | Frames > 50 ms | Frame p95 / p99 / max (ms) | Older snapshot adopted | Own correction p95 / p99 (units) | Rival teleports (> 1 unit in a frame) | Freeze-then-dead / KOs (both) | Guest hit vs. its own screen, p50 per run (units) |
+|---|---|---|---|---|---|---|---|---|
+| direct | before | 10 | 16.7 / 16.8 / 83.4 | 178 | 0.17 / 0.64 | 39 | 2 / 25 | 0.76, 1.17, 1.40 |
+| direct | after | 0 | 16.8 / 16.8 / 16.8 | 0 | 0.01 / 0.41 | 15 | 1 / 19 | 0.27, 0.09, 0.13 |
+| server | before | 8 | 16.7 / 16.8 / 66.7 | 0 (TCP keeps order) | 1.10 / 5.27 | 101 | 7 / 27 | 2.11, 1.71, 1.44 |
+| server | after | 0 | 16.7 / 16.8 / 33.4 | 0 | 1.02 / 3.64 | 83 | 10 / 46 | 0.45, 0.40, 0.48 |
+
+Render hitches on a 4x throttled CPU (`perf.mjs`, desktop and phone viewport): before, 116 to 166 ms frames when the launcher was picked up and fired, 11 to 13 new shader programs each time; after, the longest frame was 16.8 ms and the program count did not change.
+
+What did not get better, honestly: in server mode TCP still stalls everything behind a lost packet, so snapshot gaps (p95 about 85 to 100 ms, worst about 1 s) are the same before and after, and a stall of more than about 250 ms still shows the rival slowing to a stop (with "Connection unstable" on screen). "Freeze-then-dead" here counts any KO within 1 s after such a stall, so in server mode it stays at about one KO in four; only a direct line (or TURN) removes the stalls themselves. Fly's `fra` region is not closer to anyone because of this change.
+
+### Deploying
+
+The browser part ships with Vercel. The server part (`server/DuelRoom.ts`, `server/Dockerfile`, the shared `src/game/net/authority.ts`, `protocol.ts`, `src/game/sim`) needs `cd ~/Desktop/projects/floor-42 && flyctl deploy --ha=false --remote-only`. Until then, server-mode matches run the old server logic; the new client works with it.
+
