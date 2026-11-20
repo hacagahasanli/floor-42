@@ -6,7 +6,7 @@
 
 A game by **[Nalbaki Games](https://nalbakigames.com)**.
 
-### [▶ Play now](https://floor-42.vercel.app/play) · [Practice vs bot](https://floor-42.vercel.app/characters) · [Studio](https://nalbakigames.com) · [Last Commit Standing](https://last-commit-standing.vercel.app)
+### [▶ Play now](https://floor42.nalbakigames.com/play) · [Practice vs bot](https://floor42.nalbakigames.com/characters) · [Studio](https://nalbakigames.com) · [Last Commit Standing](https://lastcommit.nalbakigames.com)
 
 **A fast side-on office shootout in the browser. Two hits and you're out.**<br>
 Your gun **aims itself**, so the whole game is moving, jumping and timing your shots.
@@ -137,5 +137,5 @@ Floor 42 is free. If you enjoyed it, you can [☕ support the studio](https://na
 | Single player against a bot, desktop keyboard | ✅ playable |
 | Four characters, five guns, one arena | ✅ |
 | Online 1v1: invite link, quick match, rematch (Colyseus on Fly.io, server-authoritative, client prediction) | ✅ |
-| Public deploy of the pages | ✅ live at [floor-42.vercel.app](https://floor-42.vercel.app) |
+| Public deploy of the pages | ✅ live at [floor42.nalbakigames.com](https://floor42.nalbakigames.com) |
 | Mobile and touch | not planned yet |

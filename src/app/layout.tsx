@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: `Code review got personal. A two-player office shootout from ${STUDIO_NAME}: settle it on floor 42, two hits and you are out.`,
   // Added to the iPhone home screen, it opens full screen with no browser bars.
   appleWebApp: { capable: true, title: 'Floor 42', statusBarStyle: 'black-translucent' },
-  metadataBase: new URL('https://floor-42.vercel.app'),
+  metadataBase: new URL('https://floor42.nalbakigames.com'),
   // Logo and icons from the brand kit (brand/floor-42/INTEGRATE.md).
   icons: {
     icon: [
