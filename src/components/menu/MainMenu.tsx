@@ -147,9 +147,6 @@ const MenuItem = ({
         className="pointer-events-none absolute inset-y-0 left-0 w-2/3 -translate-x-full opacity-0 transition duration-300 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
         style={{ background: `linear-gradient(90deg, ${accent}33, transparent)` }}
       />
-      <span className="relative w-7 skew-x-[8deg] font-display text-xs text-cream/35 transition group-hover:text-cream/70 group-focus-visible:text-cream/80">
-        {String(index).padStart(2, '0')}
-      </span>
       <span className="relative flex skew-x-[8deg] flex-col transition-transform duration-200 group-hover:translate-x-2 group-focus-visible:translate-x-2">
         <span
           className={`font-display leading-none transition ${

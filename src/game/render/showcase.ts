@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 import { getSettings } from '../settings';
-import { ARENA, GUNS } from '../sim/constants';
+import { ARENA, GUNS, menuSpotX } from '../sim/constants';
 
 import { buildArena } from './arena';
 import { buildRig, poseSide } from './characters';
@@ -22,8 +22,11 @@ import type { Rig } from './characters';
  * Set `still` to render a handful of frames and stop (the lowest-cost fallback).
  */
 
-/** Where the fighter stands: right of centre, so the menu column on the left never covers them. */
-const SPOT = { x: 3.2, y: ARENA.floor };
+/**
+ * Where the fighter stands: right of centre, so the menu column on the left never covers them, and on open floor
+ * between the meeting table and the kitchen counter (at 3.2 they stood inside the end of the table).
+ */
+const SPOT = { x: menuSpotX(), y: ARENA.floor };
 const SHOW_GUNS: GunKind[] = ['pistol', 'smg', 'shotgun', 'railgun'];
 
 export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opts: { still?: boolean; onReady?: () => void } = {}) => {

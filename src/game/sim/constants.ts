@@ -27,6 +27,15 @@ export const SOLID_STYLES: readonly PlatformStyle[] = ['desk', 'table', 'counter
 export const isSolid = (p: Platform) => SOLID_STYLES.includes(p.style);
 
 /**
+ * Where the menu backdrop's fighter stands: on open floor 2.2 m past the end of the meeting table, so neither
+ * their body nor the turn of their shoulders ever reaches into the furniture.
+ */
+export const menuSpotX = () => {
+  const table = ARENA.platforms.find((p) => p.style === 'table')!;
+  return table.x1 + 2.2;
+};
+
+/**
  * Floor 42, open-plan. The walkways, shelves and cabinets are one-way platforms: jump up through them,
  * press Down to drop. Desks, the table and the counter are solid (see SOLID_STYLES).
  * Bullets do not go through furniture, so desks are cover.

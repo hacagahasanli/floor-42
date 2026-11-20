@@ -1,5 +1,5 @@
 import { createBot } from './bot';
-import { ARENA, CHARACTERS, DT, GUNS, isSolid, RULES, WALL_SPLAT_DAMAGE } from './constants';
+import { ARENA, CHARACTERS, DT, GUNS, isSolid, menuSpotX, RULES, WALL_SPLAT_DAMAGE } from './constants';
 import { chooseCharacter, createGame, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
@@ -99,6 +99,12 @@ describe('movement', () => {
         });
       }
     }
+
+    it('the menu backdrop fighter stands clear of all of them, with room to turn', () => {
+      const x = menuSpotX();
+      const widest = Math.max(...Object.values(CHARACTERS).map((c) => c.width));
+      for (const p of solid) expect(x + widest < p.x0 - 0.5 || x - widest > p.x1 + 0.5).toBe(true);
+    });
 
     it('jumping onto one from the floor still lands on top', () => {
       const s = fighting();
