@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
-import { SupportLink } from '~/components/SupportLink';
+import { SupportCard, SupportLink, SupportPill } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { deviceFacts, renderProfile } from '~/game/render/quality';
 import { ROSTER } from '~/game/roster';
@@ -746,6 +746,21 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
           </span>
         </footer>
       </div>
+
+      {/* Buy us a coffee: a card under the lift display on wide screens, a pill on phones; never over the menu itself. */}
+      {screen !== 'select' && (
+        <>
+          <div className="absolute right-6 top-20 z-20 hidden sm:right-10 sm:top-24 sm:block [@media(max-height:500px)]:hidden">
+            <SupportCard />
+          </div>
+          <div className="absolute left-5 top-[124px] z-20 sm:hidden">
+            <SupportPill />
+          </div>
+          <div className="absolute right-[120px] top-4 z-20 hidden [@media(max-height:500px)]:sm:block">
+            <SupportPill />
+          </div>
+        </>
+      )}
 
       {/* Right side: the lift display, the fighter nameplate and the control hints. */}
       <div className="pointer-events-none absolute right-6 top-6 z-10 max-sm:hidden sm:right-10 sm:top-10 [@media(max-height:500px)]:top-4">

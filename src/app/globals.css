@@ -168,3 +168,26 @@
   outline: 2px solid var(--color-gold);
   outline-offset: 2px;
 }
+
+/* Main menu support card: the coffee machine's display blinks, steam rises, the pill's cup wiggles now and then. */
+@keyframes f42Led {
+  0%, 70%, 100% { opacity: 1; }
+  80% { opacity: 0.35; }
+}
+@keyframes f42Steam {
+  0% { transform: translateY(3px); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateY(-4px); opacity: 0; }
+}
+@keyframes f42Wiggle {
+  0%, 84%, 100% { transform: rotate(0); }
+  88% { transform: rotate(-16deg); }
+  92% { transform: rotate(14deg); }
+  96% { transform: rotate(-8deg); }
+}
+.f42-led { animation: f42Led 2.4s steps(1, end) infinite; }
+.f42-steam { animation: f42Steam 2.2s ease-in-out infinite; }
+.f42-cup { animation: f42Wiggle 4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .f42-led, .f42-steam, .f42-cup { animation: none; }
+}
