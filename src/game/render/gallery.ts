@@ -58,7 +58,9 @@ export const startGallery = (canvas: HTMLCanvasElement, id: CharacterId) => {
   const tmpQ = new THREE.Quaternion();
 
   const frame = (now: number) => {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    // A frame's timestamp can be a little older than `last` (set at start-up): never step time backwards,
+    // or a start time near zero goes negative and picks no gun.
+    const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
     last = now;
     time += dt;
 

@@ -372,7 +372,8 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
                   <div className="panel-cut flex flex-wrap items-center justify-between gap-3 border border-gold/40 bg-ink-deep/80 px-4 py-3">
                     <span className="flex flex-col">
                       <span className="text-xs text-cream/60">Room code</span>
-                      <span className="select-all font-display text-3xl leading-none tracking-wider text-gold sm:text-4xl">{stage.roomId}</span>
+                      {/* Codes are case-sensitive: a monospace face that keeps the case, not the all-caps display font. */}
+                      <span className="select-all font-mono text-3xl font-bold leading-none tracking-wider text-gold sm:text-4xl">{stage.roomId}</span>
                     </span>
                     <span className="flex items-center gap-2 text-sm text-cream/70">
                       <Pulse color="bg-gold" /> Room open
