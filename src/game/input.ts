@@ -1,5 +1,7 @@
+import { DEFAULT_BINDINGS } from './settings';
 import { EMPTY_INPUT } from './sim/types';
 
+import type { Bindings } from './settings';
 import type { InputState } from './sim/types';
 
 export type Button = Exclude<keyof InputState, 'aimX' | 'aimY'>;
@@ -12,25 +14,27 @@ export type AimMode = 'auto' | 'mouse';
 
 /**
  * Keyboard first. By default the game aims for you (auto-aim) and Space shoots.
- * In mouse mode the mouse aims and left click also shoots.
+ * In mouse mode the mouse aims and left click also shoots. The keys come from Settings > Controls.
  */
-export const KEYMAP: Record<Button, string[]> = {
-  left: ['KeyA', 'ArrowLeft'],
-  right: ['KeyD', 'ArrowRight'],
-  up: ['KeyW', 'ArrowUp'],
-  down: ['KeyS', 'ArrowDown'],
-  fire: ['Space'],
-  dash: ['ShiftLeft', 'ShiftRight'],
-  push: ['KeyQ'],
-  pickup: ['KeyE'],
-  reload: ['KeyR'],
+export const KEYMAP: Record<Button, string[]> = Object.fromEntries(
+  Object.entries(DEFAULT_BINDINGS).map(([a, codes]) => [a, codes.filter(Boolean)]),
+) as Record<Button, string[]>;
+
+/** Key code -> action, from the player's bindings. */
+export const buildKeyLookup = (bindings: Bindings) =>
+  new Map<string, Button>(Object.entries(bindings).flatMap(([action, codes]) => codes.filter(Boolean).map((c) => [c, action as Button] as const)));
+
+/** The buttons held, given the keys held down. */
+export const applyKeys = (down: Iterable<string>, lookup: Map<string, Button>, into: InputState = { ...EMPTY_INPUT }) => {
+  for (const code of down) {
+    const action = lookup.get(code);
+    if (action) into[action] = true;
+  }
+  return into;
 };
 
-const CODE_TO_ACTION = new Map<string, Button>(
-  Object.entries(KEYMAP).flatMap(([action, codes]) => codes.map((c) => [c, action as Button])),
-);
-
-export const createControls = (canvas: HTMLCanvasElement, listen = true) => {
+export const createControls = (canvas: HTMLCanvasElement, listen = true, bindings: Bindings = DEFAULT_BINDINGS) => {
+  let lookup = buildKeyLookup(bindings);
   const down = new Set<string>();
   /** Mouse in normalised device coordinates (-1..1). */
   const mouse = { x: 0, y: 0 };
@@ -43,7 +47,7 @@ export const createControls = (canvas: HTMLCanvasElement, listen = true) => {
   const touchLatched = new Set<Button>();
 
   const onDown = (e: KeyboardEvent) => {
-    if (!CODE_TO_ACTION.has(e.code)) return;
+    if (!lookup.has(e.code)) return;
     e.preventDefault();
     down.add(e.code);
   };
@@ -79,14 +83,16 @@ export const createControls = (canvas: HTMLCanvasElement, listen = true) => {
     mouse,
     read: (aimX: number, aimY: number, mode: AimMode): InputState => {
       const s: InputState = { ...EMPTY_INPUT, aimX, aimY, fire: mode === 'mouse' && clicking };
-      for (const code of down) {
-        const action = CODE_TO_ACTION.get(code);
-        if (action) s[action] = true;
-      }
+      applyKeys(down, lookup, s);
       for (const b of touchHeld) s[b] = true;
       for (const b of touchLatched) s[b] = true;
       touchLatched.clear();
       return s;
+    },
+    /** New keys from Settings: applied at once; keys held under the old map are let go. */
+    setBindings: (b: Bindings) => {
+      lookup = buildKeyLookup(b);
+      down.clear();
     },
     /** A touch button went down (true) or up (false). */
     setTouch: (b: Button, on: boolean) => {
