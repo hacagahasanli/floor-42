@@ -650,7 +650,7 @@ Rows marked (notes) come from the owner's project notes and commit history, not 
 | Playtest log, HUD and sound: the "FLOOR 42" sign moved from the 3D wall to the HUD; the ambience loop was removed | Feedback (notes). The loop sounded like old-TV static (`sfx.ts` header). |
 | Own visual theme: Bungee for display, Chakra Petch for UI, navy with git-diff colours (HEAD green, incoming red, conflict yellow) | A distinct identity; `src/app/layout.tsx`, `palette.ts`, `globals.css`. |
 | Hosting plan: Cloudflare Pages for the static pages (free); Fly.io only for multiplayer servers, with autostop (notes) | Static pages cost nothing; a server only runs while someone plays. The Fly.io part is live (section 10); Cloudflare Pages was not checked for this guide. |
-| Studio "Merge Conflict" at mergeconflict.gg, with games on subdomains (notes) | One brand, one game per subdomain. Not checked for this guide. |
+| Studio "Nalbaki Games" at nalbakigames.com, with games on subdomains (notes) | One brand, one game per subdomain. Not checked for this guide. |
 
 ---
 

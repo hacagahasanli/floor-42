@@ -4,9 +4,9 @@
 
 ### Code review got personal. Settle it on floor 42.
 
-A game by **[Merge Conflict](https://merge-conflict-drab.vercel.app)**, the studio where coworkers settle their conflicts.
+A game by **[Nalbaki Games](https://nalbakigames.com)**.
 
-### [▶ Play now](https://floor-42.vercel.app/play) · [Practice vs bot](https://floor-42.vercel.app/characters) · [Studio](https://merge-conflict-drab.vercel.app) · [Last Commit Standing](https://last-commit-standing.vercel.app)
+### [▶ Play now](https://floor-42.vercel.app/play) · [Practice vs bot](https://floor-42.vercel.app/characters) · [Studio](https://nalbakigames.com) · [Last Commit Standing](https://last-commit-standing.vercel.app)
 
 **A fast side-on office shootout in the browser. Two hits and you're out.**<br>
 Your gun **aims itself**, so the whole game is moving, jumping and timing your shots.
@@ -128,7 +128,7 @@ npm run type-check
 
 ## Support
 
-Floor 42 is free. If you enjoyed it, you can [☕ support the studio](https://merge-conflict-drab.vercel.app/donate.html).
+Floor 42 is free. If you enjoyed it, you can [☕ support the studio](https://nalbakigames.com/support).
 
 ## Status
 
