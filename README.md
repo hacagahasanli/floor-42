@@ -23,7 +23,7 @@ A rocket crosses the whole office in a second.
 - **Auto-aim by default.** Space shoots, the gun tracks your rival. Prefer aiming yourself? Press **T** for mouse aim (the choice is remembered).
 - **Five guns on the floor.** Everyone starts with a pistol that never runs dry. There is one gun per floor at a time, and it shows up at a random spot as a random kind. Walk over a gold ring for an SMG, a shotgun, a railgun that goes through furniture and people, or a rocket launcher whose blast throws you too (rocket jumps). More drops from the ceiling vents.
 - **Force Push.** A shove on a short cooldown. It knocks your rival back, splats them into the glass walls (the glass cracks) and **reflects incoming bullets** back at the shooter.
-- **An office you fight across.** Three levels: desks, a meeting table and a kitchen on the floor, hanging walkways and a cable tray in the middle, a mezzanine under the ceiling. Wall-kick off the glass, double jump, drop through furniture.
+- **An office you fight across.** Three levels: desks, a meeting table and a kitchen on the floor, hanging walkways and a cable tray in the middle, a mezzanine under the ceiling. Desks and the meeting table are solid: jump onto them. Wall-kick off the glass, double jump, drop down through the walkways.
 - **Four original fighters.** Hotfix (tall, hood up, headset on), Legacy (wide, bearded, hardest to shove), Standup (small, fastest, two air jumps) and Intern (beanie, a backpack bigger than their back).
 - **Sound without a single audio file.** Every gunshot, blast and crack is synthesised live with WebAudio.
 - **A bot with three levels.** `easy`, `normal`, `hard`: reaction time, aim error and how often it dodges.
@@ -75,7 +75,7 @@ Keyboard only. Your gun aims at the opponent by itself.
 | A / D | move |
 | W | jump, again in the air, wall-kick off the glass |
 | Space | shoot (hold for automatic fire) |
-| S | drop through furniture, fast fall |
+| S | drop through a walkway, fast fall |
 | Shift | dash: you can't be hit while it lasts |
 | Q | Force Push |
 | R / E | swap for the gun you're standing on (an **R · SWAP** sign shows over it) |

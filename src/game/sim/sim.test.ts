@@ -1,5 +1,5 @@
 import { createBot } from './bot';
-import { ARENA, CHARACTERS, DT, GUNS, RULES, WALL_SPLAT_DAMAGE } from './constants';
+import { ARENA, CHARACTERS, DT, GUNS, isSolid, RULES, WALL_SPLAT_DAMAGE } from './constants';
 import { chooseCharacter, createGame, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
@@ -56,7 +56,7 @@ describe('round flow', () => {
 });
 
 describe('movement', () => {
-  it('lands on a desk and drops through it with Down', () => {
+  it('lands on a desk; Down does not drop into it (there is no room under a desk)', () => {
     const s = fighting();
     place(s, 0, -13.5, 2);
     run(s, 30);
@@ -64,7 +64,53 @@ describe('movement', () => {
     expect(s.fighters[0].y).toBeCloseTo(1.1);
     run(s, 1, { down: true });
     run(s, 40);
-    expect(s.fighters[0].y).toBe(0);
+    expect(s.fighters[0].y).toBeCloseTo(1.1);
+    expect(s.fighters[0].onGround).toBe(true);
+  });
+
+  it('drops through a walkway with Down', () => {
+    const s = fighting();
+    const walk = ARENA.platforms.find((p) => p.style === 'walkway' && p.y < 5)!;
+    place(s, 0, (walk.x0 + walk.x1) / 2, walk.y + 0.5);
+    run(s, 30);
+    expect(s.fighters[0].y).toBeCloseTo(walk.y);
+    run(s, 1, { down: true });
+    run(s, 60);
+    expect(s.fighters[0].y).toBe(ARENA.floor);
+  });
+
+  describe('desks, the table and the counter are solid: nobody walks or dashes into them', () => {
+    const solid = ARENA.platforms.filter((p) => isSolid(p));
+    for (const p of solid) {
+      for (const side of [-1, 1] as const) {
+        it(`${p.style} at ${p.x0}..${p.x1}, from the ${side < 0 ? 'left' : 'right'}`, () => {
+          const s = fighting();
+          const halfW = CHARACTERS[s.fighters[0].character].width / 2;
+          const start = side < 0 ? p.x0 - halfW - 1.2 : p.x1 + halfW + 1.2;
+          place(s, 0, start);
+          place(s, 1, side < 0 ? ARENA.right - 1 : ARENA.left + 1, 0);
+          const into = side < 0 ? { right: true } : { left: true };
+          for (let i = 0; i < 60; i++) {
+            run(s, 1, i === 20 ? { ...into, dash: true } : into);
+            const f = s.fighters[0];
+            expect(f.y).toBe(ARENA.floor);
+            expect(f.x + halfW <= p.x0 + 1e-6 || f.x - halfW >= p.x1 - 1e-6).toBe(true);
+          }
+        });
+      }
+    }
+
+    it('jumping onto one from the floor still lands on top', () => {
+      const s = fighting();
+      const desk = solid.find((p) => p.style === 'desk')!;
+      place(s, 0, desk.x0 - 1);
+      run(s, 2);
+      run(s, 1, { up: true, right: true });
+      run(s, 6, { right: true });
+      run(s, 60);
+      expect(s.fighters[0].onGround).toBe(true);
+      expect(s.fighters[0].y).toBeCloseTo(desk.y);
+    });
   });
 
   it('wall-kicks off the glass', () => {
@@ -263,12 +309,12 @@ describe('range, rarity and bombs', () => {
 
   it('a bomb lobbed at someone lands near them and right next to it is lethal', () => {
     const s = fighting();
-    place(s, 0, -8);
-    place(s, 1, -2);
+    place(s, 0, -11);
+    place(s, 1, -5);
     arm(s, 0, 'bomb');
     const events = run(s, 90, { fire: true, ...at(s, 1) });
     const blast = events.find((e) => e.type === 'explosion');
-    expect(blast && blast.type === 'explosion' && Math.abs(blast.x - -2)).toBeLessThan(1.5);
+    expect(blast && blast.type === 'explosion' && Math.abs(blast.x - -5)).toBeLessThan(1.5);
     expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
   });
 

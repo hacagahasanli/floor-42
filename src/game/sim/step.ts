@@ -5,6 +5,7 @@ import {
   DT,
   GRENADE,
   GUNS,
+  isSolid,
   PHYS,
   PUSH,
   RULES,
@@ -28,6 +29,10 @@ const approach = (v: number, target: number, delta: number) =>
   v < target ? Math.min(v + delta, target) : Math.max(v - delta, target);
 
 const sign = (v: number): 1 | -1 => (v < 0 ? -1 : 1);
+
+/** On top of a desk, the table or the counter: Down does nothing there (there is no room under it). */
+const standingOnSolid = (f: Fighter, halfW: number) =>
+  ARENA.platforms.some((p) => isSolid(p) && Math.abs(f.y - p.y) < 0.001 && f.x + halfW * 0.5 >= p.x0 && f.x - halfW * 0.5 <= p.x1);
 
 /** Deterministic PRNG kept in the state, so a server and a replay agree. */
 const nextRandom = (state: GameState) => {
@@ -524,7 +529,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     }
   }
 
-  if (canAct && pressed('down') && f.onGround && f.y > ARENA.floor + 0.01) {
+  if (canAct && pressed('down') && f.onGround && f.y > ARENA.floor + 0.01 && !standingOnSolid(f, halfW)) {
     f.dropTime = PHYS.dropTime;
     f.onGround = false;
   }
@@ -570,8 +575,21 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   }
 
   const prevY = f.y;
+  const prevX = f.x;
   f.x += f.vx * DT;
   f.y += f.vy * DT;
+
+  // Desks, the table and the counter are solid: below their top you stop at their side.
+  // Only if you were already below the top last tick; coming down onto them is a landing (below).
+  for (const p of ARENA.platforms) {
+    if (!isSolid(p) || prevY >= p.y - 0.001 || f.y >= p.y - 0.001) continue;
+    if (f.x + halfW <= p.x0 || f.x - halfW >= p.x1) continue;
+    const fromLeft = prevX + halfW <= p.x0 + 0.001;
+    const fromRight = prevX - halfW >= p.x1 - 0.001;
+    const left = fromLeft || (!fromRight && f.x < (p.x0 + p.x1) / 2);
+    f.x = left ? p.x0 - halfW : p.x1 + halfW;
+    if (f.vx * (left ? 1 : -1) > 0) f.vx = 0;
+  }
 
   // Glass walls.
   let touching: -1 | 0 | 1 = 0;

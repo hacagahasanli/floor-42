@@ -40,7 +40,7 @@ export const ACTIONS: { id: Button; label: string }[] = [
   { id: 'left', label: 'Move left' },
   { id: 'right', label: 'Move right' },
   { id: 'up', label: 'Jump' },
-  { id: 'down', label: 'Drop through' },
+  { id: 'down', label: 'Drop down' },
   { id: 'fire', label: 'Shoot' },
   { id: 'dash', label: 'Dash' },
   { id: 'push', label: 'Force Push' },

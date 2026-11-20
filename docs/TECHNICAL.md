@@ -181,13 +181,15 @@ x += vx * DT;  y += vy * DT
 
 All `PHYS` values are in `constants.ts:71`.
 
-### Platforms: one-way and drop-through
+### Platforms: one-way, drop-through and solid furniture
 
-Every platform is a horizontal segment `{x0, x1, y}` (`ARENA.platforms`, `constants.ts:23`). There are no solid sides or undersides: you jump up through them and land on top.
+Every platform is a horizontal segment `{x0, x1, y}` (`ARENA.platforms`, `constants.ts`). Walkways, the cable tray, shelves, cabinets and the fridge have no solid sides or undersides: you jump up through them and land on top.
+
+Desks, the meeting table and the kitchen counter (`SOLID_STYLES`, `isSolid`) are too low for anyone to stand under, so they are solid from the floor to their top: a fighter whose feet were and still are below the top is pushed back out to the side they came from (or the nearest side), and a bot hops onto them instead of running into them. Before this, fighters walked through the desk tops and table legs on screen.
 
 Landing rule (`step.ts:437-457`): only when moving down or still (`vy <= 0`), and the fighter's feet crossed the platform's height this tick (`prevY >= p.y && f.y <= p.y`), and the middle half of the body overlaps the platform horizontally. The floor (`y = 0`) is the same check against `ARENA.floor`.
 
-Drop-through: pressing Down while standing on furniture sets `dropTime = 0.25 s` (`PHYS.dropTime`). While it is above zero, platform landing is skipped. The floor itself cannot be dropped through (`step.ts:363`).
+Drop-through: pressing Down while standing on a one-way platform (not on solid furniture) sets `dropTime = 0.25 s` (`PHYS.dropTime`). While it is above zero, platform landing is skipped. The floor itself cannot be dropped through (`step.ts:363`).
 
 ### Glass walls and wall-kick
 
@@ -419,7 +421,7 @@ A development-only handle `window.__mc` exposes the state for automated checks (
 |---|---|
 | Move | A / D or Left / Right |
 | Jump, double jump, wall-kick | W or Up |
-| Drop through furniture, fast fall | S or Down |
+| Drop through a walkway, fast fall | S or Down |
 | Dash | Shift |
 | Fire (hold) | Space (also left click in mouse mode) |
 | Force Push | Q |
@@ -481,7 +483,7 @@ What the 37 tests cover (34 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
 | Group | Tests |
 |---|---|
 | Round flow | input is ignored during the countdown, then the fight starts; round ends on time with the KO leader as winner |
-| Movement | land on a desk and drop through it with Down; wall-kick off the glass; facing follows aim |
+| Movement | land on a desk (Down does not drop into it), drop through a walkway with Down; desks, the table and the counter are solid from the side; wall-kick off the glass; facing follows aim |
 | Guns | pistol hits where aimed and misses when aimed away; furniture blocks bullets; auto-reload; spent special gun falls back to pistol; two pistol hits KO; point-blank shotgun is a one-shot KO; railgun goes through furniture; grenade throws everyone including the shooter; rockets fly straight across the office; walking over a gun with a pistol picks it up; dash dodges bullets |
 | Force Push | splats into the glass (checks `WALL_SPLAT_DAMAGE`); reflects bullets at the shooter |
 | KOs | KO scores for the shooter and the fighter respawns with a pistol; 3 s wait after a KO and coming back as someone else |
@@ -742,7 +744,7 @@ Reader question: how does a touch screen drive a game built for a keyboard?
 |---|---|---|
 | Left or right | beyond 0.3 | `left` / `right` |
 | Up | beyond 0.6 | `up` (jump) |
-| Down | beyond 0.6 | `down` (drop through furniture) |
+| Down | beyond 0.6 | `down` (drop through a walkway) |
 
 Only one finger is tracked for the stick (`pointer` ref, pointer capture); other fingers can use the buttons at the same time, because each button captures its own pointer.
 

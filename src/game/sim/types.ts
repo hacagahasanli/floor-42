@@ -9,7 +9,7 @@ export interface InputState {
   left: boolean;
   right: boolean;
   up: boolean; // jump / double jump / wall-kick
-  down: boolean; // drop through furniture, fast fall
+  down: boolean; // drop through a walkway, fast fall
   dash: boolean;
   fire: boolean; // held: guns fire at their own rate
   pickup: boolean;

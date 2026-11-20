@@ -20,8 +20,16 @@ export interface Platform {
 }
 
 /**
- * Floor 42, open-plan. Every surface is a one-way platform: jump up through it,
- * press Down to drop. Bullets do not go through furniture, so desks are cover.
+ * Low furniture nobody fits under: desks, the meeting table and the kitchen counter are solid from the floor
+ * to their top. You walk up to them and jump on; you never walk (or drop) into them.
+ */
+export const SOLID_STYLES: readonly PlatformStyle[] = ['desk', 'table', 'counter'];
+export const isSolid = (p: Platform) => SOLID_STYLES.includes(p.style);
+
+/**
+ * Floor 42, open-plan. The walkways, shelves and cabinets are one-way platforms: jump up through them,
+ * press Down to drop. Desks, the table and the counter are solid (see SOLID_STYLES).
+ * Bullets do not go through furniture, so desks are cover.
  */
 /**
  * How often each gun shows up on the lower floors, as weights (one entry = one ticket).
