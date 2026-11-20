@@ -410,7 +410,7 @@ const Credits = () => (
   <div className="flex flex-col gap-5 text-sm text-cream/80">
     <div className="flex items-center gap-4">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/studio-logo.png" alt="" width={64} height={64} className="h-16 w-16" />
+      <img src="/nalbaki-mark.svg" alt="" width={64} height={64} className="h-16 w-16" />
       <div className="flex flex-col">
         <span className="font-display text-2xl text-cream">{STUDIO_NAME}</span>
         <span className="text-cream/60">Floor 42 · version {GAME_VERSION}</span>
