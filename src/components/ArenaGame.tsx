@@ -10,12 +10,17 @@ import {
   TouchControls,
   useLandscape,
 } from '~/components/TouchControls';
-import { AIM_KEY, readAim } from '~/components/AimChoice';
+import { readAim } from '~/components/AimChoice';
+import { SettingsPanel } from '~/components/menu/SettingsPanel';
+import { useGamepadNav } from '~/components/menu/useGamepadNav';
+import { useSettings } from '~/components/menu/useSettings';
+import { menuSound } from '~/components/menu/menuSound';
 import { SupportLink } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
+import { keyLabel } from '~/game/settings';
 
 import type { AimMode } from '~/game/input';
 import type { NetStatus, OnlineSession } from '~/game/net/client';
@@ -23,13 +28,12 @@ import type { StartMessage } from '~/game/net/protocol';
 import type { Room } from '@colyseus/sdk';
 import type { HudFighter, HudState } from '~/game/render/game';
 import type { BotLevel } from '~/game/sim/bot';
-import type { VolumeKind } from '~/game/sfx';
+import type { Bindings } from '~/game/settings';
 import type { CharacterId } from '~/game/sim/types';
 
 const accent = (id: CharacterId) => ROSTER.find((r) => r.id === id)?.accent ?? '#fff';
 const WAIT_SECONDS = 60;
 const MAX_WAITS = 3;
-
 
 const Key = ({ k }: { k: string }) => (
   <kbd className="inline-flex min-w-5 items-center justify-center rounded-sm border border-b-2 border-cream/30 bg-cream/10 px-1 text-[10px] font-bold leading-4 text-cream">
@@ -81,7 +85,7 @@ const FighterPanel = ({
         className={`h-full transition-[width] duration-150 ${align === 'right' ? 'ml-auto' : ''}`}
         style={{
           width: `${(f.hp / f.maxHp) * 100}%`,
-          background: f.hp / f.maxHp > 0.5 ? accent(f.character) : '#ff3d6e',
+          background: f.hp / f.maxHp > 0.5 ? accent(f.character) : 'var(--color-orange)',
         }}
       />
       {/* Healing: the empty part of the bar shimmers green as it refills. */}
@@ -118,33 +122,37 @@ const FighterPanel = ({
   </div>
 );
 
-const Controls = ({ aim }: { aim: AimMode }) => (
-  <div className="pointer-events-none absolute bottom-3 left-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-cream/50">
-    <span className="flex items-center gap-1">
-      <Key k="A" />
-      <Key k="D" /> move
-    </span>
-    <span className="flex items-center gap-1">
-      <Key k="W" /> jump
-    </span>
-    <span className="flex items-center gap-1">
-      <Key k="Space" /> {aim === 'mouse' ? 'or click: shoot' : 'shoot'}
-    </span>
-    <span className="flex items-center gap-1">
-      <Key k="S" /> drop
-    </span>
-    <span className="flex items-center gap-1">
-      <Key k="Shift" /> dash
-    </span>
-    <span className="flex items-center gap-1">
-      <Key k="Q" /> push
-    </span>
-    <span className="flex items-center gap-1">
-      <Key k="Esc" />
-      <Key k="Esc" /> pause / exit
-    </span>
-  </div>
-);
+/** The key strip along the bottom, from the player's own bindings. */
+const Controls = ({ aim, bindings }: { aim: AimMode; bindings: Bindings }) => {
+  const k = (a: keyof Bindings) => keyLabel(bindings[a][0] || bindings[a][1]);
+  return (
+    <div className="hud-scale pointer-events-none absolute bottom-3 left-3 flex origin-bottom-left flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-cream/50">
+      <span className="flex items-center gap-1">
+        <Key k={k('left')} />
+        <Key k={k('right')} /> move
+      </span>
+      <span className="flex items-center gap-1">
+        <Key k={k('up')} /> jump
+      </span>
+      <span className="flex items-center gap-1">
+        <Key k={k('fire')} /> {aim === 'mouse' ? 'or click: shoot' : 'shoot'}
+      </span>
+      <span className="flex items-center gap-1">
+        <Key k={k('down')} /> drop
+      </span>
+      <span className="flex items-center gap-1">
+        <Key k={k('dash')} /> dash
+      </span>
+      <span className="flex items-center gap-1">
+        <Key k={k('push')} /> push
+      </span>
+      <span className="flex items-center gap-1">
+        <Key k="Esc" />
+        <Key k="Esc" /> pause / settings
+      </span>
+    </div>
+  );
+};
 
 const END_TEXT = (hud: HudState, demo: boolean) => {
   if (hud.winner === -1 || hud.winner === null)
@@ -157,47 +165,23 @@ const END_TEXT = (hud: HudState, demo: boolean) => {
   };
 };
 
-const VOLUME_LABELS: { kind: VolumeKind; label: string }[] = [
-  { kind: 'master', label: 'All sound' },
-  { kind: 'guns', label: 'Gunshots' },
-];
-
-/** Volume sliders in the Esc Esc menu: applied at once, remembered in this browser. */
-const SoundSliders = ({ game }: { game: ReturnType<typeof startArena> | null }) => {
-  const [v, setV] = useState(() => game?.volumes() ?? { master: 0.8, guns: 0.45 });
-  return (
-    <div className="flex w-full flex-col gap-2 text-left">
-      <span className="text-[10px] font-semibold tracking-widest text-cream/50">SOUND</span>
-      {VOLUME_LABELS.map(({ kind, label }) => (
-        <label key={kind} className="flex items-center gap-3 text-sm text-cream/80">
-          <span className="w-20 shrink-0">{label}</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(v[kind] * 100)}
-            onChange={(e) => {
-              const value = Number(e.target.value) / 100;
-              game?.setVolume(kind, value);
-              setV((old) => ({ ...old, [kind]: value }));
-            }}
-            className="h-2 flex-1 cursor-pointer accent-[#ffd23f]"
-            aria-label={label}
-          />
-          <span className="w-8 text-right text-xs tabular-nums text-cream/60">
-            {Math.round(v[kind] * 100)}
-          </span>
-        </label>
-      ))}
-    </div>
-  );
-};
-
 const NET_LABEL: Record<NetStatus['mode'], { label: string; title: string; dot: string }> = {
   direct: { label: 'Direct', title: 'Playing over a direct line to your rival', dot: 'bg-green' },
-  turn: { label: 'Relay (TURN)', title: 'A direct line through a TURN relay: your networks block a straight one', dot: 'bg-green' },
-  relay: { label: 'Server relay', title: 'The direct line went quiet: messages go through the game server for now', dot: 'bg-gold' },
-  server: { label: 'Server', title: 'The game server runs this match (no direct line between you)', dot: 'bg-gold' },
+  turn: {
+    label: 'Relay (TURN)',
+    title: 'A direct line through a TURN relay: your networks block a straight one',
+    dot: 'bg-green',
+  },
+  relay: {
+    label: 'Server relay',
+    title: 'The direct line went quiet: messages go through the game server for now',
+    dot: 'bg-gold',
+  },
+  server: {
+    label: 'Server',
+    title: 'The game server runs this match (no direct line between you)',
+    dot: 'bg-gold',
+  },
 };
 
 /** How this match is connected and the round trip, always visible in an online match. */
@@ -209,9 +193,102 @@ const NetBadge = ({ net }: { net: NetStatus }) => {
       title={`${m.title}. Round trip ${net.ping} ms.${net.authority === 'here' ? ' Your browser runs the game.' : ''}`}
       className="panel-cut flex items-center gap-1.5 bg-cream/10 px-2 py-1 font-semibold uppercase tracking-wider text-cream/85"
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${net.unstable ? 'animate-pulse bg-orange' : m.dot}`} aria-hidden />
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${net.unstable ? 'animate-pulse bg-orange' : m.dot}`}
+        aria-hidden
+      />
       {m.label} · {net.ping} ms{host}
     </span>
+  );
+};
+
+/**
+ * The in-game pause menu: Resume · Settings · Quit to menu, slanted like the main menu. Settings opens the same
+ * panel as the main menu. Online, pausing needs both players: until the rival agrees the game keeps going.
+ */
+const PauseMenu = ({
+  paused,
+  online,
+  onResume,
+  onSettings,
+  onQuit,
+}: {
+  paused: boolean;
+  online: boolean;
+  onResume: () => void;
+  onSettings: () => void;
+  onQuit: () => void;
+}) => {
+  const first = useRef<HTMLButtonElement>(null);
+  useEffect(() => first.current?.focus(), []);
+  const item = (
+    label: string,
+    onClick: () => void,
+    opts: {
+      primary?: boolean;
+      danger?: boolean;
+      ref?: React.RefObject<HTMLButtonElement | null>;
+    } = {},
+  ) => (
+    <button
+      ref={opts.ref}
+      type="button"
+      onClick={() => {
+        menuSound.confirm();
+        onClick();
+      }}
+      onFocus={() => menuSound.tick()}
+      onMouseEnter={(e) => e.currentTarget.focus()}
+      onKeyDown={(e) => {
+        if (e.code !== 'ArrowDown' && e.code !== 'ArrowUp') return;
+        e.preventDefault();
+        const list = [...(e.currentTarget.parentElement?.querySelectorAll('button') ?? [])];
+        const i = list.indexOf(e.currentTarget);
+        list[
+          Math.max(0, Math.min(list.length - 1, i + (e.code === 'ArrowDown' ? 1 : -1)))
+        ]?.focus();
+      }}
+      className="group relative flex w-full -skew-x-[8deg] items-center gap-3 overflow-hidden py-2.5 pl-5 text-left outline-none transition hover:bg-cream/5 focus-visible:bg-cream/[0.07]"
+    >
+      <span
+        className={`absolute inset-y-0 left-0 w-1.5 origin-left scale-x-0 transition-transform group-hover:scale-x-100 group-focus-visible:scale-x-100 ${opts.danger ? 'bg-orange' : 'bg-gold'}`}
+      />
+      <span
+        className={`skew-x-[8deg] font-display leading-none transition group-hover:translate-x-2 group-focus-visible:translate-x-2 ${opts.primary ? 'text-4xl text-gold' : 'text-2xl text-cream/85 group-focus-visible:text-cream'}`}
+      >
+        {label}
+      </span>
+    </button>
+  );
+  return (
+    <div className="absolute inset-0 z-10 flex bg-[linear-gradient(90deg,rgba(10,13,24,0.95)_0%,rgba(10,13,24,0.8)_35%,rgba(10,13,24,0.35)_70%)] [animation:fadeIn_0.2s_ease-out]">
+      <div className="flex w-full max-w-md flex-col justify-center gap-6 px-8 [animation:slideInLeft_0.3s_cubic-bezier(.2,.9,.2,1)] sm:px-12">
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-blue">
+            Floor 42
+          </span>
+          <h2 className="-skew-x-6 font-display text-6xl leading-none text-cream [@media(max-height:500px)]:text-4xl">
+            {paused ? 'PAUSED' : 'PAUSE?'}
+          </h2>
+          {!paused && online && (
+            <p className="max-w-xs text-sm text-cream/70">
+              Waiting for your rival to pause too. The game keeps going until they do.
+            </p>
+          )}
+        </div>
+        <nav aria-label="Pause menu" className="flex flex-col gap-1">
+          {item(paused ? 'RESUME' : 'KEEP PLAYING', onResume, { primary: true, ref: first })}
+          {item('SETTINGS', onSettings)}
+          {item(online ? 'LEAVE MATCH' : 'QUIT TO MENU', onQuit, { danger: true })}
+        </nav>
+        <div className="flex flex-col gap-3">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-cream/40">
+            Esc resumes
+          </span>
+          <SupportLink className="self-start" />
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -235,6 +312,9 @@ export const ArenaGame = ({
   const [rematchAsked, setRematchAsked] = useState(false);
   const [rivalLeft, setRivalLeft] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settings = useSettings();
+  useGamepadNav(menuOpen);
   // Rival left: wait up to three rounds of WAIT_SECONDS, asking in between, then the link expires.
   const [waitRound, setWaitRound] = useState(0);
   const [waitLeft, setWaitLeft] = useState(0);
@@ -253,9 +333,13 @@ export const ArenaGame = ({
     if (!touch || demo) return;
     const apply = () => {
       const sa = safeArea();
+      // Left-handed swaps the strips: the stick lives on the right.
+      const [l, r] = settings.touch.leftHanded
+        ? [TOUCH_STRIPS.right, TOUCH_STRIPS.left]
+        : [TOUCH_STRIPS.left, TOUCH_STRIPS.right];
       gameRef.current?.setInsets({
-        left: TOUCH_STRIPS.left + sa.left,
-        right: TOUCH_STRIPS.right + sa.right,
+        left: l * settings.touch.size + sa.left,
+        right: r * settings.touch.size + sa.right,
         top: TOUCH_STRIPS.top,
         bottom: 0,
       });
@@ -263,7 +347,7 @@ export const ArenaGame = ({
     apply();
     window.addEventListener('resize', apply);
     return () => window.removeEventListener('resize', apply);
-  }, [touch, demo]);
+  }, [touch, demo, settings.touch.leftHanded, settings.touch.size]);
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
 
@@ -367,6 +451,12 @@ export const ArenaGame = ({
       const h = hudRef.current;
       if (!h) return;
       if (e.code === 'Escape') {
+        // The pause menu is open: one Esc resumes (Settings, when open, takes Esc first and closes itself).
+        if (menuOpenRef.current) {
+          lastEsc.current = 0;
+          closeMenuRef.current();
+          return;
+        }
         const now = performance.now();
         const double = now - lastEsc.current < 450;
         lastEsc.current = double ? 0 : now;
@@ -392,9 +482,15 @@ export const ArenaGame = ({
 
   const closeMenu = () => {
     setMenuOpen(false);
-    if (hud?.paused) gameRef.current?.resume();
+    setSettingsOpen(false);
+    setTimeout(() => keyTrapRef.current?.focus({ preventScroll: true }), 0);
+    if (hudRef.current?.paused) gameRef.current?.resume();
     else gameRef.current?.cancelPause();
   };
+  const menuOpenRef = useRef(false);
+  menuOpenRef.current = menuOpen;
+  const closeMenuRef = useRef(closeMenu);
+  closeMenuRef.current = closeMenu;
 
   const rematch = () => {
     // Only online waits for the rival; against the bot the rematch starts at once.
@@ -402,23 +498,15 @@ export const ArenaGame = ({
     gameRef.current?.restart();
   };
 
-  // Remember the aim mode (T toggles it inside the game).
-  useEffect(() => {
-    if (!hud) return;
-    try {
-      window.localStorage.setItem(AIM_KEY, hud.aimMode);
-    } catch {
-      /* storage unavailable: the default is fine */
-    }
-  }, [hud?.aimMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Keyboard-navigation extensions (Vimium and friends) swallow keys like D, J, K, L
   // unless a text field has focus. Keep an invisible one focused while the game runs.
   useEffect(() => {
     const trap = keyTrapRef.current;
     // Never on phones: a focused field would pop up the on-screen keyboard.
     if (!trap || isTouchDevice()) return;
-    const refocus = () => setTimeout(() => trap.focus({ preventScroll: true }), 0);
+    // Not while the pause menu or Settings is open: they need focus for the keyboard and gamepad.
+    const refocus = () =>
+      setTimeout(() => !menuOpenRef.current && trap.focus({ preventScroll: true }), 0);
     trap.focus({ preventScroll: true });
     trap.addEventListener('blur', refocus);
     window.addEventListener('pointerdown', refocus);
@@ -464,7 +552,7 @@ export const ArenaGame = ({
 
       {hud && (
         <>
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between bg-gradient-to-b from-ink-deep/90 to-transparent px-4 pb-8 pt-3">
+          <div className="hud-scale pointer-events-none absolute inset-x-0 top-0 flex origin-top items-start justify-between bg-gradient-to-b from-ink-deep/90 to-transparent px-4 pb-8 pt-3">
             <FighterPanel
               f={hud.fighters[0]}
               label={demo ? 'BOT' : 'YOU'}
@@ -496,7 +584,9 @@ export const ArenaGame = ({
           {/* Every round opens on what the game is about, then the merge goes wrong. */}
           {hud.phase === 'countdown' && hud.time > 1.6 && (
             <div className="pointer-events-none absolute inset-0 z-[4] flex flex-col items-center justify-center gap-4 bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.55),rgba(10,13,24,0.15)_70%)] px-6 text-center">
-              <div className="font-mono text-xs tracking-[0.3em] text-green/90 [animation:fadeIn_0.4s_ease-out]">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</div>
+              <div className="font-mono text-xs tracking-[0.3em] text-green/90 [animation:fadeIn_0.4s_ease-out]">
+                &lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+              </div>
               <div className="font-display text-4xl leading-none text-gold drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] [animation:riseIn_0.5s_ease-out] sm:text-7xl">
                 CODE REVIEW
                 <br />
@@ -505,7 +595,9 @@ export const ArenaGame = ({
               <div className="max-w-md text-sm text-cream/85 [animation:fadeIn_0.8s_ease-out] sm:text-base">
                 Two developers. One floor of guns. First to {RULES.kosToWin} KOs takes the merge.
               </div>
-              <div className="font-mono text-xs tracking-[0.3em] text-orange/90 [animation:fadeIn_0.4s_ease-out]">&gt;&gt;&gt;&gt;&gt;&gt;&gt; their-branch</div>
+              <div className="font-mono text-xs tracking-[0.3em] text-orange/90 [animation:fadeIn_0.4s_ease-out]">
+                &gt;&gt;&gt;&gt;&gt;&gt;&gt; their-branch
+              </div>
             </div>
           )}
           {hud.phase === 'countdown' && hud.time <= 1.6 && (
@@ -535,7 +627,7 @@ export const ArenaGame = ({
             <div
               className={`pointer-events-none absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-36' : 'bottom-10'}`}
             >
-              <div className="panel-cut flex items-center gap-3 bg-ink-deep/85 px-4 py-1.5 text-sm text-cream">
+              <div className="hud-scale panel-cut flex items-center gap-3 bg-ink-deep/85 px-4 py-1.5 text-sm text-cream">
                 {hud.hint.map((h) => (
                   <span key={h.key} className="flex items-center gap-2">
                     <Key
@@ -557,10 +649,16 @@ export const ArenaGame = ({
           )}
 
           {hud.net?.unstable && !hud.paused && hud.phase !== 'over' && (
-            <div className="pointer-events-none absolute inset-x-0 top-16 z-[7] flex justify-center" role="status" aria-live="polite">
+            <div
+              className="pointer-events-none absolute inset-x-0 top-16 z-[7] flex justify-center"
+              role="status"
+              aria-live="polite"
+            >
               <div className="panel-cut flex items-center gap-2 bg-orange/95 px-4 py-1.5 text-ink-deep shadow-lg">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-ink-deep" aria-hidden />
-                <span className="text-xs font-bold uppercase tracking-widest">Connection unstable</span>
+                <span className="text-xs font-bold uppercase tracking-widest">
+                  Connection unstable
+                </span>
                 <span className="text-[10px] font-semibold opacity-80">
                   {hud.net.mode === 'server' ? 'server' : hud.net.mode} · {hud.net.ping} ms
                 </span>
@@ -625,45 +723,16 @@ export const ArenaGame = ({
           )}
 
           {(hud.paused || menuOpen) && hud.phase !== 'over' && !rivalLeft && dropLeft === null && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-ink-deep/70">
-              <div className="panel-cut flex w-80 flex-col items-center gap-4 bg-ink p-7 text-center">
-                {hud.paused ? (
-                  <>
-                    <div className="font-display text-4xl text-gold">Paused</div>
-                    <button
-                      type="button"
-                      onClick={closeMenu}
-                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
-                    >
-                      Resume
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="font-display text-2xl text-gold">Pause requested</div>
-                    <p className="text-sm text-cream/70">
-                      Waiting for your rival to pause too. The game keeps going until they do.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={closeMenu}
-                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
-                    >
-                      Keep playing
-                    </button>
-                  </>
-                )}
-                <SoundSliders game={gameRef.current} />
-                <button
-                  type="button"
-                  onClick={exit}
-                  className="panel-cut w-full bg-orange/90 px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
-                >
-                  Exit match
-                </button>
-                <SupportLink />
-              </div>
-            </div>
+            <PauseMenu
+              paused={hud.paused}
+              online={!!online}
+              onResume={closeMenu}
+              onSettings={() => setSettingsOpen(true)}
+              onQuit={exit}
+            />
+          )}
+          {settingsOpen && (hud.paused || menuOpen) && (
+            <SettingsPanel onClose={() => setSettingsOpen(false)} />
           )}
 
           {rivalLeft && (
@@ -874,7 +943,7 @@ export const ArenaGame = ({
                     </button>
                   ) : (
                     <Link
-                      href="/characters"
+                      href="/?select"
                       className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20"
                     >
                       Change fighter
@@ -888,12 +957,15 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {!demo && !touch && <Controls aim={hud.aimMode} />}
+          {!demo && !touch && <Controls aim={hud.aimMode} bindings={settings.bindings} />}
           {!demo && touch && hud.phase !== 'over' && !rivalLeft && !menuOpen && !hud.paused && (
             <TouchControls
               press={(b, on) => gameRef.current?.touch(b, on)}
               onPause={openMenu}
               ready={{ dash: hud.fighters[0].dash, push: hud.fighters[0].push }}
+              size={settings.touch.size}
+              opacity={settings.touch.opacity}
+              leftHanded={settings.touch.leftHanded}
             />
           )}
           <div
@@ -919,7 +991,7 @@ export const ArenaGame = ({
             </button>
             {hud.net && <NetBadge net={hud.net} />}
             {hud.muted && <span>muted (M)</span>}
-            <span>{hud.fps} fps</span>
+            {settings.showFps && <span className="tabular-nums">{hud.fps} fps</span>}
           </div>
         </>
       )}

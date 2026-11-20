@@ -5,8 +5,9 @@ import { createControls, isTouchDevice } from '../input';
 import type { Button } from '../input';
 import type { AimMode } from '../input';
 import { createSfx } from '../sfx';
+import { getSettings, primaryLabel } from '../settings';
 
-import type { VolumeKind } from '../sfx';
+import type { Settings } from '../settings';
 import { createBot } from '../sim/bot';
 import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS, RULES } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
@@ -14,6 +15,7 @@ import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../s
 import { buildArena } from './arena';
 import { buildRig, poseDeath, poseSide } from './characters';
 import { buildGun } from './guns';
+import { deviceFacts, renderProfile } from './quality';
 import { createVfx } from './vfx';
 
 import type { Rig } from './characters';
@@ -83,10 +85,13 @@ const randomSeed = () => (Math.random() * 1e9) | 0;
 
 export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const touch = isTouchDevice();
+  const store = getSettings();
+  let settings: Settings = store.get();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  // Phones: a lower pixel ratio keeps 60 fps; the far camera doesn't need more.
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, touch ? 1.5 : 2));
-  renderer.shadowMap.enabled = true;
+  // The quality tier (Settings > Graphics) sets the pixel ratio and shadows; phones default to a lower ratio.
+  const profile0 = renderProfile(settings, deviceFacts());
+  renderer.setPixelRatio(profile0.pixelRatio);
+  renderer.shadowMap.enabled = profile0.shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -103,10 +108,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   let state: GameState = online ? online.state : createGame([opts.player, opts.opponent], randomSeed());
   let bot = createBot(1, randomSeed(), level);
   let demoBot = createBot(0, randomSeed(), level);
-  const controls = createControls(canvas, !opts.backdrop);
-  let aimMode: AimMode = opts.aimMode ?? 'auto';
-  const sfx = createSfx();
-  let muted = sfx.muted; // remembered across visits
+  const controls = createControls(canvas, !opts.backdrop, settings.bindings);
+  let aimMode: AimMode = touch ? 'auto' : (opts.aimMode ?? settings.aimMode);
+  const sfx = createSfx({ volumes: settings.audio, muted: store.effectiveMute() });
+  let muted = store.effectiveMute();
 
   const arena = buildArena(scene, state.pickups.length);
   const vfx = createVfx(scene);
@@ -274,14 +279,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const smooth = state.fighters.map((f) => ({ x: f.x, y: f.y }));
 
   // ---------- Game feel (see the web-game-feel skill): one tiered feedback() per event.
-  const MOTION_KEY = 'merge-conflict:motion';
-  let motion = (() => {
-    try {
-      return window.localStorage.getItem(MOTION_KEY) === '0' ? 0 : 1;
-    } catch {
-      return 1;
-    }
-  })();
+  // Camera shake and flashes: Settings > Camera, and off whenever reduced motion is on.
+  const motionOf = (s: Settings) => (s.shake && !s.reducedMotion ? 1 : 0);
+  let motion = motionOf(settings);
   type Tier = 'tiny' | 'light' | 'heavy' | 'huge';
   const TIERS: Record<Tier, { trauma: number; flash: number; fov: number }> = {
     tiny: { trauma: 0, flash: 0, fov: 0 },
@@ -799,9 +799,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     const self = state.fighters[me];
     if (opts.demo || state.phase !== 'fight' || self.respawn > 0) return [];
     const near = pickupCandidate(state, self);
-    if (self.weapon.kind === 'bomb') return [{ key: 'Space', text: 'throw the bomb' }];
+    if (self.weapon.kind === 'bomb') return [{ key: primaryLabel(settings.bindings, 'fire'), text: 'throw the bomb' }];
     if (near && near.kind !== 'bomb' && self.weapon.kind !== 'pistol') {
-      return [{ key: 'R', text: `swap for the ${GUNS[near.kind].name}` }];
+      return [{ key: primaryLabel(settings.bindings, 'reload'), text: `swap for the ${GUNS[near.kind].name}` }];
     }
     return [];
   };
@@ -862,8 +862,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const onKey = (e: KeyboardEvent) => {
     if (opts.backdrop) return;
     sfx.unlock();
-    if (e.code === 'KeyM') muted = sfx.toggleMute();
-    if (e.code === 'KeyT') aimMode = aimMode === 'auto' ? 'mouse' : 'auto';
+    if (e.code === 'KeyM') store.setAudio({ muted: !settings.audio.muted });
+    if (e.code === 'KeyT' && !touch) store.set({ aimMode: aimMode === 'auto' ? 'mouse' : 'auto' });
   };
   window.addEventListener('keydown', onKey);
   // On phones audio starts with the first touch.
@@ -940,6 +940,28 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     }
   };
   prewarm();
+
+  // Settings change while the game runs (pause menu): apply at once.
+  const applySettings = (s: Settings) => {
+    const prev = settings;
+    settings = s;
+    const p = renderProfile(s, deviceFacts());
+    if (renderer.getPixelRatio() !== p.pixelRatio) renderer.setPixelRatio(p.pixelRatio);
+    if (renderer.shadowMap.enabled !== p.shadows) {
+      renderer.shadowMap.enabled = p.shadows;
+      // Shadow use is compiled into each material's shader: rebuild them once.
+      scene.traverse((o) => {
+        if (o instanceof THREE.Mesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true));
+      });
+    }
+    motion = motionOf(s);
+    muted = store.effectiveMute();
+    sfx.apply(s.audio, muted);
+    if (prev.bindings !== s.bindings) controls.setBindings(s.bindings);
+    if (!touch) aimMode = s.aimMode;
+    emitHud();
+  };
+  const offSettings = store.subscribe(applySettings);
   if (!opts.backdrop) sfx.warm();
   raf = requestAnimationFrame(frame);
   // Dev-only handle for automated checks.
@@ -998,15 +1020,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     serverStart,
     requestPause,
     cancelPause,
-    toggleMotion: () => {
-      motion = motion ? 0 : 1;
-      try {
-        window.localStorage.setItem(MOTION_KEY, String(motion));
-      } catch {
-        /* storage unavailable */
-      }
-      emitHud();
-    },
+    toggleMotion: () => store.set({ shake: !settings.shake, reducedMotion: settings.shake ? settings.reducedMotion : false }),
     resume,
     pickCharacter,
     /** Keep the office clear of screen edges covered by controls (CSS px). */
@@ -1019,13 +1033,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       sfx.unlock();
       controls.setTouch(b, on);
     },
-    volumes: () => sfx.volumes,
-    setVolume: (kind: VolumeKind, value: number) => sfx.setVolume(kind, value),
-    setAimMode: (m: AimMode) => {
-      aimMode = m;
-    },
+    setAimMode: (m: AimMode) => store.set({ aimMode: m }),
     dispose: () => {
       cancelAnimationFrame(raf);
+      offSettings();
       controls.dispose();
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pointerdown', onFirstTouch);

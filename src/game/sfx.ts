@@ -14,33 +14,15 @@ export type Sfx = ReturnType<typeof createSfx>;
 type Gun = 'pistol' | 'smg' | 'shotgun' | 'railgun' | 'launcher' | 'uzi' | 'bomb';
 type Bus = 'sfx' | 'ui' | 'amb' | 'guns';
 
-const MUTE_KEY = 'merge-conflict:muted';
-const VOLUME_KEY = 'floor42:volume';
-
-export type VolumeKind = 'master' | 'guns';
+/** Volumes come from Settings > Audio (src/game/settings.ts); the sound engine only applies them. */
+export type VolumeKind = 'master' | 'effects' | 'guns' | 'ui';
 export type Volumes = Record<VolumeKind, number>;
 /** Guns sit well under everything else by default (Reis: gunshots too loud). */
-const DEFAULT_VOLUMES: Volumes = { master: 0.8, guns: 0.45 };
-
-const readVolumes = (): Volumes => {
-  try {
-    return { ...DEFAULT_VOLUMES, ...(JSON.parse(window.localStorage.getItem(VOLUME_KEY) ?? '{}') as Partial<Volumes>) };
-  } catch {
-    return { ...DEFAULT_VOLUMES };
-  }
-};
+const DEFAULT_VOLUMES: Volumes = { master: 0.8, effects: 1, guns: 0.45, ui: 0.7 };
 /** Half the visible width of the arena, for turning world x into stereo pan. */
 const HALF_VIEW = 19.5;
 /** At most this many gunshot voices at once; extras are skipped. */
 const SHOT_BUDGET = 6;
-
-const readMuted = () => {
-  try {
-    return window.localStorage.getItem(MUTE_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
 
 /**
  * One audio context for the whole visit, opened on the first click or key press anywhere (the
@@ -65,14 +47,14 @@ if (typeof window !== 'undefined') {
   window.addEventListener('keydown', early, true);
 }
 
-export const createSfx = () => {
+export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolean }) => {
   let ctx: AudioContext | null = null;
   let master: GainNode | null = null;
   let wet: GainNode | null = null;
   const buses: Partial<Record<Bus, GainNode>> = {};
   let noiseBuf: AudioBuffer | null = null;
-  let muted = typeof window !== 'undefined' ? readMuted() : false;
-  const volumes: Volumes = typeof window !== 'undefined' ? readVolumes() : { ...DEFAULT_VOLUMES };
+  let muted = initial?.muted ?? false;
+  const volumes: Volumes = { ...DEFAULT_VOLUMES, ...initial?.volumes };
   /** While a gunshot is being scheduled, all its voices go to the guns bus. */
   let busOverride: Bus | null = null;
   let shotVoices = 0;
@@ -123,7 +105,7 @@ export const createSfx = () => {
     wet = ctx.createGain();
     wet.gain.value = 0.22;
     wet.connect(verb).connect(comp);
-    for (const [bus, level] of [['sfx', 1], ['ui', 0.7], ['amb', 0.5], ['guns', volumes.guns]] as const) {
+    for (const [bus, level] of [['sfx', volumes.effects], ['ui', volumes.ui], ['amb', 0.5], ['guns', volumes.guns]] as const) {
       const g = ctx.createGain();
       g.gain.value = level;
       g.connect(comp);
@@ -323,27 +305,22 @@ export const createSfx = () => {
     get volumes() {
       return { ...volumes };
     },
-    /** Change a volume (0..1) now and remember it in this browser. */
-    setVolume: (kind: VolumeKind, value: number) => {
-      volumes[kind] = Math.max(0, Math.min(1, value));
+    /** Apply volumes (0..1) and mute from Settings at once. */
+    apply: (v: Partial<Volumes>, mute: boolean) => {
+      Object.assign(volumes, v);
+      muted = mute;
       if (master) master.gain.value = muted ? 0 : MASTER * volumes.master;
+      if (buses.sfx) buses.sfx.gain.value = volumes.effects;
       if (buses.guns) buses.guns.gain.value = volumes.guns;
-      try {
-        window.localStorage.setItem(VOLUME_KEY, JSON.stringify(volumes));
-      } catch {
-        /* storage unavailable */
-      }
+      if (buses.ui) buses.ui.gain.value = volumes.ui;
     },
-    toggleMute: () => {
-      muted = !muted;
-      if (master) master.gain.value = muted ? 0 : MASTER * volumes.master;
-      try {
-        window.localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
-      } catch {
-        /* storage unavailable */
-      }
-      return muted;
+    /** Menu sounds: a tick when focus moves, a confirm chime, a soft back. */
+    tick: () => tone('triangle', 1250, 1400, 0.035, 0.12, { room: 0.1, bus: 'ui' }),
+    confirm: () => {
+      tone('triangle', 660, 660, 0.08, 0.16, { room: 0.25, bus: 'ui' });
+      tone('triangle', 990, 990, 0.14, 0.14, { delay: 0.07, room: 0.3, bus: 'ui' });
     },
+    back: () => tone('triangle', 700, 420, 0.1, 0.12, { room: 0.2, bus: 'ui' }),
     hit: (power: number, x?: number) => {
       const p = Math.min(1, power / 20);
       const pan = panOf(x);

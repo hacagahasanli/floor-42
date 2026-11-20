@@ -3,27 +3,14 @@
 import { useEffect, useState } from 'react';
 
 import { isTouchDevice } from '~/game/input';
+import { getSettings } from '~/game/settings';
 
 import type { AimMode } from '~/game/input';
 
-/** Auto-aim stays the default; mouse aim is a choice kept in this browser (T switches in a match). */
-export const AIM_KEY = 'merge-conflict:aim';
+/** Auto-aim stays the default; mouse aim is a choice in Settings > Controls (T switches in a match). */
+export const readAim = (): AimMode => getSettings().get().aimMode;
 
-export const readAim = (): AimMode => {
-  try {
-    return window.localStorage.getItem(AIM_KEY) === 'mouse' ? 'mouse' : 'auto';
-  } catch {
-    return 'auto';
-  }
-};
-
-export const saveAim = (m: AimMode) => {
-  try {
-    window.localStorage.setItem(AIM_KEY, m);
-  } catch {
-    /* no storage */
-  }
-};
+export const saveAim = (m: AimMode) => getSettings().set({ aimMode: m });
 
 /**
  * Auto-aim or mouse aim, chosen before the match. Phones always auto-aim, so it isn't shown there.

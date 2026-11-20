@@ -17,11 +17,17 @@ let askedFullscreen = false;
 const goFullscreen = () => {
   if (askedFullscreen || typeof document === 'undefined') return;
   askedFullscreen = true;
-  const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+  const el = document.documentElement as HTMLElement & {
+    webkitRequestFullscreen?: () => Promise<void>;
+  };
   const req = el.requestFullscreen?.bind(el) ?? el.webkitRequestFullscreen?.bind(el);
   if (!req || document.fullscreenElement) return;
   req({ navigationUI: 'hide' } as FullscreenOptions)
-    .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape'))
+    .then(() =>
+      (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.(
+        'landscape',
+      ),
+    )
     .catch(() => undefined);
 };
 
@@ -29,11 +35,16 @@ const goFullscreen = () => {
  * The movement stick: left and right run, pushing up jumps, pushing down drops through
  * furniture. It appears where your thumb lands in the left half of the screen.
  */
-const Stick = ({ press }: { press: Press }) => {
+const Stick = ({ press, side = 'left' }: { press: Press; side?: 'left' | 'right' }) => {
   const [base, setBase] = useState<{ x: number; y: number } | null>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const pointer = useRef<number | null>(null);
-  const held = useRef<Record<'left' | 'right' | 'up' | 'down', boolean>>({ left: false, right: false, up: false, down: false });
+  const held = useRef<Record<'left' | 'right' | 'up' | 'down', boolean>>({
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+  });
   const R = 56;
 
   const apply = (dx: number, dy: number) => {
@@ -54,8 +65,8 @@ const Stick = ({ press }: { press: Press }) => {
 
   return (
     <div
-      className="absolute bottom-0 left-0 top-16 touch-none"
-      style={{ width: `calc(${TOUCH_STRIPS.left}px + env(safe-area-inset-left))` }}
+      className={`absolute bottom-0 top-16 touch-none ${side === 'left' ? 'left-0' : 'right-0'}`}
+      style={{ width: `calc(${TOUCH_STRIPS.left}px + env(safe-area-inset-${side}))` }}
       onPointerDown={(e) => {
         goFullscreen();
         if (pointer.current !== null) return;
@@ -83,7 +94,10 @@ const Stick = ({ press }: { press: Press }) => {
     >
       {base ? (
         <div className="pointer-events-none absolute" style={{ left: base.x - R, top: base.y - R }}>
-          <div className="rounded-full border-2 border-cream/25 bg-ink-deep/40" style={{ width: R * 2, height: R * 2 }} />
+          <div
+            className="rounded-full border-2 border-cream/25 bg-ink-deep/40"
+            style={{ width: R * 2, height: R * 2 }}
+          />
           <div
             className="absolute rounded-full bg-cream/70 shadow-lg"
             style={{ width: 52, height: 52, left: R - 26 + knob.x, top: R - 26 + knob.y }}
@@ -92,7 +106,11 @@ const Stick = ({ press }: { press: Press }) => {
       ) : (
         <div
           className="pointer-events-none absolute bottom-6 flex h-28 w-28 items-center justify-center rounded-full border-2 border-dashed border-cream/25 text-[10px] font-semibold uppercase tracking-widest text-cream/50"
-          style={{ left: 'calc(6px + env(safe-area-inset-left))' }}
+          style={
+            side === 'left'
+              ? { left: 'calc(6px + env(safe-area-inset-left))' }
+              : { right: 'calc(6px + env(safe-area-inset-right))' }
+          }
         >
           move
         </div>
@@ -101,7 +119,21 @@ const Stick = ({ press }: { press: Press }) => {
   );
 };
 
-const Pad = ({ b, label, press, className, big, ready = 1 }: { b: Button; label: string; press: Press; className: string; big?: boolean; ready?: number }) => {
+const Pad = ({
+  b,
+  label,
+  press,
+  className,
+  big,
+  ready = 1,
+}: {
+  b: Button;
+  label: string;
+  press: Press;
+  className: string;
+  big?: boolean;
+  ready?: number;
+}) => {
   const [down, setDown] = useState(false);
   const up = () => {
     setDown(false);
@@ -126,9 +158,21 @@ const Pad = ({ b, label, press, className, big, ready = 1 }: { b: Button; label:
     >
       {/* Recharging: the button is dim and a ring fills up round it. */}
       {ready < 1 && (
-        <svg className="pointer-events-none absolute inset-0 -rotate-90" viewBox="0 0 100 100" aria-hidden>
+        <svg
+          className="pointer-events-none absolute inset-0 -rotate-90"
+          viewBox="0 0 100 100"
+          aria-hidden
+        >
           <circle cx="50" cy="50" r="47" fill="rgba(10,13,24,0.55)" />
-          <circle cx="50" cy="50" r="47" fill="none" stroke="#ffd23f" strokeWidth="5" strokeDasharray={`${ready * 295} 295`} />
+          <circle
+            cx="50"
+            cy="50"
+            r="47"
+            fill="none"
+            stroke="#ffd23f"
+            strokeWidth="5"
+            strokeDasharray={`${ready * 295} 295`}
+          />
         </svg>
       )}
       <span className="relative">{label}</span>
@@ -136,27 +180,80 @@ const Pad = ({ b, label, press, className, big, ready = 1 }: { b: Button; label:
   );
 };
 
-/** Touch controls for phones: the stick on the left, actions on the right, pause on top. */
-export const TouchControls = ({ press, onPause, ready }: { press: Press; onPause: () => void; ready?: { dash: number; push: number } }) => (
-  <div className="absolute inset-0 z-[5] select-none" style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}>
-    <Stick press={press} />
-    {/* The right strip: Fire under the thumb, Jump beside it, Dash and Push above, Swap on top. */}
-    <div className="absolute bottom-0 top-16" style={{ right: 'env(safe-area-inset-right)', width: TOUCH_STRIPS.right }}>
+/**
+ * Touch controls for phones: the stick on the left, actions on the right, pause on top.
+ * Settings > Controls sets their size and opacity and can swap the sides for left-handed play.
+ */
+export const TouchControls = ({
+  press,
+  onPause,
+  ready,
+  size = 1,
+  opacity = 0.9,
+  leftHanded = false,
+}: {
+  press: Press;
+  onPause: () => void;
+  ready?: { dash: number; push: number };
+  size?: number;
+  opacity?: number;
+  leftHanded?: boolean;
+}) => (
+  <div
+    className="absolute inset-0 z-[5] select-none"
+    style={{ WebkitTouchCallout: 'none', opacity } as React.CSSProperties}
+  >
+    <Stick press={press} side={leftHanded ? 'right' : 'left'} />
+    {/* The right strip: Fire under the thumb, Jump beside it, Dash and Push above, Swap on top.
+          Left-handed: the strip moves to the left edge and is mirrored, its labels mirrored back so they read right. */}
+    <div
+      className={`absolute bottom-0 top-16 ${leftHanded ? 'origin-bottom-left [&_span.relative]:[transform:scaleX(-1)]' : 'origin-bottom-right'}`}
+      style={
+        leftHanded
+          ? {
+              left: 'env(safe-area-inset-left)',
+              width: TOUCH_STRIPS.right,
+              transform: `translateX(${TOUCH_STRIPS.right * size}px) scale(${-size}, ${size})`,
+            }
+          : {
+              right: 'env(safe-area-inset-right)',
+              width: TOUCH_STRIPS.right,
+              transform: `scale(${size})`,
+            }
+      }
+    >
       <Pad b="fire" label="Fire" press={press} big className="bottom-3 right-2" />
       <Pad b="up" label="Jump" press={press} className="bottom-3 right-[116px]" />
-      <Pad b="dash" label="Dash" press={press} className="bottom-[118px] right-4" ready={ready?.dash} />
-      <Pad b="push" label="Push" press={press} className="bottom-[92px] right-[116px]" ready={ready?.push} />
-      <Pad b="reload" label="Swap" press={press} className="bottom-[178px] right-[124px] !h-14 !w-14 !text-[10px]" />
+      <Pad
+        b="dash"
+        label="Dash"
+        press={press}
+        className="bottom-[118px] right-4"
+        ready={ready?.dash}
+      />
+      <Pad
+        b="push"
+        label="Push"
+        press={press}
+        className="bottom-[92px] right-[116px]"
+        ready={ready?.push}
+      />
+      <Pad
+        b="reload"
+        label="Swap"
+        press={press}
+        className="bottom-[178px] right-[124px] !h-14 !w-14 !text-[10px]"
+      />
       <button
         type="button"
         aria-label="Pause"
         onClick={onPause}
         className="absolute bottom-[198px] right-6 flex h-11 w-11 items-center justify-center rounded-full border-2 border-cream/30 bg-ink-deep/60 text-cream"
       >
-      <span className="flex gap-1">
-        <span className="h-4 w-1.5 rounded-sm bg-cream" />
-        <span className="h-4 w-1.5 rounded-sm bg-cream" />
-      </span>
+        <span className="flex gap-1">
+          <span className="h-4 w-1.5 rounded-sm bg-cream" />
+          <span className="h-4 w-1.5 rounded-sm bg-cream" />
+        </span>
       </button>
     </div>
   </div>
@@ -196,6 +293,8 @@ export const RotateHint = () => (
       <div className="absolute bottom-1.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-gold" />
     </div>
     <div className="font-display text-2xl text-gold">Turn your phone sideways</div>
-    <p className="max-w-xs text-sm text-cream/70">Floor 42 is a wide room: play it in landscape. The match keeps running.</p>
+    <p className="max-w-xs text-sm text-cream/70">
+      Floor 42 is a wide room: play it in landscape. The match keeps running.
+    </p>
   </div>
 );
