@@ -17,7 +17,7 @@ import { buildGun } from './guns';
 import { createVfx } from './vfx';
 
 import type { Rig } from './characters';
-import type { OnlineSession } from '../net/client';
+import type { NetStatus, OnlineSession, Presentation } from '../net/client';
 import type { StartMessage } from '../net/protocol';
 import type { GunView } from './guns';
 import type { BotLevel } from '../sim/bot';
@@ -51,10 +51,8 @@ export interface HudState {
   hint: { key: string; text: string }[];
   muted: boolean;
   aimMode: AimMode;
-  /** Online: round-trip time to the game server in ms. */
-  ping: number | null;
-  /** Online: true when playing over the direct line, false through the server. */
-  direct: boolean | null;
+  /** Online: how the match is connected (direct / turn / relay / server), ping, and whether it is unstable. */
+  net: NetStatus | null;
   paused: boolean;
   /** Screen shake and flashes on (false = reduce motion). */
   motion: boolean;
@@ -436,7 +434,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       }
       case 'ko':
         downAt[e.fighter] = time;
-        downY[e.fighter] = state.fighters[e.fighter].y;
+        downY[e.fighter] = e.y - 1;
         vfx.burst(e.x, e.y, 40, 'ko', { speed: 9, up: 4, life: 0.9, size: 1.4 });
         vfx.ring(e.x, e.y, 0xf0c24a, { grow: 14, life: 0.5 });
         feedback('huge');
@@ -562,8 +560,28 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const groundBelow = (x: number, y: number) =>
     ARENA.platforms.reduce((best, p) => (x >= p.x0 && x <= p.x1 && p.y <= y + 0.01 && p.y > best ? p.y : best), ARENA.floor);
   const fwd = new THREE.Vector3();
-  const renderFrame = (dt: number, alpha: number) => {
+  /**
+   * Online clients draw two clocks: your own fighter and shots from your prediction (instant), the
+   * rival, the rival's shots and the authority's verdicts (health, knockouts) from the timeline.
+   */
+  let pres: Presentation | null = null;
+  const viewState = (): GameState => {
+    const v = pres?.view;
+    if (!online || !v) return state;
+    const fighters = state.fighters.map((f, i) => {
+      const t = v.fighters[i];
+      if (!t) return f;
+      if (i !== me) return t;
+      // Knocked out on the timeline: lie where you fell. Alive there: your own movement, its verdicts.
+      if (t.respawn > 0) return t;
+      return { ...f, hp: t.hp, kos: t.kos, respawn: t.respawn, invulnerable: t.invulnerable, stats: t.stats, nextCharacter: f.nextCharacter };
+    });
+    const projectiles = [...state.projectiles.filter((p) => p.owner === me), ...v.projectiles.filter((p) => p.owner !== me)];
+    return { ...state, fighters, projectiles };
+  };
+  const renderFrame = (dt: number, alpha: number, state: GameState) => {
     resize();
+    const timelineView = !!pres?.view;
     const poseDt = state.hitstop > 0 ? 0 : dt;
     state.fighters.forEach((f, i) => {
       syncRig(i, f.character);
@@ -574,11 +592,20 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       const down = out && downAt[i] !== undefined;
       rig.root.visible = (down && f.respawn > 0.35) || (!out && !(f.invulnerable > 0 && Math.floor(time * 16) % 2 === 0));
       const shudder = state.hitstop > 0 && f.stun > 0 ? (Math.random() - 0.5) * 0.14 : 0;
-      const tx = prevF[i].x + (f.x - prevF[i].x) * alpha;
-      const ty = prevF[i].y + (f.y - prevF[i].y) * alpha;
-      // Online, the rival's position gets corrected by the server; ease into it instead of snapping.
+      let tx = prevF[i].x + (f.x - prevF[i].x) * alpha;
+      let ty = prevF[i].y + (f.y - prevF[i].y) * alpha;
+      if (timelineView && i !== me) {
+        // Already smooth: interpolated from the authority's snapshots.
+        tx = f.x;
+        ty = f.y;
+      } else if (timelineView && pres) {
+        // Your corrections are eased out, not snapped.
+        tx += pres.correction.x;
+        ty += pres.correction.y;
+      }
+      // The host sees the guest corrected when late inputs land: ease into it instead of snapping.
       const sm = smooth[i];
-      if (online && i !== me && Math.hypot(tx - sm.x, ty - sm.y) < 4) {
+      if (online && !timelineView && i !== me && Math.hypot(tx - sm.x, ty - sm.y) < 4) {
         const k = 1 - Math.exp(-22 * dt);
         sm.x += (tx - sm.x) * k;
         sm.y += (ty - sm.y) * k;
@@ -782,6 +809,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   let fps = 60;
   let hudTimer = 0;
   const emitHud = () => {
+    const state = viewState();
     opts.onHud({
       phase: state.phase,
       time: state.phaseTime,
@@ -789,8 +817,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       winner: state.winner === null || state.winner < 0 ? state.winner : state.winner === me ? 0 : 1,
       fps: Math.round(fps),
       lastKo: lastKo ? { ...lastKo, fighter: lastKo.fighter === me ? 0 : 1 } : null,
-      ping: online ? online.latency : null,
-      direct: online ? online.direct : null,
+      net: online ? online.status : null,
       paused: state.paused,
       motion: motion === 1,
       pauseRequests: online
@@ -857,20 +884,26 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     while (acc >= DT) {
       savePrev();
       const aim = aimMode === 'mouse' ? mouseAim() : autoAim(me);
+      let events: GameEvent[];
       if (online) {
-        online.tick(controls.read(aim.x, aim.y, aimMode));
+        events = online.tick(controls.read(aim.x, aim.y, aimMode));
         state = online.state;
       } else {
         step(state, [opts.demo ? demoBot(state) : controls.read(aim.x, aim.y, aimMode), bot(state)]);
+        events = state.events;
       }
       if (!started && state.phase === 'fight') {
         started = true;
         sfx.start();
       }
-      state.events.forEach(handleEvent);
+      events.forEach(handleEvent);
       acc -= DT;
     }
-    renderFrame(dt, acc / DT);
+    if (online?.present) {
+      pres = online.present(dt * 1000);
+      pres.events.forEach(handleEvent);
+    }
+    renderFrame(dt, acc / DT, viewState());
     hudTimer -= dt;
     if (hudTimer <= 0) {
       hudTimer = 0.1;
@@ -911,7 +944,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   raf = requestAnimationFrame(frame);
   // Dev-only handle for automated checks.
   if (process.env.NODE_ENV !== 'production') {
-    (window as unknown as { __mc?: unknown }).__mc = { state: () => state, me, renderer, view: () => smooth, muzzle: () => muzzle(state.fighters[0]) };
+    (window as unknown as { __mc?: unknown }).__mc = { state: () => state, me, renderer, view: () => smooth, net: () => online && { ...online.status, tl: (online as unknown as { timeline?: unknown }).timeline }, muzzle: () => muzzle(state.fighters[0]) };
   }
 
   const restart = () => {

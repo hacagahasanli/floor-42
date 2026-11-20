@@ -18,7 +18,7 @@ import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
 
 import type { AimMode } from '~/game/input';
-import type { OnlineSession } from '~/game/net/client';
+import type { NetStatus, OnlineSession } from '~/game/net/client';
 import type { StartMessage } from '~/game/net/protocol';
 import type { Room } from '@colyseus/sdk';
 import type { HudFighter, HudState } from '~/game/render/game';
@@ -190,6 +190,28 @@ const SoundSliders = ({ game }: { game: ReturnType<typeof startArena> | null }) 
         </label>
       ))}
     </div>
+  );
+};
+
+const NET_LABEL: Record<NetStatus['mode'], { label: string; title: string; dot: string }> = {
+  direct: { label: 'Direct', title: 'Playing over a direct line to your rival', dot: 'bg-green' },
+  turn: { label: 'Relay (TURN)', title: 'A direct line through a TURN relay: your networks block a straight one', dot: 'bg-green' },
+  relay: { label: 'Server relay', title: 'The direct line went quiet: messages go through the game server for now', dot: 'bg-gold' },
+  server: { label: 'Server', title: 'The game server runs this match (no direct line between you)', dot: 'bg-gold' },
+};
+
+/** How this match is connected and the round trip, always visible in an online match. */
+const NetBadge = ({ net }: { net: NetStatus }) => {
+  const m = NET_LABEL[net.mode];
+  const host = net.authority === 'here' ? ' · you host' : '';
+  return (
+    <span
+      title={`${m.title}. Round trip ${net.ping} ms.${net.authority === 'here' ? ' Your browser runs the game.' : ''}`}
+      className="panel-cut flex items-center gap-1.5 bg-cream/10 px-2 py-1 font-semibold uppercase tracking-wider text-cream/85"
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${net.unstable ? 'animate-pulse bg-orange' : m.dot}`} aria-hidden />
+      {m.label} · {net.ping} ms{host}
+    </span>
   );
 };
 
@@ -530,6 +552,18 @@ export const ArenaGame = ({
                     {h.text}
                   </span>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {hud.net?.unstable && !hud.paused && hud.phase !== 'over' && (
+            <div className="pointer-events-none absolute inset-x-0 top-16 z-[7] flex justify-center" role="status" aria-live="polite">
+              <div className="panel-cut flex items-center gap-2 bg-orange/95 px-4 py-1.5 text-ink-deep shadow-lg">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-ink-deep" aria-hidden />
+                <span className="text-xs font-bold uppercase tracking-widest">Connection unstable</span>
+                <span className="text-[10px] font-semibold opacity-80">
+                  {hud.net.mode === 'server' ? 'server' : hud.net.mode} · {hud.net.ping} ms
+                </span>
               </div>
             </div>
           )}
@@ -883,17 +917,7 @@ export const ArenaGame = ({
             >
               Shake: {hud.motion ? 'on' : 'off'}
             </button>
-            {hud.ping !== null && (
-              <span
-                title={
-                  hud.direct
-                    ? 'Playing over a direct line to your rival'
-                    : 'Playing through the game server'
-                }
-              >
-                {hud.direct ? 'direct' : 'server'} · {hud.ping} ms
-              </span>
-            )}
+            {hud.net && <NetBadge net={hud.net} />}
             {hud.muted && <span>muted (M)</span>}
             <span>{hud.fps} fps</span>
           </div>

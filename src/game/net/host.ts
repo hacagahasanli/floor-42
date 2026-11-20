@@ -1,42 +1,51 @@
-import { chooseCharacter, createGame, step } from '../sim/step';
-import { EMPTY_INPUT } from '../sim/types';
+import { chooseCharacter, createGame } from '../sim/step';
 
-import { decodeInput, encodeInput, encodeSnapshot, mergePresses, SNAPSHOT_EVERY_TICKS } from './protocol';
+import { createAuthority } from './authority';
+import { encodeSnapshot, SNAPSHOT_EVERY_TICKS } from './protocol';
 
+import type { NetStatus, OnlineSession } from './client';
 import type { PeerLink } from './peer';
 import type { StartMessage, WireInput } from './protocol';
 import type { CharacterId, GameEvent, GameState, InputState } from '../sim/types';
 import type { Room } from '@colyseus/sdk';
 
+const TROUBLE_MS = 1500;
+
 /**
  * The host's side of a direct match: this browser (slot 0, the one who sent the invite) runs
- * the authoritative game, exactly as the server would. It takes the guest's inputs from the
- * peer link with the server's rules (queue, fold when behind, hold movement when nothing new)
- * and sends snapshots back. The host plays with no delay at all; the guest predicts and
- * reconciles against the host's snapshots just as it would against the server.
+ * the authoritative game. The guest's inputs go through the shared authority loop (authority.ts):
+ * applied at the tick the guest pressed them, rewinding up to 150 ms. Snapshots go back numbered
+ * on the unordered line; the game's events go on the reliable one.
  *
  * Lifecycle stays on the server room: who joined, pause by agreement, rematch, drop and leave.
  */
-export const createHostSession = (room: Room, link: PeerLink, start: StartMessage) => {
+export const createHostSession = (room: Room, link: PeerLink, start: StartMessage): OnlineSession => {
   const slot = start.slot;
-  let state: GameState = createGame(start.characters, (Math.random() * 1e9) | 0);
+  const guestSeat = 1 - slot;
+  const remote = [false, false];
+  remote[guestSeat] = true;
+  const newGame = (characters: [CharacterId, CharacterId]) => createGame(characters, (Math.random() * 1e9) | 0, true);
+  const auth = createAuthority(newGame(start.characters), { remote });
   let tick = 0;
-  let queue: WireInput[] = [];
-  let guest: InputState = { ...EMPTY_INPUT };
-  let guestWire: WireInput = [0, 0, 0, 0];
-  let guestAck = 0;
+  let seq = 0;
   let pauseRequests: boolean[] = [false, false];
   let paused = false;
+  let lastTroubleAt = -Infinity;
+  let lastLate = 0;
+  const now = () => performance.now();
+  const probe = (rec: Record<string, unknown>) => {
+    if (process.env.NODE_ENV === 'production') return;
+    (globalThis as { __netprobe?: unknown[] }).__netprobe?.push({ t: performance.timeOrigin + now(), ...rec });
+  };
 
   const off = link.on((m) => {
     if (m.t === 'in') {
-      for (const w of m.w.slice(0, 12)) {
-        if (Array.isArray(w) && w.length === 4 && w.every((n) => typeof n === 'number' && Number.isFinite(n))) {
-          if (w[0] > guestAck && !queue.some((q) => q[0] === w[0])) queue.push(w);
-        }
-      }
+      const wires = (Array.isArray(m.w) ? m.w.slice(0, 12) : []).filter(
+        (w): w is WireInput => Array.isArray(w) && w.length === 4 && w.every((n) => typeof n === 'number' && Number.isFinite(n)),
+      );
+      auth.receive(guestSeat, wires);
     } else if (m.t === 'char') {
-      chooseCharacter(state, 1 - slot, m.c as CharacterId);
+      auth.mutate((s) => chooseCharacter(s, guestSeat, m.c as CharacterId));
     }
   });
   const offPause = room.onMessage('pauseState', (msg: { requests: boolean[]; paused: boolean }) => {
@@ -44,32 +53,31 @@ export const createHostSession = (room: Room, link: PeerLink, start: StartMessag
     paused = msg.paused;
   });
 
-  const guestInput = () => {
-    queue.sort((a, b) => a[0] - b[0]);
-    while (queue.length > 4) {
-      const old = queue.shift()!;
-      const merged = mergePresses(decodeInput(queue[0]), decodeInput(old));
-      queue[0] = [queue[0][0], queue[0][1] | (old[1] & 0b111111100), merged.aimX, merged.aimY];
-    }
-    const next = queue.shift();
-    if (next) {
-      guest = decodeInput(next);
-      guestWire = next;
-      guestAck = next[0];
-    } else {
-      guest = { ...guest, up: false, dash: false, push: false, pickup: false, reload: false };
-    }
-    return guest;
-  };
-
   return {
     slot,
-    direct: true,
-    get state() {
-      return state;
+    get state(): GameState {
+      return auth.state;
     },
-    get latency() {
-      return link.rtt;
+    get status(): NetStatus {
+      const t = now();
+      const st = auth.stats(guestSeat);
+      if (t - link.lastHeard > 250 && !paused) lastTroubleAt = t;
+      if (st && st.lateInputs > lastLate) {
+        lastLate = st.lateInputs;
+        lastTroubleAt = t;
+      }
+      return {
+        mode: link.mode,
+        ping: link.rtt,
+        unstable: t - lastTroubleAt < TROUBLE_MS,
+        authority: 'here',
+        snapGapMs: Math.round(t - link.lastHeard),
+        inputDelayMs: 0,
+        delayMs: 0,
+        underruns: 0,
+        rewinds: st?.rewinds ?? 0,
+        lateInputs: st?.lateInputs ?? 0,
+      };
     },
     get pauseRequests() {
       return pauseRequests;
@@ -77,31 +85,41 @@ export const createHostSession = (room: Room, link: PeerLink, start: StartMessag
     requestPause: () => room.send('pause'),
     cancelPause: () => room.send('cancelPause'),
     resume: () => room.send('resume'),
-    chooseCharacter: (c: CharacterId) => chooseCharacter(state, slot, c),
+    chooseCharacter: (c: CharacterId) => auth.mutate((s) => chooseCharacter(s, slot, c)),
     tick: (input: InputState): GameEvent[] => {
       tick += 1;
-      state.paused = paused;
-      const inputs: InputState[] = [];
-      inputs[slot] = input;
-      inputs[1 - slot] = guestInput();
-      step(state, inputs);
-      const events = state.events;
+      auth.setRoundTrip(guestSeat, link.minRtt);
+      auth.state.paused = paused;
+      const local: (InputState | null)[] = [null, null];
+      local[slot] = input;
+      const events = auth.advance(local);
+      for (const e of events) {
+        if (e.type === 'hit' || e.type === 'ko') {
+          const f = auth.state.fighters[e.fighter];
+          probe({ k: 'auth', e: e.type, victim: e.fighter, x: f.x, y: f.y });
+        }
+      }
       if (tick % SNAPSHOT_EVERY_TICKS === 0) {
-        const ack: [number, number] = [0, 0];
-        ack[slot] = tick;
-        ack[1 - slot] = guestAck;
-        const wires: [WireInput, WireInput] = [[0, 0, 0, 0], [0, 0, 0, 0]];
-        wires[slot] = encodeInput(tick, input);
-        wires[1 - slot] = guestWire;
-        link.send({ t: 'snap', raw: encodeSnapshot({ ack, inputs: wires, state: { ...state, events: [] } }) });
+        const snap = auth.snapshot();
+        const [a, b] = snap.seats;
+        seq += 1;
+        link.send({
+          t: 'snap',
+          raw: encodeSnapshot({
+            seq,
+            ack: [a.ack, b.ack],
+            inputs: [a.wire, b.wire],
+            next: [a.next, b.next],
+            state: { ...snap.state, events: [] },
+          }),
+        });
+        const batch = auth.takeEvents();
+        if (batch) link.send({ t: 'ev', b: batch }, true);
       }
       return events;
     },
     restart: (msg: StartMessage) => {
-      state = createGame(msg.characters, (Math.random() * 1e9) | 0);
-      queue = [];
-      guest = { ...EMPTY_INPUT };
-      guestAck = 0;
+      auth.reset(newGame(msg.characters));
       pauseRequests = [false, false];
       paused = false;
     },

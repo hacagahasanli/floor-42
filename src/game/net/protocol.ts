@@ -2,10 +2,16 @@
 
 import { EMPTY_INPUT } from '../sim/types';
 
-import type { CharacterId, GameState, InputState } from '../sim/types';
+import type { CharacterId, GameEvent, GameState, InputState } from '../sim/types';
 
 export const ROOM_NAME = 'duel';
 export const SNAPSHOT_EVERY_TICKS = 2; // 30 snapshots a second
+/**
+ * 2: the authority compensates lag (rewinds up to 150 ms for late inputs), numbers snapshots and
+ * sends the game's events. Sent in `start`; clients only send version-2 messages to a version-2
+ * server (an older server disconnects a client for a message type it doesn't know).
+ */
+export const PROTOCOL_VERSION = 2;
 
 const BUTTONS = ['left', 'right', 'up', 'down', 'dash', 'fire', 'pickup', 'reload', 'push'] as const;
 
@@ -45,6 +51,18 @@ export interface StartMessage {
   characters: [CharacterId, CharacterId];
   /** True when the two browsers play over a direct line and slot 0's browser runs the game. */
   direct?: boolean;
+  /** The server's protocol version (missing: 1). */
+  v?: number;
+}
+
+/**
+ * The authority's events (shots, hits, knockouts...) for game ticks `from..to`, each with its
+ * tick. A batch replaces whatever the receiver had for that range: a rewind can change them.
+ */
+export interface EventBatch {
+  from: number;
+  to: number;
+  e: [number, GameEvent][];
 }
 
 export interface Snapshot {
@@ -53,7 +71,19 @@ export interface Snapshot {
   /** The inputs the server is currently using, per slot. */
   inputs: [WireInput, WireInput];
   state: GameState;
+  /** Snapshot number, rising: over the unordered direct line an older one can arrive later. */
+  seq?: number;
+  /** Events since the previous snapshot (server version 2; the direct line sends them apart). */
+  ev?: EventBatch;
+  /**
+   * Each seat's inputs for the ticks after `state`, up to the authority's newest tick. `state`
+   * is the newest tick every remote input reached; replaying these on it gives the newest one.
+   */
+  next?: [WireInput[], WireInput[]];
 }
+
+/** True when a snapshot numbered `seq` is newer than the last one used (unnumbered: always). */
+export const isNewer = (seq: number | undefined, last: number) => seq === undefined || seq > last;
 
 // JSON can't carry Infinity (the pistol's reserve, empty drop slots), so it travels as a marker.
 const INF = '__inf';

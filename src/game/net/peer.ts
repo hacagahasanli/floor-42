@@ -1,3 +1,4 @@
+import type { EventBatch } from './protocol';
 import type { Room } from '@colyseus/sdk';
 
 /**
@@ -11,25 +12,62 @@ import type { Room } from '@colyseus/sdk';
  * - `ctl`: reliable and ordered, for the rare one-off messages (picking a character).
  *
  * If the direct line never opens (some mobile networks block it) the match runs on the server as
- * before; if it drops mid-match, messages go through the server's relay instead.
+ * before. If it goes quiet mid-match (no message for 600 ms, or the connection reports
+ * disconnected) every message also goes through the server's relay until the line talks again:
+ * a data channel stays "open" for seconds after the network under it died, and messages sent into
+ * it are silently lost. Both sides drop duplicates (inputs by number, snapshots by seq).
+ *
+ * TURN: two players behind strict NATs (many mobile networks, some offices) can't reach each
+ * other with STUN alone. A TURN server relays their traffic instead, still far closer than the
+ * game server when it runs near them. Configure one with NEXT_PUBLIC_TURN_URL (comma-separated
+ * turn:/turns: URLs), NEXT_PUBLIC_TURN_USERNAME and NEXT_PUBLIC_TURN_CREDENTIAL. See
+ * docs/TECHNICAL.md, "TURN".
  */
 
-const ICE: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+const turnUrls = (process.env.NEXT_PUBLIC_TURN_URL ?? '')
+  .split(',')
+  .map((u) => u.trim())
+  .filter(Boolean);
+export const ICE: RTCIceServer[] = [
+  { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
+  ...(turnUrls.length
+    ? [{ urls: turnUrls, username: process.env.NEXT_PUBLIC_TURN_USERNAME, credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL }]
+    : []),
+];
+
+/**
+ * The game server accepts at most 4 KB per message from a client (Colyseus' WebSocket default) and
+ * disconnects a client that sends more. A snapshot is 3-8 KB, so through the relay it travels in
+ * parts. (Before this, the first snapshot relayed after the direct line dropped cut the host off
+ * the server and ended the match: "Your rival left".)
+ */
+const RELAY_PART = 3000;
+
+/** How messages travel right now: straight between browsers, through a TURN relay, or through the game server. */
+export type LinkMode = 'direct' | 'turn' | 'relay';
+const QUIET_MS = 600;
 
 export type PeerMessage =
   | { t: 'in'; w: [number, number, number, number][] }
   | { t: 'snap'; raw: string }
   | { t: 'char'; c: string }
+  | { t: 'ev'; b: EventBatch }
   | { t: 'ping'; n: number }
+  | { t: 'part'; id: number; i: number; n: number; d: string }
   | { t: 'pong'; n: number };
 
 export interface PeerLink {
-  /** True while the direct line is open (else messages go through the server relay). */
+  /** True while the direct line is open and talking (else messages go through the server relay). */
   readonly direct: boolean;
+  readonly mode: LinkMode;
   send: (m: PeerMessage, reliable?: boolean) => void;
   on: (cb: (m: PeerMessage) => void) => () => void;
   /** Round-trip time to the other player in ms, measured over the line in use. */
   readonly rtt: number;
+  /** The best round trip of the last few pings (for lag compensation: jitter excluded). */
+  readonly minRtt: number;
+  /** When anything last arrived from the other player (performance.now()). */
+  readonly lastHeard: number;
   close: () => void;
 }
 
@@ -50,13 +88,46 @@ export const connectPeer = (room: Room, host: boolean, timeoutMs = 4500): Promis
     let ctl: RTCDataChannel | null = null;
     let done = false;
     let rtt = 0;
+    const rtts: number[] = [];
     let pingTimer = 0;
+    let statsTimer = 0;
+    let lastDirect = performance.now();
+    let lastHeard = performance.now();
+    let viaTurn = false;
+    /** The line is open but silent, or the connection says it is broken: use the relay too. */
+    const quiet = () =>
+      performance.now() - lastDirect > QUIET_MS || pc.connectionState === 'disconnected' || pc.connectionState === 'failed';
 
-    const deliver = (raw: string) => {
+    let partId = 0;
+    const parts = new Map<number, string[]>();
+    const relay = (raw: string) => {
+      if (raw.length <= RELAY_PART) {
+        room.send('relay', raw);
+        return;
+      }
+      const id = ++partId;
+      const n = Math.ceil(raw.length / RELAY_PART);
+      for (let i = 0; i < n; i++) room.send('relay', JSON.stringify({ t: 'part', id, i, n, d: raw.slice(i * RELAY_PART, (i + 1) * RELAY_PART) }));
+    };
+    const deliver = (raw: string, direct: boolean) => {
+      lastHeard = performance.now();
+      if (direct) lastDirect = lastHeard;
       let m: PeerMessage;
       try {
         m = JSON.parse(raw) as PeerMessage;
       } catch {
+        return;
+      }
+      if (m.t === 'part') {
+        // The relay keeps order: parts of one message arrive together, in order.
+        const got = parts.get(m.id) ?? [];
+        got[m.i] = m.d;
+        parts.set(m.id, got);
+        for (const id of parts.keys()) if (id < m.id - 20) parts.delete(id);
+        if (got.filter((x) => x !== undefined).length === m.n) {
+          parts.delete(m.id);
+          deliver(got.join(''), direct);
+        }
         return;
       }
       if (m.t === 'ping') {
@@ -65,11 +136,13 @@ export const connectPeer = (room: Room, host: boolean, timeoutMs = 4500): Promis
       }
       if (m.t === 'pong') {
         rtt = Math.round(performance.now() - m.n);
+        rtts.push(rtt);
+        if (rtts.length > 10) rtts.shift();
         return;
       }
       listeners.forEach((cb) => cb(m));
     };
-    const offRelay = room.onMessage('relay', (raw: string) => deliver(raw));
+    const offRelay = room.onMessage('relay', (raw: string) => deliver(raw, false));
     const offSignal = room.onMessage('signal', async (msg: { sdp?: RTCSessionDescriptionInit; ice?: RTCIceCandidateInit }) => {
       try {
         if (msg.sdp) {
@@ -92,23 +165,34 @@ export const connectPeer = (room: Room, host: boolean, timeoutMs = 4500): Promis
     const open = () => game?.readyState === 'open';
     const link: PeerLink = {
       get direct() {
-        return open();
+        return open() && !quiet();
+      },
+      get mode() {
+        return !open() || quiet() ? 'relay' : viaTurn ? 'turn' : 'direct';
       },
       get rtt() {
         return rtt;
       },
+      get minRtt() {
+        return rtts.length ? Math.min(...rtts) : rtt;
+      },
+      get lastHeard() {
+        return lastHeard;
+      },
       send: (m, reliable = false) => {
         const raw = JSON.stringify(m);
         const ch = reliable ? ctl : game;
+        let sent = false;
         if (ch?.readyState === 'open') {
           try {
             ch.send(raw);
-            return;
+            sent = true;
           } catch {
             /* fall through to the relay */
           }
         }
-        room.send('relay', raw);
+        // A silent line may be dead: send through the server as well (duplicates are dropped).
+        if (!sent || quiet()) relay(raw);
       },
       on: (cb) => {
         listeners.add(cb);
@@ -116,6 +200,7 @@ export const connectPeer = (room: Room, host: boolean, timeoutMs = 4500): Promis
       },
       close: () => {
         clearInterval(pingTimer);
+        clearInterval(statsTimer);
         offRelay();
         offSignal();
         game?.close();
@@ -125,14 +210,31 @@ export const connectPeer = (room: Room, host: boolean, timeoutMs = 4500): Promis
     };
 
     const wire = (ch: RTCDataChannel) => {
-      ch.onmessage = (e) => deliver(String(e.data));
+      ch.onmessage = (e) => deliver(String(e.data), true);
       if (ch.label === 'game') {
         game = ch;
         ch.onopen = () => {
           if (done) return;
           done = true;
           clearTimeout(timer);
+          lastDirect = performance.now();
           pingTimer = window.setInterval(() => link.send({ t: 'ping', n: performance.now() }), 1000);
+          // Which path won: a relay candidate means the traffic goes through the TURN server.
+          const readPath = () =>
+            pc
+              .getStats()
+              .then((report) => {
+                report.forEach((r: RTCStats & { type: string; state?: string; nominated?: boolean; localCandidateId?: string; remoteCandidateId?: string }) => {
+                  if (r.type !== 'candidate-pair' || r.state !== 'succeeded' || !r.nominated) return;
+                  const types = [r.localCandidateId, r.remoteCandidateId].map(
+                    (id) => (report.get(id ?? '') as { candidateType?: string } | undefined)?.candidateType,
+                  );
+                  viaTurn = types.includes('relay');
+                });
+              })
+              .catch(() => undefined);
+          void readPath();
+          statsTimer = window.setInterval(readPath, 5000);
           resolve(link);
         };
       } else ctl = ch;

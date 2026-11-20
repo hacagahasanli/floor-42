@@ -1,21 +1,18 @@
 import { Room } from '@colyseus/core';
 
-import { decodeInput, encodeSnapshot, mergePresses, SNAPSHOT_EVERY_TICKS } from '../src/game/net/protocol';
+import { createAuthority } from '../src/game/net/authority';
+import { encodeSnapshot, PROTOCOL_VERSION, SNAPSHOT_EVERY_TICKS } from '../src/game/net/protocol';
 import { CHARACTERS } from '../src/game/sim/constants';
-import { chooseCharacter, createGame, step } from '../src/game/sim/step';
-import { EMPTY_INPUT } from '../src/game/sim/types';
+import { chooseCharacter, createGame } from '../src/game/sim/step';
 
+import type { Authority } from '../src/game/net/authority';
 import type { JoinOptions, StartMessage, WireInput } from '../src/game/net/protocol';
-import type { CharacterId, GameState, InputState } from '../src/game/sim/types';
+import type { CharacterId } from '../src/game/sim/types';
 import type { Client } from '@colyseus/core';
 
 interface Seat {
   client: Client;
   character: CharacterId;
-  queue: WireInput[];
-  current: InputState;
-  currentWire: WireInput;
-  ack: number;
   rematch: boolean;
   pause: boolean;
   /** Reported after the WebRTC handshake: null = not answered yet. */
@@ -27,7 +24,9 @@ const isCharacter = (v: unknown): v is CharacterId => typeof v === 'string' && v
 /**
  * One 1v1 match, in one of two modes:
  * - server: the server owns the game. It runs the same deterministic simulation as the browser
- *   at 60 Hz, decides every hit and sends snapshots; clients only send inputs.
+ *   at 60 Hz through the shared authority loop (authority.ts: each input applied at the tick the
+ *   player pressed it, rewinding up to 150 ms), decides every hit and sends numbered snapshots
+ *   with the game's events; clients only send inputs.
  * - direct: when the two browsers manage a WebRTC connection between themselves (tried for a few
  *   seconds when the second player joins), the inviter's browser runs the game and the traffic
  *   goes player to player, which is far faster when both are in the same city. The server then
@@ -37,9 +36,10 @@ const isCharacter = (v: unknown): v is CharacterId => typeof v === 'string' && v
 export class DuelRoom extends Room {
   maxClients = 2;
   private seats: (Seat | null)[] = [null, null];
-  private game: GameState | null = null;
+  private auth: Authority | null = null;
   /** Counts server ticks even while the game is paused, so snapshots keep flowing. */
   private serverTick = 0;
+  private seq = 0;
   /** Direct mode: the host's browser runs the game; this room doesn't simulate. */
   private direct = false;
   private handshake: ReturnType<typeof setTimeout> | null = null;
@@ -49,12 +49,16 @@ export class DuelRoom extends Room {
 
     this.onMessage('input', (client: Client, inputs: WireInput[]) => {
       const seat = this.seatOf(client);
-      if (!seat || !Array.isArray(inputs)) return;
-      for (const w of inputs.slice(0, 10)) {
-        if (Array.isArray(w) && w.length === 4 && w.every((n) => typeof n === 'number' && Number.isFinite(n))) {
-          if (w[0] > seat.ack && !seat.queue.some((q) => q[0] === w[0])) seat.queue.push(w);
-        }
-      }
+      if (!seat || !Array.isArray(inputs) || !this.auth) return;
+      const valid = inputs
+        .slice(0, 10)
+        .filter((w) => Array.isArray(w) && w.length === 4 && w.every((n) => typeof n === 'number' && Number.isFinite(n)));
+      this.auth.receive(this.seats.indexOf(seat), valid);
+    });
+    // Version-2 clients report their round trip: the lag compensated for them.
+    this.onMessage('rtt', (client: Client, ms: unknown) => {
+      const seat = this.seatOf(client);
+      if (seat && this.auth && typeof ms === 'number' && ms > 0 && ms < 5000) this.auth.setRoundTrip(this.seats.indexOf(seat), ms);
     });
 
     // WebRTC introductions: offers, answers and candidates go to the other player as they are.
@@ -73,7 +77,7 @@ export class DuelRoom extends Room {
     this.onMessage('rematch', (client: Client) => {
       const seat = this.seatOf(client);
       // In direct mode the host's browser knows when the match is over, not this room.
-      if (!seat || (!this.direct && this.game?.phase !== 'over')) return;
+      if (!seat || (!this.direct && this.auth?.state.phase !== 'over')) return;
       seat.rematch = true;
       if (this.seats.every((s) => s?.rematch)) this.startGame();
     });
@@ -81,20 +85,20 @@ export class DuelRoom extends Room {
     // Pause needs both players: one asks (Esc Esc), the other agrees the same way.
     this.onMessage('pause', (client: Client) => {
       const seat = this.seatOf(client);
-      if (!seat || !this.game || this.game.phase === 'over') return;
+      if (!seat || !this.auth || this.auth.state.phase === 'over') return;
       seat.pause = true;
-      if (this.seats.every((x) => x?.pause)) this.game.paused = true;
+      if (this.seats.every((x) => x?.pause)) this.auth.state.paused = true;
       this.sendPause();
     });
     this.onMessage('cancelPause', (client: Client) => {
       const seat = this.seatOf(client);
-      if (!seat || this.game?.paused) return;
+      if (!seat || this.auth?.state.paused) return;
       seat.pause = false;
       this.sendPause();
     });
     this.onMessage('resume', (client: Client) => {
-      if (!this.seatOf(client) || !this.game) return;
-      this.game.paused = false;
+      if (!this.seatOf(client) || !this.auth) return;
+      this.auth.state.paused = false;
       for (const x of this.seats) if (x) x.pause = false;
       this.sendPause();
     });
@@ -102,9 +106,10 @@ export class DuelRoom extends Room {
     // While dead you may pick who you come back as.
     this.onMessage('character', (client: Client, character: unknown) => {
       const seat = this.seatOf(client);
-      if (!seat || !this.game || !isCharacter(character)) return;
+      if (!seat || !this.auth || !isCharacter(character)) return;
       seat.character = character;
-      chooseCharacter(this.game, this.seats.indexOf(seat), character);
+      const slot = this.seats.indexOf(seat);
+      this.auth.mutate((s) => chooseCharacter(s, slot, character));
     });
 
     this.setSimulationInterval(() => this.tick(), 1000 / 60);
@@ -115,10 +120,6 @@ export class DuelRoom extends Room {
     this.seats[slot] = {
       client,
       character: isCharacter(options?.character) ? options.character : 'hotfix',
-      queue: [],
-      current: { ...EMPTY_INPUT },
-      currentWire: [0, 0, 0, 0],
-      ack: 0,
       rematch: false,
       pause: false,
       direct: null,
@@ -139,12 +140,12 @@ export class DuelRoom extends Room {
     const seat = this.seatOf(client);
     if (!seat) return;
     const slot = this.seats.indexOf(seat);
-    if (this.game) this.game.paused = true;
+    if (this.auth) this.auth.state.paused = true;
     this.sendPause(); // the other client must stop predicting too
     this.broadcast('dropped', { slot, seconds: 20 });
     try {
       seat.client = await this.allowReconnection(client, 20);
-      if (this.game) this.game.paused = false;
+      if (this.auth) this.auth.state.paused = false;
       this.broadcast('back', { slot });
       this.sendPause();
     } catch {
@@ -156,7 +157,7 @@ export class DuelRoom extends Room {
     const slot = this.seats.findIndex((s) => s?.client === client);
     if (slot < 0) return;
     this.seats[slot] = null;
-    this.game = null;
+    this.auth = null;
     this.direct = false;
     if (this.handshake) clearTimeout(this.handshake);
     this.handshake = null;
@@ -180,7 +181,7 @@ export class DuelRoom extends Room {
   private sendPause() {
     this.broadcast('pauseState', {
       requests: this.seats.map((x) => !!x?.pause),
-      paused: !!this.game?.paused,
+      paused: !!this.auth?.state.paused,
     });
   }
 
@@ -190,56 +191,46 @@ export class DuelRoom extends Room {
 
   private startGame() {
     const [a, b] = this.seats as Seat[];
-    this.game = createGame([a.character, b.character], (Math.random() * 1e9) | 0);
+    const game = createGame([a.character, b.character], (Math.random() * 1e9) | 0, true);
+    // Keep the measured round trips across a rematch.
+    if (this.auth) this.auth.reset(game);
+    else this.auth = createAuthority(game, { remote: [true, true] });
     for (const s of [a, b]) {
       s.rematch = false;
       s.pause = false;
-      s.queue = [];
-      s.current = { ...EMPTY_INPUT };
     }
     [a, b].forEach((s, slot) => {
-      const msg: StartMessage = { slot, characters: [a.character, b.character], direct: this.direct };
+      const msg: StartMessage = { slot, characters: [a.character, b.character], direct: this.direct, v: PROTOCOL_VERSION };
       s.client.send('start', msg);
     });
   }
 
   private tick() {
-    const game = this.game;
-    if (!game || this.direct) return;
-    const inputs = this.seats.map((seat) => {
-      if (!seat) return { ...EMPTY_INPUT };
-      seat.queue.sort((x, y) => x[0] - y[0]);
-      // Fell behind: fold the oldest inputs together so no press is lost.
-      while (seat.queue.length > 4) {
-        const old = seat.queue.shift()!;
-        seat.queue[0] = mergeWire(old, seat.queue[0]);
+    const auth = this.auth;
+    if (!auth || this.direct) return;
+    const events = auth.advance([null, null]);
+    // Test hook: NET_PROBE=1 logs every hit with the victim's position (for the network tests).
+    if (process.env.NET_PROBE) {
+      for (const e of events) {
+        if (e.type !== 'hit' && e.type !== 'ko') continue;
+        const f = auth.state.fighters[e.fighter];
+        console.log(`AUTH ${JSON.stringify({ t: Date.now(), e: e.type, victim: e.fighter, x: f.x, y: f.y })}`);
       }
-      const next = seat.queue.shift();
-      if (next) {
-        seat.current = decodeInput(next);
-        seat.currentWire = next;
-        seat.ack = next[0];
-      } else {
-        // Nothing new: hold the movement, drop one-shot presses.
-        seat.current = { ...seat.current, up: false, dash: false, push: false, pickup: false, reload: false };
-      }
-      return seat.current;
-    });
-    step(game, inputs);
+    }
     this.serverTick += 1;
     if (this.serverTick % SNAPSHOT_EVERY_TICKS === 0) {
-      const [a, b] = this.seats;
+      const snap = auth.snapshot();
+      const [a, b] = snap.seats;
+      this.seq += 1;
       const raw = encodeSnapshot({
-        ack: [a?.ack ?? 0, b?.ack ?? 0],
-        inputs: [a?.currentWire ?? [0, 0, 0, 0], b?.currentWire ?? [0, 0, 0, 0]],
-        state: { ...game, events: [] },
+        seq: this.seq,
+        ack: [a.ack, b.ack],
+        inputs: [a.wire, b.wire],
+        next: [a.next, b.next],
+        state: { ...snap.state, events: [] },
+        ev: auth.takeEvents() ?? undefined,
       });
       this.broadcast('snap', raw);
     }
   }
 }
-
-const mergeWire = (a: WireInput, b: WireInput): WireInput => {
-  const merged = mergePresses(decodeInput(b), decodeInput(a));
-  return [b[0], b[1] | (a[1] & 0b111111100), merged.aimX, merged.aimY];
-};
