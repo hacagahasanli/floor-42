@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
+import { useLiftTo } from '~/components/Elevator';
 import { readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
 import { SupportCard, SupportLink, SupportPill } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
@@ -433,7 +433,6 @@ const Credits = () => (
 );
 
 export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
-  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const showcase = useRef<{ setCharacter: (id: CharacterId) => void } | null>(null);
   const columnRef = useRef<HTMLDivElement>(null);
@@ -514,10 +513,11 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
     saveCharacter(id);
   };
 
+  const lift = useLiftTo();
   const fight = () => {
     menuSound.confirm();
     const p2 = rival === 'random' ? '' : `&p2=${rival}`;
-    router.push(`/arena?p1=${fighter}${p2}&bot=${level}`);
+    lift.go(`/arena?p1=${fighter}${p2}&bot=${level}`);
   };
 
   const accent = entryOf(preview).accent;
@@ -790,6 +790,9 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
         ))}
       </div>
 
+      {/* Every screen change: a light streak sweeps across as the new column lands. */}
+      <div key={screen} aria-hidden className="f42-wipe" />
+      {lift.doors}
       {settingsOpen && (
         <SettingsPanel
           onClose={() => {

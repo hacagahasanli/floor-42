@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   RotateHint,
@@ -15,6 +15,7 @@ import { SettingsPanel } from '~/components/menu/SettingsPanel';
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useSettings } from '~/components/menu/useSettings';
 import { menuSound } from '~/components/menu/menuSound';
+import { LiftLoading } from '~/components/Elevator';
 import { SupportLink } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
@@ -348,19 +349,45 @@ export const ArenaGame = ({
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
 
+  // The lift ride up: real loading steps, shown until the first frame of the office is on screen.
+  const [loaded, setLoaded] = useState({ fonts: false, office: false });
+  const [lift, setLift] = useState(true);
+  const endLift = useCallback(() => setLift(false), []);
   useEffect(() => {
-    if (!canvasRef.current) return;
-    const game = startArena(canvasRef.current, {
-      player,
-      opponent,
-      demo,
-      level,
-      aimMode: isTouchDevice() ? 'auto' : readAim(),
-      onHud: setHud,
-      online: online?.session,
+    let alive = true;
+    void (document.fonts?.ready ?? Promise.resolve()).then(() => alive && setLoaded((l) => ({ ...l, fonts: true })));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let game: ReturnType<typeof startArena> | null = null;
+    // Two frames first, so the loading screen is painted before the office is built (that blocks the page).
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => {
+        game = startArena(canvas, {
+          player,
+          opponent,
+          demo,
+          level,
+          aimMode: isTouchDevice() ? 'auto' : readAim(),
+          onHud: setHud,
+          online: online?.session,
+        });
+        gameRef.current = game;
+        setLoaded((l) => ({ ...l, office: true }));
+        // Effects that ran before the game existed (touch insets) apply on resize.
+        window.dispatchEvent(new Event('resize'));
+      });
     });
-    gameRef.current = game;
-    return () => game.dispose();
+    return () => {
+      cancelAnimationFrame(raf);
+      game?.dispose();
+      gameRef.current = null;
+    };
   }, [player, opponent, demo, level, online]);
 
   // Online: the server starts each new round and tells us if the rival leaves.
@@ -804,20 +831,24 @@ export const ArenaGame = ({
           {end && !rivalLeft && (
             <div className="absolute inset-0 z-30 flex animate-[fadeIn_0.6s_ease-out] items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.75),rgba(10,13,24,0.95))] px-6 backdrop-blur-sm">
               <div className="flex w-full max-w-3xl flex-col gap-7">
+                {/* The result lands: a light streak sweeps the screen and the title slams in. */}
+                <div aria-hidden className="f42-wipe" />
                 <div className="flex flex-col gap-2">
-                  <span
-                    className={`text-xs font-bold tracking-[0.35em] ${hud.winner === 0 && !demo ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
-                  >
-                    {hud.winner === 0 && !demo
-                      ? 'CONFLICT RESOLVED · YOUR WAY'
-                      : hud.winner === null || hud.winner === -1
-                        ? 'STILL CONFLICTED'
-                        : 'CONFLICT RESOLVED · THEIR WAY'}
-                  </span>
                   <h2 className="font-display text-5xl leading-none text-gold sm:text-6xl">
-                    {end.title}
+                    <span className="f42-slam">{end.title}</span>
                   </h2>
-                  <p className="text-lg text-cream/75">{end.sub}</p>
+                  <p className="text-lg text-cream/75 [animation:riseIn_0.4s_ease-out_0.2s_both]">
+                    <span
+                      className={`font-semibold ${hud.winner === 0 && !demo ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
+                    >
+                      {hud.winner === 0 && !demo
+                        ? 'Conflict resolved, your way.'
+                        : hud.winner === null || hud.winner === -1
+                          ? 'Still conflicted.'
+                          : 'Conflict resolved, their way.'}
+                    </span>{' '}
+                    {end.sub}
+                  </p>
                 </div>
 
                 {/* You against them, stat by stat; the better number lights up. */}
@@ -993,6 +1024,17 @@ export const ArenaGame = ({
         </>
       )}
       {touch && portrait && <RotateHint />}
+      {lift && (
+        <LiftLoading
+          steps={[
+            { label: 'Game code', done: true },
+            { label: 'Fonts', done: loaded.fonts },
+            { label: 'The office', done: loaded.office },
+            { label: 'First frame', done: hud !== null },
+          ]}
+          onDone={endLift}
+        />
+      )}
     </main>
   );
 };

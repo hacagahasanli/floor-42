@@ -39,4 +39,10 @@ export const menuSound = {
     s?.unlock();
     s?.back();
   },
+  /** The lift doors: the dash's air whoosh, on the same budget gate. */
+  whoosh: () => {
+    const s = get();
+    s?.unlock();
+    s?.dash();
+  },
 };

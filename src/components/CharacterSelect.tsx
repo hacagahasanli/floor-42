@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { AimChoice } from '~/components/AimChoice';
+import { useLiftTo } from '~/components/Elevator';
 import { accentOf, FighterCards, FighterHero, MenuShell, readCharacter, saveCharacter, Steps, usePortraits } from '~/components/MenuShell';
 import { ROSTER } from '~/game/roster';
 import { CHARACTERS } from '~/game/sim/constants';
@@ -26,6 +27,7 @@ export const CharacterSelect = () => {
     saveCharacter(id);
   };
 
+  const lift = useLiftTo();
   const href = `/arena?p1=${player}${opponent === 'random' ? '' : `&p2=${opponent}`}&bot=easy`;
 
   return (
@@ -77,6 +79,11 @@ export const CharacterSelect = () => {
             </Link>
             <Link
               href={href}
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                e.preventDefault();
+                lift.go(href);
+              }}
               className="panel-cut group fixed inset-x-4 bottom-4 z-20 flex items-center justify-center gap-3 bg-gold px-10 py-4 font-display text-xl uppercase text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.35)] transition hover:brightness-110 sm:static"
             >
               Fight as {CHARACTERS[player].name}
@@ -86,6 +93,7 @@ export const CharacterSelect = () => {
         </div>
       </section>
       <Steps />
+      {lift.doors}
     </MenuShell>
   );
 };
