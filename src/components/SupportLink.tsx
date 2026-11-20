@@ -13,49 +13,71 @@ export const SupportLink = ({ className = '' }: { className?: string }) => (
   </a>
 );
 
-/** The office coffee machine, drawn small: a cup under the spout, steam rising unless motion is reduced. */
+/**
+ * The office coffee machine, drawn small. The cup fills while you look at the card (hover or focus), and the steam
+ * curls up into a little heart. Reduced motion: a full cup, no steam animation.
+ */
 const CoffeeMachine = () => (
-  <svg viewBox="0 0 56 64" width="56" height="64" aria-hidden className="h-20 w-[70px] shrink-0">
-    <rect x="4" y="2" width="48" height="60" rx="5" fill="#1d2540" stroke="#3ec5ff" strokeOpacity="0.5" strokeWidth="1.5" />
-    <rect x="10" y="8" width="36" height="10" rx="2" fill="#0a0d18" />
-    <text x="28" y="16" textAnchor="middle" fontSize="7" fontWeight="700" fill="#ffd23f" className="f42-led">
-      COFFEE
+  <svg viewBox="0 0 64 76" width="64" height="76" aria-hidden className="h-[88px] w-[74px] shrink-0">
+    <defs>
+      <linearGradient id="f42-mach" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#3a2a22" />
+        <stop offset="1" stopColor="#1e1612" />
+      </linearGradient>
+      <clipPath id="f42-cupin">
+        <path d="M22 50h20v9a6 6 0 0 1-6 6h-8a6 6 0 0 1-6-6z" />
+      </clipPath>
+    </defs>
+    <rect x="6" y="4" width="52" height="66" rx="8" fill="url(#f42-mach)" stroke="#ffb35c" strokeOpacity="0.45" strokeWidth="1.5" />
+    <rect x="13" y="10" width="38" height="11" rx="3" fill="#0f0b09" />
+    <text x="32" y="18.5" textAnchor="middle" fontSize="7.5" fontWeight="700" fill="#ffd23f" className="f42-led">
+      FLOOR 42
     </text>
-    <rect x="22" y="22" width="12" height="5" rx="1" fill="#8b93ad" />
-    <rect x="10" y="27" width="36" height="28" rx="2" fill="#0a0d18" />
-    <g className="f42-steam" stroke="#e6ebf5" strokeOpacity="0.6" strokeWidth="1.6" fill="none" strokeLinecap="round">
-      <path d="M24 38c-2-3 2-4 0-7" />
-      <path d="M31 38c-2-3 2-4 0-7" />
+    <rect x="27" y="25" width="10" height="6" rx="1.5" fill="#c9a27a" />
+    {/* The pour: a thin stream that only runs while the card is hovered or focused. */}
+    <rect x="31" y="31" width="2" height="19" rx="1" fill="#7a4524" className="f42-pour" />
+    <rect x="14" y="36" width="36" height="28" rx="3" fill="#0f0b09" opacity="0.55" />
+    <path d="M22 50h20v9a6 6 0 0 1-6 6h-8a6 6 0 0 1-6-6z" fill="#fff6e8" />
+    <g clipPath="url(#f42-cupin)">
+      <rect x="22" y="50" width="20" height="16" fill="#8a4f2a" className="f42-fill" />
     </g>
-    <path d="M20 40h16v8a5 5 0 0 1-5 5h-6a5 5 0 0 1-5-5z" fill="#f4f6fb" />
-    <path d="M36 42c4 0 4 6 0 6" stroke="#f4f6fb" strokeWidth="2" fill="none" />
-    <rect x="21" y="41" width="14" height="3" fill="#7a4524" />
+    <path d="M42 53c5 0 5 7 0 7" stroke="#fff6e8" strokeWidth="2.2" fill="none" />
+    <g className="f42-steam" fill="none" stroke="#ffe7c7" strokeOpacity="0.75" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M32 47c-3.5-2.5-5-5.5-2.6-7.2 1.4-1 2.6 0 2.6 1.2 0-1.2 1.2-2.2 2.6-1.2 2.4 1.7 0.9 4.7-2.6 7.2z" />
+    </g>
   </svg>
 );
 
 /**
  * The main menu's support card: the office coffee machine on the 42nd floor, top right of the menu where it never covers
- * PLAY. Phones get the compact pill instead. The whole card is the link.
+ * PLAY. Warm, short and true (the facts come from nalbakigames.com/support). Phones get the compact pill instead.
+ * The whole card is the link.
  */
 export const SupportCard = () => (
   <a
     href={SUPPORT_URL}
     target="_blank"
     rel="noopener"
-    className="focus-ring group flex w-[350px] -skew-x-[6deg] items-center gap-4 border-l-4 border-gold bg-ink-deep/85 p-3 pr-4 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur-sm transition hover:bg-ink hover:shadow-[0_0_32px_rgba(255,210,63,0.25)] motion-reduce:transition-none"
+    className="focus-ring group relative flex w-[360px] items-center gap-4 overflow-hidden rounded-2xl border border-[#ffb35c]/30 bg-[linear-gradient(135deg,rgba(58,36,24,0.92),rgba(20,16,22,0.92))] p-4 shadow-[0_14px_40px_rgba(0,0,0,0.5)] backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-[#ffb35c]/60 hover:shadow-[0_18px_50px_rgba(255,160,70,0.22)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
   >
-    <span className="skew-x-[6deg]">
+    {/* A warm glow behind the machine, like the light from the office kitchen. */}
+    <span
+      aria-hidden
+      className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(255,179,92,0.28),transparent_70%)] transition-opacity duration-300 group-hover:opacity-100 opacity-70"
+    />
+    <span className="relative">
       <CoffeeMachine />
     </span>
-    <span className="flex min-w-0 skew-x-[6deg] flex-col items-start gap-1">
-      <span className="font-display text-lg leading-tight text-cream">Refill the coffee machine</span>
-      <span className="text-sm leading-snug text-cream/75">Floor 42 is free. Keep the office caffeinated and the next update coming.</span>
-      <span className="mt-1.5 inline-flex items-center gap-1.5 bg-gold px-3 py-1.5 text-sm font-bold text-ink-deep transition group-hover:brightness-110">
-        ☕ Buy us a coffee
-        <span aria-hidden className="transition group-hover:translate-x-1 motion-reduce:transition-none">
-          →
-        </span>
+    <span className="relative flex min-w-0 flex-col items-start gap-1.5">
+      <span className="font-display text-[1.05rem] leading-tight text-[#fff1dc]">Enjoying the fight?</span>
+      <span className="text-sm leading-snug text-[#f3e3cf]/80">
+        Floor 42 is free, no account, no paywall. A coffee keeps the duel servers quick and the next update brewing.
       </span>
+      <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-[#ffd23f] px-3.5 py-1.5 text-sm font-bold text-ink-deep shadow-[0_0_18px_rgba(255,210,63,0.35)] transition group-hover:brightness-110">
+        <span aria-hidden className="f42-cup inline-block">☕</span> Buy us a coffee
+        <span aria-hidden className="transition group-hover:translate-x-1 motion-reduce:transition-none">→</span>
+      </span>
+      <span className="text-xs text-[#f3e3cf]/55">From $1. Every supporter gets a wallpaper as a thank-you.</span>
     </span>
     <span className="sr-only"> (opens the Nalbaki Games support page in a new tab)</span>
   </a>
@@ -67,11 +89,11 @@ export const SupportPill = ({ className = '' }: { className?: string }) => (
     href={SUPPORT_URL}
     target="_blank"
     rel="noopener"
-    className={`focus-ring inline-flex min-h-10 -skew-x-[8deg] items-center gap-2 bg-gold px-3.5 py-2 text-sm font-bold text-ink-deep shadow-[0_0_24px_rgba(255,210,63,0.3)] transition hover:brightness-110 motion-reduce:transition-none ${className}`}
+    className={`focus-ring inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ffb35c]/50 bg-[linear-gradient(135deg,rgba(58,36,24,0.92),rgba(20,16,22,0.9))] py-1.5 pl-1.5 pr-4 text-sm font-semibold text-[#fff1dc] shadow-[0_6px_20px_rgba(0,0,0,0.4)] backdrop-blur-sm transition hover:border-[#ffb35c] motion-reduce:transition-none ${className}`}
   >
-    <span className="inline-flex skew-x-[8deg] items-center gap-2">
-      <span aria-hidden className="f42-cup inline-block">
-        ☕
+    <span className="inline-flex items-center gap-2">
+      <span aria-hidden className="grid h-7 w-7 place-items-center rounded-full bg-[#ffd23f] text-base">
+        <span className="f42-cup inline-block">☕</span>
       </span>
       Buy us a coffee
     </span>
