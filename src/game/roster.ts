@@ -11,7 +11,7 @@ export interface RosterEntry {
   accent: string;
 }
 
-/** Concept copy for the character select. All four are original to Merge Conflict. */
+/** Concept copy for the character select. All four are original to Nalbaki Games. */
 export const ROSTER: RosterEntry[] = [
   {
     id: 'hotfix',

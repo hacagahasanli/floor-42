@@ -42,6 +42,8 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 400);
   const arena = buildArena(scene, 0);
+  // Behind the menu the left of the room sits under the menu column: no whiteboard text bleeding through it.
+  for (const o of arena.whiteboard) o.visible = false;
 
   // A warm key from the front and a coloured rim in the fighter's accent, so they pop off the room.
   const spot = new THREE.SpotLight(0xfff1dc, 60, 30, 0.5, 0.6, 1.4);

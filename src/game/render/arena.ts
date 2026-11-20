@@ -365,6 +365,8 @@ export interface ArenaView {
   crack: (side: -1 | 1, y: number) => void;
   update: (dt: number, time: number) => void;
   markers: THREE.Mesh[];
+  /** The whiteboard and its frame (the menu hides them: they sit right behind the menu column). */
+  whiteboard: THREE.Object3D[];
 }
 
 export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => {
@@ -516,8 +518,11 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
     g.font = 'bold 30px sans-serif';
     g.fillText('FIGHT', 330, 130);
   });
-  scene.add(put(new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2), new THREE.MeshStandardMaterial({ map: board, roughness: 0.6 })), -4.5, 2.6, BACK_Z + 0.32));
-  scene.add(put(mesh(box(3.55, 2.15, 0.06), mat(PALETTE.stone)), -4.5, 2.6, BACK_Z + 0.28));
+  const whiteboard = [
+    put(new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2), new THREE.MeshStandardMaterial({ map: board, roughness: 0.6 })), -4.5, 2.6, BACK_Z + 0.32),
+    put(mesh(box(3.55, 2.15, 0.06), mat(PALETTE.stone)), -4.5, 2.6, BACK_Z + 0.28),
+  ];
+  for (const o of whiteboard) scene.add(o);
 
   // The floor sign lives in the HUD now, under the round timer.
 
@@ -652,6 +657,7 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   let nextCrack = 0;
   return {
     markers,
+    whiteboard,
     crack: (side, y) => {
       const candidates = cracks.filter((c) => c.mesh.userData.side === side);
       const c = candidates[nextCrack++ % candidates.length];

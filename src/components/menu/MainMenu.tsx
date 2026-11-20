@@ -93,8 +93,7 @@ const Elevator = () => {
 const Logo = ({ small }: { small?: boolean }) => (
   <div className="flex flex-col gap-1 [animation:fadeIn_0.8s_ease-out]">
     <span className="text-[10px] font-bold tracking-[0.35em] text-blue sm:text-xs [@media(max-height:500px)]:hidden">
-      <span className="text-green">&lt;&lt;&lt;&lt;</span> MERGE CONFLICT PRESENTS{' '}
-      <span className="text-orange">&gt;&gt;&gt;&gt;</span>
+      {STUDIO_NAME.toUpperCase()} PRESENTS
     </span>
     <h1 className="m-0">
       {/* The brand wordmark (public/brand/logo.svg): a fixed-ratio vector, so a plain <img> is right here. */}
