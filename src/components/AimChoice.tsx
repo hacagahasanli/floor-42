@@ -25,7 +25,7 @@ export const AimChoice = () => {
   if (touch) return null;
   return (
     <div className="panel-cut flex flex-col gap-1.5 bg-ink/80 p-3 backdrop-blur">
-      <span className="text-[10px] font-semibold tracking-widest text-cream/50">AIM AND SHOOT</span>
+      <span className="text-sm font-semibold text-cream/70">Aim and shoot</span>
       <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Aim and shoot">
         {(
           [

@@ -56,13 +56,25 @@ export const usePortraits = () => {
   return portraits;
 };
 
-export const MenuShell = ({ accent, status, children }: { accent: string; status: ReactNode; children: ReactNode }) => (
+export const MenuShell = ({
+  accent,
+  status,
+  children,
+  backdrop,
+}: {
+  accent: string;
+  status: ReactNode;
+  children: ReactNode;
+  /** Extra layers behind the content (the online lobby's moving floor and light streaks). */
+  backdrop?: ReactNode;
+}) => (
   <main className="relative min-h-[100dvh] overflow-hidden bg-ink-deep text-cream">
     <div
       className="pointer-events-none fixed inset-0 transition-[background] duration-700"
       style={{ background: `radial-gradient(ellipse 60% 70% at 22% 45%, ${accent}2e, transparent 70%), radial-gradient(ellipse 50% 60% at 100% 100%, #3ec5ff14, transparent 70%)` }}
     />
     <div className="grid-bg pointer-events-none fixed inset-0 [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_80%)]" />
+    {backdrop}
     {/* The floor number, huge and faint, like the lift lobby wall. */}
     <span className="pointer-events-none fixed -bottom-16 -right-6 select-none font-display text-[18rem] leading-none text-transparent [-webkit-text-stroke:2px_rgba(230,235,245,0.06)] sm:text-[26rem]" aria-hidden>
       42
@@ -120,7 +132,7 @@ export const FighterHero = ({ id, label }: { id: CharacterId; label: string }) =
       <canvas key={id} ref={canvasRef} className="absolute -right-8 bottom-0 h-full w-[60%] [animation:fadeIn_0.4s_ease-out] sm:right-0" aria-hidden />
       <div className="relative z-10 flex max-w-[60%] flex-1 flex-col justify-between gap-4 p-5 sm:p-6">
         <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-cream/55">{label}</span>
+          <span className="text-sm font-semibold text-cream/70">{label}</span>
           <h1 key={id} className="font-display text-4xl leading-none [animation:riseIn_0.35s_ease-out] sm:text-6xl [@media(max-height:500px)]:text-4xl" style={{ color: entry.accent }}>
             {entry.name.toUpperCase()}
           </h1>
