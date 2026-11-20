@@ -264,9 +264,6 @@ const PauseMenu = ({
     <div className="absolute inset-0 z-10 flex bg-[linear-gradient(90deg,rgba(10,13,24,0.95)_0%,rgba(10,13,24,0.8)_35%,rgba(10,13,24,0.35)_70%)] [animation:fadeIn_0.2s_ease-out]">
       <div className="flex w-full max-w-md flex-col justify-center gap-6 px-8 [animation:slideInLeft_0.3s_cubic-bezier(.2,.9,.2,1)] sm:px-12">
         <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-blue">
-            Floor 42
-          </span>
           <h2 className="-skew-x-6 font-display text-6xl leading-none text-cream [@media(max-height:500px)]:text-4xl">
             {paused ? 'PAUSED' : 'PAUSE?'}
           </h2>

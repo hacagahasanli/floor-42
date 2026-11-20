@@ -627,9 +627,6 @@ export const SettingsPanel = ({
         <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-gold/60 to-transparent" />
         <header className="flex items-end justify-between gap-3 px-5 pb-3 pt-5 sm:px-8 sm:pt-8 [@media(max-height:500px)]:pt-3">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-blue">
-              Floor 42 · options
-            </span>
             <h2 className="font-display text-4xl leading-none text-cream sm:text-5xl [@media(max-height:500px)]:text-3xl">
               SETTINGS
             </h2>

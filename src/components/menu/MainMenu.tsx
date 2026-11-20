@@ -92,9 +92,6 @@ const Elevator = () => {
 
 const Logo = ({ small }: { small?: boolean }) => (
   <div className="flex flex-col gap-1 [animation:fadeIn_0.8s_ease-out]">
-    <span className="text-[10px] font-bold tracking-[0.35em] text-blue sm:text-xs [@media(max-height:500px)]:hidden">
-      {STUDIO_NAME.toUpperCase()} PRESENTS
-    </span>
     <h1 className="m-0">
       {/* The brand wordmark (public/brand/logo.svg): a fixed-ratio vector, so a plain <img> is right here. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -232,7 +229,7 @@ const Nameplate = ({ id, label }: { id: CharacterId; label: string }) => {
       key={id}
       className="pointer-events-none flex w-80 flex-col items-end gap-2 text-right [animation:riseIn_0.4s_ease-out] max-sm:hidden [@media(max-height:500px)]:w-60"
     >
-      <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-cream/60">
+      <span className="text-sm font-semibold text-cream/70">
         {label}
       </span>
       <span
@@ -291,12 +288,10 @@ const SidePanel = ({
         className="relative flex h-full w-full flex-col border-r border-gold/20 bg-[linear-gradient(180deg,rgba(20,26,43,0.97),rgba(10,13,24,0.98))] shadow-[30px_0_80px_rgba(0,0,0,0.6)] [animation:slideInLeft_0.32s_cubic-bezier(.2,.9,.2,1)] sm:w-[min(600px,100vw)]"
       >
         <header className="flex flex-col px-5 pb-3 pt-5 sm:px-8 sm:pt-8 [@media(max-height:500px)]:pt-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-blue">
-            {kicker}
-          </span>
           <h2 className="font-display text-4xl leading-none sm:text-5xl [@media(max-height:500px)]:text-3xl">
             {title}
           </h2>
+          {kicker && <span className="mt-2 text-sm text-cream/60">{kicker}</span>}
         </header>
         <div className="flex-1 overflow-y-auto px-5 pb-6 pt-2 sm:px-8">{children}</div>
         <footer className="border-t border-cream/10 bg-ink-deep/60 px-5 py-3 sm:px-8">
@@ -745,7 +740,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
           </section>
         )}
 
-        <footer className="flex items-end justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-cream/40 [@media(max-height:500px)]:hidden">
+        <footer className="flex items-end justify-between gap-3 text-xs font-medium text-cream/45 [@media(max-height:500px)]:hidden">
           <span>
             {STUDIO_NAME} · v{GAME_VERSION}
           </span>
