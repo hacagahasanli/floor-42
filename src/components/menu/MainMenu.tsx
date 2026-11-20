@@ -92,7 +92,7 @@ const Elevator = () => {
 
 const Logo = ({ small }: { small?: boolean }) => (
   <div className="flex flex-col gap-1 [animation:fadeIn_0.8s_ease-out]">
-    <span className="text-[10px] font-bold tracking-[0.35em] text-blue sm:text-xs">
+    <span className="text-[10px] font-bold tracking-[0.35em] text-blue sm:text-xs [@media(max-height:500px)]:hidden">
       <span className="text-green">&lt;&lt;&lt;&lt;</span> MERGE CONFLICT PRESENTS{' '}
       <span className="text-orange">&gt;&gt;&gt;&gt;</span>
     </span>
@@ -137,8 +137,8 @@ const MenuItem = ({
   useEffect(() => {
     if (autoFocus) ref.current?.focus({ preventScroll: true });
   }, [autoFocus]);
-  const cls = `group relative flex w-full items-center gap-4 overflow-hidden py-2 pl-5 pr-4 text-left outline-none transition [animation:menuItemIn_0.45s_cubic-bezier(.2,.9,.2,1)_both] -skew-x-[8deg] focus-visible:bg-cream/[0.06] hover:bg-cream/[0.04] max-sm:min-h-12 max-sm:py-1 max-sm:bg-ink-deep/70 max-sm:backdrop-blur ${
-    primary ? 'sm:py-3' : ''
+  const cls = `group relative flex w-full items-center gap-4 overflow-hidden py-2 pl-5 pr-4 text-left outline-none transition [animation:menuItemIn_0.45s_cubic-bezier(.2,.9,.2,1)_both] -skew-x-[8deg] focus-visible:bg-cream/[0.06] hover:bg-cream/[0.04] max-sm:min-h-12 max-sm:py-1 max-sm:bg-ink-deep/70 max-sm:backdrop-blur [@media(max-height:500px)]:py-1 ${
+    primary ? 'sm:py-3 [@media(max-height:500px)]:py-1' : ''
   }`;
   const body = (
     <>
@@ -617,7 +617,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
               <h2 className="-skew-x-6 font-display text-2xl sm:text-3xl [@media(max-height:500px)]:text-lg">
                 CHOOSE YOUR FIGHTER
               </h2>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-cream/45 max-sm:hidden">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-cream/45 max-sm:hidden [@media(max-height:500px)]:hidden">
                 same guns · two hits
               </span>
             </div>
@@ -682,7 +682,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
                       </span>
                     </span>
                     {on && (
-                      <span className="relative ml-auto skew-x-[8deg] text-[10px] font-bold tracking-widest text-gold max-sm:hidden">
+                      <span className="relative ml-auto skew-x-[8deg] text-[10px] font-bold tracking-widest text-gold max-sm:hidden [@media(max-height:500px)]:hidden">
                         PICKED
                       </span>
                     )}
