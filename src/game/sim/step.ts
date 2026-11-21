@@ -685,15 +685,22 @@ const updateProjectiles = (state: GameState) => {
     if (p.y < ARENA.floor) cut((ARENA.floor - py) / ddy);
     if (p.y > ARENA.ceiling) cut((ARENA.ceiling - py) / ddy);
     // A shot skimming along a desk top at chest height grazes past; only shots coming
-    // down onto or up into furniture are stopped.
-    if (p.kind !== 'rail' && Math.abs(ddy) > Math.abs(ddx) * 0.15) {
+    // down onto or up into furniture are stopped. Walkways and shelves always stop a shot
+    // crossing them, however flat, so whoever stands on one is covered from below.
+    if (p.kind !== 'rail' && ddy !== 0) {
+      const steep = Math.abs(ddy) > Math.abs(ddx) * 0.15;
       for (const pl of ARENA.platforms) {
-        if ((py - pl.y) * (p.y - pl.y) > 0 || ddy === 0) continue;
+        if ((py - pl.y) * (p.y - pl.y) > 0 || (!steep && isSolid(pl))) continue;
         const t = (pl.y - py) / ddy;
         const cx = px + ddx * t;
         if (cx >= pl.x0 && cx <= pl.x1) cut(t);
       }
     }
+    // A stopped shot ends just short of what stopped it: a body standing on a walkway starts
+    // exactly at its top, and a shot that stops under the walkway must not touch their feet.
+    const tHit = blocked ? Math.max(0, tEnd - 0.01 / (Math.hypot(ddx, ddy) || 1)) : tEnd;
+    const hx = px + ddx * tHit;
+    const hy = py + ddy * tHit;
     const ex = px + ddx * tEnd;
     const ey = py + ddy * tEnd;
 
@@ -706,7 +713,7 @@ const updateProjectiles = (state: GameState) => {
       const x1 = o.x + oc.width / 2 + 0.08;
       const y0 = o.y;
       const y1 = o.y + oc.height;
-      if (!segmentHitsBox(px, py, ex, ey, x0, y0, x1, y1)) continue;
+      if (!segmentHitsBox(px, py, hx, hy, x0, y0, x1, y1)) continue;
       if (isExplosive(p.kind)) {
         p.x = Math.min(Math.max(ex, x0), x1);
         p.y = ey;

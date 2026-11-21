@@ -167,6 +167,57 @@ describe('guns', () => {
     expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
   });
 
+  describe('a walkway blocks shots both ways', () => {
+    const walk = ARENA.platforms.find((p) => p.style === 'walkway' && p.y < 5)!;
+    const mid = (walk.x0 + walk.x1) / 2;
+    // Spots below it: the open floor under it, the desk and the meeting table at its ends.
+    const below = [
+      { x: mid, y: 0 },
+      { x: mid + 1.5, y: 0 },
+      { x: -8, y: 1.1 },
+      { x: 1, y: 1.0 },
+    ];
+    for (const spot of below) {
+      it(`from below (${spot.x.toFixed(1)}, ${spot.y}), at someone standing on it`, () => {
+        const s = fighting();
+        arm(s, 0, 'smg');
+        place(s, 0, spot.x, spot.y);
+        place(s, 1, mid, walk.y);
+        // Aim at the feet, then at the chest: both paths cross the walkway first.
+        run(s, 20, { fire: true, aimX: mid, aimY: walk.y + 0.05 });
+        run(s, 20, { fire: true, ...at(s, 1) });
+        expect(s.fighters[0].stats.shots).toBeGreaterThan(3);
+        expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
+      });
+      it(`from above, standing on it, at someone below (${spot.x.toFixed(1)}, ${spot.y})`, () => {
+        const s = fighting();
+        arm(s, 0, 'smg');
+        place(s, 0, mid, walk.y);
+        place(s, 1, spot.x, spot.y);
+        run(s, 20, { fire: true, aimX: spot.x, aimY: spot.y });
+        run(s, 20, { fire: true, ...at(s, 1) });
+        expect(s.fighters[0].stats.shots).toBeGreaterThan(3);
+        expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
+      });
+    }
+    it('a flat shot from below still stops at the walkway', () => {
+      const s = fighting();
+      place(s, 1, walk.x0 + 0.6, walk.y);
+      // A round rising 1 in 20 (too flat to stop at a desk), crossing the walkway's plane 1 m in from its
+      // right end, then rising into the shins of someone near its left end.
+      const cross = { x: walk.x1 - 1, y: walk.y };
+      const from = { x: 12, y: cross.y - (12 - cross.x) / 20 };
+      const v = { x: -GUNS.smg.speed, y: GUNS.smg.speed / 20 };
+      s.projectiles.push({
+        id: 99, kind: 'bullet', gun: 'smg', owner: 0, x: from.x, y: from.y, ox: from.x, oy: from.y,
+        vx: v.x, vy: v.y, damage: GUNS.smg.damage, knockback: GUNS.smg.knockback, life: GUNS.smg.life, hit: [],
+      });
+      const events = run(s, 60);
+      expect(events.some((e) => e.type === 'impact')).toBe(true);
+      expect(s.fighters[1].hp).toBe(CHARACTERS.legacy.hp);
+    });
+  });
+
   it('reloads on its own when the magazine runs dry', () => {
     const s = fighting();
     place(s, 0, -8);
