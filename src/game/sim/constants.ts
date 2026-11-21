@@ -10,21 +10,34 @@ export type PlatformStyle =
   | 'shelf'
   | 'cabinet'
   | 'walkway'
-  | 'tray';
+  | 'tray'
+  | 'crate'
+  | 'metal'
+  | 'rack'
+  | 'ledge';
 
 export interface Platform {
   x0: number;
   x1: number;
+  /** The top you stand on. */
   y: number;
   style: PlatformStyle;
+  /** Solid boxes only: where the box stands (a walkway, a balcony). Absent = the floor. */
+  base?: number;
 }
 
 /**
- * Low furniture nobody fits under: desks, the meeting table and the kitchen counter are solid from the floor
- * to their top. You walk up to them and jump on; you never walk (or drop) into them.
+ * Things nobody fits under: desks, the meeting table and the kitchen counter are solid from the floor to their
+ * top, and crates, metal boxes and the server rack from their base to their top. You walk up to them and jump on;
+ * you never walk (or drop) into them. Everything else is a one-way floor (docs/ARENA.md).
  */
-export const SOLID_STYLES: readonly PlatformStyle[] = ['desk', 'table', 'counter'];
+export const SOLID_STYLES: readonly PlatformStyle[] = ['desk', 'table', 'counter', 'crate', 'metal', 'rack'];
 export const isSolid = (p: Platform) => SOLID_STYLES.includes(p.style);
+/** Closed boxes are cover: a shot into their side stops. Desks and the table are open underneath. */
+export const CLOSED_STYLES: readonly PlatformStyle[] = ['crate', 'metal', 'rack'];
+export const isClosed = (p: Platform) => CLOSED_STYLES.includes(p.style);
+/** Where a solid box stands. */
+export const baseOf = (p: Platform) => p.base ?? 0;
 
 /**
  * Where the menu backdrop's fighter stands: on open floor 2.2 m past the end of the meeting table, so neither

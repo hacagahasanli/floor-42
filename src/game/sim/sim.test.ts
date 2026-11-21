@@ -1,5 +1,5 @@
 import { createBot } from './bot';
-import { ARENA, CHARACTERS, DT, GUNS, isSolid, menuSpotX, RULES, WALL_SPLAT_DAMAGE } from './constants';
+import { ARENA, baseOf, CHARACTERS, DT, GUNS, isSolid, menuSpotX, RULES, WALL_SPLAT_DAMAGE } from './constants';
 import { chooseCharacter, createGame, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
@@ -80,7 +80,7 @@ describe('movement', () => {
   });
 
   describe('desks, the table and the counter are solid: nobody walks or dashes into them', () => {
-    const solid = ARENA.platforms.filter((p) => isSolid(p));
+    const solid = ARENA.platforms.filter((p) => isSolid(p) && baseOf(p) === ARENA.floor);
     for (const p of solid) {
       for (const side of [-1, 1] as const) {
         it(`${p.style} at ${p.x0}..${p.x1}, from the ${side < 0 ? 'left' : 'right'}`, () => {
