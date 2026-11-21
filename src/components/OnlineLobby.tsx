@@ -7,12 +7,14 @@ import { AimChoice } from '~/components/AimChoice';
 import { ArenaGame } from '~/components/ArenaGame';
 import { InstallHint } from '~/components/InstallHint';
 import { accentOf, FighterCards, FighterHero, MenuShell, readCharacter, saveCharacter, Steps, usePortraits } from '~/components/MenuShell';
+import { AudiencePrompt } from '~/components/menu/AudiencePrompt';
 import { menuSound } from '~/components/menu/menuSound';
+import { useCopy } from '~/components/menu/useCopy';
 import { createOnlineSession, joinRoom } from '~/game/net/client';
 import { createHostSession } from '~/game/net/host';
 import { connectPeer } from '~/game/net/peer';
 import { ROSTER } from '~/game/roster';
-import { CHARACTERS, RULES } from '~/game/sim/constants';
+import { CHARACTERS } from '~/game/sim/constants';
 
 import type { JoinMode, OnlineSession } from '~/game/net/client';
 import type { PeerLink } from '~/game/net/peer';
@@ -175,6 +177,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   useEffect(() => setCanShare(typeof navigator.share === 'function'), []);
   const roomRef = useRef<Room | null>(null);
   const portraits = usePortraits();
+  const words = useCopy();
 
   useEffect(() => {
     const saved = readCharacter();
@@ -297,7 +300,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
                 <h2 className="font-display text-2xl [@media(max-height:500px)]:text-lg">
                   Play <span className="text-gold">online</span>
                 </h2>
-                <span className="text-right text-xs text-cream/50">First to {RULES.kosToWin} KOs takes the merge</span>
+                <span className="text-right text-xs text-cream/50">{words.goal}</span>
               </div>
               <FighterCards value={character} onPick={pick} portraits={portraits} />
               <AimChoice />
@@ -429,6 +432,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
         </div>
       </section>
       <Steps />
+      <AudiencePrompt />
     </MenuShell>
   );
 };

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
+import { useCopy } from '~/components/menu/useCopy';
 import { ROSTER } from '~/game/roster';
 import { CHARACTERS } from '~/game/sim/constants';
 
@@ -110,6 +111,7 @@ export const FighterHero = ({ id, label }: { id: CharacterId; label: string }) =
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const entry = ROSTER.find((r) => r.id === id)!;
   const s = CHARACTERS[id];
+  const copy = useCopy();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -136,8 +138,8 @@ export const FighterHero = ({ id, label }: { id: CharacterId; label: string }) =
           <h1 key={id} className="font-display text-4xl leading-none [animation:riseIn_0.35s_ease-out] sm:text-6xl [@media(max-height:500px)]:text-4xl" style={{ color: entry.accent }}>
             {entry.name.toUpperCase()}
           </h1>
-          <span className="text-sm text-cream/70">{entry.role}</span>
-          <p className="hidden max-w-xs text-sm text-cream/80 sm:block [@media(max-height:500px)]:hidden">{entry.pitch}</p>
+          <span className="text-sm text-cream/70">{copy.fighters[id].role}</span>
+          <p className="hidden max-w-xs text-sm text-cream/80 sm:block [@media(max-height:500px)]:hidden">{copy.fighters[id].pitch}</p>
         </div>
         {/* On a dark panel: the turntable's white plinth can sit right behind the numbers. */}
         <div className="panel-cut flex max-w-[12.5rem] flex-col gap-3 bg-ink-deep/80 p-3 backdrop-blur-sm sm:max-w-[16.5rem]">

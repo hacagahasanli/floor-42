@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { PORTAL_BUILD, resolveVariant } from '~/game/copy';
 import { isTouchDevice } from '~/game/input';
 import { deviceFacts, resolveTier } from '~/game/render/quality';
 import { ACTIONS, getSettings, keyLabel, unboundActions } from '~/game/settings';
@@ -9,6 +10,7 @@ import { ACTIONS, getSettings, keyLabel, unboundActions } from '~/game/settings'
 import { menuSound } from './menuSound';
 import { useSettings } from './useSettings';
 
+import type { CopyVariant } from '~/game/copy';
 import type { Button } from '~/game/input';
 import type { Quality } from '~/game/settings';
 import type { ReactNode } from 'react';
@@ -526,6 +528,19 @@ const AccessTab = () => {
           onChange={(v) => store.set({ largeHud: v })}
         />
       </Row>
+      {!PORTAL_BUILD && (
+        <Row label="Game words" hint="Developer: merge-conflict jokes. Regular: plain fighting-game words. Same game.">
+          <Segmented<CopyVariant>
+            label="Game words"
+            value={resolveVariant(s.audience)}
+            options={[
+              { id: 'developer', label: 'Developer' },
+              { id: 'regular', label: 'Regular' },
+            ]}
+            onChange={(v) => store.set({ audience: v })}
+          />
+        </Row>
+      )}
     </>
   );
 };

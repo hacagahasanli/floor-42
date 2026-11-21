@@ -52,7 +52,9 @@ src/
       guns.ts  vfx.ts  palette.ts  gallery.ts
     input.ts               keyboard and pointer -> InputState
     sfx.ts                 WebAudio sound synthesis
-    roster.ts              character names, pitches, accent colours (UI copy)
+    roster.ts              character names and accent colours
+    copy.ts                every dev-joke line with a plain twin (developer / regular), picked on first entry;
+                           saved as Settings.audience; NEXT_PUBLIC_PORTAL=1 forces the plain words and never asks
     net/protocol.ts        wire format for online play
     net/client.ts          join a room, prediction and reconciliation
     net/protocol.test.ts   3 tests

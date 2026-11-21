@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { menuSound } from '~/components/menu/menuSound';
+import { useCopy } from '~/components/menu/useCopy';
 import { getSettings } from '~/game/settings';
 
 /**
@@ -65,16 +66,6 @@ export interface LoadStep {
   done: boolean;
 }
 
-/** True tips from How to play, one every few seconds while the match loads. */
-const TIPS = [
-  'Desks and the meeting table stop bullets: fight from behind them.',
-  'Force Push sends incoming bullets back at the shooter.',
-  'Push your rival into the glass for a wall splat.',
-  'Dash makes you untouchable to bullets for a moment (every 5 s).',
-  'Kick off the glass walls to climb fast.',
-  'The rockets and the sniper rail wait on the top floor.',
-  'Stay out of the fight for a few seconds and your health comes back.',
-];
 
 /**
  * The match's loading screen: the lift ride up. Progress is the share of real steps finished (page code, fonts,
@@ -87,6 +78,9 @@ export const LiftLoading = ({ steps, onDone }: { steps: LoadStep[]; onDone: () =
   const [floor, setFloor] = useState(1);
   const [opening, setOpening] = useState(false);
   const [tip, setTip] = useState(0);
+  /** True tips from How to play (copy.ts), one every few seconds while the match loads. */
+  const tips = useCopy().tips;
+  const tipCount = tips.length;
   const floorRef = useRef(1);
 
   // Race the counter toward the real progress, by the clock: a slow frame rate only makes it less smooth.
@@ -108,10 +102,10 @@ export const LiftLoading = ({ steps, onDone }: { steps: LoadStep[]; onDone: () =
   }, [target]);
 
   useEffect(() => {
-    setTip(Math.floor(Math.random() * TIPS.length));
-    const t = window.setInterval(() => setTip((i) => (i + 1) % TIPS.length), 2600);
+    setTip(Math.floor(Math.random() * tipCount));
+    const t = window.setInterval(() => setTip((i) => (i + 1) % tipCount), 2600);
     return () => window.clearInterval(t);
-  }, []);
+  }, [tipCount]);
 
   // Everything loaded: let the counter land on 42, then open the doors (a key or tap skips the last bit).
   const allDone = doneCount === steps.length;
@@ -163,7 +157,7 @@ export const LiftLoading = ({ steps, onDone }: { steps: LoadStep[]; onDone: () =
               </ul>
             </div>
             <p key={tip} className="bg-ink-deep px-4 py-2 text-sm text-cream/85 [animation:riseIn_0.35s_ease-out]">
-              {TIPS[tip]}
+              {tips[tip % tipCount]}
             </p>
           </div>
         </div>

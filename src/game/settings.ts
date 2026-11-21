@@ -4,6 +4,7 @@
  * The menu's Settings panel and the in-game pause menu edit this store; the game, the menu backdrop and the
  * sound engine subscribe to it and apply changes at once (no reload).
  */
+import type { Audience } from './copy';
 import type { AimMode, Button } from './input';
 
 export type Quality = 'auto' | 'low' | 'medium' | 'high';
@@ -33,6 +34,8 @@ export interface Settings {
   reducedMotion: boolean;
   colourBlind: boolean;
   largeHud: boolean;
+  /** Developer jokes or plain fighting-game words (see copy.ts); 'unset' until the first-entry question. */
+  audience: Audience;
 }
 
 /** The order the Controls tab lists the actions in, with their names. */
@@ -76,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reducedMotion: false,
   colourBlind: false,
   largeHud: false,
+  audience: 'unset',
 };
 
 export const SETTINGS_KEY = 'floor42:settings';
@@ -151,6 +155,7 @@ export const sanitize = (raw: unknown): Settings => {
     reducedMotion: bool(r.reducedMotion, d.reducedMotion),
     colourBlind: bool(r.colourBlind, d.colourBlind),
     largeHud: bool(r.largeHud, d.largeHud),
+    audience: pick(r.audience, ['unset', 'developer', 'regular'] as const, d.audience),
   };
 };
 
@@ -284,7 +289,8 @@ export const createSettingsStore = (storage: StorageLike | null) => {
     },
     clearBinding: (action: Button, slot: 0 | 1) => commit({ ...current, bindings: clearBinding(current.bindings, action, slot) }),
     resetBindings: () => commit({ ...current, bindings: cloneBindings(DEFAULT_BINDINGS) }),
-    resetAll: () => commit(sanitize({})),
+    /** Back to the defaults; the developer/regular answer stays (it is not a tuning knob). */
+    resetAll: () => commit({ ...sanitize({}), audience: current.audience }),
     /** Sound is off when the player muted it or the platform asked for silence. */
     effectiveMute: () => current.audio.muted || externalMute,
     setExternalMute: (on: boolean) => {

@@ -10,11 +10,13 @@ import { isTouchDevice } from '~/game/input';
 import { deviceFacts, renderProfile } from '~/game/render/quality';
 import { ROSTER } from '~/game/roster';
 import { getSettings, primaryLabel } from '~/game/settings';
-import { CHARACTERS, RULES } from '~/game/sim/constants';
+import { CHARACTERS } from '~/game/sim/constants';
 import { GAME_VERSION, STUDIO_NAME } from '~/lib/studio';
 
+import { AudiencePrompt, useAskAudience } from './AudiencePrompt';
 import { menuSound } from './menuSound';
 import { SettingsPanel } from './SettingsPanel';
+import { useCopy } from './useCopy';
 import { useGamepadNav } from './useGamepadNav';
 import { useSettings } from './useSettings';
 
@@ -90,7 +92,9 @@ const Elevator = () => {
   );
 };
 
-const Logo = ({ small }: { small?: boolean }) => (
+const Logo = ({ small }: { small?: boolean }) => {
+  const copy = useCopy();
+  return (
   <div className="flex flex-col gap-1 [animation:fadeIn_0.8s_ease-out]">
     <h1 className="m-0">
       {/* The brand wordmark (public/brand/logo.svg): a fixed-ratio vector, so a plain <img> is right here. */}
@@ -105,11 +109,12 @@ const Logo = ({ small }: { small?: boolean }) => (
     </h1>
     {!small && (
       <span className="font-display text-sm text-cream/75 sm:text-base [@media(max-height:500px)]:hidden">
-        Code review got personal.
+        {copy.tagline}
       </span>
     )}
   </div>
-);
+  );
+};
 
 /** One big slanted menu entry: focus slides an accent bar in, ticks, and nudges the label right. */
 const MenuItem = ({
@@ -221,6 +226,7 @@ const Bar = ({
 
 /** The fighter's nameplate, bottom right over the live scene. */
 const Nameplate = ({ id, label }: { id: CharacterId; label: string }) => {
+  const copy = useCopy();
   const e = entryOf(id);
   const s = CHARACTERS[id];
   return (
@@ -237,7 +243,7 @@ const Nameplate = ({ id, label }: { id: CharacterId; label: string }) => {
       >
         {e.name.toUpperCase()}
       </span>
-      <span className="text-sm font-semibold text-cream/80">{e.role}</span>
+      <span className="text-sm font-semibold text-cream/80">{copy.fighters[id].role}</span>
       <div className="panel-cut mt-1 flex w-64 flex-col gap-2.5 bg-ink-deep/75 p-3 text-left backdrop-blur-sm [@media(max-height:500px)]:hidden">
         <Bar label="Speed" value={s.speed / 11} text={`${s.speed} m/s`} color="#3ec5ff" />
         <Bar
@@ -319,6 +325,7 @@ const Keycap = ({ k }: { k: string }) => (
 
 const HowTo = ({ touch }: { touch: boolean }) => {
   const s = useSettings();
+  const copy = useCopy();
   const k = (a: Parameters<typeof primaryLabel>[1]) => primaryLabel(s.bindings, a);
   const rows: [ReactNode, string][] = touch
     ? [
@@ -352,23 +359,7 @@ const HowTo = ({ touch }: { touch: boolean }) => {
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-3">
-        {[
-          [
-            '01',
-            'Knock them out',
-            `Everyone has ${RULES.hp} health. A pistol shot up close takes half, a rocket takes it all. First to ${RULES.kosToWin} KOs takes the merge.`,
-          ],
-          [
-            '02',
-            'Grab a gun',
-            'Pistol in hand; an SMG, a shotgun, a sniper rail and rockets lie around the floor.',
-          ],
-          [
-            '03',
-            'Use the office',
-            'Desks and the meeting table stop bullets. The glass breaks: push them through it.',
-          ],
-        ].map(([n, t, d]) => (
+        {copy.howTo.map(([t, d], i) => [String(i + 1).padStart(2, '0'), t, d]).map(([n, t, d]) => (
           <div key={n} className="panel-cut flex gap-4 bg-ink/80 p-4">
             <span className="font-display text-3xl text-gold/80">{n}</span>
             <div className="flex flex-col gap-1">
@@ -441,6 +432,8 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
   const [lastMain, setLastMain] = useState(0);
   const portraits = usePortraits();
   const pad = useGamepadNav();
+  const copy = useCopy();
+  const asking = useAskAudience();
 
   useEffect(() => {
     setTouch(isTouchDevice());
@@ -492,7 +485,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       setScreen('main');
     }
   };
-  useColumnNav(columnRef, !settingsOpen && (screen === 'main' || screen === 'select'), back);
+  useColumnNav(columnRef, !asking && !settingsOpen && (screen === 'main' || screen === 'select'), back);
   // Side panels (How to play, Credits): Esc closes.
   useEffect(() => {
     if (screen !== 'howto' && screen !== 'credits') return;
@@ -539,7 +532,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       sub: 'Controls, camera, graphics, audio',
       onSelect: () => setSettingsOpen(true),
     },
-    { label: 'HOW TO PLAY', sub: `First to ${RULES.kosToWin} KOs takes the merge`, onSelect: () => setScreen('howto') },
+    { label: 'HOW TO PLAY', sub: copy.goal, onSelect: () => setScreen('howto') },
     { label: 'CREDITS', sub: STUDIO_NAME, onSelect: () => setScreen('credits') },
   ];
 
@@ -660,7 +653,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
                         {r.name.toUpperCase()}
                       </span>
                       <span className="text-xs text-cream/60 max-sm:hidden [@media(max-height:500px)]:hidden">
-                        {r.role}
+                        {copy.fighters[r.id].role}
                       </span>
                     </span>
                     {on && (
@@ -787,6 +780,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       {/* Every screen change: a light streak sweeps across as the new column lands. */}
       <div key={screen} aria-hidden className="f42-wipe" />
       {lift.doors}
+      <AudiencePrompt />
       {settingsOpen && (
         <SettingsPanel
           onClose={() => {

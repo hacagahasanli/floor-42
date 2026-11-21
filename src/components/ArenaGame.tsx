@@ -12,6 +12,7 @@ import {
 } from '~/components/TouchControls';
 import { readAim } from '~/components/AimChoice';
 import { SettingsPanel } from '~/components/menu/SettingsPanel';
+import { useCopy } from '~/components/menu/useCopy';
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useSettings } from '~/components/menu/useSettings';
 import { menuSound } from '~/components/menu/menuSound';
@@ -23,6 +24,7 @@ import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
 import { keyLabel } from '~/game/settings';
 
+import type { Copy } from '~/game/copy';
 import type { AimMode } from '~/game/input';
 import type { NetStatus, OnlineSession } from '~/game/net/client';
 import type { StartMessage } from '~/game/net/protocol';
@@ -157,9 +159,9 @@ const Controls = ({ aim, bindings }: { aim: AimMode; bindings: Bindings }) => {
   );
 };
 
-const END_TEXT = (hud: HudState, demo: boolean) => {
+const END_TEXT = (hud: HudState, demo: boolean, copy: Copy) => {
   if (hud.winner === -1 || hud.winner === null)
-    return { title: 'Draw', sub: 'Time ran out with nothing resolved.' };
+    return { title: 'Draw', sub: copy.drawSub };
   const name = hud.winner === 0 && !demo ? 'You win' : `${hud.fighters[hud.winner].name} wins`;
   return {
     title: name,
@@ -314,6 +316,7 @@ export const ArenaGame = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settings = useSettings();
+  const copy = useCopy();
   useGamepadNav(menuOpen);
   // Rival left: wait up to three rounds of WAIT_SECONDS, asking in between, then the link expires.
   const [waitRound, setWaitRound] = useState(0);
@@ -557,7 +560,7 @@ export const ArenaGame = ({
 
   const toggleAim = () => gameRef.current?.setAimMode(hud?.aimMode === 'mouse' ? 'auto' : 'mouse');
   const showKo = hud?.lastKo && hud.phase === 'fight' && hud.fighters[hud.lastKo.fighter]?.out;
-  const end = hud?.phase === 'over' ? END_TEXT(hud, demo) : null;
+  const end = hud?.phase === 'over' ? END_TEXT(hud, demo, copy) : null;
 
   return (
     <main className="relative h-[100dvh] w-screen touch-none select-none overflow-hidden bg-ink-deep">
@@ -593,7 +596,7 @@ export const ArenaGame = ({
               {!touch && (
                 <span className="panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1">
                   <span className="font-display text-base text-gold">FLOOR 42</span>
-                  <span className="text-[11px] text-cream/70">agents-know · merge room</span>
+                  <span className="text-[11px] text-cream/70">{copy.hudRoom}</span>
                 </span>
               )}
             </div>
@@ -608,29 +611,33 @@ export const ArenaGame = ({
           {/* Every round opens on what the game is about, then the merge goes wrong. */}
           {hud.phase === 'countdown' && hud.time > 1.6 && (
             <div className="pointer-events-none absolute inset-0 z-[4] flex flex-col items-center justify-center gap-4 bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.55),rgba(10,13,24,0.15)_70%)] px-6 text-center">
-              <div className="font-mono text-xs tracking-[0.3em] text-green/90 [animation:fadeIn_0.4s_ease-out]">
-                &lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
-              </div>
+              {copy.introAbove && (
+                <div className="font-mono text-xs tracking-[0.3em] text-green/90 [animation:fadeIn_0.4s_ease-out]">
+                  {copy.introAbove}
+                </div>
+              )}
               <div className="font-display text-4xl leading-none text-gold drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] [animation:riseIn_0.5s_ease-out] sm:text-7xl">
-                CODE REVIEW
+                {copy.introTitle[0]}
                 <br />
-                GOT PERSONAL
+                {copy.introTitle[1]}
               </div>
               <div className="max-w-md text-sm text-cream/85 [animation:fadeIn_0.8s_ease-out] sm:text-base">
-                Two developers. One floor of guns. First to {RULES.kosToWin} KOs takes the merge.
+                {copy.introLine}
               </div>
-              <div className="font-mono text-xs tracking-[0.3em] text-orange/90 [animation:fadeIn_0.4s_ease-out]">
-                &gt;&gt;&gt;&gt;&gt;&gt;&gt; their-branch
-              </div>
+              {copy.introBelow && (
+                <div className="font-mono text-xs tracking-[0.3em] text-orange/90 [animation:fadeIn_0.4s_ease-out]">
+                  {copy.introBelow}
+                </div>
+              )}
             </div>
           )}
           {hud.phase === 'countdown' && hud.time <= 1.6 && (
             <div className="pointer-events-none absolute inset-x-0 top-1/3 flex flex-col items-center gap-3">
               <div className="font-display text-5xl drop-shadow-lg">
                 {hud.time > 0.8 ? (
-                  <span className="text-cream">git merge</span>
+                  <span className="text-cream">{copy.countdownReady}</span>
                 ) : (
-                  <span className="text-orange">CONFLICT!</span>
+                  <span className="text-orange">{copy.countdownGo}</span>
                 )}
               </div>
               <div className="panel-cut bg-ink-deep/80 px-4 py-2 text-sm text-cream/80">
@@ -832,10 +839,10 @@ export const ArenaGame = ({
                       className={`font-semibold ${hud.winner === 0 && !demo ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
                     >
                       {hud.winner === 0 && !demo
-                        ? 'Conflict resolved, your way.'
+                        ? copy.resultWin
                         : hud.winner === null || hud.winner === -1
-                          ? 'Still conflicted.'
-                          : 'Conflict resolved, their way.'}
+                          ? copy.resultDraw
+                          : copy.resultLoss}
                     </span>{' '}
                     {end.sub}
                   </p>
