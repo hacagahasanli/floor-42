@@ -88,6 +88,15 @@ export const ARENA = {
     { x0: 9, x1: 13.6, y: 1.2, style: 'counter' },
     { x0: 11.5, x1: 14.5, y: 6.0, style: 'cabinet' },
     { x0: 15.8, x1: 17.9, y: 2.8, style: 'fridge' },
+    // Cover where the fight goes up: a crate and the server rack at the inner ends of the lower walkways
+    // (steps up to the cable tray), a metal box on each balcony, and a small hanging ledge on each side,
+    // an inner route from the walkways up to the balconies.
+    { x0: -3.7, x1: -2.6, y: 5.4, base: 4.4, style: 'crate' },
+    { x0: 2.6, x1: 3.5, y: 6.4, base: 4.4, style: 'rack' },
+    { x0: -9, x1: -7.2, y: 7.6, style: 'ledge' },
+    { x0: 7.2, x1: 9, y: 7.6, style: 'ledge' },
+    { x0: -12, x1: -11, y: 10.4, base: 9.4, style: 'metal' },
+    { x0: 11, x1: 12, y: 10.4, base: 9.4, style: 'metal' },
     // The mezzanine: balconies along both glass walls, and a beam across the middle.
     { x0: -17.9, x1: -9.5, y: 9.4, style: 'walkway' },
     { x0: 9.5, x1: 17.9, y: 9.4, style: 'walkway' },

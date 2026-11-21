@@ -110,3 +110,27 @@ Checked every entry of `ARENA.platforms`, spawns and gun spots against its build
 Nothing collides that looks decorative (chairs, monitors, plants, cooler, printer and the coffee machine have no
 collision), and no platform top sits above or below its drawn surface: every builder puts its top face at `p.y`.
 Landing needs half the body's half-width over the edge, so nobody stands on air past an edge.
+
+## After: what was built
+
+Collision data (`ARENA.platforms`, all in the shared sim, so offline, bots and online play use the same thing):
+
+| New object | x | stands on | top | class |
+| --- | --- | --- | --- | --- |
+| Wooden crate | -3.7..-2.6 | left walkway (4.4) | 5.4 | closed box: cover, step up to the tray |
+| Server rack | 2.6..3.5 | right walkway (4.4) | 6.4 | closed box: full cover, step up to the tray |
+| Small hanging ledges | ±7.2..±9.0 | hung from the ceiling | 7.6 | one-way: walkway → ledge → balcony |
+| Metal boxes | ±11..±12 | balconies (9.4) | 10.4 | closed box: leg cover on the top floor |
+
+- Solid boxes have a `base`; their underside stops a jump from below (`step.ts`), and closed boxes stop shots
+  through their sides (`CLOSED_STYLES`). Rails still go through everything.
+- The bot hops onto a box on its own level and jumps again near the top of the hop if one jump is not enough.
+- Fixes: the floating gun spot is on the floor (x 4); the decorative rack at the back is gone (the real one is on the
+  walkway); the fridge stands against the back wall; the table's legs and the desks' end panels sit where their
+  collision ends; hanger rods stop under the platform above and step around boxes.
+- Readability: lighter tops and pale front nosings on walkways, the tray, ledges and the bookshelf; crates and boxes
+  have the lightest lid and dark sides; all decor (pendant lamps, wall monitors, ventilation) is thin, darker, and
+  behind the fight plane.
+- Performance: all furniture and wall decor is merged into one mesh per material at load (`mergeStatic`), the rack's
+  status lights are one instanced mesh. See the draw-call numbers in the commit history / report.
+- Tests: `src/game/sim/arena.test.ts`.
