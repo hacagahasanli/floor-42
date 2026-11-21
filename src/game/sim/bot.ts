@@ -1,4 +1,4 @@
-import { ARENA, CHARACTERS, isSolid } from './constants';
+import { ARENA, baseOf, CHARACTERS, isSolid } from './constants';
 import { EMPTY_INPUT } from './types';
 
 import type { GameState, GunKind, InputState } from './types';
@@ -124,11 +124,15 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
       aimY: ty + plan.aimErr * d,
     };
     for (const p of plan.presses) out[p] = !last[p];
-    // A desk, the table or the counter in the way: hop onto it instead of running into its side.
-    if (plan.move !== 0 && me.onGround && !last.up) {
+    // A desk, the table, the counter or a box in the way on your level: hop onto it instead of running
+    // into its side, and jump again near the top of the hop if it is taller than one jump.
+    if (plan.move !== 0 && !last.up) {
       const halfW = CHARACTERS[me.character].width / 2;
       const ahead = me.x + plan.move * (halfW + 0.5);
-      if (ARENA.platforms.some((p) => isSolid(p) && me.y < p.y && ahead > p.x0 && ahead < p.x1)) out.up = true;
+      const blocked = ARENA.platforms.some(
+        (p) => isSolid(p) && me.y < p.y && me.y >= baseOf(p) - 0.05 && ahead > p.x0 && ahead < p.x1,
+      );
+      if (blocked && (me.onGround || (me.airJumps > 0 && me.vy < 1))) out.up = true;
     }
     last = out;
     return out;

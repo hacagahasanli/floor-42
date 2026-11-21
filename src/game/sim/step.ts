@@ -5,6 +5,8 @@ import {
   DT,
   GRENADE,
   GUNS,
+  baseOf,
+  isClosed,
   isSolid,
   PHYS,
   PUSH,
@@ -578,10 +580,21 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   f.x += f.vx * DT;
   f.y += f.vy * DT;
 
-  // Desks, the table and the counter are solid: below their top you stop at their side.
+  // A box standing on a walkway or a balcony has an underside: a jump from below stops under it.
+  for (const p of ARENA.platforms) {
+    const base = baseOf(p);
+    if (!isSolid(p) || base <= ARENA.floor) continue;
+    if (prevY + c.height > base + 0.001 || f.y + c.height <= base) continue;
+    if (f.x + halfW * 0.5 <= p.x0 || f.x - halfW * 0.5 >= p.x1) continue;
+    f.y = base - c.height;
+    f.vy = Math.min(f.vy, 0);
+  }
+
+  // Desks, the table, the counter and boxes are solid: below their top you stop at their side.
   // Only if you were already below the top last tick; coming down onto them is a landing (below).
   for (const p of ARENA.platforms) {
     if (!isSolid(p) || prevY >= p.y - 0.001 || f.y >= p.y - 0.001) continue;
+    if (f.y + c.height <= baseOf(p) + 0.001) continue;
     if (f.x + halfW <= p.x0 || f.x - halfW >= p.x1) continue;
     const fromLeft = prevX + halfW <= p.x0 + 0.001;
     const fromRight = prevX - halfW >= p.x1 - 0.001;
@@ -693,6 +706,25 @@ const updateProjectiles = (state: GameState) => {
         const t = (pl.y - py) / ddy;
         const cx = px + ddx * t;
         if (cx >= pl.x0 && cx <= pl.x1) cut(t);
+      }
+    }
+    // Closed boxes (crates, metal boxes, the server rack) are cover: a shot into their side stops,
+    // however flat. Desks and the table stay open underneath, so flat shots pass under them.
+    if (p.kind !== 'rail') {
+      for (const pl of ARENA.platforms) {
+        if (!isClosed(pl)) continue;
+        const base = baseOf(pl);
+        if (px > pl.x0 && px < pl.x1 && py > base && py < pl.y) {
+          cut(0);
+          continue;
+        }
+        if (ddx === 0) continue;
+        for (const sx of [pl.x0, pl.x1]) {
+          if ((px - sx) * (p.x - sx) > 0) continue;
+          const t = (sx - px) / ddx;
+          const cy = py + ddy * t;
+          if (cy >= base && cy <= pl.y) cut(t);
+        }
       }
     }
     // A stopped shot ends just short of what stopped it: a body standing on a walkway starts

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
-import { ARENA } from '../sim/constants';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
+import { ARENA, baseOf, isSolid } from '../sim/constants';
 
 import { mat, mesh, PALETTE } from './palette';
 
@@ -30,6 +32,29 @@ const put = <T extends THREE.Object3D>(o: T, x: number, y: number, z: number) =>
 };
 
 const BACK_Z = -3.4;
+const FRIDGE_Z = -2.75;
+/** Boxes in the fight plane: centred a little behind the fighters, front face level with the walkway's front. */
+const PROP_Z = -0.45;
+const CRATE = { body: 0x7a5636, lid: 0xc39a6b, frame: 0x5a3e27 };
+const STEEL = { body: 0x465061, lid: 0x9aa3b8, rib: 0x555e70 };
+/** One shared material for the walkways' blue LED strips (it used to be one per walkway). */
+const LED_STRIP = new THREE.MeshBasicMaterial({ color: 0x3ec5ff });
+
+/** Where a hanger rod from a platform at (x, y) ends: under the next platform above it, or the ceiling. */
+const rodTop = (x: number, y: number) =>
+  ARENA.platforms.reduce((top, q) => (!isSolid(q) && q.y > y + 0.01 && q.y < top && x >= q.x0 && x <= q.x1 ? q.y - 0.12 : top), ARENA.ceiling);
+const rod = (g: THREE.Group, x0: number, y: number, z: number) => {
+  // A box standing on this platform: hang the rod beside it, on the platform's side, not through it.
+  let x = x0;
+  const onTop = ARENA.platforms.find((q) => isSolid(q) && Math.abs(baseOf(q) - y) < 0.01 && x >= q.x0 - 0.1 && x <= q.x1 + 0.1);
+  if (onTop) {
+    const host = ARENA.platforms.find((q) => !isSolid(q) && Math.abs(q.y - y) < 0.01 && x >= q.x0 && x <= q.x1);
+    const sides = [onTop.x0 - 0.2, onTop.x1 + 0.2].filter((sx) => !host || (sx >= host.x0 + 0.1 && sx <= host.x1 - 0.1));
+    if (sides.length) x = sides.reduce((a, b) => (Math.abs(b - x) < Math.abs(a - x) ? b : a));
+  }
+  const top = rodTop(x, y);
+  g.add(put(mesh(new THREE.CylinderGeometry(0.025, 0.025, top - y, 5), mat(PALETTE.ink), false), x, (top + y) / 2, z));
+};
 
 const buildCity = (scene: THREE.Scene) => {
   const sky = canvasTexture(4, 256, (g) => {
@@ -126,12 +151,6 @@ const warning: THREE.Mesh[] = [];
 
 // ---------- Furniture, one builder per platform style. Top surface sits at p.y. ----------
 
-const legs = (g: THREE.Group, x0: number, x1: number, h: number, z0: number, z1: number, color = PALETTE.ink) => {
-  for (const lx of [x0 + 0.12, x1 - 0.12]) {
-    for (const lz of [z0, z1]) g.add(put(mesh(box(0.07, h, 0.07), mat(color)), lx, h / 2, lz));
-  }
-};
-
 const lamp = (x: number, y: number, z: number) => {
   const g = new THREE.Group();
   const arm = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 5), mat(PALETTE.ink));
@@ -199,7 +218,11 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const cx = (p.x0 + p.x1) / 2;
     g.add(put(mesh(box(w, 0.08, 1.5), mat(PALETTE.paper)), cx, p.y - 0.04, -0.3));
     g.add(put(mesh(box(w, 0.04, 0.04), mat(PALETTE.ink), false), cx, p.y - 0.06, 0.45));
-    legs(g, p.x0, p.x1, p.y - 0.08, -0.95, 0.35);
+    // Solid end panels exactly where the desk's collision ends, and a modesty panel at the back:
+    // it reads as a block you hop onto, not a top on legs you could walk under.
+    const legH = p.y - 0.08;
+    for (const ex of [p.x0 + 0.04, p.x1 - 0.04]) g.add(put(mesh(box(0.08, legH, 1.36), mat(PALETTE.inkSoft)), ex, legH / 2, -0.3));
+    g.add(put(mesh(box(w - 0.16, legH * 0.62, 0.04), mat(PALETTE.inkSoft)), cx, legH - (legH * 0.62) / 2, -0.96));
     g.add(lamp(p.x0 + 0.4, p.y, -0.85));
     // Two monitors with code on them, a keyboard, a mug, and an office chair pushed back.
     for (const [k, off] of [[0, -0.55], [1, 0.25]] as const) {
@@ -220,7 +243,7 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const w = p.x1 - p.x0;
     const cx = (p.x0 + p.x1) / 2;
     g.add(put(mesh(box(w, 0.1, 1.8), mat(0xb8875a)), cx, p.y - 0.05, -0.4));
-    for (const lx of [p.x0 + 0.6, p.x1 - 0.6]) g.add(put(mesh(box(0.14, p.y - 0.1, 0.9), mat(PALETTE.ink)), lx, (p.y - 0.1) / 2, -0.4));
+    for (const lx of [p.x0 + 0.1, p.x1 - 0.1]) g.add(put(mesh(box(0.14, p.y - 0.1, 0.9), mat(PALETTE.ink)), lx, (p.y - 0.1) / 2, -0.4));
     // A speakerphone in the middle of the meeting.
     g.add(put(mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.06, 3), mat(PALETTE.ink)), cx, p.y + 0.03, -0.9));
     return g;
@@ -244,12 +267,14 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const g = new THREE.Group();
     const w = p.x1 - p.x0;
     const cx = (p.x0 + p.x1) / 2;
-    g.add(put(mesh(box(w, p.y, 1), mat(0xe6e0d4)), cx, p.y / 2, -0.7));
-    g.add(put(mesh(box(0.05, 0.9, 0.06), mat(PALETTE.stone)), p.x0 + 0.2, p.y * 0.6, -0.17));
+    // Against the back wall like the bookshelf: you walk in front of it and stand on its top.
+    g.add(put(mesh(box(w, p.y - 0.04, 0.9), mat(0xe6e0d4)), cx, (p.y - 0.04) / 2, FRIDGE_Z));
+    g.add(put(mesh(box(w + 0.02, 0.04, 0.92), mat(PALETTE.paper)), cx, p.y - 0.02, FRIDGE_Z));
+    g.add(put(mesh(box(0.05, 0.9, 0.06), mat(PALETTE.stone)), p.x0 + 0.2, p.y * 0.6, FRIDGE_Z + 0.47));
     const r = rng(3);
     for (let i = 0; i < 4; i++) {
       const note = mesh(box(0.22, 0.22, 0.01), mat([PALETTE.gold, 0xff9ac0, 0x9ad0ff, 0xb6f09a][i]), false);
-      note.position.set(p.x0 + 0.5 + r() * (w - 0.8), 0.9 + r() * 1.3, -0.19);
+      note.position.set(p.x0 + 0.5 + r() * (w - 0.8), 0.9 + r() * 1.3, FRIDGE_Z + 0.455);
       note.rotation.z = (r() - 0.5) * 0.4;
       g.add(note);
     }
@@ -265,7 +290,8 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
       books(g, p.x0, p.x1, y + 0.03, -2.4, Math.round(y * 100));
     }
     // The top: deep enough to stand on.
-    g.add(put(mesh(box(w, 0.1, 1.4), mat(0x8a6a4a)), cx, p.y - 0.05, -2.1));
+    g.add(put(mesh(box(w, 0.1, 1.4), mat(0xa8835c)), cx, p.y - 0.05, -2.1));
+    g.add(put(mesh(box(w, 0.03, 0.04), mat(0xd2b48c), false), cx, p.y - 0.012, -1.39));
     return g;
   },
   cabinet: (p) => {
@@ -282,28 +308,28 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const g = new THREE.Group();
     const w = p.x1 - p.x0;
     const cx = (p.x0 + p.x1) / 2;
-    g.add(put(mesh(box(w, 0.12, 1.4), mat(PALETTE.stone)), cx, p.y - 0.06, -0.6));
+    g.add(put(mesh(box(w, 0.11, 1.4), mat(PALETTE.stone)), cx, p.y - 0.065, -0.6));
+    // The deck you stand on is a shade lighter than its sides, with a pale nosing along the front edge.
+    g.add(put(mesh(box(w, 0.015, 1.4), mat(PALETTE.lilac)), cx, p.y - 0.0075, -0.6));
+    g.add(put(mesh(box(w, 0.03, 0.05), mat(PALETTE.cream), false), cx, p.y - 0.01, 0.085));
     g.add(put(mesh(box(w, 0.05, 1.42), mat(PALETTE.ink), false), cx, p.y - 0.14, -0.6));
     // A blue LED strip under the front edge.
-    g.add(put(new THREE.Mesh(box(w, 0.03, 0.03), new THREE.MeshBasicMaterial({ color: 0x3ec5ff })), cx, p.y - 0.16, 0.11));
+    g.add(put(new THREE.Mesh(box(w, 0.03, 0.03), LED_STRIP), cx, p.y - 0.16, 0.11));
     // Back rail only, so nothing hides the fight.
     g.add(put(mesh(box(w, 0.05, 0.05), mat(PALETTE.ink), false), cx, p.y + 1, -1.28));
     for (let x = p.x0 + 0.2; x <= p.x1; x += 1.4) g.add(put(mesh(box(0.05, 1, 0.05), mat(PALETTE.ink), false), x, p.y + 0.5, -1.28));
-    // Hung from the ceiling.
-    for (const x of [p.x0 + 0.3, p.x1 - 0.3]) {
-      g.add(put(mesh(new THREE.CylinderGeometry(0.025, 0.025, ARENA.ceiling - p.y, 5), mat(PALETTE.ink), false), x, (ARENA.ceiling + p.y) / 2, -0.6));
-    }
+    // Hung from the ceiling, or from the platform above.
+    for (const x of [p.x0 + 0.3, p.x1 - 0.3]) rod(g, x, p.y, -0.6);
     return g;
   },
   tray: (p) => {
     const g = new THREE.Group();
     const w = p.x1 - p.x0;
     const cx = (p.x0 + p.x1) / 2;
-    g.add(put(mesh(box(w, 0.06, 0.9), mat(PALETTE.stone)), cx, p.y - 0.03, -0.3));
+    g.add(put(mesh(box(w, 0.05, 0.9), mat(PALETTE.stone)), cx, p.y - 0.035, -0.3));
+    g.add(put(mesh(box(w, 0.012, 0.9), mat(PALETTE.lilac)), cx, p.y - 0.006, -0.3));
     g.add(put(mesh(box(w, 0.16, 0.04), mat(PALETTE.ink), false), cx, p.y + 0.02, -0.75));
-    for (const x of [p.x0 + 0.2, p.x1 - 0.2]) {
-      g.add(put(mesh(new THREE.CylinderGeometry(0.025, 0.025, ARENA.ceiling - p.y, 5), mat(PALETTE.ink), false), x, p.y + (ARENA.ceiling - p.y) / 2, -0.3));
-    }
+    for (const x of [p.x0 + 0.2, p.x1 - 0.2]) rod(g, x, p.y, -0.3);
     [PALETTE.gold, PALETTE.blue, PALETTE.red, PALETTE.green].forEach((col, i) => {
       const xa = p.x0 + 0.2 + i * 0.7;
       const curve = new THREE.CatmullRomCurve3([
@@ -315,6 +341,154 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     });
     return g;
   },
+  // ---- Boxes in the fight plane: solid, a lighter lid you stand on, dark sides that read as a block. ----
+  crate: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const h = p.y - baseOf(p);
+    const cx = (p.x0 + p.x1) / 2;
+    const b = baseOf(p);
+    const D = 1.1;
+    const Z = PROP_Z;
+    g.add(put(mesh(box(w - 0.04, h - 0.06, D - 0.04), mat(CRATE.body)), cx, b + (h - 0.06) / 2, Z));
+    // The lid: the lightest, sun-bleached boards, with a little overhang so its edge catches the key light.
+    g.add(put(mesh(box(w + 0.02, 0.06, D + 0.02), mat(CRATE.lid)), cx, p.y - 0.03, Z));
+    // Corner posts, a top and bottom batten and an X brace on the face you see.
+    const f = Z + D / 2 - 0.005;
+    for (const ex of [p.x0 + 0.05, p.x1 - 0.05]) g.add(put(mesh(box(0.1, h - 0.06, 0.06), mat(CRATE.frame)), ex, b + (h - 0.06) / 2, f));
+    for (const by of [b + 0.06, p.y - 0.12]) g.add(put(mesh(box(w - 0.04, 0.1, 0.06), mat(CRATE.frame)), cx, by, f));
+    const diag = Math.hypot(w - 0.2, h - 0.3);
+    const brace = mesh(box(0.09, diag, 0.05), mat(CRATE.frame));
+    brace.rotation.z = Math.atan2(w - 0.2, h - 0.3);
+    g.add(put(brace, cx, b + (h - 0.06) / 2, f + 0.01));
+    return g;
+  },
+  metal: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const h = p.y - baseOf(p);
+    const cx = (p.x0 + p.x1) / 2;
+    const b = baseOf(p);
+    const D = 1.0;
+    const Z = PROP_Z;
+    g.add(put(mesh(box(w, h - 0.1, D), mat(STEEL.body)), cx, b + (h - 0.1) / 2, Z));
+    g.add(put(mesh(box(w + 0.03, 0.1, D + 0.03), mat(STEEL.lid)), cx, p.y - 0.05, Z));
+    const f = Z + D / 2 + 0.01;
+    // Pressed ribs, a hasp and two carry handles.
+    for (const ry of [b + h * 0.3, b + h * 0.62]) g.add(put(mesh(box(w - 0.12, 0.05, 0.03), mat(STEEL.rib), false), cx, ry, f));
+    g.add(put(mesh(box(0.14, 0.18, 0.04), mat(PALETTE.gold), false), cx, p.y - 0.2, f + 0.01));
+    for (const ex of [p.x0 - 0.02, p.x1 + 0.02]) g.add(put(mesh(box(0.04, 0.06, 0.34), mat(PALETTE.ink), false), ex, b + h * 0.7, Z));
+    return g;
+  },
+  rack: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const h = p.y - baseOf(p);
+    const cx = (p.x0 + p.x1) / 2;
+    const b = baseOf(p);
+    const D = 1.0;
+    const Z = PROP_Z;
+    g.add(put(mesh(box(w, h - 0.06, D), mat(0x1a1d26)), cx, b + (h - 0.06) / 2, Z));
+    // A brushed steel top plate, lighter than the black cabinet, so the top reads as a surface.
+    g.add(put(mesh(box(w + 0.02, 0.06, D + 0.02), mat(STEEL.lid)), cx, p.y - 0.03, Z));
+    const f = Z + D / 2 + 0.01;
+    const units = Math.floor((h - 0.4) / 0.22);
+    for (let u = 0; u < units; u++) {
+      const uy = b + 0.25 + u * 0.22;
+      g.add(put(mesh(box(w - 0.12, 0.16, 0.02), mat(0x2a2f3a), false), cx, uy, f));
+      for (let k = 0; k < 3; k++) {
+        const led = new THREE.Object3D();
+        led.position.set(cx + w / 2 - 0.22 + k * 0.07, uy, f + 0.015);
+        led.userData.led = { phase: u * 1.7 + k * 0.9, color: k === 2 ? 0xffb347 : 0x3ddc84 };
+        g.add(led);
+      }
+    }
+    // Side rails, and a cable bundle running from its back up to the tray in the ceiling.
+    for (const ex of [p.x0 + 0.03, p.x1 - 0.03]) g.add(put(mesh(box(0.05, h - 0.06, 0.05), mat(STEEL.rib), false), ex, b + (h - 0.06) / 2, f));
+    [PALETTE.blue, PALETTE.gold].forEach((col, i) => {
+      const x = cx - 0.15 + i * 0.25;
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(x, p.y - 0.2, Z - D / 2 - 0.04),
+        new THREE.Vector3(x - 0.3, p.y + 1.2, Z - D / 2 - 0.25),
+        new THREE.Vector3(x - 0.4, rodTop(x, p.y) - 0.3, Z - D / 2 - 0.3),
+      ]);
+      g.add(mesh(new THREE.TubeGeometry(curve, 10, 0.03, 5), mat(col), false));
+    });
+    return g;
+  },
+  ledge: (p) => {
+    const g = new THREE.Group();
+    const w = p.x1 - p.x0;
+    const cx = (p.x0 + p.x1) / 2;
+    // A thin steel landing hung on two rods: a believable 8 cm plate, a pale top and a lighter front nosing.
+    g.add(put(mesh(box(w, 0.07, 1.0), mat(PALETTE.stone)), cx, p.y - 0.045, -0.4));
+    g.add(put(mesh(box(w, 0.012, 1.0), mat(PALETTE.lilac)), cx, p.y - 0.006, -0.4));
+    g.add(put(mesh(box(w, 0.03, 0.05), mat(PALETTE.cream), false), cx, p.y - 0.01, 0.085));
+    g.add(put(mesh(box(w, 0.04, 1.02), mat(PALETTE.ink), false), cx, p.y - 0.1, -0.4));
+    // Two brackets under it, a small toe board at the back.
+    for (const x of [p.x0 + 0.25, p.x1 - 0.25]) g.add(put(mesh(box(0.05, 0.22, 0.9), mat(PALETTE.ink), false), x, p.y - 0.2, -0.45));
+    g.add(put(mesh(box(w, 0.12, 0.03), mat(PALETTE.ink), false), cx, p.y + 0.06, -0.89));
+    for (const x of [p.x0 + 0.25, p.x1 - 0.25]) rod(g, x, p.y, -0.4);
+    return g;
+  },
+};
+
+/**
+ * Merges every static mesh under `root` into one mesh per material (and shadow setting), so an office of
+ * furniture costs a handful of draw calls instead of hundreds. Meshes flagged `userData.dynamic` stay as
+ * they are. Returns the merged meshes in world space.
+ */
+const mergeStatic = (root: THREE.Object3D) => {
+  root.updateMatrixWorld(true);
+  const buckets = new Map<string, { material: THREE.Material; cast: boolean; recv: boolean; geos: THREE.BufferGeometry[] }>();
+  const merged: THREE.Mesh[] = [];
+  const done: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.userData.dynamic || Array.isArray(m.material) || (m as THREE.InstancedMesh).isInstancedMesh) return;
+    const key = `${m.material.uuid}|${m.castShadow}|${m.receiveShadow}`;
+    let b = buckets.get(key);
+    if (!b) buckets.set(key, (b = { material: m.material, cast: m.castShadow, recv: m.receiveShadow, geos: [] }));
+    const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrixWorld);
+    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+    b.geos.push(g);
+    done.push(m);
+  });
+  for (const m of done) {
+    m.removeFromParent();
+    m.geometry.dispose();
+  }
+  for (const b of buckets.values()) {
+    const geo = mergeGeometries(b.geos);
+    for (const g of b.geos) g.dispose();
+    const m = new THREE.Mesh(geo, b.material);
+    m.castShadow = b.cast;
+    m.receiveShadow = b.recv;
+    merged.push(m);
+  }
+  return merged;
+};
+
+/** Blinking status lights on the server rack: one instanced draw for all of them. */
+const buildLeds = (root: THREE.Object3D) => {
+  root.updateMatrixWorld(true);
+  const spots: { pos: THREE.Vector3; phase: number; color: THREE.Color }[] = [];
+  root.traverse((o) => {
+    if (o.userData.led) spots.push({ pos: o.getWorldPosition(new THREE.Vector3()), phase: o.userData.led.phase, color: new THREE.Color(o.userData.led.color) });
+  });
+  const leds = new THREE.InstancedMesh(box(0.04, 0.04, 0.01), new THREE.MeshBasicMaterial({ color: 0xffffff }), Math.max(1, spots.length));
+  leds.count = spots.length;
+  const mtx = new THREE.Matrix4();
+  spots.forEach((s, i) => {
+    leds.setMatrixAt(i, mtx.makeTranslation(s.pos.x, s.pos.y, s.pos.z));
+    leds.setColorAt(i, s.color);
+  });
+  const off = new THREE.Color(0x1a1d26);
+  const update = (time: number) => {
+    spots.forEach((s, i) => leds.setColorAt(i, Math.sin(time * 7 + s.phase * 3.1) > -0.3 ? s.color : off));
+    if (leds.instanceColor) leds.instanceColor.needsUpdate = true;
+  };
+  return { leds, update };
 };
 
 const buildPlant = (x: number, z: number, scale = 1) => {
@@ -360,6 +534,78 @@ const crackTexture = () =>
       g.stroke();
     }
   });
+
+/** A status dashboard for the wall monitors: build graphs and a burndown in the office's own colours. */
+const dashboardScreen = () =>
+  canvasTexture(256, 160, (g) => {
+    g.fillStyle = '#0f1420';
+    g.fillRect(0, 0, 256, 160);
+    g.fillStyle = '#1b2234';
+    g.fillRect(8, 8, 240, 22);
+    g.fillStyle = '#3ddc84';
+    g.fillRect(14, 15, 60, 8);
+    g.fillStyle = '#e23d5c';
+    g.fillRect(80, 15, 34, 8);
+    const r = rng(4242);
+    // Bars: green builds, the odd red one.
+    for (let i = 0; i < 12; i++) {
+      const h = 18 + r() * 52;
+      g.fillStyle = r() > 0.8 ? '#e23d5c' : '#3ddc84';
+      g.fillRect(14 + i * 10, 112 - h, 7, h);
+    }
+    // A burndown line.
+    g.strokeStyle = '#ffc93c';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(140, 44);
+    for (let i = 1; i <= 8; i++) g.lineTo(140 + i * 13, 44 + i * 8 + (r() - 0.5) * 10);
+    g.stroke();
+    g.fillStyle = '#3e7bfa';
+    g.fillRect(14, 124, 228, 6);
+    g.fillStyle = '#8b93ad';
+    for (let i = 0; i < 3; i++) g.fillRect(14, 138 + i * 7, 80 + r() * 140, 3);
+  });
+
+/**
+ * Wall decor from Reis's concept, all of it against the back wall or hung behind the fight plane, thin and
+ * darker than anything you stand on: pendant lamps, wall monitors, ventilation units. None of it collides.
+ */
+const buildDecor = () => {
+  const group = new THREE.Group();
+  const fans: THREE.Object3D[] = [];
+  const Z = BACK_Z + 0.32;
+  // Pendant lamps hung behind the walkways and the tray: a cord, a dark enamel shade, a warm bulb.
+  const bulb = new THREE.MeshBasicMaterial({ color: 0xffe2a8 });
+  for (const [x, y] of [[-5.2, 8.3], [-1.9, 9.1], [1.9, 9.1], [5.2, 8.3]] as const) {
+    const z = -1.9;
+    group.add(put(mesh(new THREE.CylinderGeometry(0.015, 0.015, ARENA.ceiling - y, 4), mat(PALETTE.ink), false), x, (ARENA.ceiling + y) / 2, z));
+    group.add(put(mesh(new THREE.ConeGeometry(0.32, 0.3, 12, 1, true), mat(PALETTE.inkSoft), false), x, y - 0.12, z));
+    group.add(put(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 8), mat(PALETTE.ink), false), x, y + 0.06, z));
+    group.add(put(new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), bulb), x, y - 0.24, z));
+  }
+  // Wall monitors on the pillars, between the cabinets and the balconies: status dashboards.
+  const screen = new THREE.MeshBasicMaterial({ map: dashboardScreen() });
+  for (const [x, y] of [[-12, 7.75], [12, 7.75], [-6, 7.3], [6, 7.3]] as const) {
+    group.add(put(mesh(box(1.34, 0.84, 0.06), mat(0x1a1d26), false), x, y, Z));
+    group.add(put(new THREE.Mesh(new THREE.PlaneGeometry(1.24, 0.74), screen), x, y, Z + 0.035));
+    group.add(put(mesh(box(0.1, 0.1, 0.3), mat(PALETTE.ink), false), x, y, Z - 0.15));
+  }
+  // Ventilation units high on the back wall, their fans turning slowly.
+  for (const x of [-9, 9]) {
+    const y = 11.7;
+    group.add(put(mesh(box(1.1, 1.1, 0.24), mat(STEEL.body), false), x, y, Z));
+    group.add(put(mesh(new THREE.TorusGeometry(0.43, 0.04, 6, 24), mat(STEEL.rib), false), x, y, Z + 0.13));
+    group.add(put(mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.02, 20).rotateX(Math.PI / 2), mat(PALETTE.ink), false), x, y, Z + 0.1));
+    const blades = mergeGeometries(
+      [0, 1, 2, 3].map((i) => box(0.15, 0.38, 0.015).translate(0, 0.2, 0).rotateZ(i * (Math.PI / 2) + 0.3).toNonIndexed()),
+    );
+    const fan = put(mesh(blades, mat(STEEL.lid), false), x, y, Z + 0.12);
+    fan.userData.dynamic = true;
+    group.add(fan);
+    fans.push(fan);
+  }
+  return { group, fans };
+};
 
 export interface ArenaView {
   crack: (side: -1 | 1, y: number) => void;
@@ -552,7 +798,14 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
     }
   }
 
-  for (const p of ARENA.platforms) scene.add(FURNITURE[p.style](p));
+  // Every piece of furniture and the wall decor, merged into a few draw calls (fan blades stay separate).
+  const furniture = new THREE.Group();
+  for (const p of ARENA.platforms) furniture.add(FURNITURE[p.style](p));
+  const decor = buildDecor();
+  furniture.add(decor.group);
+  const rackLeds = buildLeds(furniture);
+  for (const m of mergeStatic(furniture)) scene.add(m);
+  scene.add(furniture, rackLeds.leds);
 
   // Decor that is not a platform.
   scene.add(buildPlant(-10.6, -2.6, 1.1));
@@ -580,21 +833,7 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   const neonSign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.3), new THREE.MeshBasicMaterial({ map: neon, transparent: true, depthWrite: false }));
   // On the open stretch of wall between the pillars at -12 and -6, above the desks.
   scene.add(put(neonSign, -9, 3.6, BACK_Z + 0.3));
-  // A server rack with blinking lights.
-  const rack = new THREE.Group();
-  rack.add(put(mesh(box(0.9, 2.2, 0.7), mat(0x1a1d26)), 0, 1.1, 0));
-  const leds: THREE.Mesh[] = [];
-  for (let u = 0; u < 9; u++) {
-    rack.add(put(mesh(box(0.8, 0.16, 0.02), mat(0x2a2f3a), false), 0, 0.3 + u * 0.22, 0.36));
-    for (let k = 0; k < 3; k++) {
-      const led = new THREE.Mesh(box(0.04, 0.04, 0.01), new THREE.MeshBasicMaterial({ color: k === 2 ? 0xffb347 : 0x3ddc84 }));
-      led.position.set(0.22 + k * 0.08, 0.3 + u * 0.22, 0.375);
-      led.userData.phase = u * 1.7 + k * 0.9;
-      rack.add(led);
-      leds.push(led);
-    }
-  }
-  scene.add(put(rack, 1.9, 0, -2.9));
+  // The server rack is a real one now, standing on the right walkway (FURNITURE.rack).
   const cooler = new THREE.Group();
   cooler.add(put(mesh(box(0.6, 1.1, 0.6), mat(PALETTE.paper)), 0, 0.55, 0));
   cooler.add(put(mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.55, 9), mat(0x7ea6e0, { opacity: 0.7 })), 0, 1.38, 0));
@@ -687,7 +926,8 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
       }
       // Warning lights blink, server LEDs flicker, the neon hums.
       for (const b of blinkers) b.visible = Math.sin(time * 2.2 + (b.userData.phase as number)) > 0.6;
-      for (const l of leds) l.visible = Math.sin(time * 7 + (l.userData.phase as number) * 3.1) > -0.3;
+      rackLeds.update(time);
+      for (const f of decor.fans) f.rotation.z -= dt * 5;
       (neonSign.material as THREE.MeshBasicMaterial).opacity = 0.92 + Math.sin(time * 37) * 0.04 + (Math.sin(time * 1.3) > 0.97 ? -0.4 : 0);
     },
   };

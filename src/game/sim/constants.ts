@@ -10,21 +10,34 @@ export type PlatformStyle =
   | 'shelf'
   | 'cabinet'
   | 'walkway'
-  | 'tray';
+  | 'tray'
+  | 'crate'
+  | 'metal'
+  | 'rack'
+  | 'ledge';
 
 export interface Platform {
   x0: number;
   x1: number;
+  /** The top you stand on. */
   y: number;
   style: PlatformStyle;
+  /** Solid boxes only: where the box stands (a walkway, a balcony). Absent = the floor. */
+  base?: number;
 }
 
 /**
- * Low furniture nobody fits under: desks, the meeting table and the kitchen counter are solid from the floor
- * to their top. You walk up to them and jump on; you never walk (or drop) into them.
+ * Things nobody fits under: desks, the meeting table and the kitchen counter are solid from the floor to their
+ * top, and crates, metal boxes and the server rack from their base to their top. You walk up to them and jump on;
+ * you never walk (or drop) into them. Everything else is a one-way floor (docs/ARENA.md).
  */
-export const SOLID_STYLES: readonly PlatformStyle[] = ['desk', 'table', 'counter'];
+export const SOLID_STYLES: readonly PlatformStyle[] = ['desk', 'table', 'counter', 'crate', 'metal', 'rack'];
 export const isSolid = (p: Platform) => SOLID_STYLES.includes(p.style);
+/** Closed boxes are cover: a shot into their side stops. Desks and the table are open underneath. */
+export const CLOSED_STYLES: readonly PlatformStyle[] = ['crate', 'metal', 'rack'];
+export const isClosed = (p: Platform) => CLOSED_STYLES.includes(p.style);
+/** Where a solid box stands. */
+export const baseOf = (p: Platform) => p.base ?? 0;
 
 /**
  * Where the menu backdrop's fighter stands: on open floor 2.2 m past the end of the meeting table, so neither
@@ -75,6 +88,15 @@ export const ARENA = {
     { x0: 9, x1: 13.6, y: 1.2, style: 'counter' },
     { x0: 11.5, x1: 14.5, y: 6.0, style: 'cabinet' },
     { x0: 15.8, x1: 17.9, y: 2.8, style: 'fridge' },
+    // Cover where the fight goes up: a crate and the server rack at the inner ends of the lower walkways
+    // (steps up to the cable tray), a metal box on each balcony, and a small hanging ledge on each side,
+    // an inner route from the walkways up to the balconies.
+    { x0: -3.7, x1: -2.6, y: 5.4, base: 4.4, style: 'crate' },
+    { x0: 2.6, x1: 3.5, y: 6.4, base: 4.4, style: 'rack' },
+    { x0: -9, x1: -7.2, y: 7.6, style: 'ledge' },
+    { x0: 7.2, x1: 9, y: 7.6, style: 'ledge' },
+    { x0: -12, x1: -11, y: 10.4, base: 9.4, style: 'metal' },
+    { x0: 11, x1: 12, y: 10.4, base: 9.4, style: 'metal' },
     // The mezzanine: balconies along both glass walls, and a beam across the middle.
     { x0: -17.9, x1: -9.5, y: 9.4, style: 'walkway' },
     { x0: 9.5, x1: 17.9, y: 9.4, style: 'walkway' },
@@ -116,7 +138,7 @@ export const ARENA = {
       spots: [
         { x: -13, y: 1.1 },
         { x: 10.5, y: 1.2 },
-        { x: 4, y: 1.0 },
+        { x: 4, y: 0 },
       ],
       kinds: GUN_TABLE,
     },
