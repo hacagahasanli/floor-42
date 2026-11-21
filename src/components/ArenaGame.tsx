@@ -64,6 +64,26 @@ const Ready = ({ label, value }: { label: string; value: number }) => {
   );
 };
 
+/** One side's KO count. It pops (scale + brightness flash) each time the number goes up. */
+const ScoreDigit = ({ value, color, compact }: { value: number; color: string; compact?: boolean }) => {
+  const prev = useRef(value);
+  const [pops, setPops] = useState(0);
+  useEffect(() => {
+    if (value > prev.current) setPops((n) => n + 1);
+    prev.current = value;
+  }, [value]);
+  return (
+    <span
+      key={pops}
+      data-testid="score-digit"
+      className={`inline-block min-w-[0.7em] text-center font-display leading-none tabular-nums drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] ${compact ? 'text-3xl' : 'text-5xl'} ${pops > 0 ? 'f42-score-pop' : ''}`}
+      style={{ color }}
+    >
+      {value}
+    </span>
+  );
+};
+
 const FighterPanel = ({
   f,
   label,
@@ -100,14 +120,6 @@ const FighterPanel = ({
     <div
       className={`flex items-center gap-3 text-[11px] text-cream/70 ${align === 'right' ? 'flex-row-reverse' : ''}`}
     >
-      <span className="flex gap-1">
-        {Array.from({ length: RULES.kosToWin }, (_, i) => (
-          <span
-            key={i}
-            className={`inline-block h-2.5 w-2.5 rotate-45 ${i < f.kos ? 'bg-gold' : 'bg-cream/15'}`}
-          />
-        ))}
-      </span>
       <span className="font-semibold text-cream">{f.gun}</span>
       {label === 'YOU' && (
         <>
@@ -596,9 +608,22 @@ export const ArenaGame = ({
               <span className="font-display text-3xl leading-none tabular-nums text-cream">
                 {hud.phase === 'countdown' ? RULES.roundSeconds : Math.ceil(hud.time)}
               </span>
-              <span className="text-[10px] font-semibold tracking-widest text-cream/50">
-                FIRST TO {RULES.kosToWin}
-              </span>
+              <div
+                role="status"
+                aria-label={`Score ${hud.fighters[0].kos} to ${hud.fighters[1].kos}`}
+                className="flex items-center gap-2"
+              >
+                <ScoreDigit value={hud.fighters[0].kos} color={accent(hud.fighters[0].character)} compact={touch} />
+                <span className="font-display text-2xl leading-none text-cream/40">:</span>
+                <ScoreDigit value={hud.fighters[1].kos} color={accent(hud.fighters[1].character)} compact={touch} />
+              </div>
+              {Math.max(hud.fighters[0].kos, hud.fighters[1].kos) === RULES.kosToWin - 1 ? (
+                <span className="text-[10px] font-bold tracking-widest text-gold">MATCH POINT</span>
+              ) : (
+                <span className="text-[10px] font-semibold tracking-widest text-cream/50">
+                  FIRST TO {RULES.kosToWin}
+                </span>
+              )}
               {!touch && (
                 <span className="panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1">
                   <span className="font-display text-base text-gold">FLOOR 42</span>
