@@ -116,7 +116,7 @@ export const ARENA = {
       spots: [
         { x: -13, y: 1.1 },
         { x: 10.5, y: 1.2 },
-        { x: 4, y: 1.0 },
+        { x: 4, y: 0 },
       ],
       kinds: GUN_TABLE,
     },
