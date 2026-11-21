@@ -31,3 +31,9 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
 - Expected deliverable: accept, or F-xxx items with exact changes.
 - Priority: P0
 - Status: done (CD 2026-11-21): accepted; show Reis after F-007 (P1, landscape scrim seam). F-008 (P2, cloud tidy: desktop bottom-left mask, far clusters lowered) can follow. Draw-call level 70-76/80 accepted.
+
+## R-006 — Visible Back button in the lobby
+- Context: Reis looked at lobby v2 (screenshot CREATIVE/research/reis-lobby-v2-2026-11-21.png): "bura qəşəng olub, sadəcə back button yoxdur" = looks nice, only there is no back button. The ▲ 42 lift display as the home link (spec 4.2) is not discoverable. Code: src/components/lobby/LobbyHud.tsx (lb-lift link calls onHome -> lift doors to `/`), lobby.css. Esc already handled in OnlineLobby.tsx for panel states. Other menus in this game use a "Back" button (src/components/menu/MainMenu.tsx side panels); LCS uses a small "← Menu  Esc" cut-corner pill top-left. Must work on desktop, phone portrait (HUD plates top-left) and landscape; must not clash with your fighter's HUD plate (top-left). Change ONLY this — the rest of the lobby stays as Reis approved.
+- Expected deliverable: short addendum in CREATIVE/ui/lobby-v2.md: where the Back button sits per layout, look (size, colours, icon, label, key hint), behaviour (goes to main menu via lift doors; in a panel state does it cancel first?), and whether ▲ 42 keeps its link.
+- Priority: P0
+- Status: done (CD 2026-11-21): spec in CREATIVE/ui/lobby-v2.md section 15 + CREATIVE/assets/icon-back.svg. Back key top-left in the HUD's left cell before the player plate (desktop/tablet: icon + Back + Esc chip; phone portrait: icon + Back replaces the player plate; phone landscape: 36px icon-only). Leaves in one click (cancel then lift doors); Esc cancels in panels, goes home in the menu state; disabled while a match starts. ▲ 42 keeps its link.

@@ -386,3 +386,54 @@ Accepted engineering deviations (they override sections above):
 Replaced: phone portrait panel states follow F-003 (panel docked to the bottom, info block shown except in the invite state). Scrims and prop positions: F-001, F-002, F-004, F-005 in FEEDBACK.md.
 
 Lobby scene budget rule (from R-003): the low tier runs at about 70 of 80 draw calls. Any new prop must remove something of equal cost. Cut order if room is needed: distant floors, rebar stubs, paper sheet. Never cut: slab, fighter, ring, standee, glass, desk, crate, clouds.
+
+## 15. Back button (R-006, 2026-11-21)
+
+Reis approved the lobby; the only gap is a visible way out. `▲ 42` as the home link was not discoverable. Add one Back key in the top-left of the HUD. Nothing else in the lobby changes.
+
+### 15.1 Placement
+- It lives inside the HUD's left cell, before the player plate: the left cell becomes `display:flex; align-items:flex-start; gap:16px` with `[Back] [player plate]`. Top edge of the Back key = top edge of the plate name. Its left edge is the page gutter (same x as the fighter info column below), so the left column stays aligned on the key.
+- Desktop (>= 1024): key with icon + `Back` + `Esc` chip. The plate moves right by the key width + 16 px. From 1024 to 1279 px wide the player bar is `width: 240px` (was 300) so the cell never overflows; at 1280+ it stays 300.
+- Tablet portrait (768-1023): same as desktop, no `Esc` chip on touch devices (hide it with the same script check that hides the aim control).
+- Phone portrait (`max-width: 767px` portrait rules): the cell is ~100 px wide at 360-390 and cannot hold the key and the plate. The key replaces the player plate there: `.lb-plate-me { display:none }`, key = icon + `Back`, no chip. The fighter's name is already shown in the info block and on the selected badge, so nothing is lost. Rival plate and `▲ 42` stay exactly as they are.
+- Phone landscape (`max-height: 500px`): icon-only square key left of the plate (the plate keeps name + 96 px bar).
+
+### 15.2 Look (shares the `▲ 42` plate's material so it reads as part of the HUD, not a web nav)
+- Background `#0a0d18` (`--lb-deep`), `border: 1px solid rgba(230,235,245,.1)`, same cut corners as the lift link: `clip-path: polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)`.
+- Icon: `CREATIVE/assets/icon-back.svg` (24 grid, 2 px square-cap stroke, same family as the invite/quick/bot icons), inline, `currentColor`.
+- Text: `Back`, sentence case, body sans (same family as `.lb-lift-tip`), `font-weight: 700`, colour `#e6ebf5`. Not Bungee, not uppercase, no tracking: it must stay quieter than the gold buttons.
+- `Esc` chip (desktop only): reuse `.lb-key` styling from the badges (it already matches the game's key hints); `margin-left: 2px`; `color: rgba(230,235,245,.6)`.
+
+| | desktop | phone portrait | phone landscape |
+|---|---|---|---|
+| height | 40px | 40px | 36px |
+| padding | `0 12px 0 10px` | `0 12px 0 10px` | 0, width 36px |
+| gap icon/text/chip | 8px | 6px | - |
+| icon | 18px | 18px | 18px, centred |
+| label | 14px / line-height 1 | 13px | hidden (aria-label only) |
+| chip | `Esc` | none | none |
+| hit area | 40px | 44px (`::before` inset -2px) | 44px (`::before` inset -4px) |
+
+States:
+- Hover (desktop): background `#141a2c` (`--lb-ink`), border `rgba(255,210,63,.45)`, icon `translateX(-3px)` over 120 ms ease-out. `menuSound.tick()` on hover and focus.
+- Focus-visible: `outline: 2px solid var(--lb-gold); outline-offset: 3px` (same as every lobby control).
+- Pressed: `transform: translateY(1px)`.
+- Reduced motion: no icon slide, colour change only.
+- Entry: part of `.lb-plate-me`'s existing `lbSlideL` slide-in; no extra animation.
+
+### 15.3 Behaviour
+- Menu state: click / Enter / `Esc` -> `menuSound.back()` -> `onHome()` (lift doors to `/`), exactly what `▲ 42` does. `Esc` is new in the menu state and is ignored while a text input has focus (existing guard in OnlineLobby.tsx).
+- Panel states with a Cancel (connecting, searching, quick30, room created / invite, joining, error, join-error): `Esc` keeps its current meaning (cancel, one step back to the lobby menu). The Back key leaves the lobby in one click: it runs `cancel()` and then `onHome()`. No confirm dialog; Cancel is right there for players who only want to stop the search. In these states the `Esc` chip is hidden (Esc does not leave the lobby there).
+- Rival found / linking into the match: the key stays in place but is disabled (`aria-disabled`, opacity .35, no hover) so nothing can abort a starting match; layout does not shift.
+- Gamepad: B already cancels in panel states; in the menu state B = Back to main menu (same as Esc). The key is a normal `data-nav` stop, first in DOM order.
+- Accessible name: `Back to main menu`.
+
+### 15.4 `▲ 42`
+Keeps its link to `/`, its hover flick and its tooltip. It is now the secondary, discoverable-by-play shortcut; the Back key is the primary exit. No visual change.
+
+### 15.5 Acceptance
+1. A first-time player on 1440x900, 390x844, 360x740, 844x390 and 667x375 sees a Back key top-left without hovering anything.
+2. Nothing else on the lobby moves except the player plate shifting right (desktop/landscape) or being replaced (phone portrait); 360x740 and 667x375 still fit with no scroll past the primary button.
+3. Esc from the idle lobby goes to the main menu through the lift doors; Esc in a panel only cancels.
+4. Back during search or an open room leaves the room (no late callbacks, no ghost room) and lands on `/`.
+5. Disabled, not hidden, while a match is starting.
