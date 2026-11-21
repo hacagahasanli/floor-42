@@ -25,3 +25,9 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
 - Expected deliverable: accept, or F-xxx items in FEEDBACK.md with exact changes.
 - Priority: P0
 - Status: done (review complete, CD 2026-11-21): accepted with changes. F-001 desktop left-column readability (P0), F-002 clouds read as rocks (P0), F-003 portrait panels bottom-docked (P0), F-004 landscape name scrim + connection line (P1), F-005 cables behind badges (P2), F-006 error standee (P2). Re-review after F-001..F-004 with fresh shots of the same 30 states.
+
+## R-005 — Re-review lobby v2 after F-001..F-006 (dc3cba1)
+- Context: fixes + deviations in LOG.md (latest entry). 50 shots incl. 360x740 and 667x375: ~/.agents-know/personal/feedback4/shots/f42-lobby-v2/ (contact-sheet.png). Engineering flags: desktop bottom-left clouds still read dark grey under the left scrim; one far cloud floats above the slab's back edge near the fighter's head and reads like a floating rock; low-tier draw calls now 70-76 of 80.
+- Expected deliverable: accept, or F-xxx items with exact changes.
+- Priority: P0
+- Status: open
