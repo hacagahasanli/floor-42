@@ -17,7 +17,7 @@ import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useSettings } from '~/components/menu/useSettings';
 import { menuSound } from '~/components/menu/menuSound';
 import { LiftLoading } from '~/components/Elevator';
-import { SupportLink } from '~/components/SupportLink';
+import { Support } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
@@ -287,7 +287,7 @@ const PauseMenu = ({
           <span className="text-[10px] font-bold uppercase tracking-widest text-cream/40">
             Esc resumes
           </span>
-          <SupportLink className="self-start" />
+          <Support variant="pause" className="self-start" />
         </div>
       </div>
     </div>
@@ -975,9 +975,7 @@ export const ArenaGame = ({
                     </Link>
                   )}
                 </div>
-                <p className="flex flex-wrap items-center gap-x-2 text-sm text-cream/60">
-                  Enjoyed it? <SupportLink />
-                </p>
+                <Support variant="results" className="w-full max-w-xl" />
               </div>
             </div>
           )}

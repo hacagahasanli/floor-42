@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useLiftTo } from '~/components/Elevator';
 import { readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
-import { SupportCard, SupportLink, SupportPill } from '~/components/SupportLink';
+import { Support } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { deviceFacts, renderProfile } from '~/game/render/quality';
 import { ROSTER } from '~/game/roster';
@@ -413,7 +413,7 @@ const Credits = () => (
       </p>
       <p>Built with three.js, React and Next.js.</p>
     </div>
-    <SupportLink className="self-start" />
+    <Support variant="pause" className="self-start" />
   </div>
 );
 
@@ -728,17 +728,17 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
         </footer>
       </div>
 
-      {/* Buy us a coffee: a card under the lift display on wide screens, a pill on phones; never over the menu itself. */}
+      {/* Support us: a card under the lift display on wide screens, one line on phones; never over the menu itself. */}
       {screen !== 'select' && (
         <>
           <div className="absolute right-6 top-20 z-20 hidden sm:right-10 sm:top-24 sm:block [@media(max-height:500px)]:hidden">
-            <SupportCard />
+            <Support variant="menu" className="w-[360px]" />
           </div>
-          <div className="absolute left-5 top-[124px] z-20 sm:hidden">
-            <SupportPill />
+          <div className="absolute left-5 top-[142px] z-20 sm:hidden">
+            <Support variant="pause" />
           </div>
           <div className="absolute right-[120px] top-4 z-20 hidden [@media(max-height:500px)]:sm:block">
-            <SupportPill />
+            <Support variant="pause" />
           </div>
         </>
       )}
