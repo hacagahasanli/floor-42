@@ -864,7 +864,15 @@ export interface SidePose {
   reload: number | null;
   /** 0..1 while the Force Push is out. */
   pushing: number;
+  /** 0 standing .. 1 crouched (the sim eases it in 0.1 s). */
+  crouch?: number;
 }
+
+/**
+ * The squat at full crouch (angles in the world): thighs forward, knees deep, the torso leaning over the gun
+ * from the hips. It brings the top of the body down to about the crouched hitbox (CROUCH.height, 52 %).
+ */
+const CROUCH_POSE = { thighL: -1.5, thighR: -1.25, kneeL: 2.75, kneeR: 2.8, lean: 0.6, head: 0.45 };
 
 /**
  * Floor 42's side-on animation, with the same body as the battle royale: two-bone arms that hold
@@ -915,9 +923,24 @@ export const poseSide = (rig: Rig, p: SidePose) => {
     kl = ready + (running ? Math.max(0, c) * 1.5 * amp + 0.15 * amp : 0);
     kr = ready + (running ? Math.max(0, -c) * 1.5 * amp + 0.15 * amp : 0);
   }
-  const lk = p.onGround ? 18 : 12;
-  rig.legL.rotation.x = damp(rig.legL.rotation.x, tl, lk, dt);
-  rig.legR.rotation.x = damp(rig.legR.rotation.x, tr, lk, dt);
+  // Crouch: blend into the squat by the sim's crouch amount; the stride shrinks to a shuffle. While crouching
+  // (and a moment after standing up) the joints follow fast, so the pose keeps up with the 0.1 s hitbox.
+  const cr = p.onGround && !p.dashing ? (p.crouch ?? 0) : 0;
+  const ud2 = rig.root.userData as { crouchT?: number; crouchLean?: number };
+  ud2.crouchT = cr > 0 ? 0.2 : Math.max(0, (ud2.crouchT ?? 0) - dt);
+  const quick = ud2.crouchT > 0;
+  // The crouch lean turns the body at the hips: the legs take it back out, so they keep their angles in the world.
+  const cl = CROUCH_POSE.lean * cr;
+  if (cr > 0) {
+    const C = CROUCH_POSE;
+    tl += (C.thighL - swing * 0.3 - tl) * cr;
+    tr += (C.thighR + swing * 0.3 - tr) * cr;
+    kl += (C.kneeL - kl) * cr;
+    kr += (C.kneeR - kr) * cr;
+  }
+  const lk = quick ? 45 : p.onGround ? 18 : 12;
+  rig.legL.rotation.x = damp(rig.legL.rotation.x, tl - cl, lk, dt);
+  rig.legR.rotation.x = damp(rig.legR.rotation.x, tr - cl, lk, dt);
   rig.legL.rotation.y = 0;
   rig.legR.rotation.y = 0;
   rig.legL.rotation.z = damp(rig.legL.rotation.z, -0.04, 10, dt);
@@ -925,7 +948,7 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   rig.shinL.rotation.x = damp(rig.shinL.rotation.x, kl, lk, dt);
   rig.shinR.rotation.x = damp(rig.shinR.rotation.x, kr, lk, dt);
   const reachOf = (thigh: number, knee: number) => (Math.cos(thigh) + Math.cos(thigh + knee)) / 2;
-  const legDrop = p.onGround ? rig.legLen * (1 - Math.max(reachOf(rig.legL.rotation.x, rig.shinL.rotation.x), reachOf(rig.legR.rotation.x, rig.shinR.rotation.x))) : 0;
+  const legDrop = p.onGround ? rig.legLen * (1 - Math.max(reachOf(rig.legL.rotation.x + cl, rig.shinL.rotation.x), reachOf(rig.legR.rotation.x + cl, rig.shinR.rotation.x))) : 0;
 
   // ---- body
   const kickT = p.sinceShot < 0.25 ? p.sinceShot / 0.25 : 1;
@@ -934,12 +957,17 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   if (p.dashing) lean = 0.55;
   if (p.pushing > 0) lean = 0.3 * p.pushing;
   if (!p.onGround && p.vy > 0) lean = 0.12;
-  rig.body.rotation.x = damp(rig.body.rotation.x, lean, 12, dt);
+  // The usual lean eases as before; the crouch lean (already eased by the sim) rides on top of it.
+  const baseLean = rig.body.rotation.x - (ud2.crouchLean ?? 0);
+  rig.body.rotation.x = damp(baseLean, lean, 12, dt) + cl;
+  ud2.crouchLean = cl;
   rig.body.rotation.y = damp(rig.body.rotation.y, running ? -swing * 0.1 : 0, 12, dt);
   rig.body.rotation.z = p.stunned ? Math.sin(p.time * 30) * 0.12 : damp(rig.body.rotation.z, 0, 10, dt);
   const bob = running ? Math.abs(Math.sin(rig.phase)) * 0.06 * amp : Math.sin(p.time * 2.1) * 0.012;
-  rig.body.position.set(0, bob - legDrop, -Math.max(0, kick) * 0.05);
+  // Keep the hips over the feet while the crouch lean turns the body.
+  rig.body.position.set(0, bob - legDrop + rig.legLen * (1 - Math.cos(cl)), -Math.max(0, kick) * 0.05 - rig.legLen * Math.sin(cl));
   rig.head.rotation.y = 0;
+  rig.head.rotation.x = -CROUCH_POSE.head * cr; // look up at the rival, not at the floor
 
   // ---- the gun: pointed where you aim (up and down), kicked by its weight, tilted on a reload.
   const h = HOLD[p.gun];
@@ -949,7 +977,8 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   const sway = running ? Math.sin(rig.phase) * 0.04 * amp : Math.sin(p.time * 1.3) * 0.015;
   rig.weapon.visible = true;
   rig.weapon.position.set(h.x, rig.chestY + h.y + (running ? Math.sin(rig.phase * 2) * 0.025 * amp : 0), -Math.max(0, kick) * 0.12);
-  rig.weapon.rotation.x = damp(rig.weapon.rotation.x, -elev - kick * 0.3 + sway * 0.3 + reloadTilt * 0.5, 28, dt);
+  // The crouch lean is taken back out of the gun, so it stays on the aim.
+  rig.weapon.rotation.x = damp(rig.weapon.rotation.x, -elev - kick * 0.3 + sway * 0.3 + reloadTilt * 0.5 - cl, quick ? 40 : 28, dt);
   rig.weapon.rotation.y = 0;
   rig.weapon.rotation.z = damp(rig.weapon.rotation.z, reloadTilt * 0.6, 12, dt);
   rig.hand.position.set(0, 0, h.grip);

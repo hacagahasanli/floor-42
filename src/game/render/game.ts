@@ -10,7 +10,7 @@ import { getSettings, primaryLabel } from '../settings';
 import type { Settings } from '../settings';
 import { createBot } from '../sim/bot';
 import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS, RULES } from '../sim/constants';
-import { chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
+import { bodyHeight, chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
 import { buildArena } from './arena';
 import { buildRig, poseDeath, poseSide } from './characters';
@@ -546,12 +546,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     return { x: aimPoint.x, y: aimPoint.y };
   };
 
-  // Auto-aim: your gun follows the opponent's chest. You only move and shoot.
+  // Auto-aim: your gun follows the opponent's chest (lower when they crouch). You only move and shoot.
   const autoAim = (id: number) => {
     const me = state.fighters[id];
     const foe = state.fighters.find((f) => f.id !== id)!;
     if (foe.respawn > 0) return { x: me.x + me.facing * 5, y: me.y + 1.1 };
-    return { x: foe.x, y: foe.y + CHARACTERS[foe.character].height * 0.55 };
+    return { x: foe.x, y: foe.y + bodyHeight(foe) * 0.55 };
   };
 
   const tmpV = new THREE.Vector3();
@@ -644,6 +644,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         sinceShot: f.firing,
         reload: f.weapon.reload > 0 ? 1 - f.weapon.reload / g.reloadTime : null,
         pushing: f.pushTime > 0 ? Math.sin((1 - f.pushTime / PUSH.duration) * Math.PI) : 0,
+        crouch: f.crouch ?? 0,
       });
       // Squash and stretch from state changes: take-off stretches, a hard landing squashes.
       if (!out) {
