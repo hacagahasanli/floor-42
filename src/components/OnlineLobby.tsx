@@ -24,7 +24,7 @@ import {
   QuickPanel,
 } from '~/components/lobby/LobbyPanels';
 import { LobbyScene } from '~/components/lobby/LobbyScene';
-import { lobbyView, readForcedState } from '~/components/lobby/lobbyView';
+import { FRAMING, lobbyView, readForcedState } from '~/components/lobby/lobbyView';
 import { accentOf, readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
 import { AudiencePrompt } from '~/components/menu/AudiencePrompt';
 import { menuSound } from '~/components/menu/menuSound';
@@ -170,6 +170,9 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
     setForced(readForcedState(window.location.search));
   }, []);
   const roomRef = useRef<Room | null>(null);
+  const rootRef = useRef<HTMLElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+  const [infoFits, setInfoFits] = useState(true);
   const portraits = usePortraits();
   useMenuTelemetry(!!portraits);
   const developer = useCopyVariant() === 'developer';
@@ -350,6 +353,36 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  // Phone portrait panel states: the panel docks to the bottom; the scrim starts 80 px above it, and the
+  // fighter info shows above it only if it fits under the fighter's feet (the fighter always wins).
+  const panelKind = view.panel;
+  useEffect(() => {
+    const root = rootRef.current;
+    const right = rightRef.current;
+    if (!root || !right) return;
+    const measure = () => {
+      const portrait =
+        window.matchMedia('(max-width: 1023px), (max-aspect-ratio: 1/1)').matches &&
+        !window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+      if (!portrait || panelKind === 'menu') {
+        root.style.removeProperty('--lb-scrim-top');
+        setInfoFits(true);
+        return;
+      }
+      const top = window.innerHeight - 24 - right.offsetHeight;
+      root.style.setProperty('--lb-scrim-top', `${Math.max(0, top - 80)}px`);
+      setInfoFits(panelKind !== 'invite' && top >= FRAMING.portrait.y * window.innerHeight + 118);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(right);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [panelKind]);
+
   // Dev review only: a forced error shows the cutout tipping over (it has to be standing first).
   const [tipped, setTipped] = useState(false);
   useEffect(() => {
@@ -398,7 +431,12 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   const entry = ROSTER.find((r) => r.id === character)!;
 
   return (
-    <main className="lb-root" style={{ '--a': accentOf(character) } as CSSProperties}>
+    <main
+      ref={rootRef}
+      className="lb-root"
+      data-mode={inMenu ? 'menu' : 'panel'}
+      style={{ '--a': accentOf(character) } as CSSProperties}
+    >
       {characterReady && (
         <LobbyScene
           character={character}
@@ -410,7 +448,11 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
       <div className="lb-scrim-left" aria-hidden />
       <div className="lb-scrim-bottom" aria-hidden />
 
-      <div className="lb-ui" data-mode={inMenu ? 'menu' : 'panel'}>
+      <div
+        className="lb-ui"
+        data-mode={inMenu ? 'menu' : 'panel'}
+        data-info={infoFits ? 'show' : 'hide'}
+      >
         <LobbyHud name={entry.name} character={character} view={view} onHome={() => lift.go('/')} />
         <div className="lb-left">
           <FighterInfo id={character} />
@@ -419,7 +461,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
           <FighterBadges value={character} onPick={pick} portraits={portraits} disabled={!inMenu} />
         </div>
 
-        <div className="lb-right">
+        <div ref={rightRef} className="lb-right">
           {view_stage.kind === 'menu' && (
             <>
               <AimControl />

@@ -71,8 +71,8 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 420px;
-  background: linear-gradient(90deg, rgba(10, 13, 24, 0.6) 0%, rgba(10, 13, 24, 0.6) 65%, transparent 100%);
+  width: 560px;
+  background: linear-gradient(90deg, rgba(10, 13, 24, 0.82) 0, rgba(10, 13, 24, 0.82) 340px, transparent 560px);
   pointer-events: none;
   z-index: 1;
 }
@@ -507,7 +507,7 @@
     position: fixed;
     left: 0;
     right: 0;
-    top: 44%;
+    top: var(--lb-scrim-top, 44%);
     bottom: 0;
     background: linear-gradient(to bottom, transparent 0%, rgba(10, 13, 24, 0.96) 21%, #0a0d18 100%);
     pointer-events: none;
@@ -544,7 +544,11 @@
   .lb-panel-btn.lb-btn-secondary { height: 48px; }
   /* While a search or room is open the panel takes the lower half; the badges (inert anyway) make room for it. */
   .lb-ui[data-mode='panel'] .lb-badges-wrap { display: none; }
-  .lb-ui[data-mode='panel'] .lb-left { flex: 0 0 auto; height: calc(46dvh - 60px); min-height: 0; overflow: hidden; visibility: hidden; padding: 0; }
+  /* The panel sits on the bottom edge; the fighter info stays above it when it fits (the page measures that). */
+  .lb-ui[data-mode='panel'] .lb-left { min-height: 0; overflow: hidden; }
+  .lb-ui[data-mode='panel'][data-info='hide'] .lb-left > * { visibility: hidden; }
+  .lb-ui[data-mode='panel'] .lb-right { margin-top: auto; }
+  .lb-root[data-mode='panel'] .lb-scrim-bottom { background: linear-gradient(to bottom, transparent 0, rgba(10, 13, 24, 0.96) 56px, #0a0d18 100%); }
   .lb-plate-rival .lb-bar { display: none; }
   .lb-plate-line { font-size: 11px; }
 }
@@ -576,10 +580,14 @@
     max-width: none;
     padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
   }
-  .lb-scrim-bottom { display: none; }
+  .lb-root[data-mode] .lb-scrim-bottom { display: block; left: 0; right: auto; width: 48%; top: auto; bottom: 0; height: 180px; background: linear-gradient(to top, rgba(10, 13, 24, 0.85) 0, rgba(10, 13, 24, 0.6) 90px, transparent 180px); }
   .lb-scrim-left { display: block; width: 52%; left: auto; right: 0; background: linear-gradient(270deg, rgba(10, 13, 24, 0.8) 0%, rgba(10, 13, 24, 0.8) 70%, transparent 100%); }
   .lb-hud { height: 44px; padding-top: 4px; align-items: center; }
-  .lb-plate-line, .lb-conn { display: none; }
+  .lb-plate-line { display: none; }
+  .lb-lift { flex-direction: row; gap: 10px; }
+  .lb-conn { max-width: 190px; overflow: hidden; }
+  .lb-conn span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .lb-lift-tip { top: calc(100% + 2px); left: 0; transform: none; }
   .lb-plate-name { font-size: 16px; }
   .lb-bar { width: 96px; height: 8px; }
   .lb-plate-rival .lb-bar { display: block; }
@@ -623,4 +631,13 @@
 }
 @media (orientation: landscape) and (max-height: 500px) {
   .lb-fallback-portrait { left: 27%; bottom: 20%; height: 56%; }
+}
+
+/* Narrow phones (360 px): the Quick match | Play vs bot pair needs smaller type to fit its two columns. */
+@media (max-width: 400px) {
+  .lb-btn-secondary { gap: 6px; padding: 0 8px; }
+  .lb-btn-secondary .lb-btn-ico svg { width: 20px; height: 20px; }
+  .lb-btn-secondary .lb-btn-ico { width: 20px; height: 20px; }
+  .lb-btn-secondary .lb-btn-title { font-size: 14px; white-space: nowrap; }
+  .lb-btn-secondary .lb-btn-sub { font-size: 10.5px; line-height: 1.2; }
 }

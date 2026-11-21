@@ -64,14 +64,6 @@ const TEMPO: Record<CharacterId, { speed: number; look: number }> = {
   intern: { speed: 1.25, look: 2 },
 };
 
-const easeOutBounce = (x: number) => {
-  const n = 7.5625;
-  const d = 2.75;
-  if (x < 1 / d) return n * x * x;
-  if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
-  if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
-  return n * (x -= 2.625 / d) * x + 0.984375;
-};
 const rand = (seed: number) => () => {
   seed = (seed * 16807) % 2147483647;
   return (seed - 1) / 2147483646;
@@ -81,12 +73,15 @@ const rand = (seed: number) => () => {
 const puffGeometry = () => {
   const g = new THREE.IcosahedronGeometry(1, 0).toNonIndexed();
   const pos = g.attributes.position;
-  const top = new THREE.Color('#fff0dc');
-  const under = new THREE.Color('#a3abd0');
+  const top = new THREE.Color('#fff2e0');
+  const mid = new THREE.Color('#f6c9a6');
+  const under = new THREE.Color('#c7a9be');
   const c = new THREE.Color();
   const colors = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
-    c.copy(under).lerp(top, THREE.MathUtils.clamp((pos.getY(i) + 1) / 2, 0, 1));
+    const h = THREE.MathUtils.clamp((pos.getY(i) + 1) / 2, 0, 1);
+    if (h < 0.5) c.copy(under).lerp(mid, h * 2);
+    else c.copy(mid).lerp(top, (h - 0.5) * 2);
     colors.set([c.r, c.g, c.b], i * 3);
   }
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -241,7 +236,7 @@ export const startLobbyScene = (
 
   // The only wall: one glass panel with a frame and a mullion, back left.
   const frameMat = mat(PALETTE.ink);
-  const gx = -3.0;
+  const gx = -2.0;
   const gz = -SLAB.d / 2 + 0.2;
   for (const [w, h, x, y] of [
     [3.1, 0.07, 0, 2.4],
@@ -256,7 +251,7 @@ export const startLobbyScene = (
   }
   // The desk, with its monitors and mug, and the crate: the game's own builders.
   const desk = FURNITURE.desk({ x0: -1, x1: 1, y: 0.75, style: 'desk' });
-  desk.position.set(-3.0, 0, -0.6);
+  desk.position.set(-2.0, 0, -0.6);
   statics.add(desk);
   const crate = FURNITURE.crate({ x0: -0.45, x1: 0.45, y: 0.9, style: 'crate' });
   crate.position.set(3.3, 0, 0.5);
@@ -279,8 +274,8 @@ export const startLobbyScene = (
   // Two cables hanging off the front, swaying: the one goofy detail.
   const cables: THREE.Group[] = [];
   [
-    [PALETTE.gold, -1.1, 0],
-    [PALETTE.blue, 1.9, 1.6],
+    [PALETTE.gold, -3.4, 0],
+    [PALETTE.blue, 2.8, 1.6],
   ].forEach(([col, x, phase]) => {
     const pivot = new THREE.Group();
     const curve = new THREE.CatmullRomCurve3([
@@ -326,15 +321,18 @@ export const startLobbyScene = (
   standee.position.copy(RIVAL);
   const board = new THREE.Group();
   standee.add(board);
-  // One kraft material for the whole cutout (a question mark on both faces): two draw calls, not seven.
-  const kraft = new THREE.MeshStandardMaterial({ map: standeeTexture(), roughness: 1 });
+  // Plain kraft board plus a printed front plane: two draw calls, and the "?" is on the front face only.
+  const kraft = new THREE.MeshStandardMaterial({ color: 0xb98a5a, roughness: 1 });
   const card = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.6, 0.03), kraft);
   card.position.y = 0.8;
   card.castShadow = true;
   board.add(card);
-  const foot = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.3), kraft);
-  foot.position.set(0, 0.02, -0.08);
-  board.add(foot);
+  const face = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.9, 1.6),
+    new THREE.MeshStandardMaterial({ map: standeeTexture(), roughness: 1 }),
+  );
+  face.position.set(0, 0.8, 0.0165);
+  board.add(face);
   standee.scale.setScalar(0.0001);
   slab.add(standee);
   const sheet = new THREE.Mesh(
@@ -347,7 +345,12 @@ export const startLobbyScene = (
   // ---- clouds: a sea below, drifting, one draw call
   const puffs = new THREE.InstancedMesh(
     puffGeometry(),
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: 0x6a6070 }),
+    new THREE.MeshLambertMaterial({
+      vertexColors: true,
+      flatShading: true,
+      emissive: 0x4a3a40,
+      emissiveIntensity: 1.1,
+    }),
     52,
   );
   puffs.frustumCulled = false;
@@ -361,19 +364,20 @@ export const startLobbyScene = (
     sz: number;
     ry: number;
   }[] = [];
-  for (let c = 0; c < 12; c++) {
-    const cx = (cr() - 0.5) * 78;
-    const cy = -8 - cr() * 4;
-    const cz = -12 - cr() * 55;
-    const n = c < 4 ? 5 : 4;
-    for (let k = 0; k < n && puffData.length < 52; k++) {
-      const s = 2.6 + cr() * 2.6;
+  for (let c = 0; c < 10; c++) {
+    // Three clusters sit close and low, so their sunlit tops show right under the slab.
+    const near = c < 3;
+    const cx = near ? (cr() - 0.5) * 24 : (cr() - 0.5) * 78;
+    const cy = near ? -3.5 - cr() * 1.5 : -8 - cr() * 4;
+    const cz = near ? -2 - cr() * 6 : -12 - cr() * 55;
+    for (let k = 0; k < 5; k++) {
+      const s = 1.8 + cr() * 2;
       puffData.push({
         x: cx + (cr() - 0.5) * 7,
         y: cy + (cr() - 0.3) * 1.2,
         z: cz + (cr() - 0.5) * 5,
         sx: s * 1.6,
-        sy: s * 0.5,
+        sy: s * 0.38,
         sz: s,
         ry: cr() * 3,
       });
@@ -421,6 +425,8 @@ export const startLobbyScene = (
     part.scale.setScalar(d.s);
     g.add(part);
     g.userData = { ndc: d.ndc, dist: d.dist };
+    // First on the cut list for the low tier's draw-call budget (spec section 14).
+    g.visible = profile.tier !== 'low';
     camera.add(g);
     distant.push(g);
   });
@@ -537,8 +543,10 @@ export const startLobbyScene = (
       tipX = spotT > 0.6 ? -(Math.PI / 2) * Math.min(1, (spotT - 0.6) / 0.25) : 0;
     } else if (spot === 'error') {
       scale = standee.scale.x > 0.5 ? 1 : 0;
-      const k = Math.min(1, spotT / 0.4);
-      tipX = (Math.PI / 2) * (scale ? easeOutBounce(k) : 0);
+      // Falls forward onto its face in 0.4 s, bounces back 6 degrees and settles in 0.12 s.
+      const fall = Math.min(1, spotT / 0.4);
+      const bounce = spotT > 0.4 && spotT < 0.52 ? Math.sin((Math.PI * (spotT - 0.4)) / 0.12) : 0;
+      tipX = scale ? (Math.PI / 2) * fall * fall - THREE.MathUtils.degToRad(6) * bounce : 0;
     }
     standee.scale.setScalar(Math.max(0.0001, scale));
     const sway = still
@@ -760,7 +768,7 @@ export const startLobbyScene = (
       if (sheetT < 0 && time > nextSheet) {
         sheetT = 0;
         sheet.visible = true;
-        sheet.position.set(-3.0 + (Math.random() - 0.5) * 0.4, 0.82, -0.7);
+        sheet.position.set(-2.0 + (Math.random() - 0.5) * 0.4, 0.82, -0.7);
         sheetVel.set(1.0 + Math.random() * 0.7, 3.0, 1.9);
         sheetSpin.set(2 + Math.random() * 3, 1 + Math.random() * 2, 2 + Math.random() * 3);
       } else if (sheetT >= 0) {
@@ -826,6 +834,7 @@ export const startLobbyScene = (
     settings = s;
     profile = renderProfile(s, deviceFacts());
     stats.tier = profile.tier;
+    for (const g of distant) g.visible = profile.tier !== 'low';
     if (renderer.getPixelRatio() !== profile.pixelRatio) renderer.setPixelRatio(profile.pixelRatio);
     if (renderer.shadowMap.enabled !== profile.shadows) {
       renderer.shadowMap.enabled = profile.shadows;
