@@ -11,6 +11,14 @@ describe('wire protocol', () => {
     expect(back).toEqual({ ...input, aimX: 3.14 });
   });
 
+  it('carries the throw-bomb button on its own bit, after the older ones', () => {
+    const input = { ...EMPTY_INPUT, crouch: true, throwBomb: true };
+    const w = encodeInput(1, input);
+    expect(w[1]).toBe((1 << 9) | (1 << 10));
+    expect(decodeInput(w).throwBomb).toBe(true);
+    expect(mergePresses({ ...EMPTY_INPUT }, input).throwBomb).toBe(true);
+  });
+
   it('keeps a press that happened in a skipped input', () => {
     const merged = mergePresses({ ...EMPTY_INPUT }, { ...EMPTY_INPUT, up: true });
     expect(merged.up).toBe(true);

@@ -89,11 +89,14 @@ const FighterPanel = ({
   label,
   align,
   compact,
+  bombKey,
 }: {
   f: HudFighter;
   label: string;
   align: 'left' | 'right';
   compact?: boolean;
+  /** The Throw bomb key to show beside the bomb badge (null: no key hint). */
+  bombKey?: string | null;
 }) => (
   <div
     className={`flex ${compact ? 'w-48' : 'w-72'} flex-col gap-1 ${align === 'right' ? 'items-end text-right' : ''}`}
@@ -121,6 +124,11 @@ const FighterPanel = ({
       className={`flex items-center gap-3 text-[11px] text-cream/70 ${align === 'right' ? 'flex-row-reverse' : ''}`}
     >
       <span className="font-semibold text-cream">{f.gun}</span>
+      {f.bombs > 0 && (
+        <span className="flex items-center gap-1 font-semibold text-orange" data-testid="bomb-badge">
+          Bomb {bombKey ? <Key k={bombKey} /> : null}
+        </span>
+      )}
       {label === 'YOU' && (
         <>
           <Ready label="Dash" value={f.dash} />
@@ -167,6 +175,9 @@ const Controls = ({ aim, bindings }: { aim: AimMode; bindings: Bindings }) => {
       </span>
       <span className="flex items-center gap-1">
         <Key k={k('pickup')} /> pick up
+      </span>
+      <span className="flex items-center gap-1">
+        <Key k={k('throwBomb')} /> throw bomb
       </span>
       <span className="flex items-center gap-1">
         <Key k="Esc" /> pause / settings
@@ -603,6 +614,7 @@ export const ArenaGame = ({
               label={demo ? 'BOT' : 'YOU'}
               align="left"
               compact={touch}
+              bombKey={!touch && settings.showKeyHints ? keyLabel(settings.bindings.throwBomb[0] || settings.bindings.throwBomb[1]) : null}
             />
             <div className="flex flex-col items-center gap-1.5">
               <span className="font-display text-3xl leading-none tabular-nums text-cream">
@@ -685,7 +697,7 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {hud.hint.length > 0 && (
+          {hud.hint.length > 0 && settings.showKeyHints && (
             <div
               className={`pointer-events-none absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-36' : 'bottom-10'}`}
             >
@@ -1011,7 +1023,7 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {!demo && !touch && <Controls aim={hud.aimMode} bindings={settings.bindings} />}
+          {!demo && !touch && settings.showKeyHints && <Controls aim={hud.aimMode} bindings={settings.bindings} />}
           {!demo && touch && hud.phase !== 'over' && !rivalLeft && !menuOpen && !hud.paused && (
             <TouchControls
               press={(b, on) => gameRef.current?.touch(b, on)}
@@ -1020,6 +1032,7 @@ export const ArenaGame = ({
               size={settings.touch.size}
               opacity={settings.touch.opacity}
               leftHanded={settings.touch.leftHanded}
+              bomb={hud.fighters[0].bombs > 0}
             />
           )}
           <div

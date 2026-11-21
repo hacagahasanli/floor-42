@@ -29,17 +29,17 @@ import type { GameEvent, GameState, InputState } from '../sim/types';
 
 export const REWIND_CAP_TICKS = 9; // 150 ms at 60 Hz
 const TICK_MS = 1000 / 60;
-/** Bits of presses that must not be lost when inputs are folded: up, down, dash, fire, pickup, reload, push. */
-const PRESSES = 0b111111100;
-/** Bits cleared when holding a missing input: up, dash, pickup, reload, push (fire and down stay held). */
-const HOLD_CLEAR = 0b111010100;
+/** Bits of presses that must not be lost when inputs are folded: up, down, dash, fire, pickup, reload, push, throw bomb. */
+const PRESSES = 0b10111111100;
+/** Bits cleared when holding a missing input: up, dash, pickup, reload, push, throw bomb (fire and down stay held). */
+const HOLD_CLEAR = 0b10111010100;
 /**
  * Fire and push act on the other player. A late input moves its sender in the past (that's the
  * dodge that counts), but its shots and shoves start when it arrives: a bullet that appears
  * already halfway to you, or hits you before it was ever drawn, is exactly the unfair death this
  * module exists to prevent, so it must not happen to the host either.
  */
-const ATTACK = (1 << 5) | (1 << 8);
+const ATTACK = (1 << 5) | (1 << 8) | (1 << 10);
 const WINDOW = 120; // arrival samples kept for the offset (about 2 s)
 /**
  * At most 5 ticks (83 ms) of the 150 ms are spent on the steady one-way delay; the rest is

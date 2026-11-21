@@ -333,6 +333,11 @@ const ControlsTab = ({ touch }: { touch: boolean }) => {
         </>
       )}
 
+      <Section title="Hints" />
+      <Row label="Show key hints" hint="The key list along the bottom and the key beside a gun or bomb">
+        <Toggle label="Show key hints" value={s.showKeyHints} onChange={(v) => store.set({ showKeyHints: v })} />
+      </Row>
+
       <Section title="Touch controls" />
       {!touch && <p className="mt-2 text-xs text-cream/45">Used on phones and tablets.</p>}
       <Row label="Button size">

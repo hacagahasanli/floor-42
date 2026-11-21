@@ -40,6 +40,8 @@ export interface HudFighter {
   mag: number;
   reserve: number; // Infinity for the pistol
   reloading: number; // 0..1 progress, 0 when not reloading
+  /** Bombs carried (0 or 1), thrown with the Throw bomb key. */
+  bombs: number;
   out: boolean;
 }
 
@@ -717,7 +719,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     const self = state.fighters[me];
     const cand = !opts.demo && !touch && self.respawn <= 0 && self.weapon.kind !== 'pistol' ? pickupCandidate(state, self) : null;
     const near = cand && cand.kind !== 'bomb' ? cand : null; // bombs are picked up automatically
-    prompt.visible = !!near;
+    prompt.visible = !!near && settings.showKeyHints;
     if (near) prompt.position.set(near.x, near.y + 1.15, 0.5);
 
     let t = 0;
@@ -802,7 +804,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const hintFor = (): HudState['hint'] => {
     const self = state.fighters[me];
     if (opts.demo || state.phase !== 'fight' || self.respawn > 0) return [];
-    if (self.weapon.kind === 'bomb') return [{ key: primaryLabel(settings.bindings, 'fire'), text: 'throw the bomb' }];
+    if (self.bombs > 0) return [{ key: touch ? 'Bomb' : primaryLabel(settings.bindings, 'throwBomb'), text: 'throw the bomb' }];
     return [];
   };
 
@@ -852,6 +854,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
           mag: f.weapon.mag,
           reserve: f.weapon.reserve,
           reloading: f.weapon.reload > 0 ? 1 - f.weapon.reload / g.reloadTime : 0,
+          bombs: f.bombs ?? 0,
           out: f.respawn > 0,
         };
       }),

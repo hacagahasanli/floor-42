@@ -96,7 +96,7 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     invulnerable: 0,
     sinceHit: 0,
     weapon: newWeapon('pistol'),
-    stash: null,
+    bombs: 0,
     nextCharacter: null,
     firing: 1,
     lastHitBy: null,
@@ -207,7 +207,7 @@ const respawnFighter = (state: GameState, f: Fighter) => {
     dashTime: 0,
     crouch: 0,
     weapon: newWeapon('pistol'),
-    stash: null,
+    bombs: 0,
     invulnerable: RULES.spawnInvulnerable,
     sinceHit: 0,
     lastHitBy: null,
@@ -323,8 +323,8 @@ export const lobAngle = (x: number, y: number, tx: number, ty: number, v: number
   return dir > 0 ? up : Math.PI - up;
 };
 
-const fire = (state: GameState, f: Fighter) => {
-  const g = GUNS[f.weapon.kind];
+const fire = (state: GameState, f: Fighter, kind: GunKind = f.weapon.kind) => {
+  const g = GUNS[kind];
   const m = muzzle(f);
   for (let i = 0; i < g.pellets; i++) {
     let angle = f.aim + (nextRandom(state) - 0.5) * 2 * g.spread;
@@ -334,7 +334,7 @@ const fire = (state: GameState, f: Fighter) => {
     state.projectiles.push({
       id: state.nextId++,
       kind: g.projectile,
-      gun: f.weapon.kind,
+      gun: kind,
       owner: f.id,
       x: m.x,
       y: m.y,
@@ -354,7 +354,7 @@ const fire = (state: GameState, f: Fighter) => {
   state.events.push({
     type: 'shot',
     fighter: f.id,
-    gun: f.weapon.kind,
+    gun: kind,
     x: m.x,
     y: m.y,
     angle: f.aim,
@@ -374,13 +374,9 @@ export const pickupCandidate = (state: GameState, f: Fighter): Pickup | null => 
 };
 
 const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
-  // A bomb is a one-off: keep the gun you had and get it back after the throw.
-  if (p.kind === 'bomb') {
-    if (f.weapon.kind !== 'bomb') f.stash = f.weapon;
-  } else {
-    f.stash = null;
-  }
-  f.weapon = newWeapon(p.kind);
+  // A bomb goes in its own one-bomb slot: your gun stays in hand.
+  if (p.kind === 'bomb') f.bombs = 1;
+  else f.weapon = newWeapon(p.kind);
   p.active = false;
   p.respawn = p.spawn !== null ? (ARENA.gunSpawns[p.spawn].respawn ?? RULES.gunRespawn) : Infinity;
   state.events.push({ type: 'pickup', fighter: f.id, gun: p.kind });
@@ -409,11 +405,7 @@ const updateWeapon = (state: GameState, f: Fighter, input: InputState, canAct: b
   if (canAct && input.reload && !f.prev.reload) startReload();
   if (w.mag <= 0) {
     if (w.reserve > 0) startReload();
-    else if (w.kind === 'bomb') {
-      // Thrown: back to whatever you were holding.
-      f.weapon = f.stash ?? newWeapon('pistol');
-      f.stash = null;
-    } else if (w.kind !== 'pistol') {
+    else if (w.kind !== 'pistol') {
       // Out of everything: back to the pistol.
       f.weapon = newWeapon('pistol');
       state.events.push({ type: 'empty', fighter: f.id });
@@ -571,13 +563,19 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     state.events.push({ type: 'push', x: f.x, y: f.y + bodyHeight(f) * 0.55, facing: f.facing, fighter: f.id });
   }
 
-  // Only a pistol: walk over a gun to take it. Bombs are always picked up. Otherwise press Pick up (F) to swap;
+  // Only a pistol: walk over a gun to take it. Bombs are always picked up (own slot). Otherwise press Pick up (F) to swap;
   // Reload (R) only reloads.
   const near = canAct ? pickupCandidate(state, f) : null;
-  if (near && (pressed('pickup') || f.weapon.kind === 'pistol' || near.kind === 'bomb'))
+  // A bomb is always picked up (one at a time: a second stays where it is); a gun needs Pick up or a pistol in hand.
+  if (near && (near.kind === 'bomb' ? !f.bombs : pressed('pickup') || f.weapon.kind === 'pistol'))
     takePickup(state, f, near);
 
   updateWeapon(state, f, input, canAct);
+  // Throw bomb: your gun stays in hand; the bomb is lobbed to the aim point.
+  if (canAct && f.bombs > 0 && pressed('throwBomb') && f.pushTime <= 0) {
+    f.bombs = 0;
+    fire(state, f, 'bomb');
+  }
   updatePush(state, f);
 
   // Gravity.

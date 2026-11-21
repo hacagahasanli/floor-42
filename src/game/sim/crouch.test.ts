@@ -231,9 +231,10 @@ describe('crouch: balance (nobody is untouchable)', () => {
       const s = fighting(['hotfix', 'intern']);
       place(s, 0, 4);
       place(s, 1, 8.5);
-      s.fighters[0].weapon = newWeapon(gun);
+      if (gun === 'bomb') s.fighters[0].bombs = 1;
+      else s.fighters[0].weapon = newWeapon(gun);
       run(s, 10, {}, { down: true });
-      run(s, 1, { fire: true, aimX: 7.8, aimY: 0 }, { down: true });
+      run(s, 1, { fire: gun !== 'bomb', throwBomb: gun === 'bomb', aimX: 7.8, aimY: 0 }, { down: true });
       run(s, 90, {}, { down: true });
       expect(s.fighters[1].hp).toBeLessThan(100);
     }

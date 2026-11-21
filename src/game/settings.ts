@@ -30,6 +30,8 @@ export interface Settings {
   /** 0.5..1, multiplies the tier's pixel ratio. */
   resScale: number;
   showFps: boolean;
+  /** The key legend along the bottom, the key beside a gun and the throw-bomb hint. Touch buttons stay. */
+  showKeyHints: boolean;
   audio: AudioSettings;
   reducedMotion: boolean;
   colourBlind: boolean;
@@ -50,6 +52,7 @@ export const ACTIONS: { id: Button; label: string }[] = [
   { id: 'push', label: 'Force Push' },
   { id: 'reload', label: 'Reload' },
   { id: 'pickup', label: 'Pick up / swap gun' },
+  { id: 'throwBomb', label: 'Throw bomb' },
 ];
 
 export const DEFAULT_BINDINGS: Bindings = {
@@ -63,6 +66,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   push: ['KeyQ', ''],
   pickup: ['KeyF', ''],
   reload: ['KeyR', ''],
+  throwBomb: ['KeyG', ''],
 };
 
 /** Keys the game keeps for itself: pause, mute, aim toggle, respawn picks, confirm. */
@@ -77,6 +81,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shadows: true,
   resScale: 1,
   showFps: false,
+  showKeyHints: true,
   audio: { master: 0.8, effects: 1, guns: 0.45, ui: 0.7, muted: false },
   reducedMotion: false,
   colourBlind: false,
@@ -147,6 +152,7 @@ export const sanitize = (raw: unknown): Settings => {
     shadows: bool(r.shadows, d.shadows),
     resScale: clamp(r.resScale, 0.5, 1, d.resScale),
     showFps: bool(r.showFps, d.showFps),
+    showKeyHints: bool(r.showKeyHints, d.showKeyHints),
     audio: {
       master: clamp(a.master, 0, 1, d.audio.master),
       effects: clamp(a.effects, 0, 1, d.audio.effects),

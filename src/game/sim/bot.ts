@@ -33,10 +33,10 @@ const RANGE: Record<GunKind, [number, number]> = {
   railgun: [12, 24],
   launcher: [9, 16],
   uzi: [2, 5],
-  bomb: [5, 11],
+  bomb: [5, 11], // not held any more (bombs have their own slot); kept so the table covers every GunKind
 };
 
-type Press = 'up' | 'down' | 'dash' | 'pickup' | 'push' | 'reload';
+type Press = 'up' | 'down' | 'dash' | 'pickup' | 'push' | 'reload' | 'throwBomb';
 
 interface Plan {
   move: -1 | 0 | 1;
@@ -95,6 +95,9 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
     const dy = foe.y - me.y;
     const dist = Math.abs(dx);
     const toFoe = (dx < 0 ? -1 : 1) as -1 | 1;
+
+    // A carried bomb goes at a rival who is in lobbing range (no random draw: the rest of the plan is unchanged).
+    if (me.bombs > 0 && foe.respawn <= 0 && dist >= 3.5 && dist <= 13) presses.push('throwBomb');
 
     // Only a pistol: a better gun nearby is worth a detour.
     if (me.weapon.kind === 'pistol') {

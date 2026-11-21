@@ -17,6 +17,8 @@ export interface InputState {
   pickup: boolean;
   reload: boolean;
   push: boolean; // Force Push
+  /** Throw the bomb you carry (lobbed to the aim point). Edge-triggered. */
+  throwBomb: boolean;
   /** Aim point in world space (the mouse, projected onto the fight plane). */
   aimX: number;
   aimY: number;
@@ -33,6 +35,7 @@ export const EMPTY_INPUT: InputState = {
   pickup: false,
   reload: false,
   push: false,
+  throwBomb: false,
   aimX: 0,
   aimY: 0,
 };
@@ -78,8 +81,8 @@ export interface Fighter {
   /** Seconds since you last took damage: after a while, health comes back. */
   sinceHit: number;
   weapon: Weapon;
-  /** The gun you were holding when you picked up a bomb; you get it back after the throw. */
-  stash: Weapon | null;
+  /** Bombs carried (0 or 1): a separate slot, thrown with Throw bomb while your gun stays in hand. */
+  bombs: number;
   /** Picked while dead: you respawn as this character. */
   nextCharacter: CharacterId | null;
   firing: number; // seconds since the last shot, for muzzle flash / recoil

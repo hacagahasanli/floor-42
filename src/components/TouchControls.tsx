@@ -197,6 +197,7 @@ export const TouchControls = ({
   size = 1,
   opacity = 0.9,
   leftHanded = false,
+  bomb = false,
 }: {
   press: Press;
   onPause: () => void;
@@ -204,6 +205,8 @@ export const TouchControls = ({
   size?: number;
   opacity?: number;
   leftHanded?: boolean;
+  /** You carry a bomb: the Bomb button shows. */
+  bomb?: boolean;
 }) => (
   <div
     className="absolute inset-0 z-[5] select-none"
@@ -257,6 +260,14 @@ export const TouchControls = ({
         press={press}
         className="bottom-[178px] right-[124px] !h-14 !w-14 !text-[10px]"
       />
+      {bomb && (
+        <Pad
+          b="throwBomb"
+          label="Bomb"
+          press={press}
+          className="bottom-[252px] right-[28px] !h-14 !w-14 !text-[10px] !border-orange !text-orange"
+        />
+      )}
       <button
         type="button"
         aria-label="Pause"

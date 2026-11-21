@@ -358,28 +358,105 @@ describe('range, rarity and bombs', () => {
     expect(GUNS.uzi.damage).toBeLessThan(GUNS.smg.damage / 2);
   });
 
-  it('a bomb is picked up over your gun and you get the gun back after throwing it', () => {
+  const giveBomb = (s: GameState) => {
+    const bomb = s.pickups.find((p) => p.spawn === null)!;
+    Object.assign(bomb, { kind: 'bomb', x: -8, y: 0, vy: 0, active: true });
+    return bomb;
+  };
+
+  it('a picked-up bomb goes in its own slot: you keep your gun and keep shooting with fire', () => {
     const s = fighting();
     place(s, 0, -8);
     place(s, 1, 6);
     arm(s, 0, 'shotgun');
-    const bomb = s.pickups.find((p) => p.spawn === null)!;
-    Object.assign(bomb, { kind: 'bomb', x: -8, y: 0, vy: 0, active: true });
+    const bomb = giveBomb(s);
     run(s, 2);
-    expect(s.fighters[0].weapon.kind).toBe('bomb');
-    run(s, 2, { fire: true, ...at(s, 1) });
+    expect(bomb.active).toBe(false);
+    expect(s.fighters[0].bombs).toBe(1);
     expect(s.fighters[0].weapon.kind).toBe('shotgun');
+    const mag = s.fighters[0].weapon.mag;
+    const events = run(s, 2, { fire: true, ...at(s, 1) });
+    expect(s.fighters[0].bombs).toBe(1);
+    expect(s.fighters[0].weapon.mag).toBe(mag - 1);
+    expect(events.some((e) => e.type === 'shot' && e.gun === 'shotgun')).toBe(true);
+    expect(s.projectiles.some((p) => p.kind === 'bomb')).toBe(false);
   });
 
-  it('a bomb lobbed at someone lands near them and right next to it is lethal', () => {
+  it('only one bomb is carried: a second one stays where it is', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, 6);
+    s.fighters[0].bombs = 1;
+    const bomb = giveBomb(s);
+    run(s, 3);
+    expect(bomb.active).toBe(true);
+    expect(s.fighters[0].bombs).toBe(1);
+  });
+
+  it('Throw bomb lobs it to the aim point, empties the slot and leaves the gun alone', () => {
     const s = fighting();
     place(s, 0, -11);
     place(s, 1, -5);
-    arm(s, 0, 'bomb');
-    const events = run(s, 90, { fire: true, ...at(s, 1) });
+    arm(s, 0, 'smg');
+    s.fighters[0].bombs = 1;
+    const events = run(s, 90, { throwBomb: true, ...at(s, 1) });
+    expect(s.fighters[0].bombs).toBe(0);
+    expect(s.fighters[0].weapon.kind).toBe('smg');
+    expect(events.some((e) => e.type === 'shot' && e.gun === 'bomb')).toBe(true);
     const blast = events.find((e) => e.type === 'explosion');
     expect(blast && blast.type === 'explosion' && Math.abs(blast.x - -5)).toBeLessThan(1.5);
     expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
+  });
+
+  it('Throw bomb does nothing without a bomb, and a held button throws once', () => {
+    const s = fighting();
+    place(s, 0, -11);
+    place(s, 1, 6);
+    expect(run(s, 5, { throwBomb: true, ...at(s, 1) }).some((e) => e.type === 'shot')).toBe(false);
+    run(s, 2); // button released
+    s.fighters[0].bombs = 1;
+    run(s, 5, { throwBomb: true, ...at(s, 1) });
+    expect(s.projectiles.filter((p) => p.kind === 'bomb')).toHaveLength(1);
+  });
+
+  it('a bomb you carry is lost when you are knocked out', () => {
+    const s = fighting();
+    place(s, 0, -16);
+    place(s, 1, 12);
+    s.fighters[0].bombs = 1;
+    arm(s, 1, 'railgun');
+    run(s, 20, { ...EMPTY_INPUT }, { fire: true, ...at(s, 0) });
+    expect(s.fighters[0].respawn).toBeGreaterThan(0);
+    run(s, Math.ceil(RULES.respawnSeconds / DT) + 30);
+    expect(s.fighters[0].respawn).toBeLessThanOrEqual(0);
+    expect(s.fighters[0].bombs).toBe(0);
+  });
+
+  it('the bot throws a carried bomb at a rival in range', () => {
+    const s = fighting();
+    place(s, 0, -8);
+    place(s, 1, 0);
+    s.fighters[1].bombs = 1;
+    const bot = createBot(1, 5, 'hard');
+    let threw = false;
+    for (let i = 0; i < 120 && !threw; i++) {
+      step(s, [{ ...EMPTY_INPUT }, bot(s)]);
+      threw = s.events.some((e) => e.type === 'shot' && e.gun === 'bomb' && e.fighter === 1);
+    }
+    expect(threw).toBe(true);
+    expect(s.fighters[1].bombs).toBe(0);
+  });
+
+  it('carrying and throwing a bomb replays the same from the same seed', () => {
+    const play = () => {
+      const s = createGame(['hotfix', 'legacy'], 11);
+      s.phase = 'fight';
+      s.fighters[0].bombs = 1;
+      for (let i = 0; i < 240; i++)
+        step(s, [{ ...EMPTY_INPUT, right: i < 60, throwBomb: i % 50 === 20, aimX: s.fighters[1].x, aimY: 1 }, { ...EMPTY_INPUT }]);
+      return JSON.stringify(s);
+    };
+    expect(play()).toBe(play());
   });
 
   it('Pick up (F) swaps for the gun you are standing on; Reload (R) does not', () => {

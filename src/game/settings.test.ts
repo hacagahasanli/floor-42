@@ -103,6 +103,24 @@ describe('settings store', () => {
   });
 });
 
+describe('key hints and the bomb key', () => {
+  it('Show key hints is on by default, saved when switched off, and repaired when junk', () => {
+    const storage = memory();
+    expect(createSettingsStore(storage).get().showKeyHints).toBe(true);
+    createSettingsStore(storage).set({ showKeyHints: false });
+    expect(createSettingsStore(storage).get().showKeyHints).toBe(false);
+    expect(sanitize({ showKeyHints: 'no' }).showKeyHints).toBe(true);
+    expect(sanitize({}).showKeyHints).toBe(true);
+  });
+
+  it('Throw bomb is G by default and can be rebound like the others', () => {
+    expect(DEFAULT_BINDINGS.throwBomb).toEqual(['KeyG', '']);
+    const r = rebind(DEFAULT_BINDINGS, 'throwBomb', 0, 'KeyB');
+    expect(r.ok && r.bindings.throwBomb[0]).toBe('KeyB');
+    expect(applyKeys(['KeyG'], buildKeyLookup(DEFAULT_BINDINGS)).throwBomb).toBe(true);
+  });
+});
+
 describe('rebinding', () => {
   it('puts a free key on an action', () => {
     const r = rebind(DEFAULT_BINDINGS, 'fire', 1, 'KeyJ');
