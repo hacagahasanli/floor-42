@@ -489,6 +489,39 @@
 :root[data-motion='reduced'] .lb-bar-fill,
 :root[data-motion='reduced'] .lb-bar-sweep { animation: none !important; }
 
+/* ---------- Back key (spec section 15): the HUD's left cell is [Back] [player plate] ---------- */
+.lb-hud-left { display: flex; align-items: flex-start; gap: 16px; min-width: 0; }
+.lb-back {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 40px;
+  padding: 0 12px 0 10px;
+  border: 1px solid rgba(230, 235, 245, 0.1);
+  background: var(--lb-deep);
+  color: var(--lb-cream);
+  font-family: var(--font-sans, inherit);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  transition: background 0.15s, border-color 0.15s, transform 0.08s;
+}
+.lb-back::before { content: ''; position: absolute; inset: -2px; }
+.lb-back-ico { display: grid; place-items: center; transition: transform 0.12s ease-out; }
+.lb-back .lb-key { position: static; margin-left: 2px; color: rgba(230, 235, 245, 0.6); }
+.lb-back:hover:not([aria-disabled='true']) { background: var(--lb-ink); border-color: rgba(255, 210, 63, 0.45); }
+.lb-back:hover:not([aria-disabled='true']) .lb-back-ico { transform: translateX(-3px); }
+.lb-back:active:not([aria-disabled='true']) { transform: translateY(1px); }
+.lb-back:focus-visible { outline: 2px solid var(--lb-gold); outline-offset: 3px; }
+.lb-back[aria-disabled='true'] { opacity: 0.35; cursor: default; }
+@media (min-width: 1024px) and (max-width: 1279px) { .lb-plate-me .lb-bar { width: 240px; } }
+@media (prefers-reduced-motion: reduce) { .lb-back-ico, .lb-back:hover:not([aria-disabled='true']) .lb-back-ico { transform: none; transition: none; } }
+:root[data-motion='reduced'] .lb-back-ico { transform: none !important; transition: none !important; }
+
 /* ---------- portrait: phones and tablets held upright, and any window narrower than 1024 ---------- */
 @media (max-width: 1023px), (max-aspect-ratio: 1/1) {
   .lb-ui {
@@ -643,4 +676,19 @@
   .lb-btn-secondary .lb-btn-ico { width: 20px; height: 20px; }
   .lb-btn-secondary .lb-btn-title { font-size: 14px; white-space: nowrap; }
   .lb-btn-secondary .lb-btn-sub { font-size: 10.5px; line-height: 1.2; }
+}
+
+/* Back key, phone portrait: it replaces the player plate (the name is in the info block and on the badge). */
+@media (max-width: 767px) {
+  .lb-plate-me { display: none; }
+  .lb-back { gap: 6px; font-size: 13px; }
+  .lb-back::before { inset: -2px; }
+}
+/* Back key, phone landscape: an icon-only 36 px key left of the plate, 44 px hit area. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .lb-plate-me { display: flex; }
+  .lb-hud-left { align-items: center; gap: 10px; }
+  .lb-back { width: 36px; height: 36px; padding: 0; justify-content: center; }
+  .lb-back-label, .lb-back-chip { display: none; }
+  .lb-back::before { inset: -4px; }
 }

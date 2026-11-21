@@ -24,7 +24,13 @@ import {
   QuickPanel,
 } from '~/components/lobby/LobbyPanels';
 import { LobbyScene } from '~/components/lobby/LobbyScene';
-import { FRAMING, lobbyView, readForcedState } from '~/components/lobby/lobbyView';
+import {
+  backKeyAction,
+  escapeAction,
+  FRAMING,
+  lobbyView,
+  readForcedState,
+} from '~/components/lobby/lobbyView';
 import { accentOf, readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
 import { AudiencePrompt } from '~/components/menu/AudiencePrompt';
 import { menuSound } from '~/components/menu/menuSound';
@@ -324,20 +330,35 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   });
   const inMenu = view_stage.kind === 'menu';
 
-  // Keys 1-4 pick a fighter; Esc leaves a search or an open room.
+  // Home through the lift doors, once (a second Esc or click while the doors close does nothing).
+  const leaving = useRef(false);
+  const goHome = () => {
+    if (leaving.current) return;
+    leaving.current = true;
+    lift.go('/');
+  };
+  // The Back key: leave a search or room first, then go home.
+  const goBack = () => {
+    const action = backKeyAction(view.panel);
+    if (action === 'none') return;
+    if (action === 'cancel-home') cancel();
+    goHome();
+  };
+
+  // Keys 1-4 pick a fighter; Esc goes home when idle and leaves a search or an open room otherwise.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))
         return;
-      if (
-        e.key === 'Escape' &&
-        (view_stage.kind === 'connecting' || view_stage.kind === 'waiting')
-      ) {
+      if (e.key === 'Escape' && !e.repeat) {
+        const action = escapeAction(view.panel);
+        if (action === 'none') return;
         e.preventDefault();
         menuSound.back();
-        cancel();
+        if (action === 'cancel') cancel();
+        else goHome();
         return;
       }
       const n = ['1', '2', '3', '4'].indexOf(e.key);
@@ -453,7 +474,13 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
         data-mode={inMenu ? 'menu' : 'panel'}
         data-info={infoFits ? 'show' : 'hide'}
       >
-        <LobbyHud name={entry.name} character={character} view={view} onHome={() => lift.go('/')} />
+        <LobbyHud
+          name={entry.name}
+          character={character}
+          view={view}
+          onHome={goHome}
+          onBack={goBack}
+        />
         <div className="lb-left">
           <FighterInfo id={character} />
         </div>

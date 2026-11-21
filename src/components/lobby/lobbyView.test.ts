@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  backKeyAction,
+  backKeyDisabled,
+  escapeAction,
+  showEscChip,
   FORCED_STATES,
   FRAMING,
   formatElapsed,
@@ -169,5 +173,34 @@ describe('dev-only ?lobbyState= switch', () => {
   it('is off in a production build', () => {
     vi.stubEnv('NODE_ENV', 'production');
     expect(readForcedState('?lobbyState=error')).toBeNull();
+  });
+});
+
+describe('Back key and Esc (spec 15.3)', () => {
+  const panels = ['menu', 'connecting', 'invite', 'quick', 'found', 'error'] as const;
+  it('idle: the Back key and Esc both go home', () => {
+    expect(backKeyAction('menu')).toBe('home');
+    expect(escapeAction('menu')).toBe('home');
+  });
+  it('a search or an open room: Back cancels and then goes home, Esc only cancels', () => {
+    for (const p of ['connecting', 'invite', 'quick'] as const) {
+      expect(backKeyAction(p)).toBe('cancel-home');
+      expect(escapeAction(p)).toBe('cancel');
+    }
+  });
+  it('an error: Back leaves the lobby, Esc does nothing (Back and Try again are on screen)', () => {
+    expect(backKeyAction('error')).toBe('cancel-home');
+    expect(escapeAction('error')).toBe('none');
+  });
+  it('while the rival is found nothing can abort the starting match', () => {
+    expect(backKeyAction('found')).toBe('none');
+    expect(escapeAction('found')).toBe('none');
+    expect(backKeyDisabled('found')).toBe(true);
+    for (const p of panels.filter((x) => x !== 'found')) expect(backKeyDisabled(p)).toBe(false);
+  });
+  it('the Esc chip shows only in the idle menu and only without touch', () => {
+    expect(showEscChip('menu', false)).toBe(true);
+    expect(showEscChip('menu', true)).toBe(false);
+    for (const p of panels.filter((x) => x !== 'menu')) expect(showEscChip(p, false)).toBe(false);
   });
 });

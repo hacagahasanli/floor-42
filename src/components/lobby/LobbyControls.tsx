@@ -53,6 +53,12 @@ export const IconBot = ({ size = 24 }: { size?: number }) => (
     <path d="M2 12 V16 M22 12 V16" />
   </Icon>
 );
+export const IconBack = ({ size = 24 }: { size?: number }) => (
+  <Icon size={size}>
+    <path d="M20 12 H5" />
+    <path d="M11 6 L5 12 L11 18" />
+  </Icon>
+);
 export const IconCheck = ({ size = 20 }: { size?: number }) => (
   <Icon size={size}>
     <path d="M4 12 L10 18 L20 6" />

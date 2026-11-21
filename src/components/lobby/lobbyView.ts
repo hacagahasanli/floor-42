@@ -201,3 +201,24 @@ export const readForcedState = (search: string): ForcedState | null => {
   const v = new URLSearchParams(search).get('lobbyState');
   return (FORCED_STATES as readonly string[]).includes(v ?? '') ? (v as ForcedState) : null;
 };
+
+/** What a press of the Back key or Esc does, per panel (spec section 15.3). */
+export type BackAction = 'home' | 'cancel-home' | 'cancel' | 'none';
+
+/** The Back key: idle goes home; a search or room is left first, then home; a starting match cannot be aborted. */
+export const backKeyAction = (panel: PanelKind): BackAction =>
+  panel === 'found' ? 'none' : panel === 'menu' ? 'home' : 'cancel-home';
+
+/** Esc (and gamepad B, which sends Esc): home when idle, one step back in a search or room, nothing elsewhere. */
+export const escapeAction = (panel: PanelKind): BackAction =>
+  panel === 'menu'
+    ? 'home'
+    : panel === 'connecting' || panel === 'invite' || panel === 'quick'
+      ? 'cancel'
+      : 'none';
+
+/** The Back key stays in place but is inert while the rival is found and the match starts. */
+export const backKeyDisabled = (panel: PanelKind) => panel === 'found';
+
+/** The Esc chip only means "leave" in the idle menu, and only where there is a keyboard. */
+export const showEscChip = (panel: PanelKind, touch: boolean) => panel === 'menu' && !touch;
