@@ -8,7 +8,6 @@ import { ArenaGame } from '~/components/ArenaGame';
 import { CharacterSelect } from '~/components/CharacterSelect';
 import { MainMenu } from '~/components/menu/MainMenu';
 import { SettingsRoot } from '~/components/menu/SettingsRoot';
-import { OnlineLobby } from '~/components/OnlineLobby';
 import { getSettings } from '~/game/settings';
 import { isCharacterId, ROSTER } from '~/game/roster';
 import { getPlatform } from '~/platform';
@@ -34,10 +33,7 @@ const Screen = ({ hash }: { hash: string }) => {
     return <ArenaGame player={player} opponent={opponent} demo={query.has('demo')} level={level} />;
   }
   if (path === '/characters') return <CharacterSelect />;
-  if (path === '/play') {
-    const room = query.get('room');
-    return <OnlineLobby roomId={room && /^[\w-]{4,32}$/.test(room) ? room : undefined} />;
-  }
+  // Online is off in the portal build for now (bot play only): /play falls through to the menu.
   return <MainMenu openSelect={query.has('select')} />;
 };
 

@@ -508,7 +508,8 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       primary: true,
       onSelect: () => setScreen('select'),
     },
-    { label: 'PLAY ONLINE', sub: PORTAL ? 'Quick match, 1 v 1' : 'Send a link, settle it 1 v 1', href: '/play' },
+    // Online is off in the portal build for now (bot play only, decided 2026-11-21).
+    ...(PORTAL ? [] : [{ label: 'PLAY ONLINE', sub: 'Send a link, settle it 1 v 1', href: '/play' }]),
     {
       label: 'FIGHTER',
       sub: 'Hotfix, Legacy, Standup or Intern',
