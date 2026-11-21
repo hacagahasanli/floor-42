@@ -76,7 +76,7 @@ const useColumnNav = (
   }, [root, active, onBack]);
 };
 
-const Logo = ({ small }: { small?: boolean }) => {
+const Logo = () => {
   const copy = useCopy();
   return (
   <div className="flex flex-col gap-1 [animation:fadeIn_0.8s_ease-out]">
@@ -88,14 +88,12 @@ const Logo = ({ small }: { small?: boolean }) => {
         alt="Floor 42"
         width={1078}
         height={270}
-        className={`h-auto drop-shadow-[0_8px_30px_rgba(0,0,0,0.7)] ${small ? 'w-64' : 'w-72 sm:w-[22rem] xl:w-[26rem]'} [@media(max-height:500px)]:w-56`}
+        className="h-auto w-72 drop-shadow-[0_8px_30px_rgba(0,0,0,0.7)] sm:w-[22rem] xl:w-[26rem] [@media(max-height:500px)]:w-56"
       />
     </h1>
-    {!small && (
-      <span className="font-display text-sm text-cream/75 sm:text-base [@media(max-height:500px)]:hidden">
-        {copy.tagline}
-      </span>
-    )}
+    <span className="font-display text-sm text-cream/75 sm:text-base [@media(max-height:500px)]:hidden">
+      {copy.tagline}
+    </span>
   </div>
   );
 };
@@ -547,9 +545,16 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
         ref={columnRef}
         className="relative z-10 flex h-full w-full flex-col justify-between gap-4 px-5 pb-5 pt-6 sm:w-[38%] sm:min-w-[400px] sm:max-w-[540px] sm:px-10 sm:pb-8 sm:pt-10 [@media(max-height:500px)]:gap-2 [@media(max-height:500px)]:px-6 [@media(max-height:500px)]:pb-3 [@media(max-height:500px)]:pt-4"
       >
-        <div className="flex items-start justify-between gap-4">
-          <Logo small={screen === 'select'} />
-        </div>
+        {/* The fighter list needs the whole column on a short window, so the corner logo steps aside there (the page
+            keeps its h1 for screen readers). Behind the settings, rules and credits panels it is only hidden, so the
+            layout does not move and it cannot ghost through the panel. */}
+        {screen === 'select' ? (
+          <h1 className="sr-only">Floor 42</h1>
+        ) : (
+          <div className={`flex items-start justify-between gap-4 ${screen === 'main' && !settingsOpen ? '' : 'invisible'}`}>
+            <Logo />
+          </div>
+        )}
 
         {screen !== 'select' ? (
           <nav
@@ -576,9 +581,9 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
         ) : (
           <section
             aria-label="Choose your fighter"
-            className="flex min-h-0 flex-1 flex-col justify-center gap-3 [animation:slideInLeft_0.3s_ease-out] [@media(max-height:500px)]:gap-1.5"
+            className="flex min-h-0 flex-1 flex-col justify-center gap-3 [animation:slideInLeft_0.3s_ease-out] [@media(max-height:640px)]:gap-2 [@media(max-height:500px)]:gap-1.5"
           >
-            <h2 className="-skew-x-6 font-display text-2xl sm:text-3xl [@media(max-height:500px)]:text-lg">
+            <h2 className="-skew-x-6 font-display text-2xl sm:text-3xl [@media(max-height:640px)]:text-xl [@media(max-height:500px)]:text-lg">
               CHOOSE YOUR FIGHTER
             </h2>
             <div
@@ -606,7 +611,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
                       pickFighter(r.id);
                       menuSound.confirm();
                     }}
-                    className={`group relative flex h-16 -skew-x-[8deg] items-center gap-3 overflow-hidden border-l-4 pl-3 pr-3 text-left outline-none transition [animation:menuItemIn_0.4s_ease-out_both] focus-visible:bg-cream/10 sm:h-[4.5rem] [@media(max-height:500px)]:h-12 ${
+                    className={`group relative flex h-16 -skew-x-[8deg] items-center gap-3 overflow-hidden border-l-4 pl-3 pr-3 text-left outline-none transition [animation:menuItemIn_0.4s_ease-out_both] focus-visible:bg-cream/10 sm:h-[4.5rem] [@media(max-height:640px)]:h-12 ${
                       on ? 'bg-cream/[0.09]' : 'bg-ink-deep/60 hover:bg-cream/[0.05]'
                     }`}
                     style={{
@@ -686,7 +691,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
                 data-nav
                 onFocus={() => menuSound.tick()}
                 onClick={fight}
-                className="focus-ring group flex flex-1 -skew-x-[8deg] items-center justify-center gap-3 bg-gold px-6 py-3.5 font-display text-2xl text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.35)] transition hover:brightness-110 [@media(max-height:500px)]:py-2 [@media(max-height:500px)]:text-lg"
+                className="focus-ring group flex flex-1 -skew-x-[8deg] items-center justify-center gap-3 bg-gold px-6 py-3.5 font-display text-2xl text-ink-deep [@media(max-height:640px)]:py-2 shadow-[0_0_40px_rgba(255,210,63,0.35)] transition hover:brightness-110 [@media(max-height:500px)]:py-2 [@media(max-height:500px)]:text-lg"
               >
                 <span className="skew-x-[8deg]">
                   FIGHT AS {CHARACTERS[fighter].name.toUpperCase()}
