@@ -1,196 +1,197 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
-import { AimChoice } from '~/components/AimChoice';
 import { ArenaGame } from '~/components/ArenaGame';
+import { useLiftTo } from '~/components/Elevator';
 import { InstallHint } from '~/components/InstallHint';
-import { accentOf, FighterCards, FighterHero, MenuShell, readCharacter, saveCharacter, Steps, usePortraits } from '~/components/MenuShell';
+import { FighterBadges } from '~/components/lobby/FighterBadges';
+import { FighterInfo } from '~/components/lobby/FighterInfo';
+import {
+  ActionButton,
+  AimControl,
+  CodeRow,
+  IconBot,
+  IconInvite,
+  IconQuick,
+} from '~/components/lobby/LobbyControls';
+import { LobbyHud } from '~/components/lobby/LobbyHud';
+import {
+  ConnectingPanel,
+  ErrorPanel,
+  FoundPanel,
+  InvitePanel,
+  QuickPanel,
+} from '~/components/lobby/LobbyPanels';
+import { LobbyScene } from '~/components/lobby/LobbyScene';
+import { lobbyView, readForcedState } from '~/components/lobby/lobbyView';
+import { accentOf, readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
 import { AudiencePrompt } from '~/components/menu/AudiencePrompt';
 import { menuSound } from '~/components/menu/menuSound';
-import { useCopy } from '~/components/menu/useCopy';
+import { useCopyVariant } from '~/components/menu/useCopy';
+import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useMenuTelemetry } from '~/components/useTelemetry';
 import { createOnlineSession, joinRoom } from '~/game/net/client';
 import { createHostSession } from '~/game/net/host';
 import { connectPeer } from '~/game/net/peer';
 import { ROSTER } from '~/game/roster';
-import { CHARACTERS } from '~/game/sim/constants';
+import { RULES } from '~/game/sim/constants';
 
+import '~/components/lobby/lobby.css';
+
+import type { ForcedState } from '~/components/lobby/lobbyView';
 import type { JoinMode, OnlineSession } from '~/game/net/client';
 import type { PeerLink } from '~/game/net/peer';
 import type { StartMessage } from '~/game/net/protocol';
 import type { CharacterId } from '~/game/sim/types';
 import type { Room } from '@colyseus/sdk';
-import type { ReactNode } from 'react';
+import type { CSSProperties } from 'react';
+
+interface ErrorInfo {
+  title: string;
+  message: string;
+  detail?: string;
+  joinFailed: boolean;
+}
 
 type Stage =
   | { kind: 'menu' }
-  | { kind: 'connecting' }
+  | { kind: 'connecting'; join?: string }
   | { kind: 'linking' }
   | { kind: 'waiting'; roomId: string; invite: boolean }
-  | { kind: 'playing'; online: { session: OnlineSession; room: Room }; characters: [CharacterId, CharacterId] }
-  | { kind: 'error'; message: string };
+  | {
+      kind: 'playing';
+      online: { session: OnlineSession; room: Room };
+      characters: [CharacterId, CharacterId];
+    }
+  | ({ kind: 'error' } & ErrorInfo);
 
+type ShownStage = Exclude<Stage, { kind: 'playing' }>;
 
-/** The lobby's moving backdrop: the office carpet grid rolling in, and light streaks closing in from both sides. */
-const LobbyBackdrop = ({ accent }: { accent: string }) => (
-  <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
-    <div className="absolute inset-x-[-20%] bottom-0 h-[55%] origin-bottom [transform:perspective(500px)_rotateX(62deg)] [mask-image:linear-gradient(to_top,black_10%,transparent_85%)]">
-      <div className="f42-grid-floor h-full w-full" />
-    </div>
-    <div className="absolute inset-x-0 top-[38%] h-24 overflow-hidden">
-      <span className="f42-streak-l absolute left-0 top-4 h-[3px] w-1/3 opacity-60" style={{ background: `linear-gradient(90deg, transparent, ${accent}, #fff)` }} />
-      <span className="f42-streak-r absolute right-0 top-14 h-[3px] w-1/3 opacity-60 bg-[linear-gradient(270deg,transparent,#ff3b4e,#fff)]" />
-    </div>
-  </div>
-);
-
-/** A pulsing status dot: a solid centre and a ring that keeps pinging outwards. */
-const Pulse = ({ color }: { color: string }) => (
-  <span className="relative inline-flex h-2.5 w-2.5">
-    <span className={`f42-ping absolute inset-0 rounded-full ${color}`} />
-    <span className={`relative h-2.5 w-2.5 rounded-full ${color}`} />
-  </span>
-);
-
-type RivalState = 'open' | 'connecting' | 'waiting' | 'found';
-
-/** You on the left, the rival slot on the right, VS between: the lobby reads as a fight about to happen. */
-const Versus = ({ me, portraits, rival }: { me: CharacterId; portraits: Record<CharacterId, string> | null; rival: RivalState }) => {
-  const e = ROSTER.find((r) => r.id === me)!;
-  const rivalText: Record<RivalState, [string, string]> = {
-    open: ['Your rival', 'Invite a friend or take a quick match'],
-    connecting: ['Connecting', 'Reaching the game server'],
-    waiting: ['Waiting for rival', 'The match starts the moment they join'],
-    found: ['Rival found', 'Connecting the two of you'],
-  };
-  const [title, sub] = rivalText[rival];
-  return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 sm:gap-3">
-      <div className="panel-cut relative flex h-32 items-end overflow-hidden border border-cream/10 bg-ink/80 p-3 [animation:slideInLeft_0.35s_ease-out] sm:h-36">
-        <div className="absolute inset-0 opacity-50" style={{ background: `radial-gradient(circle at 70% 40%, ${e.accent}, transparent 65%)` }} />
-        {portraits && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={portraits[me]} alt="" className="absolute -right-1 top-1 h-[92%] w-auto object-contain" />
-        )}
-        <div className="relative flex flex-col">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-green">
-            <Pulse color="bg-green" /> Ready
-          </span>
-          <span className="font-display text-lg leading-none sm:text-xl" style={{ color: e.accent }}>
-            {e.name.toUpperCase()}
-          </span>
-          <span className="text-xs text-cream/60">You</span>
-        </div>
-      </div>
-      <span className="f42-vs self-center font-display text-3xl text-[#ff3b4e] sm:text-4xl">VS</span>
-      <div
-        key={rival}
-        className={`panel-cut relative flex h-32 items-end overflow-hidden border p-3 sm:h-36 ${
-          rival === 'found' ? 'f42-found border-gold bg-gold/15' : 'border-dashed border-cream/20 bg-ink/60'
-        }`}
-      >
-        {/* A radar sweep while the slot is empty. */}
-        {rival !== 'found' && (
-          <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full border border-cream/10">
-            <span className="f42-sweep absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,rgba(255,59,78,0.35),transparent_25%)]" />
-          </span>
-        )}
-        <span aria-hidden className="absolute right-6 top-4 font-display text-5xl text-cream/10">?</span>
-        <div className="relative flex flex-col" aria-live="polite">
-          <span className={`flex items-center gap-1.5 text-xs font-semibold ${rival === 'found' ? 'text-gold' : 'text-cream/60'}`}>
-            {rival === 'found' ? <Pulse color="bg-gold" /> : rival === 'open' ? <span className="h-2.5 w-2.5 rounded-full border border-cream/40" /> : <Pulse color="bg-[#ff3b4e]" />}
-            {title}
-          </span>
-          <span className="text-xs leading-snug text-cream/55">{sub}</span>
-        </div>
-      </div>
-    </div>
-  );
+/** The dev-only `?lobbyState=` switch: the stage (and clock, and network) to show for design review. */
+const forcedStage = (f: ForcedState): { stage: ShownStage; elapsed: number; online: boolean } => {
+  const sample = 'AbC12';
+  switch (f) {
+    case 'menu':
+      return { stage: { kind: 'menu' }, elapsed: 0, online: true };
+    case 'offline':
+      return { stage: { kind: 'menu' }, elapsed: 0, online: false };
+    case 'connecting':
+      return { stage: { kind: 'connecting' }, elapsed: 0, online: true };
+    case 'joining':
+      return { stage: { kind: 'connecting', join: sample }, elapsed: 0, online: true };
+    case 'invite':
+      return { stage: { kind: 'waiting', roomId: sample, invite: true }, elapsed: 0, online: true };
+    case 'quick':
+      return {
+        stage: { kind: 'waiting', roomId: sample, invite: false },
+        elapsed: 12,
+        online: true,
+      };
+    case 'quick30':
+      return {
+        stage: { kind: 'waiting', roomId: sample, invite: false },
+        elapsed: 34,
+        online: true,
+      };
+    case 'linking':
+      return { stage: { kind: 'linking' }, elapsed: 0, online: true };
+    case 'error':
+      return {
+        stage: {
+          kind: 'error',
+          title: 'Lost the connection',
+          message: "Can't reach the game server.",
+          detail: 'WebSocket connection failed',
+          joinFailed: false,
+        },
+        elapsed: 0,
+        online: true,
+      };
+    case 'join-error':
+      return {
+        stage: {
+          kind: 'error',
+          title: 'That room is gone',
+          message: 'That room is full or gone. Ask for a new link.',
+          joinFailed: true,
+        },
+        elapsed: 0,
+        online: true,
+      };
+  }
 };
 
-/** One big action tile: icon, title, one line on what happens. Ticks on focus, confirms on click. */
-const Action = ({
-  icon,
-  title,
-  sub,
-  primary,
-  onClick,
-  href,
-  delay,
-}: {
-  icon: ReactNode;
-  title: string;
-  sub: string;
-  primary?: boolean;
-  onClick?: () => void;
-  href?: string;
-  delay: number;
-}) => {
-  const cls = `panel-cut focus-ring group relative flex items-center gap-3 overflow-hidden px-4 py-3.5 text-left transition duration-200 hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 [animation:riseIn_0.4s_ease-out_both] [@media(max-height:500px)]:py-2.5 ${
-    primary ? 'bg-gold text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.3)] hover:brightness-110' : 'border border-cream/10 bg-ink/80 text-cream backdrop-blur hover:border-cream/30 hover:bg-ink'
-  }`;
-  const body = (
-    <>
-      {/* A light sweep across the tile on hover. */}
-      <span aria-hidden className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-white/25 opacity-0 transition-all duration-500 group-hover:left-[120%] group-hover:opacity-100" />
-      <span aria-hidden className={`grid h-10 w-10 shrink-0 place-items-center text-xl ${primary ? 'bg-ink-deep/15' : 'bg-cream/10'}`}>
-        {icon}
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="font-display text-base leading-tight sm:text-lg">{title}</span>
-        <span className={`text-xs leading-snug ${primary ? 'text-ink-deep/75' : 'text-cream/60'}`}>{sub}</span>
-      </span>
-      <span aria-hidden className="ml-auto font-display text-lg transition group-hover:translate-x-1">→</span>
-    </>
-  );
-  const common = {
-    className: cls,
-    style: { animationDelay: `${delay}s` },
-    onMouseEnter: () => menuSound.tick(),
-    onFocus: () => menuSound.tick(),
-  };
-  return href ? (
-    <Link href={href} {...common} onClick={() => menuSound.confirm()}>
-      {body}
-    </Link>
-  ) : (
-    <button
-      type="button"
-      {...common}
-      onClick={() => {
-        menuSound.confirm();
-        onClick?.();
-      }}
-    >
-      {body}
-    </button>
-  );
+/** The browser's own network, nothing more: it says nothing about whether the game server is up. */
+const useOnline = () => {
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    update();
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+  return online;
+};
+
+/** Seconds since `active` last turned true (0 while inactive). */
+const useElapsed = (active: boolean) => {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setElapsed(0);
+      return;
+    }
+    const t0 = Date.now();
+    setElapsed(0);
+    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - t0) / 1000)), 500);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return elapsed;
 };
 
 export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   const [character, setCharacter] = useState<CharacterId>('hotfix');
-  const [stage, setStage] = useState<Stage>({ kind: 'menu' });
+  const [characterReady, setCharacterReady] = useState(false);
+  // Opened from an invite link: the first thing on screen is "Joining room", not a flash of the menu.
+  const [stage, setStage] = useState<Stage>(
+    roomId ? { kind: 'connecting', join: roomId } : { kind: 'menu' },
+  );
   const [copied, setCopied] = useState(false);
-  const [pasted, setPasted] = useState('');
+  const [codeOpen, setCodeOpen] = useState(false);
   const [canShare, setCanShare] = useState(false);
-  useEffect(() => setCanShare(typeof navigator.share === 'function'), []);
+  const [forced, setForced] = useState<ForcedState | null>(null);
+  useEffect(() => {
+    setCanShare(typeof navigator.share === 'function');
+    setForced(readForcedState(window.location.search));
+  }, []);
   const roomRef = useRef<Room | null>(null);
   const portraits = usePortraits();
   useMenuTelemetry(!!portraits);
-  const words = useCopy();
+  const developer = useCopyVariant() === 'developer';
+  const lift = useLiftTo();
+  useGamepadNav();
+  const browserOnline = useOnline();
 
   useEffect(() => {
     const saved = readCharacter();
     if (saved) setCharacter(saved);
+    setCharacterReady(true);
   }, []);
 
   const sessionRef = useRef<OnlineSession | null>(null);
   const linkRef = useRef<PeerLink | null>(null);
+  /** Bumped by every new attempt and by Cancel: callbacks of an older attempt ignore what they hear. */
+  const runRef = useRef(0);
+  const lastMode = useRef<JoinMode | null>(null);
   // Leave the room only when the page goes away.
   useEffect(
     () => () => {
+      runRef.current += 1;
       sessionRef.current?.dispose();
       linkRef.current?.close();
       void roomRef.current?.leave();
@@ -204,16 +205,27 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   };
 
   const go = async (mode: JoinMode) => {
-    setStage({ kind: 'connecting' });
+    if (forced) return;
+    const run = ++runRef.current;
+    const live = () => runRef.current === run;
+    lastMode.current = mode;
+    setStage({ kind: 'connecting', join: mode.kind === 'join' ? mode.roomId : undefined });
     try {
       const room = await joinRoom(mode, character);
+      if (!live()) {
+        // Cancelled while connecting: don't stay in a room nobody is looking at.
+        void room.leave();
+        return;
+      }
       roomRef.current = room;
       let session: OnlineSession | null = null;
-      room.onMessage('waiting', (msg: { roomId: string }) =>
-        setStage({ kind: 'waiting', roomId: msg.roomId, invite: mode.kind === 'private' }),
-      );
+      room.onMessage('waiting', (msg: { roomId: string }) => {
+        if (live())
+          setStage({ kind: 'waiting', roomId: msg.roomId, invite: mode.kind === 'private' });
+      });
       // Both players are in: try a direct line between the two browsers before the match starts.
       room.onMessage('peer', (msg: { slot: number }) => {
+        if (!live()) return;
         setStage({ kind: 'linking' });
         void connectPeer(room, msg.slot === 0).then((link) => {
           linkRef.current = link;
@@ -221,11 +233,14 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
         });
       });
       room.onMessage('start', (msg: StartMessage) => {
-        if (session) return; // later starts (rematches) are handled inside the arena
+        if (session || !live()) return; // later starts (rematches) are handled inside the arena
         const link = linkRef.current;
         if (msg.direct && link) {
           // Direct: the inviter's browser runs the game, the other predicts against it.
-          session = msg.slot === 0 ? createHostSession(room, link, msg) : createOnlineSession(room, msg, link);
+          session =
+            msg.slot === 0
+              ? createHostSession(room, link, msg)
+              : createOnlineSession(room, msg, link);
         } else {
           link?.close();
           linkRef.current = null;
@@ -235,34 +250,136 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
         setStage({ kind: 'playing', online: { session, room }, characters: msg.characters });
       });
       room.onLeave(() => {
-        if (!session) setStage({ kind: 'error', message: 'Lost the connection to the game server.' });
+        if (!session && live()) {
+          setStage({
+            kind: 'error',
+            title: 'Lost the connection',
+            message: 'Lost the connection to the game server.',
+            joinFailed: false,
+          });
+        }
       });
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      setStage({
-        kind: 'error',
-        message: mode.kind === 'join' ? 'That room is full or gone. Ask for a new link.' : `Can't reach the game server. ${message}`,
-      });
+      if (!live()) return;
+      const detail = e instanceof Error ? e.message : String(e);
+      setStage(
+        mode.kind === 'join'
+          ? {
+              kind: 'error',
+              title: 'That room is gone',
+              message: 'That room is full or gone. Ask for a new link.',
+              joinFailed: true,
+            }
+          : {
+              kind: 'error',
+              title: 'Lost the connection',
+              message: "Can't reach the game server.",
+              detail,
+              joinFailed: false,
+            },
+      );
     }
+  };
+
+  /** Leave the search or room and go back to the menu. */
+  const cancel = () => {
+    if (forced) return;
+    runRef.current += 1;
+    linkRef.current?.close();
+    linkRef.current = null;
+    const room = roomRef.current;
+    roomRef.current = null;
+    void room?.leave();
+    setStage({ kind: 'menu' });
   };
 
   // Opened from an invite link: join straight away.
   const joined = useRef(false);
   useEffect(() => {
-    if (roomId && !joined.current && stage.kind === 'menu') {
+    if (roomId && !joined.current && forced === null) {
       joined.current = true;
       void go({ kind: 'join', roomId });
     }
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const shown: ShownStage = stage.kind === 'playing' ? { kind: 'menu' } : stage;
+  const force = process.env.NODE_ENV !== 'production' && forced ? forcedStage(forced) : null;
+  const view_stage = force ? force.stage : shown;
+  const isQuick = view_stage.kind === 'waiting' && !view_stage.invite;
+  const realElapsed = useElapsed(isQuick && !force);
+  const elapsed = force ? force.elapsed : realElapsed;
+  const online = force ? force.online : browserOnline;
+  const view = lobbyView({
+    stage: view_stage.kind,
+    invite: view_stage.kind === 'waiting' ? view_stage.invite : undefined,
+    joining: view_stage.kind === 'connecting' ? view_stage.join : undefined,
+    joinFailed: view_stage.kind === 'error' ? view_stage.joinFailed : undefined,
+    elapsed,
+    online,
+    developer,
+    kos: RULES.kosToWin,
+  });
+  const inMenu = view_stage.kind === 'menu';
+
+  // Keys 1-4 pick a fighter; Esc leaves a search or an open room.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))
+        return;
+      if (
+        e.key === 'Escape' &&
+        (view_stage.kind === 'connecting' || view_stage.kind === 'waiting')
+      ) {
+        e.preventDefault();
+        menuSound.back();
+        cancel();
+        return;
+      }
+      const n = ['1', '2', '3', '4'].indexOf(e.key);
+      if (n >= 0 && inMenu) {
+        const id = ROSTER[n].id;
+        if (id !== character) {
+          menuSound.confirm();
+          pick(id);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  // Dev review only: a forced error shows the cutout tipping over (it has to be standing first).
+  const [tipped, setTipped] = useState(false);
+  useEffect(() => {
+    if (forced !== 'error') return;
+    const t = window.setTimeout(() => setTipped(true), 1200);
+    return () => window.clearTimeout(t);
+  }, [forced]);
+  const spot = forced === 'error' && !tipped ? 'searching' : view.spot;
+
+  // The rival is found: a rising chime.
+  const wasFound = useRef(false);
+  useEffect(() => {
+    if (view.rivalFound && !wasFound.current) menuSound.confirm();
+    wasFound.current = view.rivalFound;
+  }, [view.rivalFound]);
+
   if (stage.kind === 'playing') {
-    const { online, characters } = stage;
+    const { online: net, characters } = stage;
     return (
-      <ArenaGame player={characters[online.session.slot]} opponent={characters[1 - online.session.slot]} online={online} />
+      <ArenaGame
+        player={characters[net.session.slot]}
+        opponent={characters[1 - net.session.slot]}
+        online={net}
+      />
     );
   }
 
-  const inviteLink = stage.kind === 'waiting' ? `${window.location.origin}/play?room=${stage.roomId}` : '';
+  const waitingRoom = view_stage.kind === 'waiting' ? view_stage.roomId : '';
+  const inviteLink =
+    view_stage.kind === 'waiting' ? `${window.location.origin}/play?room=${waitingRoom}` : '';
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink);
@@ -273,168 +390,124 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
       /* no clipboard: the link is selectable in the field */
     }
   };
-  const share = () => void navigator.share?.({ title: 'Floor 42', text: 'Fight me on floor 42', url: inviteLink }).catch(() => {});
-  const rival: RivalState =
-    stage.kind === 'connecting' ? 'connecting' : stage.kind === 'linking' ? 'found' : stage.kind === 'waiting' ? 'waiting' : 'open';
-
-  const statusText =
-    stage.kind === 'waiting' ? 'WAITING FOR RIVAL' : stage.kind === 'connecting' || stage.kind === 'linking' ? 'CONNECTING' : 'ONLINE · 1 V 1';
+  const share = () =>
+    void navigator
+      .share?.({ title: 'Floor 42', text: 'Fight me on floor 42', url: inviteLink })
+      .catch(() => {});
+  const botHref = `/arena?p1=${character}&bot=normal`;
+  const entry = ROSTER.find((r) => r.id === character)!;
 
   return (
-    <MenuShell
-      accent={accentOf(character)}
-      status={
-        <span className="flex items-center gap-2 rounded-full border border-cream/15 bg-ink-deep/70 px-3 py-1 backdrop-blur">
-          {stage.kind === 'error' ? <span className="h-2.5 w-2.5 rounded-full bg-orange" /> : <Pulse color={stage.kind === 'waiting' ? 'bg-gold' : 'bg-green'} />} {statusText}
-        </span>
-      }
-      backdrop={<LobbyBackdrop accent={accentOf(character)} />}
-    >
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] [@media(max-height:500px)]:grid-cols-2 [@media(max-height:500px)]:gap-4">
-        <FighterHero id={character} label="You fight as" />
+    <main className="lb-root" style={{ '--a': accentOf(character) } as CSSProperties}>
+      {characterReady && (
+        <LobbyScene
+          character={character}
+          spot={spot}
+          portrait={portraits ? portraits[character] : null}
+        />
+      )}
+      <div className="lb-scrim-top" aria-hidden />
+      <div className="lb-scrim-left" aria-hidden />
+      <div className="lb-scrim-bottom" aria-hidden />
 
-        <div className="flex flex-col gap-4">
-          {stage.kind !== 'error' && stage.kind !== 'menu' && <Versus me={character} portraits={portraits} rival={rival} />}
+      <div className="lb-ui" data-mode={inMenu ? 'menu' : 'panel'}>
+        <LobbyHud name={entry.name} character={character} view={view} onHome={() => lift.go('/')} />
+        <div className="lb-left">
+          <FighterInfo id={character} />
+        </div>
+        <div className="lb-badges-wrap">
+          <FighterBadges value={character} onPick={pick} portraits={portraits} disabled={!inMenu} />
+        </div>
 
-          {stage.kind === 'menu' && (
+        <div className="lb-right">
+          {view_stage.kind === 'menu' && (
             <>
-              <div className="flex items-end justify-between gap-3">
-                <h2 className="font-display text-2xl [@media(max-height:500px)]:text-lg">
-                  Play <span className="text-gold">online</span>
-                </h2>
-                <span className="text-right text-xs text-cream/50">{words.goal}</span>
-              </div>
-              <FighterCards value={character} onPick={pick} portraits={portraits} />
-              <AimChoice />
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="sm:col-span-2 grid">
-                  <Action icon="✉" title="Invite a friend" sub="A private room: you get a link and a code to send" primary onClick={() => go({ kind: 'private' })} delay={0.05} />
-                </div>
-                <Action icon="⚡" title="Quick match" sub="Face whoever else is waiting" onClick={() => go({ kind: 'quick' })} delay={0.1} />
-                <Action icon="🤖" title="Play vs bot" sub="No wait: start right now" href={`/arena?p1=${character}&bot=normal`} delay={0.15} />
+              <AimControl />
+              <ActionButton
+                level="primary"
+                icon={<IconInvite size={28} />}
+                title="Invite a friend"
+                sub="Get a link and a code to send"
+                onClick={() => void go({ kind: 'private' })}
+                disabled={view.offline}
+                describedBy="lb-offline-reason"
+                delay={0.05}
+              />
+              {view.offline && (
+                <p id="lb-offline-reason" className="lb-reason">
+                  You&apos;re offline. The bot is still here.
+                </p>
+              )}
+              <div className="lb-pair" data-hidden={codeOpen}>
+                <ActionButton
+                  level="secondary"
+                  icon={<IconQuick />}
+                  title="Quick match"
+                  sub="Fight whoever is waiting"
+                  onClick={() => void go({ kind: 'quick' })}
+                  disabled={view.offline}
+                  describedBy="lb-offline-reason"
+                  delay={0.1}
+                />
+                <ActionButton
+                  level="secondary"
+                  icon={<IconBot />}
+                  title="Play vs bot"
+                  sub="Start right now"
+                  href={botHref}
+                  delay={0.15}
+                />
               </div>
               {/* For the installed app (no address bar) or a code read out loud: paste the link here. */}
-              <form
-                className="panel-cut flex w-full flex-wrap items-center gap-2 border border-cream/10 bg-ink/80 p-2 backdrop-blur"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const text = pasted.trim();
-                  const id = (() => {
-                    try {
-                      return new URL(text).searchParams.get('room') ?? '';
-                    } catch {
-                      return text;
-                    }
-                  })();
-                  if (id) {
-                    menuSound.confirm();
-                    void go({ kind: 'join', roomId: id });
-                  }
-                }}
-              >
-                <label htmlFor="f42-join" className="w-full px-2 pt-1 font-display text-sm text-cream/80 sm:w-auto sm:pt-0">
-                  Got a code?
-                </label>
-                <input
-                  id="f42-join"
-                  value={pasted}
-                  onChange={(e) => setPasted(e.target.value)}
-                  placeholder="Paste the invite link or room code"
-                  aria-label="Invite link or room code"
-                  className="panel-cut min-w-0 flex-1 bg-ink-deep px-3 py-2 text-sm text-cream placeholder:text-cream/40"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                />
-                <button type="submit" disabled={!pasted.trim()} className="panel-cut bg-cream/10 px-4 py-2 text-sm font-bold uppercase transition enabled:hover:bg-gold enabled:hover:text-ink-deep disabled:opacity-40">
-                  Join
-                </button>
-              </form>
+              <CodeRow
+                onJoin={(id) => void go({ kind: 'join', roomId: id })}
+                onOpenChange={setCodeOpen}
+              />
               <InstallHint />
             </>
           )}
 
-          {(stage.kind === 'connecting' || stage.kind === 'linking') && (
-            <div className="panel-cut flex flex-1 flex-col items-center justify-center gap-4 border border-cream/10 bg-ink/80 p-8 text-center backdrop-blur [animation:riseIn_0.3s_ease-out]">
-              <span className="relative grid h-14 w-14 place-items-center">
-                <span className="f42-ping absolute inset-0 rounded-full border-2 border-gold/60" />
-                <span className="h-12 w-12 animate-spin rounded-full border-4 border-cream/15 border-t-gold motion-reduce:animate-none" />
-              </span>
-              <p className="text-cream/80">
-                {stage.kind === 'connecting' ? 'Connecting to the game server…' : 'Your rival is here. Connecting the two of you directly…'}
-              </p>
-            </div>
+          {view_stage.kind === 'connecting' && (
+            <ConnectingPanel joining={!!view_stage.join} onCancel={cancel} />
           )}
-
-          {stage.kind === 'waiting' && (
-            <div className="panel-cut flex flex-1 flex-col justify-center gap-4 border border-cream/10 bg-ink/80 p-6 backdrop-blur [animation:riseIn_0.3s_ease-out]">
-              {stage.invite ? (
-                <>
-                  <h2 className="font-display text-2xl">
-                    Send the <span className="text-gold">link</span>
-                  </h2>
-                  <p className="text-cream/80">The match starts the moment your rival opens it.</p>
-                  {/* The room code, big enough to read out loud. */}
-                  <div className="panel-cut flex flex-wrap items-center justify-between gap-3 border border-gold/40 bg-ink-deep/80 px-4 py-3">
-                    <span className="flex flex-col">
-                      <span className="text-xs text-cream/60">Room code</span>
-                      {/* Codes are case-sensitive: a monospace face that keeps the case, not the all-caps display font. */}
-                      <span className="select-all font-mono text-3xl font-bold leading-none tracking-wider text-gold sm:text-4xl">{stage.roomId}</span>
-                    </span>
-                    <span className="flex items-center gap-2 text-sm text-cream/70">
-                      <Pulse color="bg-gold" /> Room open
-                    </span>
-                  </div>
-                  <input
-                    readOnly
-                    value={inviteLink}
-                    className="panel-cut min-w-0 bg-ink-deep px-3 py-2.5 text-sm text-cream/80"
-                    onFocus={(e) => e.target.select()}
-                    aria-label="Invite link"
-                  />
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={copy}
-                      className={`panel-cut focus-ring flex items-center justify-center gap-2 px-5 py-4 font-display text-lg transition ${copied ? 'bg-green text-ink-deep' : 'bg-gold text-ink-deep shadow-[0_0_30px_rgba(255,210,63,0.3)] hover:brightness-110'}`}
-                    >
-                      {copied ? '✓ Link copied' : 'Copy invite link'}
-                    </button>
-                    {canShare && (
-                      <button type="button" onClick={share} className="panel-cut focus-ring bg-cream/10 px-5 py-4 font-display text-lg hover:bg-cream/20">
-                        Share…
-                      </button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="font-display text-2xl">
-                    Quick <span className="text-gold">match</span>
-                  </h2>
-                  <p className="flex items-center gap-2 text-cream/80">
-                    <Pulse color="bg-gold" /> Looking for someone to fight…
-                  </p>
-                </>
-              )}
-              {/* Leaving this page leaves the room, so nobody joins an empty match. */}
-              <Link href={`/arena?p1=${character}&bot=normal`} className="text-sm text-cream/70 underline underline-offset-4 hover:text-cream">
-                Nobody yet? Play the bot instead
-              </Link>
-            </div>
+          {view_stage.kind === 'linking' && <FoundPanel />}
+          {view_stage.kind === 'waiting' && view_stage.invite && (
+            <InvitePanel
+              roomId={waitingRoom}
+              link={inviteLink}
+              copied={copied}
+              canShare={canShare}
+              botHref={botHref}
+              onCopy={copy}
+              onShare={share}
+              onCancel={cancel}
+            />
           )}
-
-          {stage.kind === 'error' && (
-            <div className="panel-cut flex flex-1 flex-col items-start justify-center gap-4 bg-ink/80 p-6 backdrop-blur">
-              <p className="text-orange">{stage.message}</p>
-              <button type="button" onClick={() => setStage({ kind: 'menu' })} className="panel-cut bg-cream/10 px-5 py-2 font-bold uppercase hover:bg-cream/20">
-                Back
-              </button>
-            </div>
+          {view_stage.kind === 'waiting' && !view_stage.invite && (
+            <QuickPanel
+              elapsed={elapsed}
+              botHref={botHref}
+              onInvite={() => {
+                cancel();
+                void go({ kind: 'private' });
+              }}
+              onCancel={cancel}
+            />
+          )}
+          {view_stage.kind === 'error' && (
+            <ErrorPanel
+              title={view_stage.title}
+              message={view_stage.message}
+              detail={view_stage.detail}
+              botHref={botHref}
+              onRetry={() => void go(lastMode.current ?? { kind: 'quick' })}
+              onBack={() => setStage({ kind: 'menu' })}
+            />
           )}
         </div>
-      </section>
-      <Steps />
+      </div>
+      {lift.doors}
       <AudiencePrompt />
-    </MenuShell>
+    </main>
   );
 };

@@ -8,7 +8,7 @@ import { mat, mesh, PALETTE } from './palette';
 
 import type { Platform } from '../sim/constants';
 
-const canvasTexture = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => {
+export const canvasTexture = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
@@ -211,7 +211,7 @@ const chair = (x: number, z: number) => {
   return put(g, x, 0, z);
 };
 
-const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
+export const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
   desk: (p) => {
     const g = new THREE.Group();
     const w = p.x1 - p.x0;
@@ -438,7 +438,7 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
  * furniture costs a handful of draw calls instead of hundreds. Meshes flagged `userData.dynamic` stay as
  * they are. Returns the merged meshes in world space.
  */
-const mergeStatic = (root: THREE.Object3D) => {
+export const mergeStatic = (root: THREE.Object3D) => {
   root.updateMatrixWorld(true);
   const buckets = new Map<string, { material: THREE.Material; cast: boolean; recv: boolean; geos: THREE.BufferGeometry[] }>();
   const merged: THREE.Mesh[] = [];
@@ -607,6 +607,34 @@ const buildDecor = () => {
   return { group, fans };
 };
 
+/** The warm oak boards of the office floor (the lobby's floating slab uses the same ones). */
+export const floorTexture = () =>
+  canvasTexture(512, 256, (g) => {
+    const r = rng(77);
+    for (let row = 0; row < 8; row++) {
+      let x = -Math.floor(r() * 200);
+      while (x < 512) {
+        const len = 140 + r() * 180;
+        const l = 52 + r() * 10;
+        g.fillStyle = `hsl(${28 + r() * 6}, ${38 + r() * 10}%, ${l}%)`;
+        g.fillRect(x, row * 32, len, 32);
+        // Grain.
+        g.strokeStyle = `rgba(90,55,30,${0.08 + r() * 0.08})`;
+        for (let k = 0; k < 4; k++) {
+          g.beginPath();
+          g.moveTo(x, row * 32 + 5 + k * 7 + r() * 3);
+          g.bezierCurveTo(x + len * 0.3, row * 32 + 4 + k * 7 + r() * 6, x + len * 0.7, row * 32 + 6 + k * 7, x + len, row * 32 + 5 + k * 7 + r() * 3);
+          g.stroke();
+        }
+        g.fillStyle = 'rgba(60,35,20,0.45)';
+        g.fillRect(x, row * 32, 2, 32);
+        x += len;
+      }
+      g.fillStyle = 'rgba(60,35,20,0.4)';
+      g.fillRect(0, row * 32, 512, 1.5);
+    }
+  });
+
 export interface ArenaView {
   crack: (side: -1 | 1, y: number) => void;
   update: (dt: number, time: number) => void;
@@ -647,31 +675,7 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   const H = ARENA.ceiling;
 
   // Warm oak boards, a little glossy.
-  const tiles = canvasTexture(512, 256, (g) => {
-    const r = rng(77);
-    for (let row = 0; row < 8; row++) {
-      let x = -Math.floor(r() * 200);
-      while (x < 512) {
-        const len = 140 + r() * 180;
-        const l = 52 + r() * 10;
-        g.fillStyle = `hsl(${28 + r() * 6}, ${38 + r() * 10}%, ${l}%)`;
-        g.fillRect(x, row * 32, len, 32);
-        // Grain.
-        g.strokeStyle = `rgba(90,55,30,${0.08 + r() * 0.08})`;
-        for (let k = 0; k < 4; k++) {
-          g.beginPath();
-          g.moveTo(x, row * 32 + 5 + k * 7 + r() * 3);
-          g.bezierCurveTo(x + len * 0.3, row * 32 + 4 + k * 7 + r() * 6, x + len * 0.7, row * 32 + 6 + k * 7, x + len, row * 32 + 5 + k * 7 + r() * 3);
-          g.stroke();
-        }
-        g.fillStyle = 'rgba(60,35,20,0.45)';
-        g.fillRect(x, row * 32, 2, 32);
-        x += len;
-      }
-      g.fillStyle = 'rgba(60,35,20,0.4)';
-      g.fillRect(0, row * 32, 512, 1.5);
-    }
-  });
+  const tiles = floorTexture();
   tiles.wrapS = THREE.RepeatWrapping;
   tiles.wrapT = THREE.RepeatWrapping;
   tiles.repeat.set(W / 4, 1.6);

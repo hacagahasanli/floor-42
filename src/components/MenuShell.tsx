@@ -92,7 +92,7 @@ export const MenuShell = ({
   </main>
 );
 
-const STAT_MAX = { speed: 11, weight: 1.4, jump: 17.5, jumps: 2 };
+export const STAT_MAX = { speed: 11, weight: 1.4, jump: 17.5, jumps: 2 };
 
 const Bar = ({ label, value, text, color }: { label: string; value: number; text: string; color: string }) => (
   <div className="flex flex-col gap-1">
