@@ -410,7 +410,8 @@ describe('bots path over the new layout', () => {
 
   it('bots use the new objects: over a few matches they stand on each of them', () => {
     const used = new Set<string>();
-    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    // 14 matches: bots that duck shots play each match out differently, and the right metal box needed more.
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]) {
       const s = createGame(['hotfix', 'legacy'], seed);
       const bots = [createBot(0, seed * 3), createBot(1, seed * 5)];
       for (let i = 0; i < 60 * 150 && s.phase !== 'over'; i++) {

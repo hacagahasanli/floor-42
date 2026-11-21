@@ -1,4 +1,5 @@
-import { ARENA, baseOf, CHARACTERS, isSolid } from './constants';
+import { ARENA, baseOf, CHARACTERS, CROUCH, isSolid } from './constants';
+import { bodyHeight } from './step';
 import { EMPTY_INPUT } from './types';
 
 import type { GameState, GunKind, InputState } from './types';
@@ -14,11 +15,15 @@ const mulberry32 = (seed: number) => () => {
 
 export type BotLevel = 'easy' | 'normal' | 'hard';
 
-const LEVELS: Record<BotLevel, { reaction: number; aimError: number; trigger: number; dodge: number }> = {
-  easy: { reaction: 16, aimError: 0.22, trigger: 0.45, dodge: 0.05 },
-  normal: { reaction: 10, aimError: 0.12, trigger: 0.7, dodge: 0.15 },
-  hard: { reaction: 6, aimError: 0.05, trigger: 0.9, dodge: 0.3 },
+/** `crouch`: the chance to duck a shot it sees coming. */
+const LEVELS: Record<BotLevel, { reaction: number; aimError: number; trigger: number; dodge: number; crouch: number }> = {
+  easy: { reaction: 16, aimError: 0.22, trigger: 0.45, dodge: 0.05, crouch: 0.15 },
+  normal: { reaction: 10, aimError: 0.12, trigger: 0.7, dodge: 0.15, crouch: 0.3 },
+  hard: { reaction: 6, aimError: 0.05, trigger: 0.9, dodge: 0.3, crouch: 0.45 },
 };
+
+/** How long one duck lasts (ticks): long enough to let a shot pass, short enough to keep the bot moving. */
+const DUCK_TICKS = 18;
 
 /** Preferred distance to the target for each gun. */
 const RANGE: Record<GunKind, [number, number]> = {
@@ -47,9 +52,32 @@ interface Plan {
  */
 export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') => {
   const rand = mulberry32(seed);
+  // Crouch decisions draw from their own stream, so the rest of the bot's choices stay as they were.
+  const crouchRand = mulberry32(seed ^ 0x5bd1e995);
   const cfg = LEVELS[level];
   let plan: Plan = { move: 0, presses: [], fire: false, aimErr: 0 };
   let last: InputState = { ...EMPTY_INPUT };
+  let crouchUntil = -1;
+
+  /**
+   * Crouch now and then, like a person: duck a bullet or pellet on its way that would hit a standing body but
+   * pass over a crouched one. The chance depends on the level, and the next aimed shot still finds it.
+   */
+  const thinkCrouch = (state: GameState) => {
+    const me = state.fighters[myId];
+    if (state.phase !== 'fight' || me.respawn > 0 || !me.onGround || state.tick < crouchUntil) return;
+    const h = CHARACTERS[me.character].height;
+    const low = me.y + h * CROUCH.height + 0.05;
+    const top = me.y + h;
+    const incoming = state.projectiles.some((p) => {
+      if (p.owner === myId || (p.kind !== 'bullet' && p.kind !== 'pellet') || p.vx === 0) return false;
+      const t = (me.x - p.x) / p.vx;
+      if (t < 0 || t > 0.45) return false;
+      const y = p.y + p.vy * t;
+      return y > low && y < top;
+    });
+    if (incoming && crouchRand() < cfg.crouch) crouchUntil = state.tick + DUCK_TICKS;
+  };
 
   const think = (state: GameState): Plan => {
     const me = state.fighters[myId];
@@ -107,13 +135,15 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
   };
 
   return (state: GameState): InputState => {
-    if (state.tick % cfg.reaction === 0) plan = think(state);
+    if (state.tick % cfg.reaction === 0) {
+      plan = think(state);
+      thinkCrouch(state);
+    }
     const me = state.fighters[myId];
     const foe = state.fighters.find((f) => f.id !== myId)!;
-    const fc = CHARACTERS[foe.character];
-    // Track the target every tick; the error is fixed per decision, like a shaky hand.
+    // Track the target every tick (lower when it crouches); the error is fixed per decision, like a shaky hand.
     const tx = foe.x;
-    const ty = foe.y + fc.height * 0.55;
+    const ty = foe.y + bodyHeight(foe) * 0.55;
     const d = Math.hypot(tx - me.x, ty - me.y);
     const out: InputState = {
       ...EMPTY_INPUT,
@@ -122,6 +152,7 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
       fire: plan.fire,
       aimX: tx,
       aimY: ty + plan.aimErr * d,
+      crouch: state.tick < crouchUntil,
     };
     for (const p of plan.presses) out[p] = !last[p];
     // A desk, the table, the counter or a box in the way on your level: hop onto it instead of running
