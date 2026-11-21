@@ -75,24 +75,6 @@ const useColumnNav = (
   }, [root, active, onBack]);
 };
 
-/** The lift's floor display, counting up to 42 when the menu opens. */
-const Elevator = () => {
-  const [floor, setFloor] = useState(1);
-  useEffect(() => {
-    const t = setInterval(() => setFloor((f) => (f >= 42 ? 42 : f + 1)), 28);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <span
-      className="panel-cut inline-flex items-center gap-2 bg-ink-deep/80 px-3 py-1 font-display text-sm text-gold"
-      aria-label="Floor 42"
-    >
-      <span className={floor < 42 ? 'animate-pulse' : ''}>▲</span>
-      <span className="tabular-nums">{String(floor).padStart(2, '0')}</span>
-    </span>
-  );
-};
-
 const Logo = ({ small }: { small?: boolean }) => {
   const copy = useCopy();
   return (
@@ -565,9 +547,6 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       >
         <div className="flex items-start justify-between gap-4">
           <Logo small={screen === 'select'} />
-          <span className="sm:hidden">
-            <Elevator />
-          </span>
         </div>
 
         {screen !== 'select' ? (
@@ -747,10 +726,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
         </>
       )}
 
-      {/* Right side: the lift display, the fighter nameplate and the control hints. */}
-      <div className="pointer-events-none absolute right-6 top-6 z-10 max-sm:hidden sm:right-10 sm:top-10 [@media(max-height:500px)]:top-4">
-        <Elevator />
-      </div>
+      {/* Right side: the fighter nameplate and the control hints. */}
       <div className="pointer-events-none absolute bottom-16 right-6 z-10 sm:right-10 [@media(max-height:500px)]:bottom-10">
         <Nameplate
           id={preview}
