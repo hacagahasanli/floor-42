@@ -283,19 +283,20 @@
 }
 .f42-glitch { position: relative; animation: f42Glitch 1.8s steps(1, end) infinite; text-shadow: 2px 0 rgba(255, 59, 78, 0.6), -2px 0 rgba(62, 197, 255, 0.6); }
 
-/* Screen changes inside the menu and the result screen: a light streak sweeps across as the new panel lands. */
-@keyframes f42Sweep2 {
-  0% { transform: translateX(-110%) skewX(-20deg); opacity: 0; }
-  20% { opacity: 1; }
-  100% { transform: translateX(110%) skewX(-20deg); opacity: 0; }
+/* Screen changes inside the menu and the result screen: the new panel is uncovered from left to right (a dark curtain
+   slides off to the right), no bright streak across the middle. */
+@keyframes f42Reveal {
+  from { transform: translateX(0); }
+  to { transform: translateX(101%); }
 }
 .f42-wipe { position: fixed; inset: 0; z-index: 70; pointer-events: none; overflow: hidden; }
 .f42-wipe::before {
   content: '';
   position: absolute;
-  inset: -10% 0;
-  background: linear-gradient(90deg, transparent 30%, rgba(255, 210, 63, 0.16) 45%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 59, 78, 0.16) 55%, transparent 70%);
-  animation: f42Sweep2 0.42s cubic-bezier(.4,0,.2,1) both;
+  inset: 0;
+  background: #0b0d16;
+  box-shadow: -18px 0 24px rgba(11, 13, 22, 0.85);
+  animation: f42Reveal 0.34s cubic-bezier(.65,0,.35,1) both;
 }
 @keyframes f42Slam {
   0% { opacity: 0; transform: scale(1.35) skewX(-8deg); filter: blur(6px) brightness(2); }
