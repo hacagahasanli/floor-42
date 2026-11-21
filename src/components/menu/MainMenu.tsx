@@ -330,7 +330,8 @@ const HowTo = ({ touch }: { touch: boolean }) => {
   const k = (a: Parameters<typeof primaryLabel>[1]) => primaryLabel(s.bindings, a);
   const rows: [ReactNode, string][] = touch
     ? [
-        ['Stick', 'Run left and right; push up to jump, down to drop off a walkway'],
+        ['Stick', 'Run left and right; push up to jump; down to crouch, or to drop off a walkway'],
+        ['Crouch', 'Tap to crouch anywhere, walkways too; tap again to stand'],
         ['Fire', 'Shoots; the game aims at your rival for you'],
         ['Dash', 'A burst through bullets (every 5 s)'],
         ['Push', 'Force Push: shove them into the glass'],
@@ -345,7 +346,8 @@ const HowTo = ({ touch }: { touch: boolean }) => {
           'Run',
         ],
         [<Keycap key="j" k={k('up')} />, 'Jump, double jump, kick off the glass'],
-        [<Keycap key="d" k={k('down')} />, 'Drop down from a walkway'],
+        [<Keycap key="d" k={k('down')} />, 'Crouch (shots at your chest fly over); on a walkway, drop down'],
+        [<Keycap key="c" k={k('crouch')} />, 'Crouch anywhere, walkways too'],
         [
           <Keycap key="f" k={k('fire')} />,
           s.aimMode === 'mouse'

@@ -142,7 +142,10 @@ const Controls = ({ aim, bindings }: { aim: AimMode; bindings: Bindings }) => {
         <Key k={k('fire')} /> {aim === 'mouse' ? 'or click: shoot' : 'shoot'}
       </span>
       <span className="flex items-center gap-1">
-        <Key k={k('down')} /> drop
+        <Key k={k('down')} /> crouch / drop
+      </span>
+      <span className="flex items-center gap-1">
+        <Key k={k('crouch')} /> crouch on walkways
       </span>
       <span className="flex items-center gap-1">
         <Key k={k('dash')} /> dash

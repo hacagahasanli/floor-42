@@ -32,8 +32,8 @@ const goFullscreen = () => {
 };
 
 /**
- * The movement stick: left and right run, pushing up jumps, pushing down drops through
- * furniture. It appears where your thumb lands in the left half of the screen.
+ * The movement stick: left and right run, pushing up jumps, pushing down crouches (on a walkway
+ * it drops you through instead). It appears where your thumb lands in the left half of the screen.
  */
 const Stick = ({ press, side = 'left' }: { press: Press; side?: 'left' | 'right' }) => {
   const [base, setBase] = useState<{ x: number; y: number } | null>(null);
@@ -126,6 +126,7 @@ const Pad = ({
   className,
   big,
   ready = 1,
+  toggle,
 }: {
   b: Button;
   label: string;
@@ -133,9 +134,12 @@ const Pad = ({
   className: string;
   big?: boolean;
   ready?: number;
+  /** A tap turns it on, the next tap off (Crouch: the thumb stays free for Fire). */
+  toggle?: boolean;
 }) => {
   const [down, setDown] = useState(false);
   const up = () => {
+    if (toggle) return;
     setDown(false);
     press(b, false);
   };
@@ -143,14 +147,16 @@ const Pad = ({
     <button
       type="button"
       aria-label={label}
+      aria-pressed={toggle ? down : undefined}
       className={`absolute flex touch-none select-none items-center justify-center rounded-full border-2 font-display uppercase shadow-lg ${
         big ? 'h-[104px] w-[104px] text-lg' : 'h-[72px] w-[72px] text-xs'
       } ${down ? 'scale-95 border-gold bg-gold/80 text-ink-deep' : 'border-cream/30 bg-ink-deep/55 text-cream/90'} ${className}`}
       onPointerDown={(e) => {
         goFullscreen();
         e.currentTarget.setPointerCapture(e.pointerId);
-        setDown(true);
-        press(b, true);
+        const on = toggle ? !down : true;
+        setDown(on);
+        press(b, on);
       }}
       onPointerUp={up}
       onPointerCancel={up}
@@ -204,7 +210,7 @@ export const TouchControls = ({
     style={{ WebkitTouchCallout: 'none', opacity } as React.CSSProperties}
   >
     <Stick press={press} side={leftHanded ? 'right' : 'left'} />
-    {/* The right strip: Fire under the thumb, Jump beside it, Dash and Push above, Swap on top.
+    {/* The right strip: Fire under the thumb, Jump beside it, Dash and Push above, Swap and the Crouch toggle on top.
           Left-handed: the strip moves to the left edge and is mirrored, its labels mirrored back so they read right. */}
     <div
       className={`absolute bottom-0 top-16 ${leftHanded ? 'origin-bottom-left [&_span.relative]:[transform:scaleX(-1)]' : 'origin-bottom-right'}`}
@@ -237,6 +243,13 @@ export const TouchControls = ({
         press={press}
         className="bottom-[92px] right-[116px]"
         ready={ready?.push}
+      />
+      <Pad
+        b="crouch"
+        label="Crouch"
+        press={press}
+        toggle
+        className="bottom-[192px] right-[70px] !h-[52px] !w-[52px] !text-[9px]"
       />
       <Pad
         b="pickup"
