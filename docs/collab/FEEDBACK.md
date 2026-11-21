@@ -20,7 +20,7 @@ Deviations from LOG "R-002 built": 1 (wider desktop shot), 2 (portrait fighter a
   2. Move the office set +1.0 m in x toward the fighter: glass `gx` -3.0 → -2.0, desk -3.0 → -2.0, paper-sheet spawn x -3.0 → -2.0. The glass then frames the fighter's head from behind as spec 3.1 intended, and the desk clears the text column.
 - Expected result: at 1440x900 no part of the desk, monitors or glass frame is behind any text of the left column (x 40-380 px); every left-column text passes 4.5:1. The desk is still fully visible and readable as a desk.
 - Related spec: lobby-v2.md 3.1, 5.1 (left column), 10.
-- Status: open
+- Status: done (Engineering, 2026-11-21; see LOG.md)
 
 ## F-002 — The cloud sea reads as grey boulders (P0)
 - What is wrong: under the slab on desktop (bottom-left and bottom-right) the cloud puffs show as large dark grey faceted masses. Next to the grey stone chunks they look like a rocky mountain the slab sits on. Nothing on screen says "clouds", so "floor 42, above the clouds" does not read. Cause in code: puff underside `#a3abd0`, `emissive: 0x6a6070` (greys every face), puffs scaled 2.6-5.2 with `sy` 0.5, and we mostly see their sides.
