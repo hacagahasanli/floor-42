@@ -69,7 +69,7 @@ tray; the rug; the city outside. New: hanging pendant lamps, wall monitors, wall
 
 | Class | Collision | Bullets | Objects |
 | --- | --- | --- | --- |
-| A. Solid box | stand on top; sides and underside stop you; Down does nothing on top | a top stops only steep shots (flat shots skim it); a **closed** box (crate, metal box, rack) also stops shots through its sides | desks, table, counter (open underneath: sides let shots through); crates, metal boxes, server rack (closed: sides stop shots) |
+| A. Solid box | stand on top; sides and underside stop you; Down does nothing on top | a top stops only steep shots (flat shots skim it); its sides stop every shot, so a fighter crouched behind it is hidden and one standing shows only what rises above the top. Rails stop at desks, the table and the counter, and go through the closed boxes | desks, table, counter; crates, metal boxes, server rack (closed boxes) |
 | A. One-way floor | land on top, jump up through, Down drops through | stops every shot crossing it, both ways | walkways, balconies, beam, cable tray, small ledges, bookshelf top, wall cabinets, fridge top |
 | B. Decorative | none | none | everything in section 2 |
 | C. Conditional | not built | | chair seats, coffee machine, ducts, whiteboard ledge |
@@ -122,8 +122,10 @@ Collision data (`ARENA.platforms`, all in the shared sim, so offline, bots and o
 | Small hanging ledges | ±7.2..±9.0 | hung from the ceiling | 7.6 | one-way: walkway → ledge → balcony |
 | Metal boxes | ±11..±12 | balconies (9.4) | 10.4 | closed box: leg cover on the top floor |
 
-- Solid boxes have a `base`; their underside stops a jump from below (`step.ts`), and closed boxes stop shots
-  through their sides (`CLOSED_STYLES`). Rails still go through everything.
+- Solid boxes have a `base`; their underside stops a jump from below (`step.ts`), and every solid box stops shots
+  through its sides (`furnitureCut` in `step.ts`). Rails go through walkways and the closed boxes (`CLOSED_STYLES`),
+  not through desks, the table or the counter. Auto-aim and the bot aim only at what shows over cover
+  (`visibleAim`); a rival fully hidden is not locked onto, and the bot holds fire and closes in.
 - The bot hops onto a box on its own level and jumps again near the top of the hop if one jump is not enough.
 - Fixes: the floating gun spot is on the floor (x 4); the decorative rack at the back is gone (the real one is on the
   walkway); the fridge stands against the back wall; the table's legs and the desks' end panels sit where their

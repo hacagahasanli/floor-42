@@ -1,5 +1,5 @@
 import { ARENA, baseOf, CHARACTERS, CROUCH, isSolid } from './constants';
-import { bodyHeight } from './step';
+import { bodyHeight, visibleAim } from './step';
 import { EMPTY_INPUT } from './types';
 
 import type { GameState, GunKind, InputState } from './types';
@@ -137,8 +137,11 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
     if (dy < -1.2 && me.onGround && me.y > 0.1 && rand() < 0.6) presses.push('down');
     if (me.wall !== 0 && rand() < 0.5) presses.push('up');
     if (rand() < 0.06) presses.push('up');
+    const fire = rand() < cfg.trigger;
+    // Hidden behind a desk or a box: close in (the hop below takes it over the cover) instead of holding back.
+    if (!visibleAim(state, myId)) move = toFoe;
 
-    return { move, presses, fire: rand() < cfg.trigger, aimErr };
+    return { move, presses, fire, aimErr };
   };
 
   return (state: GameState): InputState => {
@@ -148,15 +151,17 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
     }
     const me = state.fighters[myId];
     const foe = state.fighters.find((f) => f.id !== myId)!;
-    // Track the target every tick (lower when it crouches); the error is fixed per decision, like a shaky hand.
+    // Track the target every tick (lower when it crouches, the head over a desk); the error is fixed per decision,
+    // like a shaky hand. A rival fully hidden behind cover is not shot at: the rounds would only hit the desk.
+    const spot = foe.respawn > 0 ? null : visibleAim(state, myId);
     const tx = foe.x;
-    const ty = foe.y + bodyHeight(foe) * 0.55;
+    const ty = spot ? spot.y : foe.y + bodyHeight(foe) * 0.55;
     const d = Math.hypot(tx - me.x, ty - me.y);
     const out: InputState = {
       ...EMPTY_INPUT,
       left: plan.move < 0,
       right: plan.move > 0,
-      fire: plan.fire,
+      fire: plan.fire && spot !== null,
       aimX: tx,
       aimY: ty + plan.aimErr * d,
       crouch: state.tick < crouchUntil,

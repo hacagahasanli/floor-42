@@ -34,6 +34,8 @@ const place = (s: GameState, id: number, x: number, y = 0) => Object.assign(s.fi
 const arm = (s: GameState, id: number, kind: GunKind) => (s.fighters[id].weapon = newWeapon(kind));
 /** Aim at fighter `id`'s chest. */
 const at = (s: GameState, id: number) => ({ aimX: s.fighters[id].x, aimY: s.fighters[id].y + 1.1 });
+/** Aim at fighter `id`'s head, over the desks, the table and the counter (across the office the chest is behind them). */
+const atHead = (s: GameState, id: number) => ({ aimX: s.fighters[id].x, aimY: s.fighters[id].y + 1.6 });
 
 describe('round flow', () => {
   it('ignores input during the countdown, then starts the fight', () => {
@@ -288,7 +290,7 @@ describe('guns', () => {
     place(s, 0, -16);
     place(s, 1, 16);
     arm(s, 0, 'launcher');
-    const events = run(s, 180, { fire: true, ...at(s, 1) });
+    const events = run(s, 180, { fire: true, ...atHead(s, 1) });
     expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
   });
 
@@ -335,9 +337,9 @@ describe('range, rarity and bombs', () => {
   it('the sniper rail still kills in one from across the office', () => {
     const s = fighting();
     place(s, 0, -16);
-    place(s, 1, 12);
+    place(s, 1, 16);
     arm(s, 0, 'railgun');
-    const events = run(s, 20, { fire: true, ...at(s, 1) });
+    const events = run(s, 20, { fire: true, ...atHead(s, 1) });
     expect(events.some((e) => e.type === 'ko')).toBe(true);
   });
 
@@ -421,11 +423,11 @@ describe('range, rarity and bombs', () => {
 
   it('a bomb you carry is lost when you are knocked out', () => {
     const s = fighting();
-    place(s, 0, -16);
-    place(s, 1, 12);
+    place(s, 0, 16);
+    place(s, 1, -16);
     s.fighters[0].bombs = 1;
     arm(s, 1, 'railgun');
-    run(s, 20, { ...EMPTY_INPUT }, { fire: true, ...at(s, 0) });
+    run(s, 20, { ...EMPTY_INPUT }, { fire: true, ...atHead(s, 0) });
     expect(s.fighters[0].respawn).toBeGreaterThan(0);
     run(s, Math.ceil(RULES.respawnSeconds / DT) + 30);
     expect(s.fighters[0].respawn).toBeLessThanOrEqual(0);

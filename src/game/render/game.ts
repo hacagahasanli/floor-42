@@ -10,7 +10,7 @@ import { getSettings, primaryLabel } from '../settings';
 import type { Settings } from '../settings';
 import { createBot } from '../sim/bot';
 import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS, RULES } from '../sim/constants';
-import { bodyHeight, chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
+import { chooseCharacter, createGame, muzzle, pickupCandidate, step, visibleAim } from '../sim/step';
 
 import { buildArena } from './arena';
 import { buildRig, poseDeath, poseSide, stepSpring } from './characters';
@@ -549,12 +549,13 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     return { x: aimPoint.x, y: aimPoint.y };
   };
 
-  // Auto-aim: your gun follows the opponent's chest (lower when they crouch). You only move and shoot.
+  // Auto-aim: your gun follows the opponent's chest (lower when they crouch), or the part of them that shows
+  // over a desk. Fully hidden behind cover, it does not lock on and points ahead. You only move and shoot.
   const autoAim = (id: number) => {
     const me = state.fighters[id];
     const foe = state.fighters.find((f) => f.id !== id)!;
-    if (foe.respawn > 0) return { x: me.x + me.facing * 5, y: me.y + 1.1 };
-    return { x: foe.x, y: foe.y + bodyHeight(foe) * 0.55 };
+    const spot = foe.respawn > 0 ? null : visibleAim(state, id);
+    return spot ?? { x: me.x + me.facing * 5, y: me.y + 1.1 };
   };
 
   const tmpV = new THREE.Vector3();
