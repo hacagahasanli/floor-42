@@ -978,7 +978,7 @@ export const ArenaGame = ({
                     </Link>
                   )}
                 </div>
-                <Support variant="results" className="w-full max-w-xl" />
+                <Support variant="results" />
               </div>
             </div>
           )}

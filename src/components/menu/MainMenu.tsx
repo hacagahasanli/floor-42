@@ -734,7 +734,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       {screen !== 'select' && (
         <>
           <div className="absolute right-6 top-20 z-20 hidden sm:right-10 sm:top-24 sm:block [@media(max-height:500px)]:hidden">
-            <Support variant="menu" className="w-[360px]" />
+            <Support variant="menu" />
           </div>
           <div className="absolute left-5 top-[142px] z-20 sm:hidden">
             <Support variant="pause" />
