@@ -84,7 +84,7 @@ Keyboard only. Your gun aims at the opponent by itself.
 
 Reloading is automatic (R reloads early). Enter starts a rematch.
 
-**Esc twice** asks to pause: online your rival has to press Esc twice too, then the game stops for both of you. The same menu has *Exit match*.
+**Esc** asks to pause: online your rival has to press Esc too, then the game stops for both of you. The same menu has *Exit match*.
 After a KO you are back in **3 seconds**, at a random spot far from your rival, and while you wait you can pick who you come back as (keys 1–4). At the end of an online match you pick your next fighter right in the result screen.
 
 If your rival's connection drops, the game holds for 20 seconds while they reconnect. If they leave, you can keep the room open for them (up to three minutes, asked minute by minute) and they come back with the same link.

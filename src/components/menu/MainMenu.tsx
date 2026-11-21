@@ -347,13 +347,7 @@ const HowTo = ({ touch }: { touch: boolean }) => {
         [<Keycap key="da" k={k('dash')} />, 'Dash through bullets (every 5 s)'],
         [<Keycap key="p" k={k('push')} />, 'Force Push: shove them into the glass'],
         [<Keycap key="r" k={k('reload')} />, 'Swap for the gun on the floor'],
-        [
-          <span key="e" className="flex gap-1">
-            <Keycap k="Esc" />
-            <Keycap k="Esc" />
-          </span>,
-          'Pause, settings, quit',
-        ],
+        [<Keycap key="e" k="Esc" />, 'Pause, settings, quit'],
       ];
   return (
     <div className="flex flex-col gap-6">

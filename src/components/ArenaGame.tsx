@@ -148,7 +148,6 @@ const Controls = ({ aim, bindings }: { aim: AimMode; bindings: Bindings }) => {
         <Key k={k('push')} /> push
       </span>
       <span className="flex items-center gap-1">
-        <Key k="Esc" />
         <Key k="Esc" /> pause / settings
       </span>
     </div>
@@ -321,7 +320,6 @@ export const ArenaGame = ({
   const [linkCopied, setLinkCopied] = useState(false);
   /** Seconds left for a rival whose connection dropped to come back, or null. */
   const [dropLeft, setDropLeft] = useState<number | null>(null);
-  const lastEsc = useRef(0);
   // Phones and tablets: touch controls, auto-aim, landscape. Known only after mount.
   const [touch, setTouch] = useState(false);
   useEffect(() => setTouch(isTouchDevice()), []);
@@ -468,23 +466,22 @@ export const ArenaGame = ({
     window.location.href = online ? '/play' : '/';
   };
 
-  // Esc twice: ask to pause (online the rival has to agree the same way) and open the menu.
+  // Esc: ask to pause (online the rival has to agree the same way) and open the menu, on the first press.
+  // It used to take two presses within 450 ms, which read as Esc not working.
   // Keys 1-4 pick who you come back as while you're waiting to respawn.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const h = hudRef.current;
       if (!h) return;
       if (e.code === 'Escape') {
+        // A held Esc repeats: it must not open and close the menu over and over.
+        if (e.repeat) return;
         // The pause menu is open: one Esc resumes (Settings, when open, takes Esc first and closes itself).
         if (menuOpenRef.current) {
-          lastEsc.current = 0;
           closeMenuRef.current();
           return;
         }
-        const now = performance.now();
-        const double = now - lastEsc.current < 450;
-        lastEsc.current = double ? 0 : now;
-        if (!double || h.phase === 'over') return;
+        if (h.phase === 'over') return;
         if (!h.paused) gameRef.current?.requestPause();
         setMenuOpen(true);
         return;
@@ -496,7 +493,7 @@ export const ArenaGame = ({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  /** The touch pause button: the same as Esc twice. */
+  /** The touch pause button: the same as Esc. */
   const openMenu = () => {
     const h = hudRef.current;
     if (!h || h.phase === 'over') return;
@@ -695,7 +692,7 @@ export const ArenaGame = ({
               <div className="panel-cut bg-gold/95 px-6 py-2 text-center text-ink-deep">
                 <div className="font-display text-xl">Your rival wants to pause</div>
                 <div className="text-xs font-bold uppercase tracking-widest">
-                  {touch ? 'Tap pause to agree' : 'Press Esc twice to agree'}
+                  {touch ? 'Tap pause to agree' : 'Press Esc to agree'}
                 </div>
               </div>
             </div>
