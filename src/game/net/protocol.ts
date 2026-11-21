@@ -13,7 +13,8 @@ export const SNAPSHOT_EVERY_TICKS = 2; // 30 snapshots a second
  */
 export const PROTOCOL_VERSION = 2;
 
-const BUTTONS = ['left', 'right', 'up', 'down', 'dash', 'fire', 'pickup', 'reload', 'push'] as const;
+// New buttons go on the end: an older peer reads the bits it knows and ignores the rest.
+const BUTTONS = ['left', 'right', 'up', 'down', 'dash', 'fire', 'pickup', 'reload', 'push', 'crouch'] as const;
 
 /** One tick of input, compact: [clientTick, buttons bitmask, aimX, aimY]. */
 export type WireInput = [number, number, number, number];

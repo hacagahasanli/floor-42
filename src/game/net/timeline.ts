@@ -184,7 +184,7 @@ export const createTimeline = () => {
         // A respawn or a teleport: no sliding across the room.
         if (!fb || Math.hypot(fb.x - fa.x, fb.y - fa.y) > 3) return k < 1 ? fa : fb;
         const src = k < 0.5 ? fa : fb;
-        return { ...src, x: lerp(fa.x, fb.x, k), y: lerp(fa.y, fb.y, k), aim: lerpAngle(fa.aim, fb.aim, k) };
+        return { ...src, x: lerp(fa.x, fb.x, k), y: lerp(fa.y, fb.y, k), aim: lerpAngle(fa.aim, fb.aim, k), crouch: lerp(fa.crouch ?? 0, fb.crouch ?? 0, k) };
       });
       const inB = new Map(b.projectiles.map((p) => [p.id, p]));
       const projectiles = a.projectiles.map((p) => {
