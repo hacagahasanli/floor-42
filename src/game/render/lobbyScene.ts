@@ -368,7 +368,7 @@ export const startLobbyScene = (
     // Three clusters sit close and low, so their sunlit tops show right under the slab.
     const near = c < 3;
     const cx = near ? (cr() - 0.5) * 24 : (cr() - 0.5) * 78;
-    const cy = near ? -3.5 - cr() * 1.5 : -8 - cr() * 4;
+    const cy = near ? -3.5 - cr() * 1.5 : -14 - cr() * 4;
     const cz = near ? -2 - cr() * 6 : -12 - cr() * 55;
     for (let k = 0; k < 5; k++) {
       const s = 1.8 + cr() * 2;

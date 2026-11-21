@@ -30,4 +30,4 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
 - Context: fixes + deviations in LOG.md (latest entry). 50 shots incl. 360x740 and 667x375: ~/.agents-know/personal/feedback4/shots/f42-lobby-v2/ (contact-sheet.png). Engineering flags: desktop bottom-left clouds still read dark grey under the left scrim; one far cloud floats above the slab's back edge near the fighter's head and reads like a floating rock; low-tier draw calls now 70-76 of 80.
 - Expected deliverable: accept, or F-xxx items with exact changes.
 - Priority: P0
-- Status: open
+- Status: done (CD 2026-11-21): accepted; show Reis after F-007 (P1, landscape scrim seam). F-008 (P2, cloud tidy: desktop bottom-left mask, far clusters lowered) can follow. Draw-call level 70-76/80 accepted.

@@ -70,3 +70,32 @@ Deviations from LOG "R-002 built": 1 (wider desktop shot), 2 (portrait fighter a
 - Expected result: in the error and join-error shots one flat brown board lies on the grey ring, no "?" visible. The linking flip (backwards, face up, "?" readable) stays as it is.
 - Related spec: lobby-v2.md 3.5, 9.
 - Status: done (Engineering, 2026-11-21; see LOG.md)
+
+---
+
+# Review R-005: lobby v2 after F-001..F-006 (dc3cba1, 2026-11-21)
+
+Verdict: **accepted, good enough to show Reis after F-007** (a 10-minute CSS fix). F-008 is polish and can follow.
+
+Checked at full size: desktop-menu, desktop-quick, desktop-error, portrait-360-menu/quick/invite/error, landscape-667-menu/invite/offline, landscape-menu (844). Read `lobby.css` scrims and the puff placement in `lobbyScene.ts`. Not seen: motion, real phones.
+
+What now works: F-001 the left column is clean over the dark scrim, desk sits behind the fighter as the spec intended. F-003 portrait panels dock to the bottom with the info above; 360x740 fits every state with the primary button and Cancel in thumb reach, no dead band. F-004 landscape name and stats are readable, `● No internet` / `Room open` show inline next to ▲ 42. F-005 cables are clear of the badges. F-006 error shows one plain board, no mirrored "?". The 360 px secondary-button size change and distant floors off on low tier are accepted.
+
+Engineering flags: (1) dark bottom-left clouds on desktop -> F-008.1. (2) far cloud floating near the fighter's head -> F-008.2. (3) low tier 70-76 of 80 draw calls: accepted; rule from lobby-v2.md section 14 stands, nothing new enters the lobby scene without a cut from that list first.
+
+## F-007 — Phone landscape: hard vertical seam at the edge of the bottom-left scrim (P1)
+- What is wrong: in landscape-667-menu/offline/invite and landscape-menu (844) the F-004 scrim ends with a hard vertical edge at 48 % width (x 320 of 667, x 422 of 844). It cuts straight through the floor glow and the lit oak from y ~55 % down to the bottom, so the scene looks split in two. My F-004 spec gave it only a vertical gradient; that was the mistake.
+- Why it matters: it reads as a rendering bug on the first screen a phone player sees in landscape.
+- What should change: in the landscape rule for `.lb-root[data-mode] .lb-scrim-bottom` keep the vertical gradient and height 180 px, set `width: 62%`, and fade it horizontally with `mask-image: linear-gradient(90deg, #000 0, #000 55%, transparent 100%)` (plus `-webkit-mask-image`, same value).
+- Expected result: no straight vertical edge anywhere in the 10 landscape shots at 844x390 and 667x375; the name and stats line still pass 3:1 / 4.5:1 (they end at about 30 % width, inside the solid part).
+- Related spec: lobby-v2.md 5.3, F-004.
+- Status: done (engineering, 2026-11-21)
+
+## F-008 — Clouds: lighten the desktop bottom-left, no cloud above the slab's back edge (P2)
+- What is wrong: (1) on desktop the full-height left scrim darkens the cloud tops in the bottom-left, so that corner still reads as grey rock. (2) One far cluster projects at head height to the right of the fighter (desktop x ~790-1010, y ~360-440; same cloud in portrait and landscape). Alone in the blue sky, sharp and beige, it reads as a floating rock or a paper scrap, and it competes with the fighter's head.
+- What should change:
+  1. `.lb-scrim-left` (desktop only): add `mask-image: linear-gradient(to bottom, #000 0, #000 480px, transparent 680px)` (plus `-webkit-mask-image`). The stat bars end at y ~410, so text contrast does not change; the bottom-left clouds get their warm tops back.
+  2. Far clusters (c >= 3): lower them so the sky above the slab is clean: `cy = -14 - cr() * 4` (was -8 to -12). Rule: over a full drift cycle, no puff top projects above the slab's back edge in the desktop, portrait and landscape cameras; if one still does, lower that cluster further rather than removing it. Near clusters unchanged.
+- Expected result: desktop-menu bottom-left shows warm cloud tops under the slab like the bottom-right; the sky between the fighter's head, the panel and the HUD holds only the gradient (and the standee when it is up).
+- Related spec: lobby-v2.md 3.1, 3.2, F-002.
+- Status: done (engineering, 2026-11-21)
