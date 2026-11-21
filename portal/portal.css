@@ -1,0 +1,60 @@
+/* The portal build's page: the game's theme, self-hosted fonts (no request leaves the bundle), and no text selection or
+   callouts (CrazyGames asks for user-select: none on the body so a long press never opens the magnifier or a menu). */
+@import '../src/app/globals.css';
+@source '../src';
+
+@font-face {
+  font-family: 'Bungee';
+  font-weight: 400;
+  font-display: swap;
+  src: url('./public/fonts/bungee-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-weight: 400;
+  font-display: swap;
+  src: url('./public/fonts/chakra-petch-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-weight: 500;
+  font-display: swap;
+  src: url('./public/fonts/chakra-petch-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-weight: 600;
+  font-display: swap;
+  src: url('./public/fonts/chakra-petch-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-weight: 700;
+  font-display: swap;
+  src: url('./public/fonts/chakra-petch-700.woff2') format('woff2');
+}
+
+:root {
+  --font-bungee: 'Bungee';
+  --font-chakra: 'Chakra Petch';
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+#root {
+  min-height: 100%;
+}
+
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}

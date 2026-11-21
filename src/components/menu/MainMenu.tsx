@@ -12,6 +12,7 @@ import { deviceFacts, renderProfile } from '~/game/render/quality';
 import { ROSTER } from '~/game/roster';
 import { getSettings, primaryLabel } from '~/game/settings';
 import { CHARACTERS } from '~/game/sim/constants';
+import { asset, PORTAL } from '~/lib/portal';
 import { GAME_VERSION, STUDIO_NAME } from '~/lib/studio';
 
 import { AudiencePrompt, useAskAudience } from './AudiencePrompt';
@@ -83,7 +84,7 @@ const Logo = ({ small }: { small?: boolean }) => {
       {/* The brand wordmark (public/brand/logo.svg): a fixed-ratio vector, so a plain <img> is right here. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/brand/logo.svg"
+        src={asset('brand/logo.svg')}
         alt="Floor 42"
         width={1078}
         height={270}
@@ -379,7 +380,7 @@ const Credits = () => (
   <div className="flex flex-col gap-5 text-sm text-cream/80">
     <div className="flex items-center gap-4">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/nalbaki-mark.svg" alt="" width={64} height={64} className="h-16 w-16" />
+      <img src={asset('nalbaki-mark.svg')} alt="" width={64} height={64} className="h-16 w-16" />
       <div className="flex flex-col">
         <span className="font-display text-2xl text-cream">{STUDIO_NAME}</span>
         <span className="text-cream/60">Floor 42 · version {GAME_VERSION}</span>
@@ -507,7 +508,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       primary: true,
       onSelect: () => setScreen('select'),
     },
-    { label: 'PLAY ONLINE', sub: 'Send a link, settle it 1 v 1', href: '/play' },
+    { label: 'PLAY ONLINE', sub: PORTAL ? 'Quick match, 1 v 1' : 'Send a link, settle it 1 v 1', href: '/play' },
     {
       label: 'FIGHTER',
       sub: 'Hotfix, Legacy, Standup or Intern',

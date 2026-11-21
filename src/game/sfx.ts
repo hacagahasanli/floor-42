@@ -9,6 +9,8 @@
  * - every other repeatable sound asks the budget gate (audioBudget.ts, docs/SOUND.md); a limiter sits after the master.
  * No ambience bed: a noise loop read as old-TV static, so the room stays quiet between fights.
  */
+import { asset } from '~/lib/portal';
+
 import { BUDGET, createGate } from './audioBudget';
 
 import type { SoundName } from './audioBudget';
@@ -69,7 +71,7 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
   const samples = new Map<string, AudioBuffer>();
   const loadSamples = (c: AudioContext) => {
     for (const n of ['pistol', 'smg', 'shotgun', 'sniper', 'pump', 'bolt', 'reload']) {
-      fetch(`/assets/sounds/${n}.m4a`)
+      fetch(asset(`assets/sounds/${n}.m4a`))
         .then((r) => r.arrayBuffer())
         .then((b) => c.decodeAudioData(b))
         .then((buf) => samples.set(n, buf))

@@ -24,6 +24,8 @@ import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
 import { keyLabel } from '~/game/settings';
+import { navigate, PORTAL } from '~/lib/portal';
+import { getPlatform } from '~/platform';
 
 import type { Copy } from '~/game/copy';
 import type { AimMode } from '~/game/input';
@@ -498,7 +500,7 @@ export const ArenaGame = ({
 
   const exit = () => {
     if (online) void online.room.leave();
-    window.location.href = online ? '/play' : '/';
+    navigate(online ? '/play' : '/');
   };
 
   // Esc: ask to pause (online the rival has to agree the same way) and open the menu, on the first press.
@@ -586,6 +588,14 @@ export const ArenaGame = ({
     if (wasPaused.current && hud && !hud.paused) setMenuOpen(false);
     wasPaused.current = !!hud?.paused;
   }, [hud?.paused]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The portal wants to know when a player is really playing (not in a countdown, a pause menu, the results or a demo).
+  const playing = !demo && hud?.phase === 'fight' && !hud.paused && !menuOpen;
+  useEffect(() => {
+    if (playing) getPlatform().gameplayStart();
+    else getPlatform().gameplayStop();
+  }, [playing]);
+  useEffect(() => () => getPlatform().gameplayStop(), []);
 
   const toggleAim = () => gameRef.current?.setAimMode(hud?.aimMode === 'mouse' ? 'auto' : 'mouse');
   const showKo = hud?.lastKo && hud.phase === 'fight' && hud.fighters[hud.lastKo.fighter]?.out;
@@ -842,19 +852,21 @@ export const ArenaGame = ({
                   <>
                     <div className="font-display text-3xl text-gold">Your rival left</div>
                     <p className="text-sm text-cream/70">
-                      Waiting for them to come back with the same link
+                      Waiting for them to come back{PORTAL ? '' : ' with the same link'}
                       {waitRound >= MAX_WAITS ? ' (last wait)' : ''}:{' '}
                       <span className="font-display text-cream">
                         {Math.floor(waitLeft / 60)}:{String(waitLeft % 60).padStart(2, '0')}
                       </span>
                     </p>
-                    <button
-                      type="button"
-                      onClick={copyInvite}
-                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
-                    >
-                      {linkCopied ? 'Link copied' : 'Copy the link again'}
-                    </button>
+                    {!PORTAL && (
+                      <button
+                        type="button"
+                        onClick={copyInvite}
+                        className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                      >
+                        {linkCopied ? 'Link copied' : 'Copy the link again'}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={exit}

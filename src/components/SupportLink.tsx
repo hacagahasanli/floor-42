@@ -11,7 +11,8 @@ type Variant = 'menu' | 'pause' | 'results';
 
 const VARIANT_WHERE: Record<Variant, string> = { menu: 'menu', results: 'results', pause: 'pause' };
 
-export const Support = ({ variant, className = '' }: { variant: Variant; className?: string }) => (
+export const Support = ({ variant, className = '' }: { variant: Variant; className?: string }) =>
+  process.env.NEXT_PUBLIC_PORTAL === '1' ? null : (
   <a
     href={SUPPORT_URL}
     target="_blank"

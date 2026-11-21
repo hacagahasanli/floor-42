@@ -111,7 +111,8 @@ export const QuickPanel = ({
 }: {
   elapsed: number;
   botHref: string;
-  onInvite: () => void;
+  /** Left out on a portal, where a link to our own page cannot be shared. */
+  onInvite?: () => void;
   onCancel: () => void;
 }) => (
   <Panel title="Looking for a rival">
@@ -121,10 +122,12 @@ export const QuickPanel = ({
     </span>
     {isQuiet(elapsed) && (
       <>
-        <p>Quiet right now. Invite a friend or play the bot while you wait.</p>
-        <PanelButton level="secondary" onClick={onInvite}>
-          Invite a friend
-        </PanelButton>
+        <p>{onInvite ? 'Quiet right now. Invite a friend or play the bot while you wait.' : 'Quiet right now. Play the bot while you wait.'}</p>
+        {onInvite && (
+          <PanelButton level="secondary" onClick={onInvite}>
+            Invite a friend
+          </PanelButton>
+        )}
         <div className="lb-panel-foot">
           <TextButton href={botHref}>Play the bot</TextButton>
         </div>

@@ -38,6 +38,7 @@ import { useCopyVariant } from '~/components/menu/useCopy';
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useMenuTelemetry } from '~/components/useTelemetry';
 import { createOnlineSession, joinRoom } from '~/game/net/client';
+import { PORTAL } from '~/lib/portal';
 import { createHostSession } from '~/game/net/host';
 import { connectPeer } from '~/game/net/peer';
 import { ROSTER } from '~/game/roster';
@@ -492,6 +493,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
           {view_stage.kind === 'menu' && (
             <>
               <AimControl />
+              {!PORTAL && (
               <ActionButton
                 level="primary"
                 icon={<IconInvite size={28} />}
@@ -502,6 +504,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
                 describedBy="lb-offline-reason"
                 delay={0.05}
               />
+              )}
               {view.offline && (
                 <p id="lb-offline-reason" className="lb-reason">
                   You&apos;re offline. The bot is still here.
@@ -509,7 +512,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
               )}
               <div className="lb-pair" data-hidden={codeOpen}>
                 <ActionButton
-                  level="secondary"
+                  level={PORTAL ? 'primary' : 'secondary'}
                   icon={<IconQuick />}
                   title="Quick match"
                   sub="Fight whoever is waiting"
@@ -527,12 +530,16 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
                   delay={0.15}
                 />
               </div>
+              {!PORTAL && (
+                <>
               {/* For the installed app (no address bar) or a code read out loud: paste the link here. */}
               <CodeRow
                 onJoin={(id) => void go({ kind: 'join', roomId: id })}
                 onOpenChange={setCodeOpen}
               />
-              <InstallHint />
+                </>
+              )}
+              {!PORTAL && <InstallHint />}
             </>
           )}
 
@@ -556,10 +563,14 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
             <QuickPanel
               elapsed={elapsed}
               botHref={botHref}
-              onInvite={() => {
-                cancel();
-                void go({ kind: 'private' });
-              }}
+              onInvite={
+                PORTAL
+                  ? undefined
+                  : () => {
+                      cancel();
+                      void go({ kind: 'private' });
+                    }
+              }
               onCancel={cancel}
             />
           )}
