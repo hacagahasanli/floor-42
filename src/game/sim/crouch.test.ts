@@ -4,7 +4,7 @@ import { createAuthority } from '../net/authority';
 import { decodeInput, decodeSnapshot, encodeInput, encodeSnapshot, mergePresses } from '../net/protocol';
 import { BALANCED_GUNS, CROUCHED_HALF_HEIGHT, ttk } from './balance';
 import { createBot } from './bot';
-import { CHARACTERS, CROUCH, DT, GUNS, PUSH, RULES } from './constants';
+import { ARENA, baseOf, CHARACTERS, CROUCH, DT, GUNS, isSolid, PUSH, RULES } from './constants';
 import { bodyHeight, createGame, muzzle, newWeapon, step } from './step';
 import { EMPTY_INPUT } from './types';
 
@@ -186,7 +186,21 @@ describe('crouch: balance (nobody is untouchable)', () => {
     }
   });
 
-  const knockOutCrouched = (gun: GunKind, distance: number) => {
+  /**
+   * Range and the crouch only, not cover: these duels run across the floor lane with the desks, the meeting table
+   * and the counter taken out (they would hide the crouched fighter; cover.test.ts covers that).
+   */
+  const onOpenFloor = <T>(fn: () => T): T => {
+    const all = [...ARENA.platforms];
+    ARENA.platforms.splice(0, all.length, ...all.filter((p) => !(isSolid(p) && baseOf(p) === ARENA.floor)));
+    try {
+      return fn();
+    } finally {
+      ARENA.platforms.splice(0, ARENA.platforms.length, ...all);
+    }
+  };
+
+  const knockOutCrouched = (gun: GunKind, distance: number) => onOpenFloor(() => {
     const s = fighting(['hotfix', 'intern']);
     const x0 = gun === 'shotgun' ? 4 : -5.5;
     place(s, 0, x0);
@@ -201,7 +215,7 @@ describe('crouch: balance (nobody is untouchable)', () => {
       run(s, 1, { fire: true, aimX: t.x, aimY: t.y + bodyHeight(t) * 0.55 }, { down: true, crouch: true });
     }
     return false;
-  };
+  });
 
   for (const gun of BALANCED_GUNS) {
     it(`the ${GUNS[gun].name} knocks out a crouched fighter it aims at`, () => {
@@ -360,8 +374,9 @@ describe('crouch: bots', () => {
 
   it('the bot aims at the crouched body, not over it', () => {
     const s = fighting();
-    place(s, 0, -5.5);
-    place(s, 1, 7);
+    // The open floor between the meeting table and the counter: nothing in between.
+    place(s, 0, 3.6);
+    place(s, 1, 8.4);
     run(s, 10, {}, { down: true });
     const bot = createBot(0, 1, 'hard');
     const out = bot(s);

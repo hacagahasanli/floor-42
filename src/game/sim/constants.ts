@@ -33,7 +33,7 @@ export interface Platform {
  */
 export const SOLID_STYLES: readonly PlatformStyle[] = ['desk', 'table', 'counter', 'crate', 'metal', 'rack'];
 export const isSolid = (p: Platform) => SOLID_STYLES.includes(p.style);
-/** Closed boxes are cover: a shot into their side stops. Desks and the table are open underneath. */
+/** Closed boxes (crates, metal boxes, the rack). Every solid box, desks included, stops shots into its side. */
 export const CLOSED_STYLES: readonly PlatformStyle[] = ['crate', 'metal', 'rack'];
 export const isClosed = (p: Platform) => CLOSED_STYLES.includes(p.style);
 /** Where a solid box stands. */

@@ -675,6 +675,82 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   f.prev = { ...input };
 };
 
+/**
+ * Where furniture stops a shot moving (ddx, ddy) from (px, py) this tick, as a fraction of the step (Infinity: it
+ * flies on). Every solid box (desks, the table, the counter, crates, metal boxes, the server rack) is cover from the
+ * floor (or its base) to its top: a shot into its side stops, however flat, so a fighter crouched behind a desk is
+ * hidden and one standing behind it shows only what rises above the top. A shot skimming along a top at chest
+ * height grazes past; only steep shots coming down onto a top stop there. Walkways and shelves stop any shot
+ * crossing them, however flat, so whoever stands on one is covered from below. Rails pierce bodies, one-way
+ * floors and the closed boxes, but stop at desks, the table and the counter.
+ */
+const furnitureCut = (px: number, py: number, ddx: number, ddy: number, kind: Projectile['kind']) => {
+  let tEnd = Infinity;
+  const cut = (t: number) => {
+    if (t >= 0 && t < tEnd) tEnd = t;
+  };
+  const ex = px + ddx;
+  const ey = py + ddy;
+  if (kind !== 'rail' && ddy !== 0) {
+    const steep = Math.abs(ddy) > Math.abs(ddx) * 0.15;
+    for (const pl of ARENA.platforms) {
+      if ((py - pl.y) * (ey - pl.y) > 0 || (!steep && isSolid(pl))) continue;
+      const t = (pl.y - py) / ddy;
+      const cx = px + ddx * t;
+      if (cx >= pl.x0 && cx <= pl.x1) cut(t);
+    }
+  }
+  for (const pl of ARENA.platforms) {
+    // Rails still go through the closed boxes up on the walkways and balconies (they are leg cover against guns).
+    if (!isSolid(pl) || (kind === 'rail' && isClosed(pl))) continue;
+    const base = baseOf(pl);
+    if (px > pl.x0 && px < pl.x1 && py > base && py < pl.y) {
+      cut(0);
+      continue;
+    }
+    if (ddx === 0) continue;
+    for (const sx of [pl.x0, pl.x1]) {
+      if ((px - sx) * (ex - sx) > 0) continue;
+      const t = (sx - px) / ddx;
+      const cy = py + ddy * t;
+      if (cy >= base && cy <= pl.y) cut(t);
+    }
+  }
+  return tEnd;
+};
+
+/** True when a round fired from (ax, ay) would reach (bx, by) without furniture stopping it. */
+export const clearShot = (ax: number, ay: number, bx: number, by: number, kind: Projectile['kind'] = 'bullet') =>
+  furnitureCut(ax, ay, bx - ax, by - ay, kind) > 1;
+
+/** Where a fighter's shots come from when aiming at (tx, ty): the muzzle for that aim. */
+const muzzleToward = (f: Fighter, tx: number, ty: number) => {
+  const cy = f.y + bodyHeight(f) * 0.62;
+  const a = Math.atan2(ty - cy, tx - f.x);
+  return { x: f.x + Math.cos(a) * 0.7, y: cy + Math.sin(a) * 0.7 };
+};
+
+/** Heights on the rival's body to try, as fractions of it: the chest first, then up to the head, then down. */
+const AIM_SPOTS = [0.55, 0.7, 0.85, 0.95, 0.4, 0.25, 0.1];
+
+/**
+ * The point on the rival's body that fighter `id`'s gun can hit from here, for auto-aim and the bot: the chest
+ * when nothing is in the way, the head over a desk, or null when furniture hides them completely.
+ */
+export const visibleAim = (state: GameState, id: number): { x: number; y: number } | null => {
+  const me = state.fighters[id];
+  const foe = state.fighters.find((f) => f.id !== id)!;
+  const kind = GUNS[me.weapon.kind].projectile;
+  const h = bodyHeight(foe);
+  for (const k of AIM_SPOTS) {
+    const tx = foe.x;
+    const ty = foe.y + h * k;
+    const m = muzzleToward(me, tx, ty);
+    if (clearShot(m.x, m.y, tx, ty, kind)) return { x: tx, y: ty };
+  }
+  return null;
+};
+
 const updateProjectiles = (state: GameState) => {
   state.projectiles = state.projectiles.filter((p) => {
     p.life -= DT;
@@ -693,8 +769,8 @@ const updateProjectiles = (state: GameState) => {
 
     if (p.life <= 0) return isExplosive(p.kind) ? done() : false;
 
-    // Find where this tick's path is cut short: the room's walls, or furniture
-    // (cover; rails go straight through it). Only fighters before that point get hit.
+    // Find where this tick's path is cut short: the room's walls, or furniture (cover).
+    // Only fighters before that point get hit.
     let tEnd = 1;
     let blocked = false;
     const cut = (t: number) => {
@@ -709,37 +785,7 @@ const updateProjectiles = (state: GameState) => {
     if (p.x > ARENA.right) cut((ARENA.right - px) / ddx);
     if (p.y < ARENA.floor) cut((ARENA.floor - py) / ddy);
     if (p.y > ARENA.ceiling) cut((ARENA.ceiling - py) / ddy);
-    // A shot skimming along a desk top at chest height grazes past; only shots coming
-    // down onto or up into furniture are stopped. Walkways and shelves always stop a shot
-    // crossing them, however flat, so whoever stands on one is covered from below.
-    if (p.kind !== 'rail' && ddy !== 0) {
-      const steep = Math.abs(ddy) > Math.abs(ddx) * 0.15;
-      for (const pl of ARENA.platforms) {
-        if ((py - pl.y) * (p.y - pl.y) > 0 || (!steep && isSolid(pl))) continue;
-        const t = (pl.y - py) / ddy;
-        const cx = px + ddx * t;
-        if (cx >= pl.x0 && cx <= pl.x1) cut(t);
-      }
-    }
-    // Closed boxes (crates, metal boxes, the server rack) are cover: a shot into their side stops,
-    // however flat. Desks and the table stay open underneath, so flat shots pass under them.
-    if (p.kind !== 'rail') {
-      for (const pl of ARENA.platforms) {
-        if (!isClosed(pl)) continue;
-        const base = baseOf(pl);
-        if (px > pl.x0 && px < pl.x1 && py > base && py < pl.y) {
-          cut(0);
-          continue;
-        }
-        if (ddx === 0) continue;
-        for (const sx of [pl.x0, pl.x1]) {
-          if ((px - sx) * (p.x - sx) > 0) continue;
-          const t = (sx - px) / ddx;
-          const cy = py + ddy * t;
-          if (cy >= base && cy <= pl.y) cut(t);
-        }
-      }
-    }
+    cut(furnitureCut(px, py, ddx, ddy, p.kind));
     // A stopped shot ends just short of what stopped it: a body standing on a walkway starts
     // exactly at its top, and a shot that stops under the walkway must not touch their feet.
     const tHit = blocked ? Math.max(0, tEnd - 0.01 / (Math.hypot(ddx, ddy) || 1)) : tEnd;
