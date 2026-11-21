@@ -87,3 +87,24 @@ Spawn weights are unchanged: lower floors SMG : shotgun : Uzi = 3 : 3 : 2, top f
 - Rail and rockets: one shot at 3, 10 and 20 m; at most 6 shots; at least 1 s between shots; slower running; the
   rocket takes over 1 s to cross 20 m; the rail is the slowest gun to fire again.
 - Across the small guns, the fastest at 3, 10 and 20 m is the Uzi, the SMG and the pistol, in that order.
+
+## Crouching
+
+A crouched fighter is 52 % of their height (`CROUCH`, `constants.ts`). A shot fired at a standing chest or head
+flies over it, but auto-aim and the bot aim at the crouched chest, so crouching dodges shots already in the air,
+not the next ones. In the TTK model a crouched target only shrinks the vertical window (`CROUCHED_HALF_HEIGHT`):
+
+| Gun | TTK 3 m standing / crouched | TTK 10 m standing / crouched | TTK 20 m standing / crouched |
+|---|---|---|---|
+| Pistol | 0.86 / 0.86 | 1.09 / 1.09 | 2.19 / 2.19 |
+| SMG | 0.51 / 0.51 | 0.73 / 1.29 | 2.31 / 5.38 |
+| Uzi | 0.45 / 0.45 | 1.88 / 4.53 | 5.02 / ∞ (out of ammo) |
+| Shotgun | 0.91 / 0.91 | ∞ / ∞ | ∞ / ∞ |
+| Sniper rail | 0.02 / 0.02 | 0.06 / 0.06 | 0.13 / 0.13 |
+| Rockets | 0.21 / 0.21 | 0.71 / 0.71 | 1.43 / 1.43 |
+
+Up close crouching changes nothing. The pistol, the rail and rockets ignore it at any range. Only the sprayers lose
+shots on the smaller body across a room, which is already outside their role. Splash still finds a crouched
+fighter (a rocket into the floor, a bomb), and shotgun pellets aimed at a standing chest still catch one up close.
+`src/game/sim/crouch.test.ts` checks all of this in the real sim, including every gun knocking out a crouched
+fighter it aims at.

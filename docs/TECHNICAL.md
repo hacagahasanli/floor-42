@@ -193,6 +193,15 @@ Landing rule (`step.ts:437-457`): only when moving down or still (`vy <= 0`), an
 
 Drop-through: pressing Down while standing on a one-way platform (not on solid furniture) sets `dropTime = 0.25 s` (`PHYS.dropTime`). While it is above zero, platform landing is skipped. The floor itself cannot be dropped through (`step.ts:363`).
 
+### Crouch
+
+Holding crouch on the ground eases `f.crouch` from 0 to 1 in 0.1 s (`CROUCH.time`, 6 ticks) and back up as fast. The hitbox height is `bodyHeight(f)` (`step.ts`): the character's height, down to 52 % (`CROUCH.height`) when fully crouched. Bullets, pellets, rails, explosions and Force Push all test against it, and the muzzle and the aim origin sit at 62 % of it. Walking is 70 % of the run speed (`CROUCH.speed`). Collision with furniture keeps the full standing height, so crouching opens no new spaces.
+
+- Keys: Down crouches where it cannot drop you (the floor, desks, the table, the counter, boxes); on a one-way platform Down still drops you through. The separate Crouch action (C by default, input bit 9) crouches anywhere on the ground, walkways included, and never drops you. Phones: the stick pushed down acts as Down, and a Crouch toggle sits beside Swap.
+- In the air crouch does nothing: Down stays the fast fall. A jump, a dash (while it lasts), a stun or walking off an edge stands you up; Force Push works crouched.
+- Why 52 %: shots leave a standing chest at 62 % and auto-aim and the bot aim at 55 %, so a shot fired at a standing chest or head flies over a crouched body. Auto-aim and the bot aim at the crouched chest, so crouching dodges shots already in the air, not the next ones (balance: docs/BALANCE.md).
+- The bot ducks a bullet or pellet that would pass over its whole crouched body, with a chance per level (easy 0.15, normal 0.3, hard 0.45), for 0.3 s.
+
 ### Glass walls and wall-kick
 
 Left and right walls clamp `x` (`step.ts:409-430`). If you are airborne and touching a wall, `f.wall` is set to -1 or 1 (`step.ts:458`). Pressing Up in that state kicks you away from the wall: `vx = -wall * 12.5`, `vy = jump * 0.95`, and your air jumps and air dash refill (`step.ts:350-355`). Holding toward the wall slows the fall to `wallSlide = 4`.
@@ -423,7 +432,8 @@ A development-only handle `window.__mc` exposes the state for automated checks (
 |---|---|
 | Move | A / D or Left / Right |
 | Jump, double jump, wall-kick | W or Up |
-| Drop through a walkway, fast fall | S or Down |
+| Crouch (floor, desks, boxes); drop through a walkway; fast fall | S or Down |
+| Crouch anywhere on the ground, walkways too | C |
 | Dash | Shift |
 | Fire (hold) | Space (also left click in mouse mode) |
 | Force Push | Q |
@@ -546,7 +556,7 @@ The server runs the same `step` as the browser (`DuelRoom.ts:5`, `:125`) at 60 H
 
 ### Wire format (`protocol.ts`)
 
-- `WireInput = [clientTick, buttonBitmask, aimX, aimY]` (`protocol.ts:13`). Buttons map to bits in this order: left 0, right 1, up 2, down 3, dash 4, fire 5, pickup 6, reload 7, push 8 (`protocol.ts:10`). Aim is rounded to 2 decimals.
+- `WireInput = [clientTick, buttonBitmask, aimX, aimY]` (`protocol.ts:13`). Buttons map to bits in this order: left 0, right 1, up 2, down 3, dash 4, fire 5, pickup 6, reload 7, push 8, crouch 9 (`protocol.ts:10`). New buttons go on the end, so an older peer reads the bits it knows. Aim is rounded to 2 decimals.
 - `Snapshot = { ack: [number, number], inputs: [WireInput, WireInput], state }`. `ack[slot]` is the last client tick the server applied for that player. `inputs[slot]` is the input the server is currently using for that player.
 - `SNAPSHOT_EVERY_TICKS = 2` (`protocol.ts:8`): a snapshot every second tick, 30 per second. Measured: about 139 snapshots in 4.5 s, consistent with that.
 - Snapshots travel as a JSON string. JSON cannot hold `Infinity`, which appears in the state (the pistol's `reserve`, empty drop slots' `respawn`), so `encodeSnapshot` swaps it for the marker string `"__inf"` (and `-Infinity` for `"-__inf"`) and `decodeSnapshot` swaps it back (`protocol.ts:56-61`). A test round-trips a full state including `Infinity`.
