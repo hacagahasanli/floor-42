@@ -1,0 +1,206 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1880" height="980" viewBox="0 0 1880 980" font-family="Chakra Petch, sans-serif">
+  <title>Floor 42 lobby v2 wireframe: desktop, phone portrait, phone landscape</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2550"/>
+      <stop offset="0.55" stop-color="#6a4f72"/>
+      <stop offset="0.8" stop-color="#f2a65a"/>
+      <stop offset="1" stop-color="#f2a65a"/>
+    </linearGradient>
+    <linearGradient id="scrimB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a0d18" stop-opacity="0"/>
+      <stop offset="0.25" stop-color="#0a0d18" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#0a0d18"/>
+    </linearGradient>
+    <g id="slab">
+      <polygon points="0,40 300,0 420,30 120,78" fill="#c98f5a"/>
+      <polygon points="0,40 120,78 120,104 96,112 70,96 30,92 0,70" fill="#7a8296"/>
+      <polygon points="120,78 420,30 420,52 380,64 300,72 200,96 120,104" fill="#5e6578"/>
+      <rect x="40" y="-62" width="110" height="90" fill="#9fd0ff" fill-opacity="0.35" stroke="#d7dce6" stroke-width="2"/>
+      <rect x="60" y="2" width="70" height="18" fill="#eef1f6"/>
+      <rect x="318" y="0" width="36" height="34" fill="#b07c4c" stroke="#6b4a2c"/>
+      <path d="M70 100 q8 40 -6 70 M96 108 q10 30 2 58" stroke="#ffc93c" stroke-width="2" fill="none"/>
+    </g>
+    <g id="cloud">
+      <ellipse cx="0" cy="0" rx="70" ry="16" fill="#ffe2bf"/>
+      <ellipse cx="-30" cy="-8" rx="30" ry="16" fill="#ffe2bf"/>
+      <ellipse cx="20" cy="-12" rx="34" ry="18" fill="#ffe2bf"/>
+      <ellipse cx="0" cy="10" rx="66" ry="8" fill="#8d96b8"/>
+    </g>
+    <g id="fighter">
+      <rect x="-12" y="-96" width="24" height="24" fill="#ff6a3d"/>
+      <rect x="-16" y="-72" width="32" height="40" fill="#ff6a3d"/>
+      <rect x="-12" y="-32" width="10" height="32" fill="#1b1f2e"/>
+      <rect x="2" y="-32" width="10" height="32" fill="#1b1f2e"/>
+      <ellipse cx="0" cy="2" rx="34" ry="7" fill="#ff6a3d" fill-opacity="0.35"/>
+    </g>
+    <g id="standee">
+      <rect x="-14" y="-64" width="28" height="64" fill="#b98a5a" stroke="#6b4a2c"/>
+      <text x="0" y="-22" text-anchor="middle" font-size="30" font-weight="700" fill="#1b1f2e">?</text>
+      <ellipse cx="0" cy="2" rx="30" ry="6" fill="none" stroke="#ffd23f" stroke-width="3"/>
+    </g>
+    <style>
+      .lbl{fill:#e6ebf5;font-size:13px}
+      .dim{fill:#e6ebf5;fill-opacity:.6;font-size:11px}
+      .disp{font-family:Bungee, sans-serif}
+      .note{fill:#ff3b4e;font-size:12px}
+      .frame{fill:none;stroke:#e6ebf5;stroke-opacity:.3}
+    </style>
+  </defs>
+  <rect width="1880" height="980" fill="#0a0d18"/>
+
+  <!-- ============ DESKTOP 1440x900 at 0.75 => 1080x675 ============ -->
+  <text x="20" y="28" class="lbl" font-weight="700">Desktop 1440x900 (shown at 75 %)</text>
+  <g transform="translate(20,40)">
+    <rect width="1080" height="675" fill="url(#sky)"/>
+    <rect width="1080" height="90" fill="#0a0d18" fill-opacity="0.6"/>
+    <rect width="320" height="675" fill="#0a0d18" fill-opacity="0.45"/>
+    <use href="#cloud" x="200" y="560"/><use href="#cloud" x="520" y="600"/><use href="#cloud" x="860" y="570"/><use href="#cloud" x="680" y="520"/>
+    <g transform="translate(130,470) scale(0.25)" opacity="0.5"><use href="#slab"/></g>
+    <g transform="translate(900,420) scale(0.2)" opacity="0.45"><use href="#slab"/></g>
+    <g transform="translate(300,400) scale(1.25)"><use href="#slab"/></g>
+    <use href="#fighter" x="475" y="472" transform="scale(1)"/>
+    <use href="#standee" x="640" y="440"/>
+    <text x="640" y="465" text-anchor="middle" class="note">rival spot (ring + standee)</text>
+    <circle cx="345" cy="330" r="26" fill="#ffd9a0" fill-opacity="0.25"/>
+
+    <!-- HUD -->
+    <text x="30" y="30" class="disp" font-size="18" fill="#ff6a3d">HOTFIX</text>
+    <polygon points="30,38 255,38 247,48 30,48" fill="#ff6a3d"/>
+    <text x="30" y="64" class="dim">You · ready</text>
+    <rect x="500" y="14" width="80" height="34" fill="#0a0d18" stroke="#e6ebf5" stroke-opacity=".15"/>
+    <text x="540" y="40" text-anchor="middle" class="disp" font-size="22" fill="#ffd23f">▲42</text>
+    <circle cx="494" cy="64" r="3" fill="#3ddc84"/>
+    <text x="540" y="68" text-anchor="middle" class="dim">1v1 · first to 5</text>
+    <text x="1050" y="30" text-anchor="end" class="disp" font-size="18" fill="#e6ebf5" fill-opacity=".35">RIVAL</text>
+    <polygon points="833,38 1050,38 1050,48 825,48" fill="none" stroke="#e6ebf5" stroke-opacity=".3" stroke-dasharray="4 3"/>
+    <text x="1050" y="64" text-anchor="end" class="dim">Not here yet</text>
+
+    <!-- Left column -->
+    <text x="30" y="118" class="dim" font-size="12">High flyer</text>
+    <text x="30" y="166" class="disp" font-size="50" fill="#ff6a3d">HOTFIX</text>
+    <text x="30" y="192" class="lbl" font-size="12">Tall and quick with the highest jumps.</text>
+    <text x="30" y="208" class="lbl" font-size="12">Never takes the headset off.</text>
+    <g font-size="11">
+      <text x="30" y="246" class="dim">Speed</text><text x="250" y="246" text-anchor="end" class="lbl" font-size="11">9.4 m/s</text>
+      <rect x="30" y="252" width="220" height="5" fill="#e6ebf5" fill-opacity=".1"/><rect x="30" y="252" width="188" height="5" fill="#3ec5ff"/>
+      <text x="30" y="278" class="dim">Jump</text><text x="250" y="278" text-anchor="end" class="lbl" font-size="11">2× jump</text>
+      <rect x="30" y="284" width="220" height="5" fill="#e6ebf5" fill-opacity=".1"/><rect x="30" y="284" width="196" height="5" fill="#3ddc84"/>
+      <text x="30" y="310" class="dim">Weight</text><text x="250" y="310" text-anchor="end" class="lbl" font-size="11">average</text>
+      <rect x="30" y="316" width="220" height="5" fill="#e6ebf5" fill-opacity=".1"/><rect x="30" y="316" width="145" height="5" fill="#ffd23f"/>
+    </g>
+
+    <!-- Right column -->
+    <g transform="translate(765,100)">
+      <rect width="285" height="36" fill="#141a2c"/><rect width="142" height="36" fill="#ffd23f"/>
+      <text x="71" y="23" text-anchor="middle" font-size="13" font-weight="700" fill="#0a0d18">Auto-aim</text>
+      <text x="213" y="23" text-anchor="middle" class="lbl">Mouse</text>
+      <text x="0" y="52" class="dim">Space shoots your rival when you can see them. T switches in a match.</text>
+      <polygon points="0,66 275,66 285,76 285,120 10,120 0,110" fill="#ffd23f"/>
+      <text x="56" y="92" class="disp" font-size="16" fill="#0a0d18">INVITE A FRIEND</text>
+      <text x="56" y="108" font-size="11" fill="#0a0d18" fill-opacity=".75">Get a link and a code to send</text>
+      <rect x="14" y="78" width="30" height="30" fill="#0a0d18" fill-opacity=".15"/>
+      <text x="268" y="98" text-anchor="end" class="disp" font-size="16" fill="#0a0d18">→</text>
+      <rect x="0" y="128" width="138" height="48" fill="#141a2c" stroke="#e6ebf5" stroke-opacity=".12"/>
+      <text x="12" y="150" class="disp" font-size="12" fill="#e6ebf5">QUICK MATCH</text>
+      <text x="12" y="166" class="dim">Fight whoever is waiting</text>
+      <rect x="147" y="128" width="138" height="48" fill="#141a2c" stroke="#e6ebf5" stroke-opacity=".12"/>
+      <text x="159" y="150" class="disp" font-size="12" fill="#e6ebf5">PLAY VS BOT</text>
+      <text x="159" y="166" class="dim">Start right now</text>
+      <rect x="0" y="184" width="285" height="36" fill="#141a2c" stroke="#e6ebf5" stroke-opacity=".12"/>
+      <text x="12" y="207" class="dim">Room code or invite link</text>
+      <rect x="230" y="188" width="50" height="28" fill="#e6ebf5" fill-opacity=".1"/><text x="255" y="207" text-anchor="middle" class="lbl">Join</text>
+    </g>
+
+    <!-- Badges -->
+    <g transform="translate(375,560)">
+      <g><rect x="0" y="-6" width="78" height="96" rx="5" fill="#141a2c" stroke="#ff6a3d" stroke-width="2" transform="rotate(-2 39 40)"/><rect x="0" y="-6" width="78" height="7" fill="#ff6a3d" transform="rotate(-2 39 40)"/><text x="8" y="80" class="disp" font-size="10" fill="#ff6a3d">HOTFIX</text></g>
+      <g transform="translate(86,0)"><rect y="0" width="78" height="96" rx="5" fill="#141a2c"/><rect width="78" height="5" fill="#3ddc84"/><text x="8" y="86" class="disp" font-size="10" fill="#3ddc84">LEGACY</text></g>
+      <g transform="translate(172,0)"><rect y="0" width="78" height="96" rx="5" fill="#141a2c"/><rect width="78" height="5" fill="#3ec5ff"/><text x="8" y="86" class="disp" font-size="10" fill="#3ec5ff">STANDUP</text></g>
+      <g transform="translate(258,0)"><rect y="0" width="78" height="96" rx="5" fill="#141a2c"/><rect width="78" height="5" fill="#ffd23f"/><text x="8" y="86" class="disp" font-size="10" fill="#ffd23f">INTERN</text></g>
+      <text x="168" y="112" text-anchor="middle" class="note">staff ID badges, keys 1-4; selected = lifted, tilted, accent border</text>
+    </g>
+  </g>
+
+  <!-- ============ PHONE PORTRAIT 390x844 at 0.95 ============ -->
+  <text x="1130" y="28" class="lbl" font-weight="700">Phone portrait 390x844</text>
+  <g transform="translate(1130,40) scale(0.95)">
+    <rect width="390" height="844" fill="url(#sky)"/>
+    <use href="#cloud" x="90" y="360"/><use href="#cloud" x="300" y="380"/>
+    <g transform="translate(70,300) scale(0.6)"><use href="#slab"/></g>
+    <use href="#fighter" x="190" y="330"/>
+    <g transform="translate(270,318) scale(0.7)"><use href="#standee"/></g>
+    <rect y="0" width="390" height="70" fill="#0a0d18" fill-opacity=".6"/>
+    <text x="16" y="24" class="disp" font-size="14" fill="#ff6a3d">HOTFIX</text>
+    <polygon points="16,30 120,30 115,37 16,37" fill="#ff6a3d"/>
+    <rect x="158" y="8" width="74" height="28" fill="#0a0d18" stroke="#e6ebf5" stroke-opacity=".15"/>
+    <text x="195" y="29" text-anchor="middle" class="disp" font-size="17" fill="#ffd23f">▲42</text>
+    <text x="195" y="52" text-anchor="middle" class="dim">1v1 · first to 5</text>
+    <text x="374" y="24" text-anchor="end" class="disp" font-size="14" fill="#e6ebf5" fill-opacity=".35">RIVAL</text>
+    <text x="374" y="42" text-anchor="end" class="dim">Not here yet</text>
+    <rect y="370" width="390" height="474" fill="url(#scrimB)"/>
+    <text x="16" y="396" class="dim">High flyer</text>
+    <text x="16" y="428" class="disp" font-size="28" fill="#ff6a3d">HOTFIX</text>
+    <g font-size="10"><text x="16" y="452" class="dim">Speed</text><rect x="52" y="446" width="48" height="5" fill="#3ec5ff"/>
+    <text x="130" y="452" class="dim">Jump</text><rect x="160" y="446" width="48" height="5" fill="#3ddc84"/>
+    <text x="236" y="452" class="dim">Weight</text><rect x="276" y="446" width="36" height="5" fill="#ffd23f"/></g>
+    <g transform="translate(16,474)">
+      <rect width="83" height="96" rx="5" fill="#141a2c" stroke="#ff6a3d" stroke-width="2"/><rect width="83" height="7" fill="#ff6a3d"/>
+      <rect x="91" width="83" height="96" rx="5" fill="#141a2c"/><rect x="91" width="83" height="5" fill="#3ddc84"/>
+      <rect x="182" width="83" height="96" rx="5" fill="#141a2c"/><rect x="182" width="83" height="5" fill="#3ec5ff"/>
+      <rect x="273" width="83" height="96" rx="5" fill="#141a2c"/><rect x="273" width="83" height="5" fill="#ffd23f"/>
+    </g>
+    <polygon points="16,586 364,586 374,596 374,646 26,646 16,636" fill="#ffd23f"/>
+    <text x="60" y="616" class="disp" font-size="16" fill="#0a0d18">INVITE A FRIEND</text>
+    <text x="60" y="634" font-size="11" fill="#0a0d18" fill-opacity=".75">Get a link and a code to send</text>
+    <rect x="16" y="656" width="175" height="56" fill="#141a2c" stroke="#e6ebf5" stroke-opacity=".12"/>
+    <text x="30" y="688" class="disp" font-size="12" fill="#e6ebf5">QUICK MATCH</text>
+    <rect x="199" y="656" width="175" height="56" fill="#141a2c" stroke="#e6ebf5" stroke-opacity=".12"/>
+    <text x="213" y="688" class="disp" font-size="12" fill="#e6ebf5">PLAY VS BOT</text>
+    <text x="195" y="746" text-anchor="middle" class="lbl" font-weight="600">Got a code?</text>
+    <text x="195" y="790" text-anchor="middle" class="note">aim control hidden on touch (as today)</text>
+  </g>
+
+  <!-- ============ PHONE LANDSCAPE 844x390 ============ -->
+  <text x="20" y="752" class="lbl" font-weight="700">Phone landscape 844x390 (shown at 50 %)</text>
+  <g transform="translate(20,765) scale(0.5)">
+    <rect width="844" height="390" fill="url(#sky)"/>
+    <use href="#cloud" x="120" y="350"/><use href="#cloud" x="330" y="360"/>
+    <g transform="translate(40,250) scale(0.7)"><use href="#slab"/></g>
+    <use href="#fighter" x="225" y="290"/>
+    <g transform="translate(330,272) scale(0.7)"><use href="#standee"/></g>
+    <rect width="844" height="44" fill="#0a0d18" fill-opacity=".65"/>
+    <text x="16" y="22" class="disp" font-size="14" fill="#ff6a3d">HOTFIX</text>
+    <polygon points="16,28 150,28 145,35 16,35" fill="#ff6a3d"/>
+    <text x="422" y="28" text-anchor="middle" class="disp" font-size="17" fill="#ffd23f">▲42</text>
+    <text x="828" y="22" text-anchor="end" class="disp" font-size="14" fill="#e6ebf5" fill-opacity=".35">RIVAL</text>
+    <polygon points="694,28 828,28 828,35 689,35" fill="none" stroke="#e6ebf5" stroke-opacity=".3" stroke-dasharray="4 3"/>
+    <rect x="405" y="44" width="439" height="346" fill="#0a0d18" fill-opacity=".82"/>
+    <text x="16" y="352" class="disp" font-size="26" fill="#ff6a3d">HOTFIX</text>
+    <text x="16" y="374" class="dim" font-size="12">9.4 m/s · 2 jumps · average weight</text>
+    <g transform="translate(421,60)">
+      <rect width="98" height="64" rx="5" fill="#141a2c" stroke="#ff6a3d" stroke-width="2"/>
+      <rect x="104" width="98" height="64" rx="5" fill="#141a2c"/>
+      <rect x="208" width="98" height="64" rx="5" fill="#141a2c"/>
+      <rect x="312" width="98" height="64" rx="5" fill="#141a2c"/>
+      <polygon points="0,76 400,76 410,86 410,124 10,124 0,114" fill="#ffd23f"/>
+      <text x="44" y="106" class="disp" font-size="15" fill="#0a0d18">INVITE A FRIEND</text>
+      <rect x="0" y="134" width="203" height="44" fill="#141a2c" stroke="#e6ebf5" stroke-opacity=".12"/>
+      <text x="14" y="162" class="disp" font-size="12" fill="#e6ebf5">QUICK MATCH</text>
+      <rect x="207" y="134" width="203" height="44" fill="#141a2c" stroke="#e6ebf5" stroke-opacity=".12"/>
+      <text x="221" y="162" class="disp" font-size="12" fill="#e6ebf5">PLAY VS BOT</text>
+      <text x="205" y="208" text-anchor="middle" class="lbl" font-weight="600">Got a code?</text>
+    </g>
+  </g>
+
+  <!-- ============ STATE STRIP ============ -->
+  <g transform="translate(480,765)">
+    <text x="0" y="0" class="lbl" font-weight="700">Rival spot + rival plate by state</text>
+    <g transform="translate(0,20)">
+      <g><ellipse cx="50" cy="120" rx="34" ry="7" fill="none" stroke="#ffd23f" stroke-opacity=".25" stroke-width="3"/><text x="50" y="150" text-anchor="middle" class="dim">Idle: dim ring</text><text x="50" y="168" text-anchor="middle" class="dim">"Not here yet"</text></g>
+      <g transform="translate(150,0)"><use href="#standee" x="50" y="118"/><text x="50" y="150" text-anchor="middle" class="dim">Searching / room open</text><text x="50" y="168" text-anchor="middle" class="dim">standee sways</text></g>
+      <g transform="translate(300,0)"><rect x="36" y="60" width="28" height="58" fill="#b98a5a" transform="skewY(-12)"/><ellipse cx="50" cy="120" rx="34" ry="7" fill="none" stroke="#ff3b4e" stroke-width="3"/><text x="50" y="150" text-anchor="middle" class="dim">Found: spin, red flash</text><text x="50" y="168" text-anchor="middle" class="dim">then lift doors</text></g>
+      <g transform="translate(450,0)"><rect x="20" y="104" width="64" height="14" fill="#b98a5a"/><ellipse cx="50" cy="120" rx="34" ry="7" fill="none" stroke="#7a8296" stroke-width="3"/><text x="50" y="150" text-anchor="middle" class="dim">Error: tips over</text><text x="50" y="168" text-anchor="middle" class="dim">ring grey, dot orange</text></g>
+    </g>
+  </g>
+</svg>
