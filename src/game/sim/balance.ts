@@ -8,13 +8,15 @@
  * - the last round still has to fly to the target (rockets are slow on purpose).
  * Expected damage per shot is used (hit chance × damage), the usual way to compare guns on paper.
  */
-import { CHARACTERS, GUNS, RULES } from './constants';
+import { CHARACTERS, CROUCH, GUNS, RULES } from './constants';
 
 import type { GunStats } from './constants';
 import type { GunKind } from './types';
 
 /** Half the height of a typical fighter (the Intern, 1.7 m): the vertical window a shot must land in. */
 export const TARGET_HALF_HEIGHT = CHARACTERS.intern.height / 2;
+/** The same fighter crouched (CROUCH.height of the body): aim that follows the crouch has a smaller window. */
+export const CROUCHED_HALF_HEIGHT = TARGET_HALF_HEIGHT * CROUCH.height;
 /** The ranges the balance table is written for: close, across a room, across the office. */
 export const RANGES = [3, 10, 20] as const;
 
@@ -33,9 +35,9 @@ export const hitChance = (g: GunStats, distance: number, halfHeight = TARGET_HAL
   g.spread <= 0 ? 1 : Math.min(1, Math.atan(halfHeight / Math.max(distance, 0.01)) / g.spread);
 
 /** Expected damage of one trigger pull at `distance` (all pellets; a rocket's direct hit). */
-export const damagePerShot = (g: GunStats, distance: number) => {
+export const damagePerShot = (g: GunStats, distance: number, halfHeight = TARGET_HALF_HEIGHT) => {
   if (distance > maxRange(g)) return 0;
-  return g.pellets * g.damage * falloffAt(g, distance) * hitChance(g, distance);
+  return g.pellets * g.damage * falloffAt(g, distance) * hitChance(g, distance, halfHeight);
 };
 
 export interface Ttk {
@@ -45,9 +47,10 @@ export interface Ttk {
   seconds: number;
 }
 
-export const ttk = (kind: GunKind, distance: number, hp = RULES.hp): Ttk => {
+/** `halfHeight`: the target's half height (CROUCHED_HALF_HEIGHT for a crouched fighter). */
+export const ttk = (kind: GunKind, distance: number, hp = RULES.hp, halfHeight = TARGET_HALF_HEIGHT): Ttk => {
   const g = GUNS[kind];
-  const per = damagePerShot(g, distance);
+  const per = damagePerShot(g, distance, halfHeight);
   // A tiny tolerance so exactly 2 × 50 counts as two shots, like hp <= 0 in step.ts.
   const shots = per > 0 ? Math.ceil(hp / per - 1e-9) : Infinity;
   if (!Number.isFinite(shots) || shots > g.mag + g.reserve) return { shots: Infinity, seconds: Infinity };
