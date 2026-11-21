@@ -2,6 +2,7 @@ import {
   ARENA,
   BOMB,
   CHARACTERS,
+  CROUCH,
   DT,
   GRENADE,
   GUNS,
@@ -52,10 +53,13 @@ export const newWeapon = (kind: GunKind): Weapon => ({
   reload: 0,
 });
 
-/** Where bullets leave from: the chest. */
+/** How tall the body (and its hitbox) is right now: lower while crouching. */
+export const bodyHeight = (f: Fighter) =>
+  CHARACTERS[f.character].height * (1 - (1 - CROUCH.height) * (f.crouch ?? 0));
+
+/** Where bullets leave from: the chest (lower while crouching). */
 export const muzzle = (f: Fighter) => {
-  const c = CHARACTERS[f.character];
-  return { x: f.x + Math.cos(f.aim) * 0.7, y: f.y + c.height * 0.62 + Math.sin(f.aim) * 0.7 };
+  return { x: f.x + Math.cos(f.aim) * 0.7, y: f.y + bodyHeight(f) * 0.62 + Math.sin(f.aim) * 0.7 };
 };
 
 export const createFighter = (id: number, character: CharacterId): Fighter => {
@@ -79,6 +83,7 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
     dashTime: 0,
     dashCooldown: 0,
     dropTime: 0,
+    crouch: 0,
     hp: c.hp,
     kos: 0,
     stats: { damage: 0, shots: 0, hits: 0, deaths: 0, streak: 0, bestStreak: 0 },
@@ -200,6 +205,7 @@ const respawnFighter = (state: GameState, f: Fighter) => {
     pushed: 0,
     pushTime: 0,
     dashTime: 0,
+    crouch: 0,
     weapon: newWeapon('pistol'),
     stash: null,
     invulnerable: RULES.spawnInvulnerable,
@@ -268,7 +274,7 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
     type: 'hit',
     fighter: target.id,
     x: target.x,
-    y: target.y + c.height * 0.6,
+    y: target.y + bodyHeight(target) * 0.6,
     power: k,
     damage: hit.damage,
     by: hit.attacker,
@@ -285,11 +291,12 @@ const explode = (state: GameState, p: Projectile) => {
   state.events.push({ type: 'explosion', x: p.x, y: p.y, radius: blast.radius, owner: p.owner });
   for (const o of state.fighters) {
     const c = CHARACTERS[o.character];
+    const h = bodyHeight(o);
     const dx = o.x - p.x;
-    const dy = o.y + c.height / 2 - p.y;
+    const dy = o.y + h / 2 - p.y;
     // Distance to the nearest point of the body, so a direct hit is a full hit.
     const nx = Math.min(Math.max(p.x, o.x - c.width / 2), o.x + c.width / 2);
-    const ny = Math.min(Math.max(p.y, o.y), o.y + c.height);
+    const ny = Math.min(Math.max(p.y, o.y), o.y + h);
     const d = Math.hypot(nx - p.x, ny - p.y);
     if (d > blast.radius) continue;
     // Near the blast is lethal; the edge still hurts.
@@ -426,7 +433,7 @@ const updatePush = (state: GameState, f: Fighter) => {
   f.pushTime -= DT;
   if (t < PUSH.activeFrom || t > PUSH.activeTo) return;
   const c = CHARACTERS[f.character];
-  const cy = f.y + c.height * 0.55;
+  const cy = f.y + bodyHeight(f) * 0.55;
   const x0 = f.facing > 0 ? f.x : f.x - c.width / 2 - PUSH.reach;
   const x1 = f.facing > 0 ? f.x + c.width / 2 + PUSH.reach : f.x;
   for (const o of state.fighters) {
@@ -435,7 +442,7 @@ const updatePush = (state: GameState, f: Fighter) => {
     const overlap =
       o.x + oc.width / 2 > x0 &&
       o.x - oc.width / 2 < x1 &&
-      o.y + oc.height > cy - PUSH.span / 2 &&
+      o.y + bodyHeight(o) > cy - PUSH.span / 2 &&
       o.y < cy + PUSH.span / 2;
     if (!overlap) continue;
     f.pushHit.push(o.id);
@@ -491,7 +498,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
 
   // Aim follows the mouse. You face where you aim.
   if (state.phase === 'fight') {
-    const m = { x: f.x, y: f.y + c.height * 0.62 };
+    const m = { x: f.x, y: f.y + bodyHeight(f) * 0.62 };
     const dx = input.aimX - m.x;
     const dy = input.aimY - m.y;
     if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) f.aim = Math.atan2(dy, dx);
@@ -500,10 +507,18 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     f.facing = Math.cos(f.aim) < 0 ? -1 : 1;
   }
 
+  // Crouch: held on the ground. Down crouches where it cannot drop you (the floor, a desk, the table, the
+  // counter, a box); the Crouch key also works on walkways. Not in the air (Down is the fast fall there) and
+  // not during a dash; a jump or a dash stands you up.
+  const solidGround = f.y <= ARENA.floor + 0.01 || standingOnSolid(f, halfW);
+  const wantCrouch = canAct && f.onGround && f.dashTime <= 0 && (input.crouch || (input.down && solidGround));
+  f.crouch = approach(f.crouch ?? 0, wantCrouch ? 1 : 0, DT / CROUCH.time);
+  if (Math.abs(f.crouch - Math.round(f.crouch)) < 1e-9) f.crouch = Math.round(f.crouch); // no float dust at the ends
+
   // Horizontal movement.
   const dir = canAct ? (input.right ? 1 : 0) - (input.left ? 1 : 0) : 0;
   if (f.dashTime <= 0) {
-    const maxSpeed = c.speed * GUNS[f.weapon.kind].carry;
+    const maxSpeed = c.speed * GUNS[f.weapon.kind].carry * (1 - (1 - CROUCH.speed) * f.crouch);
     if (dir !== 0) {
       f.vx = approach(f.vx, dir * maxSpeed, (f.onGround ? PHYS.groundAccel : PHYS.airAccel) * DT);
     } else {
@@ -553,7 +568,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     f.pushTime = PUSH.duration;
     f.pushCooldown = PUSH.cooldown;
     f.pushHit = [];
-    state.events.push({ type: 'push', x: f.x, y: f.y + c.height * 0.55, facing: f.facing, fighter: f.id });
+    state.events.push({ type: 'push', x: f.x, y: f.y + bodyHeight(f) * 0.55, facing: f.facing, fighter: f.id });
   }
 
   // Only a pistol: walk over a gun to take it. Bombs are always picked up. Otherwise press Pick up (F) to swap;
@@ -743,7 +758,7 @@ const updateProjectiles = (state: GameState) => {
       const x0 = o.x - oc.width / 2 - 0.08;
       const x1 = o.x + oc.width / 2 + 0.08;
       const y0 = o.y;
-      const y1 = o.y + oc.height;
+      const y1 = o.y + bodyHeight(o);
       if (!segmentHitsBox(px, py, hx, hy, x0, y0, x1, y1)) continue;
       if (isExplosive(p.kind)) {
         p.x = Math.min(Math.max(ex, x0), x1);
@@ -752,7 +767,7 @@ const updateProjectiles = (state: GameState) => {
       }
       // Damage falls off with the distance the shot travelled.
       const fo = GUNS[p.gun].falloff;
-      const travelled = Math.hypot(o.x - p.ox, o.y + oc.height / 2 - p.oy);
+      const travelled = Math.hypot(o.x - p.ox, o.y + bodyHeight(o) / 2 - p.oy);
       const scale = fo
         ? 1 - (1 - fo.min) * Math.min(1, Math.max(0, (travelled - fo.near) / (fo.far - fo.near)))
         : 1;

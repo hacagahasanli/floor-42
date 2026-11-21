@@ -198,6 +198,19 @@ export const PHYS = {
   dropTime: 0.25,
 };
 
+/**
+ * Holding crouch on the ground: the body (and its hitbox) drops to 52 % of its height. Shots leave a standing
+ * chest at 62 % and auto-aim (and the bot) aim at 55 %, so a shot fired at a standing chest or head passes over a
+ * crouched body; at 60 % it would still clip the top of it. It goes down and back up in 0.1 s, walking is 70 % of
+ * the run speed, and the gun (muzzle) sits at the same 62 % of the lower body. Aim that follows the crouched
+ * body still hits it: crouching dodges shots already in the air, not the next ones.
+ */
+export const CROUCH = {
+  height: 0.52,
+  time: 0.1,
+  speed: 0.7,
+};
+
 export interface CharacterStats {
   name: string;
   speed: number;

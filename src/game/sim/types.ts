@@ -9,7 +9,9 @@ export interface InputState {
   left: boolean;
   right: boolean;
   up: boolean; // jump / double jump / wall-kick
-  down: boolean; // drop through a walkway, fast fall
+  down: boolean; // drop through a walkway, fast fall; crouch on the floor, a desk or a box
+  /** Crouch anywhere on the ground, walkways too (Down there drops you through instead). */
+  crouch: boolean;
   dash: boolean;
   fire: boolean; // held: guns fire at their own rate
   pickup: boolean;
@@ -25,6 +27,7 @@ export const EMPTY_INPUT: InputState = {
   right: false,
   up: false,
   down: false,
+  crouch: false,
   dash: false,
   fire: false,
   pickup: false,
@@ -61,6 +64,8 @@ export interface Fighter {
   dashTime: number;
   dashCooldown: number;
   dropTime: number;
+  /** 0 standing .. 1 fully crouched. Eases at CROUCH.time; the hitbox height follows it. */
+  crouch: number;
   hp: number;
   kos: number;
   stun: number;
