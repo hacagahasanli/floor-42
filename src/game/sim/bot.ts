@@ -66,14 +66,18 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
   const thinkCrouch = (state: GameState) => {
     const me = state.fighters[myId];
     if (state.phase !== 'fight' || me.respawn > 0 || !me.onGround || state.tick < crouchUntil) return;
-    const h = CHARACTERS[me.character].height;
-    const low = me.y + h * CROUCH.height + 0.05;
-    const top = me.y + h;
+    const c = CHARACTERS[me.character];
+    const low = me.y + c.height * CROUCH.height + 0.01;
+    const top = me.y + c.height;
+    const hw = c.width / 2 + 0.08;
+    // Where the shot crosses the near and the far side of the body: under the standing head, over the crouch.
     const incoming = state.projectiles.some((p) => {
       if (p.owner === myId || (p.kind !== 'bullet' && p.kind !== 'pellet') || p.vx === 0) return false;
-      const t = (me.x - p.x) / p.vx;
-      if (t < 0 || t > 0.45) return false;
-      const y = p.y + p.vy * t;
+      const side = p.vx > 0 ? -1 : 1;
+      const tNear = (me.x + side * hw - p.x) / p.vx;
+      const tFar = (me.x - side * hw - p.x) / p.vx;
+      if (tNear < 0 || tNear > 0.45) return false;
+      const y = Math.min(p.y + p.vy * tNear, p.y + p.vy * tFar);
       return y > low && y < top;
     });
     if (incoming && crouchRand() < cfg.crouch) crouchUntil = state.tick + DUCK_TICKS;
