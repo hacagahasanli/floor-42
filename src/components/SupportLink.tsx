@@ -8,7 +8,7 @@ import { SUPPORT_PAY_URL, SUPPORT_URL } from '~/lib/links';
 import { track } from '~/lib/telemetry';
 
 /*
- * The studio's shared support UI (Baki the mascot, $3 / $5 / $10 chips, a button to the real itch.io page), vendored in
+ * The studio's shared support UI (a flat "Support us" card, $3 / $5 / $10 chips, a button to the real itch.io page), vendored in
  * src/vendor/nalbaki-support and synced by tools/sync-nalbaki-support.mjs. It is a web component, so it is loaded on
  * the client only, after the page has painted. Never shown during play.
  *   menu: the main menu card (wide screens). pause: one line, "Enjoying it? Support us" (pause, phones, credits).
