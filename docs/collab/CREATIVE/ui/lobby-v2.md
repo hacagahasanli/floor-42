@@ -372,3 +372,17 @@ Reduced motion: no slides, lifts, tilts, spins or drops; fades only (150 ms). Th
 - P0: scene (slab, glass, desk, crate, ring, clouds, sky, light), front-facing fighter, HUD top, layouts for the three sizes, badges, buttons + icons, all states and copy, Cancel, removal list.
 - P1: standee animations, paper sheet, cables sway, distant chunks, pointer parallax, dust puff.
 - P2: per-character signature idle beats (ship the tempo fallback in P0).
+
+## 14. Changes after the build review (R-003, R-004, 2026-11-21)
+
+Accepted engineering deviations (they override sections above):
+- Desktop framing: fighter feet at y 66 %, fighter about 30 % of the viewport height; the wide shot carries "floating above the clouds" (requires F-002 so the clouds read).
+- Phone portrait: fighter at x 40 %; rival spot 1.3 m from the fighter in every layout.
+- Idle gun cycle: pistol, SMG, shotgun (no railgun; draw-call budget).
+- Slab top = 0.1 m oak box over a stone body.
+- Gamepad nav active in the lobby, DOM order, B cancels.
+- Signature idle beats (3.5) stay P2 and move to the R-001 backlog; the per-character tempo fallback is the shipped idle.
+
+Replaced: phone portrait panel states follow F-003 (panel docked to the bottom, info block shown except in the invite state). Scrims and prop positions: F-001, F-002, F-004, F-005 in FEEDBACK.md.
+
+Lobby scene budget rule (from R-003): the low tier runs at about 70 of 80 draw calls. Any new prop must remove something of equal cost. Cut order if room is needed: distant floors, rebar stubs, paper sheet. Never cut: slab, fighter, ring, standee, glass, desk, crate, clouds.

@@ -18,10 +18,10 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
 - Context: see LOG.md 2026-11-21 "R-002 built".
 - Limits: (1) draw-call budget on the low tier is about 70 of 80; the fighter rig alone is about 38 calls, so adding props or more guns to the lobby scene needs something else to go. The railgun idle was dropped for this. (2) Medium and high tiers show 130-140 calls in renderer.info because it counts the shadow pass; the visible-scene cost is the same as low. (3) Phone portrait cannot show both the left info and the badges next to a tall status panel (invite state is about 400 px tall); the panel states hide them there. (4) Signature idle beats (P2) need rig poses that do not exist yet (hand to headset, crossed arms, wrist check, strap hitch).
 - Priority: P3
-- Status: open (info)
+- Status: done (CD 2026-11-21): all four limits accepted. Budget rule and cut order written into CREATIVE/ui/lobby-v2.md section 14. (3) is superseded by F-003. (4) signature beats deferred to the R-001 backlog; tempo fallback is final for now.
 
 ## R-004 — Review lobby v2 build (4bc9ad1)
 - Context: R-002 spec implemented in 4bc9ad1; deviations in LOG.md (latest entry). Shots of all 10 states x desktop/portrait/landscape: ~/.agents-know/personal/feedback4/shots/f42-lobby-v2/ (contact-sheet.png + per-state PNGs). Engineering notes to check: desktop stat bars/description overlap the desk and window in the scene (readability); phone portrait panel states leave the lower half of the screen empty.
 - Expected deliverable: accept, or F-xxx items in FEEDBACK.md with exact changes.
 - Priority: P0
-- Status: open
+- Status: done (review complete, CD 2026-11-21): accepted with changes. F-001 desktop left-column readability (P0), F-002 clouds read as rocks (P0), F-003 portrait panels bottom-docked (P0), F-004 landscape name scrim + connection line (P1), F-005 cables behind badges (P2), F-006 error standee (P2). Re-review after F-001..F-004 with fresh shots of the same 30 states.
