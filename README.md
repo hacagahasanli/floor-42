@@ -78,7 +78,7 @@ Keyboard only. Your gun aims at the opponent by itself.
 | S | drop through a walkway, fast fall |
 | Shift | dash: you can't be hit while it lasts |
 | Q | Force Push |
-| R / E | swap for the gun you're standing on (an **R · SWAP** sign shows over it) |
+| F | swap for the gun you're standing on (a small **F** key shows beside it) |
 | T | auto-aim / mouse aim (in mouse mode left click shoots too) |
 | M | mute |
 

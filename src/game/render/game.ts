@@ -169,31 +169,33 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     return v;
   };
 
-  // "R · SWAP" floating over a gun you can swap for (E works too).
-  const promptTex = (() => {
-    const c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 96;
-    const g = c.getContext('2d')!;
-    g.fillStyle = '#ffd23f';
+  // A small keycap (the Pick up key, F by default) beside a gun you can swap for. No button, no words.
+  const keycapCanvas = document.createElement('canvas');
+  keycapCanvas.width = 128;
+  keycapCanvas.height = 64;
+  const keycapTex = new THREE.CanvasTexture(keycapCanvas);
+  keycapTex.colorSpace = THREE.SRGBColorSpace;
+  const drawKeycap = (label: string) => {
+    const g = keycapCanvas.getContext('2d')!;
+    g.clearRect(0, 0, 128, 64);
+    g.font = 'bold 34px sans-serif';
+    const w = Math.min(120, Math.max(48, g.measureText(label).width + 22));
+    g.fillStyle = 'rgba(10,13,24,0.7)';
+    g.strokeStyle = 'rgba(255,255,255,0.55)';
+    g.lineWidth = 3;
     g.beginPath();
-    g.roundRect(8, 8, 80, 80, 12);
+    g.roundRect(64 - w / 2, 8, w, 48, 9);
     g.fill();
-    g.fillStyle = '#0a0d18';
-    g.font = 'bold 56px sans-serif';
+    g.stroke();
+    g.fillStyle = '#ffffff';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText('R', 48, 52);
-    g.fillStyle = '#ffffff';
-    g.font = 'bold 44px sans-serif';
-    g.textAlign = 'left';
-    g.fillText('SWAP', 104, 52);
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    return t;
-  })();
-  const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: promptTex, depthTest: false, transparent: true }));
-  prompt.scale.set(2.4, 0.9, 1);
+    g.fillText(label, 64, 33);
+    keycapTex.needsUpdate = true;
+  };
+  drawKeycap(primaryLabel(settings.bindings, 'pickup'));
+  const prompt = new THREE.Sprite(new THREE.SpriteMaterial({ map: keycapTex, depthTest: false, transparent: true }));
+  prompt.scale.set(0.8, 0.4, 1);
   prompt.renderOrder = 10;
   prompt.visible = false;
   scene.add(prompt);
@@ -705,16 +707,13 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       marker.position.set(p.x, p.y + 0.012, 0.25);
     });
 
-    // Show the swap prompt over the gun you're standing on (with only a pistol it's picked up automatically).
+    // The keycap beside the gun you're standing on (with only a pistol it's picked up automatically).
+    // Phones have the Swap button instead.
     const self = state.fighters[me];
-    const cand = !opts.demo && self.respawn <= 0 && self.weapon.kind !== 'pistol' ? pickupCandidate(state, self) : null;
+    const cand = !opts.demo && !touch && self.respawn <= 0 && self.weapon.kind !== 'pistol' ? pickupCandidate(state, self) : null;
     const near = cand && cand.kind !== 'bomb' ? cand : null; // bombs are picked up automatically
     prompt.visible = !!near;
-    if (near) {
-      const bob = 1 + Math.sin(time * 6) * 0.06;
-      prompt.position.set(near.x, near.y + 1.6, 0.5);
-      prompt.scale.set(2.4 * bob, 0.9 * bob, 1);
-    }
+    if (near) prompt.position.set(near.x, near.y + 1.15, 0.5);
 
     let t = 0;
     let gr = 0;
@@ -798,11 +797,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const hintFor = (): HudState['hint'] => {
     const self = state.fighters[me];
     if (opts.demo || state.phase !== 'fight' || self.respawn > 0) return [];
-    const near = pickupCandidate(state, self);
     if (self.weapon.kind === 'bomb') return [{ key: primaryLabel(settings.bindings, 'fire'), text: 'throw the bomb' }];
-    if (near && near.kind !== 'bomb' && self.weapon.kind !== 'pistol') {
-      return [{ key: primaryLabel(settings.bindings, 'reload'), text: `swap for the ${GUNS[near.kind].name}` }];
-    }
     return [];
   };
 
@@ -957,7 +952,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     motion = motionOf(s);
     muted = store.effectiveMute();
     sfx.apply(s.audio, muted);
-    if (prev.bindings !== s.bindings) controls.setBindings(s.bindings);
+    if (prev.bindings !== s.bindings) {
+      controls.setBindings(s.bindings);
+      drawKeycap(primaryLabel(s.bindings, 'pickup'));
+    }
     if (!touch) aimMode = s.aimMode;
     emitHud();
   };

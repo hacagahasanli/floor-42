@@ -375,15 +375,20 @@ describe('range, rarity and bombs', () => {
     expect(events.some((e) => e.type === 'ko' && e.fighter === 1)).toBe(true);
   });
 
-  it('R swaps for the gun you are standing on', () => {
+  it('Pick up (F) swaps for the gun you are standing on; Reload (R) does not', () => {
     const s = fighting();
     arm(s, 0, 'smg');
+    s.fighters[0].weapon.mag = 5;
     const gun = s.pickups[0];
     Object.assign(gun, { kind: 'shotgun', active: true });
     place(s, 0, gun.x, gun.y);
     run(s, 1);
     expect(s.fighters[0].weapon.kind).toBe('smg');
     run(s, 1, { reload: true });
+    expect(s.fighters[0].weapon.kind).toBe('smg');
+    expect(s.fighters[0].weapon.reload).toBeGreaterThan(0);
+    run(s, 1);
+    run(s, 1, { pickup: true });
     expect(s.fighters[0].weapon.kind).toBe('shotgun');
   });
 });

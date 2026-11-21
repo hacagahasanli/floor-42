@@ -78,6 +78,18 @@ describe('settings store', () => {
     expect(s.audio.guns).toBe(0.2);
   });
 
+  it('Pick up is F: a save from when it was E moves over once, a later choice of E stays', () => {
+    expect(DEFAULT_BINDINGS.pickup[0]).toBe('KeyF');
+    const old = { ...DEFAULT_BINDINGS, pickup: ['KeyE', ''] };
+    const storage = memory({ [SETTINGS_KEY]: JSON.stringify({ bindings: old }) });
+    expect(loadSettings(storage).bindings.pickup).toEqual(['KeyF', '']);
+    storage.data[SETTINGS_KEY] = JSON.stringify({ bindings: old });
+    expect(loadSettings(storage).bindings.pickup).toEqual(['KeyE', '']);
+    // F already on another action: left alone.
+    const taken = memory({ [SETTINGS_KEY]: JSON.stringify({ bindings: { ...old, push: ['KeyF', ''] } }) });
+    expect(loadSettings(taken).bindings.pickup).toEqual(['KeyE', '']);
+  });
+
   it('reset all goes back to the defaults; external mute wins but is not saved', () => {
     const storage = memory();
     const store = createSettingsStore(storage);
@@ -99,9 +111,9 @@ describe('rebinding', () => {
   });
 
   it('swaps on a conflict: the other action gets the old key', () => {
-    const r = rebind(DEFAULT_BINDINGS, 'push', 0, 'KeyE');
+    const r = rebind(DEFAULT_BINDINGS, 'push', 0, 'KeyF');
     if (!r.ok) throw new Error('expected ok');
-    expect(r.bindings.push[0]).toBe('KeyE');
+    expect(r.bindings.push[0]).toBe('KeyF');
     expect(r.bindings.pickup[0]).toBe('KeyQ');
     expect(r.swapped).toEqual({ action: 'pickup', slot: 0, code: 'KeyQ' });
   });
@@ -158,10 +170,10 @@ describe('key bindings applied to input', () => {
   });
 
   it('a swap moves both actions', () => {
-    const r = rebind(DEFAULT_BINDINGS, 'push', 0, 'KeyE');
+    const r = rebind(DEFAULT_BINDINGS, 'push', 0, 'KeyF');
     if (!r.ok) throw new Error('expected ok');
     const lookup = buildKeyLookup(r.bindings);
-    expect(applyKeys(['KeyE'], lookup)).toMatchObject({ push: true, pickup: false });
+    expect(applyKeys(['KeyF'], lookup)).toMatchObject({ push: true, pickup: false });
     expect(applyKeys(['KeyQ'], lookup)).toMatchObject({ push: false, pickup: true });
   });
 });

@@ -235,7 +235,7 @@ Notes:
 - Recoil pushes the shooter backwards; in the air it also pushes vertically. This is what makes rocket-jumping possible.
 - `life` caps range: shotgun pellets vanish after 0.32 s, about 9 units.
 - Running dry on a special gun drops you back to a fresh pistol (`step.ts:255-259`). A magazine that empties with reserve left reloads automatically.
-- Pickups: with only the pistol in hand, walking over a gun takes it. Otherwise press **E or R** to swap for the gun you stand on (R still reloads when there is nothing to swap, `step.ts`, the `swap` line). Bombs are always picked up on contact.
+- Pickups: with only the pistol in hand, walking over a gun takes it. Otherwise press **F** (Pick up) to swap for the gun you stand on; a small keycap shows beside it. R only reloads. Bombs are always picked up on contact.
 - **One gun per floor** (three floors). `ARENA.gunSpawns` (`constants.ts`) has three entries, each with `spots` on that floor and a `kinds` list that is a weighted table (a kind listed twice has two tickets). `placeGun` picks a random spot and a random kind with the seeded RNG, at match start and again after someone takes it. Pickups remember their entry in `Pickup.spawn` (`null` for a ceiling drop).
   - Ground and middle floors use `GUN_TABLE`: SMG 3 tickets, shotgun 3, Uzi 2. Respawn `RULES.gunRespawn = 15` s.
   - The top floor (mezzanine) uses `POWER_TABLE`: sniper rail 2 tickets, rockets 3. These are the only one-shot guns, so every match offers one, but only on the top floor. Respawn is per spawn (`respawn: 30` on that entry), 30 s. Each carries six shots in total (rail 3 + 3, rockets 2 + 4), then you fall back to the pistol.
@@ -425,8 +425,8 @@ A development-only handle `window.__mc` exposes the state for automated checks (
 | Dash | Shift |
 | Fire (hold) | Space (also left click in mouse mode) |
 | Force Push | Q |
-| Swap for the gun you stand on | E or R |
-| Reload (when there is no gun to swap for) | R |
+| Swap for the gun you stand on (a small keycap shows beside it) | F |
+| Reload | R |
 | Toggle aim mode | T |
 | Mute | M |
 | Rematch after a match | Enter |
@@ -487,7 +487,7 @@ What the 37 tests cover (34 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
 | Guns | pistol hits where aimed and misses when aimed away; furniture blocks bullets; auto-reload; spent special gun falls back to pistol; two pistol hits KO; point-blank shotgun is a one-shot KO; railgun goes through furniture; grenade throws everyone including the shooter; rockets fly straight across the office; walking over a gun with a pistol picks it up; dash dodges bullets |
 | Force Push | splats into the glass (checks `WALL_SPLAT_DAMAGE`); reflects bullets at the shooter |
 | KOs | KO scores for the shooter and the fighter respawns with a pistol; 3 s wait after a KO and coming back as someone else |
-| Falloff, Uzi, power weapons, bombs, swap | small guns hurt less from across the office; the sniper rail still kills in one at range; the top floor always offers a power weapon with six shots and lower floors never do; the Uzi fires fast but weakly; a bomb is picked up over your gun and the gun returns after the throw; a lobbed bomb lands near the target and is lethal next to it; R swaps for the gun you stand on |
+| Falloff, Uzi, power weapons, bombs, swap | small guns hurt less from across the office; the sniper rail still kills in one at range; the top floor always offers a power weapon with six shots and lower floors never do; the Uzi fires fast but weakly; a bomb is picked up over your gun and the gun returns after the throw; a lobbed bomb lands near the target and is lethal next to it; F swaps for the gun you stand on and R does not |
 | Level and pause | fighters start far apart; exactly one gun per floor at the start; a taken gun returns on the same floor; nothing moves while `paused` |
 | Bot | two bots score within a round; same seeds give the same result |
 | Wire protocol (`protocol.test.ts`) | input encode/decode round trip; a press in a skipped input survives a merge; a full game state round-trips including `Infinity` |
@@ -748,7 +748,7 @@ Reader question: how does a touch screen drive a game built for a keyboard?
 
 Only one finger is tracked for the stick (`pointer` ref, pointer capture); other fingers can use the buttons at the same time, because each button captures its own pointer.
 
-**Buttons** (`Pad`, right side): Fire (large), Jump (`up`), Dash, Push, Swap (`reload`, small). Each calls `press(button, true/false)` on pointer down/up/cancel and suppresses the context menu. The pause button (top centre) calls `openMenu` in `ArenaGame`, which does what Esc does: request a pause, open the menu. That menu contains the sound sliders (13.2). Touch controls are hidden while the menu is open, the game is paused, the match is over or the rival left.
+**Buttons** (`Pad`, right side): Fire (large), Jump (`up`), Dash, Push, Swap (`pickup`, small). Each calls `press(button, true/false)` on pointer down/up/cancel and suppresses the context menu. The pause button (top centre) calls `openMenu` in `ArenaGame`, which does what Esc does: request a pause, open the menu. That menu contains the sound sliders (13.2). Touch controls are hidden while the menu is open, the game is paused, the match is over or the rival left.
 
 **Fullscreen and landscape.** The first touch on the stick or any button calls `goFullscreen()`, once per page load (`askedFullscreen`). It requests fullscreen on `<html>` (standard or `webkit` prefixed call), then locks the orientation to landscape. Every failure is swallowed (`.catch(() => undefined)`), and if the browser exposes no fullscreen request the function returns without doing anything. So where the API is missing, nothing happens and the browser bars stay. This is how iPhone Safari is expected to behave: as far as I know it offers no Fullscreen API on iPhone, so the page would play with the browser bars visible. The code path for a missing API is confirmed; the iPhone behaviour itself is a platform fact I did not test. `useLandscape` compares `innerHeight` with `innerWidth` on resize and `orientationchange`; in portrait `RotateHint` covers the arena, and the match keeps running underneath.
 
@@ -756,7 +756,7 @@ Only one finger is tracked for the stick (`pointer` ref, pointer capture); other
 
 | File | Change |
 |---|---|
-| `ArenaGame.tsx` | `aimMode` forced to `'auto'` on touch; compact fighter panels (`w-48` instead of `w-72`); keyboard hint panel and the "FLOOR 42" sign hidden; hints and the respawn picker moved to the top (`top-36`, `top-32`) clear of the buttons; hint keys shown as "Swap" and "Fire"; touch wording ("Tap pause to agree", "Rematch"); root is `h-[100dvh]` with `touch-none`. |
+| `ArenaGame.tsx` | `aimMode` forced to `'auto'` on touch; compact fighter panels (`w-48` instead of `w-72`); keyboard hint panel and the "FLOOR 42" sign hidden; hints and the respawn picker moved to the top (`top-36`, `top-32`) clear of the buttons; the hint key shown as "Fire"; no keycap over guns (the Swap button does it); touch wording ("Tap pause to agree", "Rematch"); root is `h-[100dvh]` with `touch-none`. |
 | `ArenaGame.tsx` (key trap) | The hidden focused `<input>` (section 7) is not focused on touch devices: a focused field opens the on-screen keyboard. |
 | `game.ts` | Pixel ratio `min(devicePixelRatio, 1.5)` on touch, 2 otherwise; a window `pointerdown` listener calls `sfx.unlock()` (removed on dispose), so audio starts on the first touch, as browsers require. |
 | `layout.tsx` | Exported `viewport`: no pinch or double-tap zoom (`maximumScale: 1`, `userScalable: false`), `viewportFit: 'cover'`, theme colour `#0a0d18`. This applies to every page, not only the arena. |

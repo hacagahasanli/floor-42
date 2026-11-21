@@ -554,11 +554,10 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     state.events.push({ type: 'push', x: f.x, y: f.y + c.height * 0.55, facing: f.facing, fighter: f.id });
   }
 
-  // Walking over a gun with only the pistol picks it up; E swaps any time.
+  // Only a pistol: walk over a gun to take it. Bombs are always picked up. Otherwise press Pick up (F) to swap;
+  // Reload (R) only reloads.
   const near = canAct ? pickupCandidate(state, f) : null;
-  // Only a pistol: walk over a gun to take it. Bombs are always picked up. Otherwise press E or R to swap.
-  const swap = pressed('pickup') || pressed('reload');
-  if (near && (swap || f.weapon.kind === 'pistol' || near.kind === 'bomb'))
+  if (near && (pressed('pickup') || f.weapon.kind === 'pistol' || near.kind === 'bomb'))
     takePickup(state, f, near);
 
   updateWeapon(state, f, input, canAct);

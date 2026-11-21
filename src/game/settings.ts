@@ -44,8 +44,8 @@ export const ACTIONS: { id: Button; label: string }[] = [
   { id: 'fire', label: 'Shoot' },
   { id: 'dash', label: 'Dash' },
   { id: 'push', label: 'Force Push' },
-  { id: 'reload', label: 'Swap gun / reload' },
-  { id: 'pickup', label: 'Pick up' },
+  { id: 'reload', label: 'Reload' },
+  { id: 'pickup', label: 'Pick up / swap gun' },
 ];
 
 export const DEFAULT_BINDINGS: Bindings = {
@@ -56,7 +56,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   fire: ['Space', ''],
   dash: ['ShiftLeft', 'ShiftRight'],
   push: ['KeyQ', ''],
-  pickup: ['KeyE', ''],
+  pickup: ['KeyF', ''],
   reload: ['KeyR', ''],
 };
 
@@ -81,6 +81,8 @@ export const DEFAULT_SETTINGS: Settings = {
 export const SETTINGS_KEY = 'floor42:settings';
 /** Older single-purpose keys, read once when there are no saved settings yet. */
 const LEGACY = { motion: 'merge-conflict:motion', muted: 'merge-conflict:muted', volume: 'floor42:volume', aim: 'merge-conflict:aim' };
+/** Set once a save made when Pick up defaulted to E has been moved to F (so a player who picks E later keeps it). */
+export const PICKUP_F_KEY = 'floor42:pickup-f';
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -165,7 +167,19 @@ export const loadSettings = (storage: StorageLike | null): Settings => {
   const saved = safeGet(storage, SETTINGS_KEY);
   if (saved) {
     try {
-      return sanitize(JSON.parse(saved));
+      const raw = JSON.parse(saved);
+      // Pick up moved from E to F: a save still on the old default follows, unless F is taken.
+      const b = raw?.bindings;
+      if (safeGet(storage, PICKUP_F_KEY) !== '1' && b && typeof b === 'object') {
+        const taken = Object.values(b).some((v) => Array.isArray(v) && v.includes('KeyF'));
+        if (!taken && Array.isArray(b.pickup) && b.pickup[0] === 'KeyE' && !b.pickup[1]) b.pickup = ['KeyF', ''];
+        try {
+          storage?.setItem(PICKUP_F_KEY, '1');
+        } catch {
+          /* ignore */
+        }
+      }
+      return sanitize(raw);
     } catch {
       /* corrupt: fall through to defaults */
     }

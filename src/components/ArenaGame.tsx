@@ -148,6 +148,9 @@ const Controls = ({ aim, bindings }: { aim: AimMode; bindings: Bindings }) => {
         <Key k={k('push')} /> push
       </span>
       <span className="flex items-center gap-1">
+        <Key k={k('pickup')} /> pick up
+      </span>
+      <span className="flex items-center gap-1">
         <Key k="Esc" /> pause / settings
       </span>
     </div>
@@ -651,17 +654,7 @@ export const ArenaGame = ({
               <div className="hud-scale panel-cut flex items-center gap-3 bg-ink-deep/85 px-4 py-1.5 text-sm text-cream">
                 {hud.hint.map((h) => (
                   <span key={h.key} className="flex items-center gap-2">
-                    <Key
-                      k={
-                        touch
-                          ? h.key === 'R'
-                            ? 'Swap'
-                            : h.key === 'Space'
-                              ? 'Fire'
-                              : h.key
-                          : h.key
-                      }
-                    />{' '}
+                    <Key k={touch && h.key === 'Space' ? 'Fire' : h.key} />{' '}
                     {h.text}
                   </span>
                 ))}

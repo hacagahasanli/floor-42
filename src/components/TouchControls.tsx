@@ -239,7 +239,7 @@ export const TouchControls = ({
         ready={ready?.push}
       />
       <Pad
-        b="reload"
+        b="pickup"
         label="Swap"
         press={press}
         className="bottom-[178px] right-[124px] !h-14 !w-14 !text-[10px]"

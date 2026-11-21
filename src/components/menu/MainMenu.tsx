@@ -346,7 +346,7 @@ const HowTo = ({ touch }: { touch: boolean }) => {
         ],
         [<Keycap key="da" k={k('dash')} />, 'Dash through bullets (every 5 s)'],
         [<Keycap key="p" k={k('push')} />, 'Force Push: shove them into the glass'],
-        [<Keycap key="r" k={k('reload')} />, 'Swap for the gun on the floor'],
+        [<Keycap key="r" k={k('pickup')} />, 'Swap for the gun on the floor'],
         [<Keycap key="e" k="Esc" />, 'Pause, settings, quit'],
       ];
   return (
