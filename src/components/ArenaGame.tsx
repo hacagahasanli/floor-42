@@ -17,6 +17,7 @@ import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useSettings } from '~/components/menu/useSettings';
 import { menuSound } from '~/components/menu/menuSound';
 import { LiftLoading } from '~/components/Elevator';
+import { useRoundTelemetry } from '~/components/useTelemetry';
 import { Support } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
@@ -352,6 +353,8 @@ export const ArenaGame = ({
   }, [touch, demo, settings.touch.leftHanded, settings.touch.size]);
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
+  // Anonymous usage events: a no-op unless the site started counting (never on a portal build).
+  useRoundTelemetry(hud, { demo, online: !!online });
 
   // The lift ride up: real loading steps, shown until the first frame of the office is on screen.
   const [loaded, setLoaded] = useState({ fonts: false, office: false });

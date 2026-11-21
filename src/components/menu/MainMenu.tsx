@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useLiftTo } from '~/components/Elevator';
 import { readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
+import { useMenuTelemetry } from '~/components/useTelemetry';
 import { Support } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { deviceFacts, renderProfile } from '~/game/render/quality';
@@ -431,6 +432,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
   const [touch, setTouch] = useState(false);
   const [lastMain, setLastMain] = useState(0);
   const portraits = usePortraits();
+  useMenuTelemetry(!!portraits);
   const pad = useGamepadNav();
   const copy = useCopy();
   const asking = useAskAudience();

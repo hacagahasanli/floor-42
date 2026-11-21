@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from 'react';
 
+import type { MouseEvent } from 'react';
+
 import { SUPPORT_PAY_URL, SUPPORT_URL } from '~/lib/links';
+import { track } from '~/lib/telemetry';
 
 /*
  * The studio's shared support UI (Baki the mascot, $3 / $5 / $10 chips, a button to the real itch.io page), vendored in
@@ -31,5 +34,9 @@ export const Support = ({ variant, className = '' }: { variant: Variant; classNa
       cleanup?.();
     };
   }, [variant]);
-  return <div ref={host} className={`${RESERVE[variant]} ${className}`} />;
+  // A click on any link inside the module (its shadow DOM is open, so the event path shows the link): counted as a support click.
+  const counted = (e: MouseEvent<HTMLDivElement>) => {
+    if (e.nativeEvent.composedPath().some((n) => n instanceof HTMLAnchorElement)) track('support_click', { where: variant });
+  };
+  return <div ref={host} onClick={counted} className={`${RESERVE[variant]} ${className}`} />;
 };

@@ -10,6 +10,7 @@ import { accentOf, FighterCards, FighterHero, MenuShell, readCharacter, saveChar
 import { AudiencePrompt } from '~/components/menu/AudiencePrompt';
 import { menuSound } from '~/components/menu/menuSound';
 import { useCopy } from '~/components/menu/useCopy';
+import { useMenuTelemetry } from '~/components/useTelemetry';
 import { createOnlineSession, joinRoom } from '~/game/net/client';
 import { createHostSession } from '~/game/net/host';
 import { connectPeer } from '~/game/net/peer';
@@ -177,6 +178,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   useEffect(() => setCanShare(typeof navigator.share === 'function'), []);
   const roomRef = useRef<Room | null>(null);
   const portraits = usePortraits();
+  useMenuTelemetry(!!portraits);
   const words = useCopy();
 
   useEffect(() => {
