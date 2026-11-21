@@ -77,12 +77,12 @@ export const COPY = {
   /** How to play: the three rule cards (title, text). */
   howTo: {
     developer: [
-      ['Knock them out', `Everyone has ${RULES.hp} health. A pistol shot up close takes half, a rocket takes it all. First to ${K} KOs takes the merge.`],
+      ['Knock them out', `Everyone has ${RULES.hp} health. A pistol shot point blank takes half, a rocket takes it all. First to ${K} KOs takes the merge.`],
       ['Grab a gun', 'Pistol in hand; an SMG, an Uzi, a shotgun, a sniper rail and rockets lie around the floor.'],
       ['Use the office', 'Desks and the meeting table stop bullets. The glass breaks: push them through it, like a bad commit.'],
     ],
     regular: [
-      ['Knock them out', `Everyone has ${RULES.hp} health. A pistol shot up close takes half, a rocket takes it all. First to ${K} KOs wins.`],
+      ['Knock them out', `Everyone has ${RULES.hp} health. A pistol shot point blank takes half, a rocket takes it all. First to ${K} KOs wins.`],
       ['Grab a gun', 'Pistol in hand; an SMG, an Uzi, a shotgun, a sniper rail and rockets lie around the floor.'],
       ['Use the cover', 'Desks and the meeting table stop bullets. The glass breaks: push them through it.'],
     ],
@@ -97,6 +97,8 @@ export const COPY = {
       'Kick off the glass walls to climb fast.',
       'The rockets and the sniper rail wait on the top floor: production access, six shots.',
       'Stay out of the fight for a few seconds and your health comes back. Like a weekend.',
+      'The Uzi shreds up close, the SMG holds the middle, the pistol is the steadiest at range.',
+      'A shotgun blast kills only point blank: get right in their face, then pump.',
     ],
     regular: [
       'Desks and the meeting table stop bullets: fight from behind them.',
@@ -106,6 +108,8 @@ export const COPY = {
       'Kick off the glass walls to climb fast.',
       'The rockets and the sniper rail wait on the top floor.',
       'Stay out of the fight for a few seconds and your health comes back.',
+      'The Uzi shreds up close, the SMG holds the middle, the pistol is the steadiest at range.',
+      'A shotgun blast kills only point blank: get right in their face, then pump.',
     ],
   },
   /** Fighter flavour (character select, nameplates). Names and stats stay the same in both. */

@@ -237,13 +237,20 @@ describe('guns', () => {
     expect(s.fighters[0].weapon.kind).toBe('pistol');
   });
 
-  it('two pistol hits drop anyone', () => {
+  it('two pistol hits drop anyone point blank; a few steps back it takes three', () => {
     const s = fighting();
-    place(s, 0, -8);
-    place(s, 1, -4);
-    const events = run(s, 50, { fire: true, ...at(s, 1) });
+    place(s, 0, -5.6);
+    place(s, 1, -4.1);
+    const events = run(s, 40, { fire: true, ...at(s, 1) });
     expect(events.filter((e) => e.type === 'hit')).toHaveLength(2);
     expect(events.some((e) => e.type === 'ko')).toBe(true);
+
+    const back = fighting();
+    place(back, 0, -8);
+    place(back, 1, -4);
+    const hits = run(back, 70, { fire: true, ...at(back, 1) });
+    expect(hits.filter((e) => e.type === 'hit')).toHaveLength(3);
+    expect(hits.some((e) => e.type === 'ko')).toBe(true);
   });
 
   it('a shotgun blast up close is a one-shot KO', () => {
@@ -313,8 +320,8 @@ describe('guns', () => {
 describe('range, rarity and bombs', () => {
   it('small guns hurt less from across the office', () => {
     const near = fighting();
-    place(near, 0, -8);
-    place(near, 1, -4);
+    place(near, 0, -5.6);
+    place(near, 1, -4.1);
     const nearHits = run(near, 12, { fire: true, ...at(near, 1) }).filter((e) => e.type === 'hit');
     const far = fighting();
     place(far, 0, -16);

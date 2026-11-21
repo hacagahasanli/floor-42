@@ -24,10 +24,10 @@ const LEVELS: Record<BotLevel, { reaction: number; aimError: number; trigger: nu
 const RANGE: Record<GunKind, [number, number]> = {
   pistol: [8, 15],
   smg: [6, 11],
-  shotgun: [2.5, 5],
+  shotgun: [1.5, 3.5],
   railgun: [12, 24],
   launcher: [9, 16],
-  uzi: [3, 8],
+  uzi: [2, 5],
   bomb: [5, 11],
 };
 

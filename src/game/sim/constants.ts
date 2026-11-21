@@ -253,8 +253,10 @@ export interface GunStats {
 }
 
 /**
- * Up close the small guns hit hard (a pistol shot is half your health); at range they need more hits.
- * The rocket and the rail always kill in one, which is why they are rare.
+ * Every gun has one job (docs/BALANCE.md, guarded by balance.test.ts): the pistol is the reliable baseline
+ * (two hits only point blank, three across a room, the most accurate small gun at range); the Uzi shreds up close
+ * and fades fast; the SMG owns the middle distance; the shotgun is a point-blank burst with a short reach.
+ * The rocket and the rail always kill in one, which is why they are rare, slow to fire and only six shots.
  */
 export const GUNS: Record<GunKind, GunStats> = {
   pistol: {
@@ -272,32 +274,32 @@ export const GUNS: Record<GunKind, GunStats> = {
     projectile: 'bullet',
     recoil: 0,
     carry: 1,
-    falloff: { near: 6, far: 20, min: 0.5 },
+    falloff: { near: 2.5, far: 20, min: 0.45 },
   },
   smg: {
     name: 'SMG',
-    rate: 0.11,
+    rate: 0.14,
     mag: 20,
     reserve: 40,
     reloadTime: 1.4,
-    damage: 34,
+    damage: 30,
     knockback: 2.5,
     speed: 32,
-    spread: 0.1,
+    spread: 0.08,
     pellets: 1,
     life: 1,
     projectile: 'bullet',
     recoil: 0.4,
     carry: 0.97,
-    falloff: { near: 5, far: 16, min: 0.5 },
+    falloff: { near: 6, far: 18, min: 0.5 },
   },
   uzi: {
     name: 'Uzi',
-    rate: 0.055,
+    rate: 0.05,
     mag: 32,
     reserve: 32,
     reloadTime: 1.2,
-    damage: 12,
+    damage: 14,
     knockback: 1.2,
     speed: 30,
     spread: 0.15,
@@ -306,24 +308,24 @@ export const GUNS: Record<GunKind, GunStats> = {
     projectile: 'bullet',
     recoil: 0.2,
     carry: 1,
-    falloff: { near: 4, far: 12, min: 0.5 },
+    falloff: { near: 3, far: 10, min: 0.4 },
   },
   shotgun: {
     name: 'Shotgun',
-    rate: 0.9,
+    rate: 0.8,
     mag: 4,
     reserve: 8,
     reloadTime: 1.5,
-    damage: 20,
+    damage: 18,
     knockback: 4,
     speed: 28,
-    spread: 0.26,
+    spread: 0.2,
     pellets: 6,
     life: 0.32,
     projectile: 'pellet',
     recoil: 7,
     carry: 0.93,
-    falloff: { near: 2, far: 7, min: 0.4 },
+    falloff: { near: 2, far: 8, min: 0.35 },
   },
   railgun: {
     name: 'Sniper rail',

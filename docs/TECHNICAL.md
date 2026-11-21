@@ -220,17 +220,17 @@ Source: `GUNS` in `constants.ts:126`. `rate` is seconds between shots while fire
 
 | Gun | rate (s) | mag | reserve | reload (s) | damage | pellets | spread (rad) | speed | life (s) | knockback | recoil | carry | kind | falloff (near / far / min) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Pistol | 0.38 | 8 | inf | 1.0 | 50 | 1 | 0.02 | 30 | 1.3 | 4 | 0 | 1.00 | bullet | 6 / 20 / 0.5 |
-| SMG | 0.11 | 20 | 40 | 1.4 | 34 | 1 | 0.10 | 32 | 1.0 | 2.5 | 0.4 | 0.97 | bullet | 5 / 16 / 0.5 |
-| Uzi | 0.055 | 32 | 32 | 1.2 | 12 | 1 | 0.15 | 30 | 0.8 | 1.2 | 0.2 | 1.00 | bullet | 4 / 12 / 0.5 |
-| Shotgun | 0.9 | 4 | 8 | 1.5 | 20 | 6 | 0.26 | 28 | 0.32 | 4 | 7 | 0.93 | pellet | 2 / 7 / 0.4 |
+| Pistol | 0.38 | 8 | inf | 1.0 | 50 | 1 | 0.02 | 30 | 1.3 | 4 | 0 | 1.00 | bullet | 2.5 / 20 / 0.45 |
+| SMG | 0.14 | 20 | 40 | 1.4 | 30 | 1 | 0.08 | 32 | 1.0 | 2.5 | 0.4 | 0.97 | bullet | 6 / 18 / 0.5 |
+| Uzi | 0.05 | 32 | 32 | 1.2 | 14 | 1 | 0.15 | 30 | 0.8 | 1.2 | 0.2 | 1.00 | bullet | 3 / 10 / 0.4 |
+| Shotgun | 0.8 | 4 | 8 | 1.5 | 18 | 6 | 0.20 | 28 | 0.32 | 4 | 7 | 0.93 | pellet | 2 / 8 / 0.35 |
 | Sniper rail (`railgun`) | 1.4 | 3 | 3 | 1.8 | 100 | 1 | 0 | 160 | 0.35 | 14 | 9 | 0.88 | rail | none |
-| Rockets (`launcher`) | 1.1 | 2 | 4 | 1.1 | 110 | 1 | 0.01 | 22 | 2.2 | 22 | 4 | 0.88 | grenade | none |
+| Rockets (`launcher`) | 1.1 | 2 | 4 | 1.1 | 110 | 1 | 0.01 | 14 | 3.0 | 22 | 4 | 0.88 | grenade | none |
 | Bomb | 0.5 | 1 | 0 | 1.0 | 110 | 1 | 0 | 16 | 1.8 | 20 | 0 | 1.00 | bomb | none (see Bombs) |
 
-**Falloff.** Small guns lose damage with the distance the shot has travelled. `GunStats.falloff = {near, far, min}`: full damage up to `near`, then a straight line down to `min` x damage at `far` and beyond. Each projectile records where it was fired (`Projectile.ox`, `oy`), and `updateProjectiles` scales the damage at the moment of the hit from the distance to the target's centre (`step.ts`, "Damage falls off with the distance the shot travelled"). A pistol hit from 20 or more units away does 25, so it takes four. The sniper rail and rockets have no falloff: they always kill in one.
+**Falloff.** Small guns lose damage with the distance the shot has travelled. `GunStats.falloff = {near, far, min}`: full damage up to `near`, then a straight line down to `min` x damage at `far` and beyond. Each projectile records where it was fired (`Projectile.ox`, `oy`), and `updateProjectiles` scales the damage at the moment of the hit from the distance to the target's centre (`step.ts`, "Damage falls off with the distance the shot travelled"). A pistol hit from 20 or more units away does 22.5, so it takes five. The sniper rail and rockets have no falloff: they always kill in one.
 
-Hits to KO from 100 hp, up close: pistol 2, SMG 3, Uzi 9, shotgun 5 of 6 pellets (so a point-blank blast usually kills), sniper rail 1, rocket 1 on a direct hit (110 damage at the blast centre). The comment above `GUNS` in `constants.ts` states the design intent: deadly up close, more hits at range, and one-shot weapons kept rare.
+Hits to KO from 100 hp, point blank: pistol 2, SMG 4, Uzi 8, shotgun all 6 pellets (one blast, only within about 2.5 m), sniper rail 1, rocket 1 on a direct hit (110 damage at the blast centre). Each gun's role and its time-to-kill at 3, 10 and 20 m are in `docs/BALANCE.md`; `sim/balance.ts` computes them from these constants and `sim/balance.test.ts` fails if a change breaks a role.
 
 Notes:
 - Spread is a random cone, drawn from the seeded RNG (`step.ts:193`). Shotgun pellet speed also varies by 0.85 to 1.15.
@@ -486,7 +486,7 @@ What the 37 tests cover (34 in `sim.test.ts`, 3 in `net/protocol.test.ts`):
 |---|---|
 | Round flow | input is ignored during the countdown, then the fight starts; round ends on time with the KO leader as winner |
 | Movement | land on a desk (Down does not drop into it), drop through a walkway with Down; desks, the table and the counter are solid from the side; wall-kick off the glass; facing follows aim |
-| Guns | pistol hits where aimed and misses when aimed away; furniture blocks bullets; auto-reload; spent special gun falls back to pistol; two pistol hits KO; point-blank shotgun is a one-shot KO; railgun goes through furniture; grenade throws everyone including the shooter; rockets fly straight across the office; walking over a gun with a pistol picks it up; dash dodges bullets |
+| Guns | pistol hits where aimed and misses when aimed away; furniture blocks bullets; auto-reload; spent special gun falls back to pistol; two pistol hits KO point blank, three a few steps back; point-blank shotgun is a one-shot KO; railgun goes through furniture; grenade throws everyone including the shooter; rockets fly straight across the office; walking over a gun with a pistol picks it up; dash dodges bullets |
 | Force Push | splats into the glass (checks `WALL_SPLAT_DAMAGE`); reflects bullets at the shooter |
 | KOs | KO scores for the shooter and the fighter respawns with a pistol; 3 s wait after a KO and coming back as someone else |
 | Falloff, Uzi, power weapons, bombs, swap | small guns hurt less from across the office; the sniper rail still kills in one at range; the top floor always offers a power weapon with six shots and lower floors never do; the Uzi fires fast but weakly; a bomb is picked up over your gun and the gun returns after the throw; a lobbed bomb lands near the target and is lethal next to it; F swaps for the gun you stand on and R does not |
@@ -642,7 +642,7 @@ Rows marked (notes) come from the owner's project notes and commit history, not 
 |---|---|
 | Replaced the melee prototype (first commit `a7ce688`) with a shooter | Playtest feedback (notes). Guns, cover and movement carried the game better. |
 | Auto-aim is the default, mouse aim is an opt-in (T) | The game should be about moving and timing, not aiming precision; also works on keyboard only. |
-| High damage (pistol 50 up close, rocket and railgun one-shot) | Keeps fights short and makes cover, dash and push matter. Standing still and trading shots loses. |
+| High damage (pistol 50 point blank, rocket and railgun one-shot) | Keeps fights short and makes cover, dash and push matter. Standing still and trading shots loses. |
 | The "CTO noise" mechanic was added and then removed | It broke the pace of the match. The code lives in commit `3c8d987`; removed in `a6a4b2c`. |
 | Rockets fly straight (`GRENADE.gravity = 0`) | Auto-aim aims at the target, so a falling rocket would miss for no visible reason. |
 | Simulation separated from rendering, written without a physics engine | Needed for a server-authoritative design, for fast headless tests, and for deterministic replay (sections 2 and 3). |
