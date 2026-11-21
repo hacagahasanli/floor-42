@@ -30,6 +30,15 @@ const put = <T extends THREE.Object3D>(o: T, x: number, y: number, z: number) =>
 };
 
 const BACK_Z = -3.4;
+const FRIDGE_Z = -2.75;
+
+/** Where a hanger rod from a platform at (x, y) ends: under the next platform above it, or the ceiling. */
+const rodTop = (x: number, y: number) =>
+  ARENA.platforms.reduce((top, q) => (q.y > y + 0.01 && q.y < top && x >= q.x0 && x <= q.x1 ? q.y - 0.12 : top), ARENA.ceiling);
+const rod = (g: THREE.Group, x: number, y: number, z: number) => {
+  const top = rodTop(x, y);
+  g.add(put(mesh(new THREE.CylinderGeometry(0.025, 0.025, top - y, 5), mat(PALETTE.ink), false), x, (top + y) / 2, z));
+};
 
 const buildCity = (scene: THREE.Scene) => {
   const sky = canvasTexture(4, 256, (g) => {
@@ -126,12 +135,6 @@ const warning: THREE.Mesh[] = [];
 
 // ---------- Furniture, one builder per platform style. Top surface sits at p.y. ----------
 
-const legs = (g: THREE.Group, x0: number, x1: number, h: number, z0: number, z1: number, color = PALETTE.ink) => {
-  for (const lx of [x0 + 0.12, x1 - 0.12]) {
-    for (const lz of [z0, z1]) g.add(put(mesh(box(0.07, h, 0.07), mat(color)), lx, h / 2, lz));
-  }
-};
-
 const lamp = (x: number, y: number, z: number) => {
   const g = new THREE.Group();
   const arm = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 5), mat(PALETTE.ink));
@@ -199,7 +202,11 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const cx = (p.x0 + p.x1) / 2;
     g.add(put(mesh(box(w, 0.08, 1.5), mat(PALETTE.paper)), cx, p.y - 0.04, -0.3));
     g.add(put(mesh(box(w, 0.04, 0.04), mat(PALETTE.ink), false), cx, p.y - 0.06, 0.45));
-    legs(g, p.x0, p.x1, p.y - 0.08, -0.95, 0.35);
+    // Solid end panels exactly where the desk's collision ends, and a modesty panel at the back:
+    // it reads as a block you hop onto, not a top on legs you could walk under.
+    const legH = p.y - 0.08;
+    for (const ex of [p.x0 + 0.04, p.x1 - 0.04]) g.add(put(mesh(box(0.08, legH, 1.36), mat(PALETTE.inkSoft)), ex, legH / 2, -0.3));
+    g.add(put(mesh(box(w - 0.16, legH * 0.62, 0.04), mat(PALETTE.inkSoft)), cx, legH - (legH * 0.62) / 2, -0.96));
     g.add(lamp(p.x0 + 0.4, p.y, -0.85));
     // Two monitors with code on them, a keyboard, a mug, and an office chair pushed back.
     for (const [k, off] of [[0, -0.55], [1, 0.25]] as const) {
@@ -220,7 +227,7 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const w = p.x1 - p.x0;
     const cx = (p.x0 + p.x1) / 2;
     g.add(put(mesh(box(w, 0.1, 1.8), mat(0xb8875a)), cx, p.y - 0.05, -0.4));
-    for (const lx of [p.x0 + 0.6, p.x1 - 0.6]) g.add(put(mesh(box(0.14, p.y - 0.1, 0.9), mat(PALETTE.ink)), lx, (p.y - 0.1) / 2, -0.4));
+    for (const lx of [p.x0 + 0.1, p.x1 - 0.1]) g.add(put(mesh(box(0.14, p.y - 0.1, 0.9), mat(PALETTE.ink)), lx, (p.y - 0.1) / 2, -0.4));
     // A speakerphone in the middle of the meeting.
     g.add(put(mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.06, 3), mat(PALETTE.ink)), cx, p.y + 0.03, -0.9));
     return g;
@@ -244,12 +251,14 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const g = new THREE.Group();
     const w = p.x1 - p.x0;
     const cx = (p.x0 + p.x1) / 2;
-    g.add(put(mesh(box(w, p.y, 1), mat(0xe6e0d4)), cx, p.y / 2, -0.7));
-    g.add(put(mesh(box(0.05, 0.9, 0.06), mat(PALETTE.stone)), p.x0 + 0.2, p.y * 0.6, -0.17));
+    // Against the back wall like the bookshelf: you walk in front of it and stand on its top.
+    g.add(put(mesh(box(w, p.y - 0.04, 0.9), mat(0xe6e0d4)), cx, (p.y - 0.04) / 2, FRIDGE_Z));
+    g.add(put(mesh(box(w + 0.02, 0.04, 0.92), mat(PALETTE.paper)), cx, p.y - 0.02, FRIDGE_Z));
+    g.add(put(mesh(box(0.05, 0.9, 0.06), mat(PALETTE.stone)), p.x0 + 0.2, p.y * 0.6, FRIDGE_Z + 0.47));
     const r = rng(3);
     for (let i = 0; i < 4; i++) {
       const note = mesh(box(0.22, 0.22, 0.01), mat([PALETTE.gold, 0xff9ac0, 0x9ad0ff, 0xb6f09a][i]), false);
-      note.position.set(p.x0 + 0.5 + r() * (w - 0.8), 0.9 + r() * 1.3, -0.19);
+      note.position.set(p.x0 + 0.5 + r() * (w - 0.8), 0.9 + r() * 1.3, FRIDGE_Z + 0.455);
       note.rotation.z = (r() - 0.5) * 0.4;
       g.add(note);
     }
@@ -265,7 +274,8 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
       books(g, p.x0, p.x1, y + 0.03, -2.4, Math.round(y * 100));
     }
     // The top: deep enough to stand on.
-    g.add(put(mesh(box(w, 0.1, 1.4), mat(0x8a6a4a)), cx, p.y - 0.05, -2.1));
+    g.add(put(mesh(box(w, 0.1, 1.4), mat(0xa8835c)), cx, p.y - 0.05, -2.1));
+    g.add(put(mesh(box(w, 0.03, 0.04), mat(0xd2b48c), false), cx, p.y - 0.012, -1.39));
     return g;
   },
   cabinet: (p) => {
@@ -282,28 +292,28 @@ const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> = {
     const g = new THREE.Group();
     const w = p.x1 - p.x0;
     const cx = (p.x0 + p.x1) / 2;
-    g.add(put(mesh(box(w, 0.12, 1.4), mat(PALETTE.stone)), cx, p.y - 0.06, -0.6));
+    g.add(put(mesh(box(w, 0.11, 1.4), mat(PALETTE.stone)), cx, p.y - 0.065, -0.6));
+    // The deck you stand on is a shade lighter than its sides, with a pale nosing along the front edge.
+    g.add(put(mesh(box(w, 0.015, 1.4), mat(PALETTE.lilac)), cx, p.y - 0.0075, -0.6));
+    g.add(put(mesh(box(w, 0.03, 0.05), mat(PALETTE.cream), false), cx, p.y - 0.01, 0.085));
     g.add(put(mesh(box(w, 0.05, 1.42), mat(PALETTE.ink), false), cx, p.y - 0.14, -0.6));
     // A blue LED strip under the front edge.
     g.add(put(new THREE.Mesh(box(w, 0.03, 0.03), new THREE.MeshBasicMaterial({ color: 0x3ec5ff })), cx, p.y - 0.16, 0.11));
     // Back rail only, so nothing hides the fight.
     g.add(put(mesh(box(w, 0.05, 0.05), mat(PALETTE.ink), false), cx, p.y + 1, -1.28));
     for (let x = p.x0 + 0.2; x <= p.x1; x += 1.4) g.add(put(mesh(box(0.05, 1, 0.05), mat(PALETTE.ink), false), x, p.y + 0.5, -1.28));
-    // Hung from the ceiling.
-    for (const x of [p.x0 + 0.3, p.x1 - 0.3]) {
-      g.add(put(mesh(new THREE.CylinderGeometry(0.025, 0.025, ARENA.ceiling - p.y, 5), mat(PALETTE.ink), false), x, (ARENA.ceiling + p.y) / 2, -0.6));
-    }
+    // Hung from the ceiling, or from the platform above.
+    for (const x of [p.x0 + 0.3, p.x1 - 0.3]) rod(g, x, p.y, -0.6);
     return g;
   },
   tray: (p) => {
     const g = new THREE.Group();
     const w = p.x1 - p.x0;
     const cx = (p.x0 + p.x1) / 2;
-    g.add(put(mesh(box(w, 0.06, 0.9), mat(PALETTE.stone)), cx, p.y - 0.03, -0.3));
+    g.add(put(mesh(box(w, 0.05, 0.9), mat(PALETTE.stone)), cx, p.y - 0.035, -0.3));
+    g.add(put(mesh(box(w, 0.012, 0.9), mat(PALETTE.lilac)), cx, p.y - 0.006, -0.3));
     g.add(put(mesh(box(w, 0.16, 0.04), mat(PALETTE.ink), false), cx, p.y + 0.02, -0.75));
-    for (const x of [p.x0 + 0.2, p.x1 - 0.2]) {
-      g.add(put(mesh(new THREE.CylinderGeometry(0.025, 0.025, ARENA.ceiling - p.y, 5), mat(PALETTE.ink), false), x, p.y + (ARENA.ceiling - p.y) / 2, -0.3));
-    }
+    for (const x of [p.x0 + 0.2, p.x1 - 0.2]) rod(g, x, p.y, -0.3);
     [PALETTE.gold, PALETTE.blue, PALETTE.red, PALETTE.green].forEach((col, i) => {
       const xa = p.x0 + 0.2 + i * 0.7;
       const curve = new THREE.CatmullRomCurve3([
