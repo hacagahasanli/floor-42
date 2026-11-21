@@ -13,7 +13,7 @@ import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS, RULES } from '../sim/constants
 import { bodyHeight, chooseCharacter, createGame, muzzle, pickupCandidate, step } from '../sim/step';
 
 import { buildArena } from './arena';
-import { buildRig, poseDeath, poseSide } from './characters';
+import { buildRig, poseDeath, poseSide, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 import { createVfx } from './vfx';
@@ -320,6 +320,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
   // Squash and stretch: a critically damped spring on the rig's vertical scale, around the feet.
   const squash = state.fighters.map(() => ({ s: 0, v: 0 }));
+  const squashSpring = { x: 0, v: 0 };
   const wasGround = state.fighters.map((f) => f.onGround);
   const lastVy = state.fighters.map(() => 0);
   const kick = (i: number, amount: number) => {
@@ -659,8 +660,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       lastVy[i] = f.vy;
       const sq = squash[i];
       const K = 320;
-      sq.v += (-K * sq.s - 2 * Math.sqrt(K) * sq.v) * dt;
-      sq.s += sq.v * dt;
+      squashSpring.x = sq.s;
+      squashSpring.v = sq.v;
+      stepSpring(squashSpring, 0, Math.sqrt(K), 1, dt);
+      sq.s = squashSpring.x;
+      sq.v = squashSpring.v;
       const sy = 1 + sq.s * motion;
       rig.root.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
       // Hit flash.

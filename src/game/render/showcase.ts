@@ -4,7 +4,7 @@ import { getSettings } from '../settings';
 import { ARENA, GUNS, menuSpotX } from '../sim/constants';
 
 import { buildArena } from './arena';
-import { buildRig, poseSide } from './characters';
+import { buildRig, poseSide, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 
@@ -79,6 +79,7 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
   let drop = 0; // height above the floor while dropping in
   let dropV = 0;
   const squash = { s: 0, v: 0 };
+  const squashSpring = { x: 0, v: 0 };
   const accentOf: Record<CharacterId, number> = { hotfix: 0xff6a3d, legacy: 0x3ddc84, standup: 0x3ec5ff, intern: 0xffd23f };
 
   const place = (id: CharacterId, animate: boolean) => {
@@ -133,8 +134,11 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
       if (drop === 0) squash.v = -6;
     }
     const K = 260;
-    squash.v += (-K * squash.s - 2 * Math.sqrt(K) * 0.55 * squash.v) * dt;
-    squash.s += squash.v * dt;
+    squashSpring.x = squash.s;
+    squashSpring.v = squash.v;
+    stepSpring(squashSpring, 0, Math.sqrt(K), 0.55, dt);
+    squash.s = squashSpring.x;
+    squash.v = squashSpring.v;
 
     // Idle: face the camera three-quarters, glance left and right, and every few seconds check a gun with a dry-fire.
     const cycle = time % 6;

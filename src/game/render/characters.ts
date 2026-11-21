@@ -456,6 +456,24 @@ export interface PoseInput {
 
 const damp = (cur: number, target: number, k: number, dt: number) => cur + (target - cur) * (1 - Math.exp(-k * dt));
 
+/** Largest step a spring takes at once. A 60 fps frame fits in one step, so the feel there is unchanged. */
+export const SPRING_MAX_STEP = 1 / 50;
+
+/**
+ * Moves a damped spring (angular frequency w, damping ratio zeta) toward its target by dt, in place.
+ * Semi-implicit Euler goes unstable once w * dt gets near 1 (a 0.1 s frame at 10 fps does it), so a long
+ * frame is cut into equal steps no longer than SPRING_MAX_STEP.
+ */
+export const stepSpring = (s: { x: number; v: number }, target: number, w: number, zeta: number, dt: number) => {
+  const n = Math.ceil(dt / SPRING_MAX_STEP - 1e-9);
+  const h = dt / n;
+  for (let i = 0; i < n; i++) {
+    s.v += (w * w * (target - s.x) - 2 * zeta * w * s.v) * h;
+    s.x += s.v * h;
+  }
+};
+const turnSpring = { x: 0, v: 0 };
+
 /** Procedural animation: running, jumping, aiming, recoil, Force Push. */
 export const poseRig = (rig: Rig, p: PoseInput) => {
   const { dt } = p;
@@ -888,9 +906,11 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   const turnTarget = p.facing * (Math.PI / 2 - 0.3);
   const w = 16;
   const ud = rig.root.userData as { turnV?: number };
-  const v = ud.turnV ?? 0;
-  ud.turnV = v + (w * w * (turnTarget - rig.turn) - 2 * 0.75 * w * v) * dt;
-  rig.turn += ud.turnV * dt;
+  turnSpring.x = rig.turn;
+  turnSpring.v = ud.turnV ?? 0;
+  stepSpring(turnSpring, turnTarget, w, 0.75, dt);
+  rig.turn = turnSpring.x;
+  ud.turnV = turnSpring.v;
   rig.root.rotation.y = rig.turn;
 
   const speed = Math.abs(p.vx);
