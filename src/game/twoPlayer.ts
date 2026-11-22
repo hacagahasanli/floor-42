@@ -31,8 +31,24 @@ export const ACTIONS_2P: { id: Action2P; label: string }[] = [
 
 /** Spec 1.1: P1 = WASD + F G H, P2 = arrows + ; L K (a mirror by finger, J empty between the two players' hands). */
 export const DEFAULT_BINDINGS_2P: Bindings2P = {
-  p1: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', fire: 'KeyF', push: 'KeyG', dash: 'KeyH' },
-  p2: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', fire: 'Semicolon', push: 'KeyL', dash: 'KeyK' },
+  p1: {
+    left: 'KeyA',
+    right: 'KeyD',
+    up: 'KeyW',
+    down: 'KeyS',
+    fire: 'KeyF',
+    push: 'KeyG',
+    dash: 'KeyH',
+  },
+  p2: {
+    left: 'ArrowLeft',
+    right: 'ArrowRight',
+    up: 'ArrowUp',
+    down: 'ArrowDown',
+    fire: 'Semicolon',
+    push: 'KeyL',
+    dash: 'KeyK',
+  },
 };
 
 /**
@@ -40,7 +56,8 @@ export const DEFAULT_BINDINGS_2P: Bindings2P = {
  * (spec 1.3): Space (the 1P shoot key, reached by both thumbs), Shift (Sticky Keys), Enter, Tab, Ctrl, Alt, Meta,
  * Fn, ' and / (Firefox Quick Find), the numpad (absent on laptops), function keys and Esc.
  */
-const ALLOWED_2P = /^(Key[A-Z]|Digit[0-9]|Arrow(Left|Right|Up|Down)|Semicolon|Comma|Period|BracketLeft|BracketRight|Backslash|Minus|Equal|Backquote|IntlBackslash)$/;
+const ALLOWED_2P =
+  /^(Key[A-Z]|Digit[0-9]|Arrow(Left|Right|Up|Down)|Semicolon|Comma|Period|BracketLeft|BracketRight|Backslash|Minus|Equal|Backquote|IntlBackslash)$/;
 
 /** True when `code` can go on a 2-player action (and is not one the game keeps: Esc, M, T, 1-4, Enter, Tab). */
 export const allowed2P = (code: string) => ALLOWED_2P.test(code) && !RESERVED_KEYS.has(code);
@@ -73,11 +90,20 @@ export const sanitizeBindings2P = (raw: unknown): Bindings2P => {
 };
 
 export type Rebind2PResult =
-  | { ok: true; bindings: Bindings2P; swapped: { player: Player; action: Action2P; code: string } | null }
+  | {
+      ok: true;
+      bindings: Bindings2P;
+      swapped: { player: Player; action: Action2P; code: string } | null;
+    }
   | { ok: false; reason: 'reserved' };
 
 /** Put `code` on one player's action. If another action (either player's) has it, the two trade keys. */
-export const rebind2P = (b: Bindings2P, player: Player, action: Action2P, code: string): Rebind2PResult => {
+export const rebind2P = (
+  b: Bindings2P,
+  player: Player,
+  action: Action2P,
+  code: string,
+): Rebind2PResult => {
   if (!allowed2P(code)) return { ok: false, reason: 'reserved' };
   const next = clone2P(b);
   const previous = next[player][action];
@@ -95,15 +121,20 @@ export const rebind2P = (b: Bindings2P, player: Player, action: Action2P, code: 
 
 /** Every 2-player action with no key. */
 export const unbound2P = (b: Bindings2P) =>
-  PLAYERS.flatMap((p) => ACTIONS_2P.filter(({ id }) => !b[p][id]).map(({ id }) => ({ player: p, action: id })));
+  PLAYERS.flatMap((p) =>
+    ACTIONS_2P.filter(({ id }) => !b[p][id]).map(({ id }) => ({ player: p, action: id })),
+  );
 
 /** Every key a 2-player map uses (to preventDefault them all). */
-export const keys2P = (b: Bindings2P) => new Set(PLAYERS.flatMap((p) => Object.values(b[p]).filter(Boolean)));
+export const keys2P = (b: Bindings2P) =>
+  new Set(PLAYERS.flatMap((p) => Object.values(b[p]).filter(Boolean)));
 
 /** Key code -> [player index, action]. */
 export const lookup2P = (b: Bindings2P) => {
   const m = new Map<string, [0 | 1, Action2P]>();
-  PLAYERS.forEach((p, i) => ACTIONS_2P.forEach(({ id }) => b[p][id] && m.set(b[p][id], [i as 0 | 1, id])));
+  PLAYERS.forEach((p, i) =>
+    ACTIONS_2P.forEach(({ id }) => b[p][id] && m.set(b[p][id], [i as 0 | 1, id])),
+  );
   return m;
 };
 
@@ -150,11 +181,13 @@ export const padInput = (pad: PadLike): Partial<InputState> => {
 export const padStart = (pad: PadLike) => !!pad.buttons[9]?.pressed;
 
 /** Which player each connected pad drives (by order): one pad plays P2, two pads play P1 and P2, more are ignored. */
-export const padPlayers = (count: number): (0 | 1)[] => (count <= 0 ? [] : count === 1 ? [1] : [0, 1]);
+export const padPlayers = (count: number): (0 | 1)[] =>
+  count <= 0 ? [] : count === 1 ? [1] : [0, 1];
 
 /** Merge pad buttons into keyboard input (either source holds a button down). */
 export const mergeInput = (into: InputState, extra: Partial<InputState>) => {
-  for (const [k, v] of Object.entries(extra)) if (v === true) (into as unknown as Record<string, boolean>)[k] = true;
+  for (const [k, v] of Object.entries(extra))
+    if (v === true) (into as unknown as Record<string, boolean>)[k] = true;
   return into;
 };
 
@@ -163,13 +196,15 @@ export const PLAYER_COLOURS = {
   normal: ['#ff4d4d', '#4d7cff'],
   colourBlind: ['#e69f00', '#56b4e9'],
 } as const;
-export const playerColour = (index: 0 | 1, colourBlind: boolean) => PLAYER_COLOURS[colourBlind ? 'colourBlind' : 'normal'][index];
+export const playerColour = (index: 0 | 1, colourBlind: boolean) =>
+  PLAYER_COLOURS[colourBlind ? 'colourBlind' : 'normal'][index];
 
 /** First to 3, 5 or 7 (spec 3.2); Push cycles 3 -> 5 -> 7 -> 3. Default 5. */
 export const MATCH_LENGTHS = [3, 5, 7] as const;
 export type MatchLength = (typeof MATCH_LENGTHS)[number];
 export const DEFAULT_LENGTH: MatchLength = 5;
-export const nextLength = (n: number): MatchLength => MATCH_LENGTHS[(MATCH_LENGTHS.indexOf(n as MatchLength) + 1) % MATCH_LENGTHS.length];
+export const nextLength = (n: number): MatchLength =>
+  MATCH_LENGTHS[(MATCH_LENGTHS.indexOf(n as MatchLength) + 1) % MATCH_LENGTHS.length];
 export const parseLength = (v: unknown): MatchLength => {
   const n = Number(v);
   return (MATCH_LENGTHS as readonly number[]).includes(n) ? (n as MatchLength) : DEFAULT_LENGTH;
@@ -219,10 +254,12 @@ export const addToTally = (s: StorageLike | null, winner: number | null): Tally 
   return t;
 };
 
-export const resetTally = (s: StorageLike | null) => write(s, TALLY_KEY, JSON.stringify({ p1: 0, p2: 0 }));
+export const resetTally = (s: StorageLike | null) =>
+  write(s, TALLY_KEY, JSON.stringify({ p1: 0, p2: 0 }));
 
 export const readLength = (s: StorageLike | null): MatchLength => parseLength(read(s, LENGTH_KEY));
-export const saveLength = (s: StorageLike | null, n: MatchLength) => write(s, LENGTH_KEY, String(n));
+export const saveLength = (s: StorageLike | null, n: MatchLength) =>
+  write(s, LENGTH_KEY, String(n));
 
 export const keyCardSeen = (s: StorageLike | null) => read(s, KEYCARD_KEY) === '1';
 export const markKeyCardSeen = (s: StorageLike | null) => write(s, KEYCARD_KEY, '1');
@@ -238,3 +275,14 @@ export const sessionStore = (): StorageLike | null => {
 
 /** Spec 6: 2 PLAYER shows on keyboard devices, and on touch devices only while a gamepad is connected. */
 export const show2PMenuItem = (touch: boolean, padConnected: boolean) => !touch || padConnected;
+
+export type CursorDir = 'left' | 'right' | 'up' | 'down';
+
+/** The select screen's cursor step: a 2x2 grid of the four fighters (wide), or one row of four (narrow). */
+export const stepCursor = (i: number, dir: CursorDir, narrow: boolean): number => {
+  if (narrow) return dir === 'left' ? Math.max(0, i - 1) : dir === 'right' ? Math.min(3, i + 1) : i;
+  const row = i >> 1;
+  const col = i & 1;
+  if (dir === 'left' || dir === 'right') return row * 2 + (dir === 'left' ? 0 : 1);
+  return (dir === 'up' ? 0 : 1) * 2 + col;
+};

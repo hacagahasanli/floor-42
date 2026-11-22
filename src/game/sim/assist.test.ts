@@ -8,7 +8,12 @@ import type { GameEvent, GameState, GunKind, InputState, Pickup } from './types'
 
 /** Local 2-player assists (spec local-2p.md section 2): automatic pick up and reload, bomb on Push, first to N. */
 
-const run = (state: GameState, ticks: number, p0: Partial<InputState> = {}, p1: Partial<InputState> = {}) => {
+const run = (
+  state: GameState,
+  ticks: number,
+  p0: Partial<InputState> = {},
+  p1: Partial<InputState> = {},
+) => {
   const events: GameEvent[] = [];
   for (let i = 0; i < ticks; i++) {
     step(state, [
@@ -21,7 +26,12 @@ const run = (state: GameState, ticks: number, p0: Partial<InputState> = {}, p1: 
 };
 
 const fighting = (assist = true, kosToWin = 5): GameState => {
-  const s = createGame(['hotfix', 'legacy'], 7, false, assist ? { kosToWin, assist: true } : undefined);
+  const s = createGame(
+    ['hotfix', 'legacy'],
+    7,
+    false,
+    assist ? { kosToWin, assist: true } : undefined,
+  );
   s.phase = 'fight';
   s.phaseTime = RULES.roundSeconds;
   s.dropTimer = Infinity;

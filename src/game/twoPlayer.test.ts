@@ -21,6 +21,7 @@ import {
   route2P,
   sanitizeBindings2P,
   show2PMenuItem,
+  stepCursor,
   unbound2P,
 } from './twoPlayer';
 import { EMPTY_INPUT } from './sim/types';
@@ -28,23 +29,63 @@ import { EMPTY_INPUT } from './sim/types';
 import type { StorageLike } from './settings';
 import type { PadLike } from './twoPlayer';
 
-const memory = (init: Record<string, string> = {}): StorageLike & { data: Record<string, string> } => {
+const memory = (
+  init: Record<string, string> = {},
+): StorageLike & { data: Record<string, string> } => {
   const data = { ...init };
   return { data, getItem: (k) => data[k] ?? null, setItem: (k, v) => void (data[k] = v) };
 };
 
-const all = (b = DEFAULT_BINDINGS_2P) => PLAYERS.flatMap((p) => ACTIONS_2P.map(({ id }) => b[p][id]));
+const all = (b = DEFAULT_BINDINGS_2P) =>
+  PLAYERS.flatMap((p) => ACTIONS_2P.map(({ id }) => b[p][id]));
 
 /** Keys spec 1.3 rules out for 2-player play: they open browser or OS behaviour, or are the 1P shoot key. */
 const FORBIDDEN = [
-  'Space', 'ShiftLeft', 'ShiftRight', 'Enter', 'NumpadEnter', 'Tab', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight',
-  'MetaLeft', 'MetaRight', 'Escape', 'Quote', 'Slash', 'Numpad0', 'Numpad5', 'NumpadAdd', 'F1', 'F5', 'F11', 'CapsLock', 'ContextMenu',
+  'Space',
+  'ShiftLeft',
+  'ShiftRight',
+  'Enter',
+  'NumpadEnter',
+  'Tab',
+  'ControlLeft',
+  'ControlRight',
+  'AltLeft',
+  'AltRight',
+  'MetaLeft',
+  'MetaRight',
+  'Escape',
+  'Quote',
+  'Slash',
+  'Numpad0',
+  'Numpad5',
+  'NumpadAdd',
+  'F1',
+  'F5',
+  'F11',
+  'CapsLock',
+  'ContextMenu',
 ];
 
 describe('2-player default keys', () => {
   it('match the spec: P1 WASD + F G H, P2 arrows + ; L K', () => {
-    expect(DEFAULT_BINDINGS_2P.p1).toEqual({ left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', fire: 'KeyF', push: 'KeyG', dash: 'KeyH' });
-    expect(DEFAULT_BINDINGS_2P.p2).toEqual({ left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', fire: 'Semicolon', push: 'KeyL', dash: 'KeyK' });
+    expect(DEFAULT_BINDINGS_2P.p1).toEqual({
+      left: 'KeyA',
+      right: 'KeyD',
+      up: 'KeyW',
+      down: 'KeyS',
+      fire: 'KeyF',
+      push: 'KeyG',
+      dash: 'KeyH',
+    });
+    expect(DEFAULT_BINDINGS_2P.p2).toEqual({
+      left: 'ArrowLeft',
+      right: 'ArrowRight',
+      up: 'ArrowUp',
+      down: 'ArrowDown',
+      fire: 'Semicolon',
+      push: 'KeyL',
+      dash: 'KeyK',
+    });
   });
 
   it('never share a key between P1 and P2 or between two actions', () => {
@@ -83,14 +124,27 @@ describe('allowed2P', () => {
     for (const k of [...FORBIDDEN, ...RESERVED_KEYS]) expect(allowed2P(k)).toBe(false);
   });
   it('accepts letters, arrows and letter-row punctuation', () => {
-    for (const k of ['KeyJ', 'KeyZ', 'ArrowUp', 'Semicolon', 'Comma', 'Period', 'BracketLeft', 'Digit7']) expect(allowed2P(k)).toBe(true);
+    for (const k of [
+      'KeyJ',
+      'KeyZ',
+      'ArrowUp',
+      'Semicolon',
+      'Comma',
+      'Period',
+      'BracketLeft',
+      'Digit7',
+    ])
+      expect(allowed2P(k)).toBe(true);
   });
 });
 
 describe('2-player rebinding', () => {
   it('refuses reserved and forbidden keys', () => {
     for (const k of ['Space', 'ShiftLeft', 'Escape', 'KeyM', 'Digit1', 'Numpad4', 'Quote', 'Slash'])
-      expect(rebind2P(DEFAULT_BINDINGS_2P, 'p1', 'fire', k)).toEqual({ ok: false, reason: 'reserved' });
+      expect(rebind2P(DEFAULT_BINDINGS_2P, 'p1', 'fire', k)).toEqual({
+        ok: false,
+        reason: 'reserved',
+      });
   });
 
   it('swaps a key taken by the other player, so no key is ever on two actions', () => {
@@ -112,7 +166,10 @@ describe('2-player rebinding', () => {
   });
 
   it('repairs saved maps: bad codes fall back, duplicates clear, forbidden keys never load', () => {
-    const b = sanitizeBindings2P({ p1: { fire: 'Space', push: 'KeyK', left: 42 }, p2: { left: 'KeyZ' } });
+    const b = sanitizeBindings2P({
+      p1: { fire: 'Space', push: 'KeyK', left: 42 },
+      p2: { left: 'KeyZ' },
+    });
     expect(b.p1.fire).toBe('KeyF');
     expect(b.p1.left).toBe('KeyA');
     expect(b.p1.push).toBe('KeyK');
@@ -144,7 +201,10 @@ describe('2-player input routing', () => {
   });
 
   it('takes both players at full load at once (6+ keys: the ghosting worst case)', () => {
-    const [a, b] = route2P(['KeyA', 'KeyW', 'KeyF', 'KeyH', 'ArrowLeft', 'ArrowUp', 'Semicolon', 'KeyK'], DEFAULT_BINDINGS_2P);
+    const [a, b] = route2P(
+      ['KeyA', 'KeyW', 'KeyF', 'KeyH', 'ArrowLeft', 'ArrowUp', 'Semicolon', 'KeyK'],
+      DEFAULT_BINDINGS_2P,
+    );
     expect([a.left, a.up, a.fire, a.dash]).toEqual([true, true, true, true]);
     expect([b.left, b.up, b.fire, b.dash]).toEqual([true, true, true, true]);
     expect(a.right || a.push || b.right || b.push).toBe(false);
@@ -246,5 +306,21 @@ describe('2-player menu, colours, length and tally', () => {
     resetTally(s);
     expect(readTally(s)).toEqual({ p1: 0, p2: 0 });
     expect(readTally(memory({ 'floor42:2p-tally': '{bad' }))).toEqual({ p1: 0, p2: 0 });
+  });
+});
+
+describe('select screen cursor', () => {
+  it('walks the 2x2 grid with each player own directions', () => {
+    expect(stepCursor(0, 'right', false)).toBe(1);
+    expect(stepCursor(1, 'right', false)).toBe(1);
+    expect(stepCursor(0, 'down', false)).toBe(2);
+    expect(stepCursor(3, 'up', false)).toBe(1);
+    expect(stepCursor(3, 'left', false)).toBe(2);
+  });
+  it('walks one row of four on a narrow window', () => {
+    expect(stepCursor(0, 'left', true)).toBe(0);
+    expect(stepCursor(2, 'right', true)).toBe(3);
+    expect(stepCursor(3, 'right', true)).toBe(3);
+    expect(stepCursor(1, 'down', true)).toBe(1);
   });
 });
