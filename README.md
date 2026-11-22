@@ -6,7 +6,7 @@
 
 A game by **[Nalbaki Games](https://nalbakigames.com)**.
 
-### [▶ Play now](https://floor42.nalbakigames.com/play) · [Practice vs bot](https://floor42.nalbakigames.com/characters) · [Studio](https://nalbakigames.com) · [Last Commit Standing](https://lastcommit.nalbakigames.com)
+### [▶ Play now](https://floor42.nalbakigames.com/play) · [Pick a fighter](https://floor42.nalbakigames.com/characters) · [Studio](https://nalbakigames.com) · [Last Commit Standing](https://lastcommit.nalbakigames.com)
 
 **A fast side-on office shootout in the browser. First to five KOs takes the merge.**<br>
 Your gun **aims itself**, so the whole game is moving, jumping and timing your shots.
@@ -43,7 +43,7 @@ A rocket crosses the whole office in a second.
 <table>
   <tr>
     <td><img alt="Title screen" src="docs/home.png"></td>
-    <td><img alt="Character select with four fighters on turntables" src="docs/characters.png"></td>
+    <td><img alt="Fighter select in the main menu over the live office" src="docs/characters.png"></td>
   </tr>
 </table>
 
@@ -57,7 +57,7 @@ npm run dev
 Open http://localhost:3000.
 
 - `/play`: **online 1v1**. *Invite a friend* gives you a link to send; *Quick match* pairs you with whoever is waiting. Rematch with Enter.
-- `/characters`: practice against a bot (`/arena?p1=legacy&p2=standup&bot=hard`, add `&demo` to watch bot against bot)
+- `/characters`: the main menu's fighter select (FIGHTER and PLAY open it; Esc or Back returns to `/`), then fight the bot (`/arena?p1=legacy&p2=standup&bot=hard`, add `&demo` to watch bot against bot)
 
 The browser connects to the game server on Fly.io by default. To run your own server locally:
 
@@ -98,12 +98,13 @@ If your rival's connection drops, the game holds for 20 seconds while they recon
 | move | A / D | ← / → |
 | jump, double jump, wall-kick | W | ↑ |
 | crouch, drop through a walkway | S | ↓ |
+| sit (crouch anywhere, walkways too) | V | M |
 | shoot (hold for automatic fire, auto-aim always on) | F | ; |
 | Force Push (throws the bomb while you carry one) | G | L |
 | dash | H | K |
 | pause (either player) | Esc | Esc |
 
-Keys are bound by physical position, so they stay put on AZERTY or QWERTZ, and the key card shows your layout's letters. Pick up and reload are automatic in 2 player: walking onto a gun takes it at once with the pistol or a nearly empty gun, otherwise stand on it for half a second. Space, Shift, Enter, Tab, Ctrl, Alt, the numpad, ' and / are never used in 2 player. Both maps can be changed in Settings → Controls → 2 Player.
+Keys are bound by physical position, so they stay put on AZERTY or QWERTZ, and the key card shows your layout's letters. Pick up and reload are automatic in 2 player: walking onto a gun takes it at once with the pistol or a nearly empty gun, otherwise stand on it for half a second. Space, Shift, Enter, Tab, Ctrl, Alt, the numpad, ' and / are never used in 2 player. M is P2's sit key there, so it does not mute in a 2 player match (mute from Pause → Settings). Both maps can be changed in Settings → Controls → 2 Player.
 
 On the fighter select each player moves their own cursor, presses their Shoot key to lock in, and either Push key changes the match length. Before the first match a key card lights every key while it is held: if one stays dark, that keyboard can't take the combo, so move it in Settings. Gamepads: one pad plays P2, two pads play P1 and P2 (stick or d-pad move, A jump, X or RT shoot, B or LB push, RB or LT dash, Start pause). On a phone or tablet (no keyboard) 2 PLAYER only shows while two gamepads are connected, and unplugging one mid-match pauses the game.
 
