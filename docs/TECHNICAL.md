@@ -30,13 +30,12 @@ Floor 42 is a side-on, 1v1 office shootout that runs in the browser.
 src/
   app/                     Next.js App Router: pages only, no game logic
     page.tsx               title screen
-    characters/page.tsx    character select (renders CharacterSelect)
+    characters/page.tsx    the main menu opened on its fighter select (same screen as FIGHTER)
     play/page.tsx          online lobby (?room=<id> joins an invite)
     arena/page.tsx         reads ?p1= &p2= &demo &bot= and renders ArenaGame
     layout.tsx             fonts (Bungee, Chakra Petch), metadata
   components/
     ArenaGame.tsx          React shell: canvas + HUD overlay + hidden input
-    CharacterSelect.tsx    turntable gallery of the four fighters
     OnlineLobby.tsx        /play: invite link, quick match, owns the room connection
   game/
     sim/                   THE RULES. Pure TypeScript, no DOM, no Three.js
@@ -714,7 +713,7 @@ Reader question: what if nobody else is online?
 - **Waiting screen.** While a quick match waits, "Nobody yet? Play the bot instead" is shown (`OnlineLobby.tsx:186-188`).
 - **Both are plain links** to `/arena?p1=<your character>&bot=normal`. `/arena` is the existing single-player page: `src/app/arena/page.tsx:20` accepts `bot=easy|normal|hard` and falls back to `normal`. The character picked in the lobby is carried in `p1`; the bot's character is random.
 - **Leaving the room.** The links leave `/play`, so the lobby's unmount effect runs and calls `room.leave()` (`OnlineLobby.tsx:41-47`, section 10). Nobody can join an empty match you walked away from. No new code was needed for that; the comment at the waiting link says so.
-- The character-select page (`CharacterSelect.tsx:87`) still starts the bot at `easy`; the online page starts it at `normal`.
+- The old standalone character-select page is gone (2026-11-23): /characters is the menu's fighter select, which starts the bot at `normal` like the online page.
 
 ### 13.2 Sound: guns bus, defaults and sliders (`bfed1d6`)
 
