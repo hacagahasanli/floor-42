@@ -15,6 +15,7 @@ import { chooseCharacter, createGame, muzzle, pickupCandidate, step, visibleAim 
 
 import { buildArena } from './arena';
 import { buildRig, poseDeath, poseSide, stepSpring } from './characters';
+import { captureRequested, createCaptureDirector } from './captureDirector';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 import { createVfx } from './vfx';
@@ -506,6 +507,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   };
 
   const handleEvent = (e: GameEvent) => {
+    director?.notify(e);
     switch (e.type) {
       case 'shot':
         sfx.shot(e.gun, e.x);
@@ -593,6 +595,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   // fighter is ever hidden behind a button; the city outside fills the strips.
   let insets = { left: 0, right: 0, top: 0, bottom: 0 };
   const camBase = camera.position.clone();
+  // Capture-only framing (?capture=1 in a dev build): same side-on angle, tight on the action. Never built otherwise.
+  const director = captureRequested() ? createCaptureDirector(
+        // ?capture=portrait: tall frame, so keep the camera close and favour the action over the whole pair.
+        new URLSearchParams(window.location.search).get('capture') === 'portrait' ? { maxDistance: 19, minDistance: 9 } : { maxDistance: 15, minDistance: 11, wideAfterKo: 1.3 },
+      ) : null;
   const updateCamera = (dt: number) => {
     const tanHalf = Math.tan((camera.fov * Math.PI) / 360);
     const w = canvas.clientWidth || 1;
@@ -626,12 +633,24 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     camBase.x += (tx - camBase.x) * k;
     camBase.y += (ty - camBase.y) * k;
     camBase.z += (tz - camBase.z) * k;
+    let dutch = 0;
+    if (director) {
+      const shot = director.update({
+        dt,
+        fighters: state.fighters.map((f) => ({ x: f.x, y: f.y, vx: f.vx, facing: f.facing, respawn: f.respawn })),
+        fov: 36,
+        aspect: camera.aspect,
+      });
+      camBase.set(shot.x, shot.y - shot.low, shot.z);
+      ty = shot.y;
+      dutch = shot.roll;
+    }
     // Trauma shake: amount = trauma², offsets from smooth noise (summed sines), never Math.random().
     const amt = trauma * trauma;
     const n = (f: number, p: number) => Math.sin(time * f + p) * 0.6 + Math.sin(time * f * 2.3 + p) * 0.4;
     camera.position.set(camBase.x + n(23, 1.3) * 0.45 * amt, camBase.y + n(19, 4.1) * 0.32 * amt, camBase.z);
-    camera.lookAt(camBase.x + n(23, 1.3) * 0.2 * amt, camBase.y - 0.6 + n(19, 4.1) * 0.15 * amt, 0);
-    camera.rotateZ(n(17, 2.7) * 0.02 * amt);
+    camera.lookAt(camBase.x + n(23, 1.3) * 0.2 * amt, (director ? ty : camBase.y - 0.6) + n(19, 4.1) * 0.15 * amt, 0);
+    camera.rotateZ(n(17, 2.7) * 0.02 * amt + dutch);
     trauma = Math.max(0, trauma - dt * 1.5);
     // A short zoom punch on huge moments.
     const fov = 36 - fovKick;
@@ -1031,7 +1050,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         events = online.tick(controls.read(aim.x, aim.y, aimMode));
         state = online.state;
       } else {
-        step(state, [opts.demo ? demoBot(state) : controls.read(aim.x, aim.y, aimMode), bot(state)]);
+        step(state, [opts.demo || director ? demoBot(state) : controls.read(aim.x, aim.y, aimMode), bot(state)]);
         events = state.events;
       }
       if (!started && state.phase === 'fight') {
@@ -1113,6 +1132,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   raf = requestAnimationFrame(frame);
   // Dev-only handle for automated checks.
   if (process.env.NODE_ENV !== 'production') {
+    if (director) (window as unknown as { __capture?: unknown }).__capture = { director, restart: () => restart() };
     (window as unknown as { __mc?: unknown }).__mc = { state: () => state, me, renderer, view: () => smooth, net: () => online && { ...online.status, tl: (online as unknown as { timeline?: unknown }).timeline }, muzzle: () => muzzle(state.fighters[0]) };
   }
 
