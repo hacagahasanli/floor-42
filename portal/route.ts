@@ -1,4 +1,4 @@
-/** The portal's screens are hash routes: `#/`, `#/characters`, `#/arena?p1=hotfix&bot=hard`, `#/play`. */
+/** The portal's screens are hash routes: `#/`, `#/characters` (the menu's fighter select), `#/arena?p1=hotfix&bot=hard`, `#/play`. */
 export interface Route {
   path: string;
   query: URLSearchParams;

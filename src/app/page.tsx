@@ -7,7 +7,7 @@ interface Props {
 }
 
 /**
- * The main menu; `/?select` opens straight on the fighter select (from a match's "Change fighter"), `/?2p` on the
+ * The main menu; `/?select` (older links) opens straight on the fighter select, which now lives at /characters; `/?2p` on the
  * 2-player select (from a 2-player match's "Change fighters": picks and length kept, tally kept with `keep`).
  */
 const HomePage = async ({ searchParams }: Props) => {

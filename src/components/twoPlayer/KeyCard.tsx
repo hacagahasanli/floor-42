@@ -253,11 +253,16 @@ const Half = ({
   const actions =
     index === 0 ? (['fire', 'push', 'dash'] as const) : (['dash', 'push', 'fire'] as const);
   const names: Record<string, string> = { fire: 'Shoot', push: 'Push', dash: 'Dash' };
+  // Sit (V / M) sits on the row under the action keys, on the side it is on the keyboard (under Shoot for P1,
+  // under Dash for P2).
   const row = (
-    <div className="flex items-start gap-1.5 pt-6">
-      {actions.map((a) => (
-        <span key={a}>{cap(a, names[a])}</span>
-      ))}
+    <div className="flex flex-col gap-1.5 pt-6">
+      <div className="flex items-start gap-1.5">
+        {actions.map((a) => (
+          <span key={a}>{cap(a, names[a])}</span>
+        ))}
+      </div>
+      <div className="flex">{cap('crouch', 'Sit')}</div>
     </div>
   );
   return (
