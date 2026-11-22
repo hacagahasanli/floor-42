@@ -4,8 +4,12 @@
  * The menu's Settings panel and the in-game pause menu edit this store; the game, the menu backdrop and the
  * sound engine subscribe to it and apply changes at once (no reload).
  */
+import { RESERVED_KEYS } from './reservedKeys';
+import { DEFAULT_BINDINGS_2P, rebind2P, sanitizeBindings2P } from './twoPlayer';
+
 import type { Audience } from './copy';
 import type { AimMode, Button } from './input';
+import type { Action2P, Bindings2P, Player } from './twoPlayer';
 
 export type Quality = 'auto' | 'low' | 'medium' | 'high';
 /** Two keys per action: primary and secondary ('' = none). */
@@ -21,6 +25,8 @@ export interface AudioSettings {
 
 export interface Settings {
   bindings: Bindings;
+  /** Local 2-player keys (Settings > Controls > 2 Player), one per action per player. */
+  bindings2p: Bindings2P;
   aimMode: AimMode;
   touch: { size: number; opacity: number; leftHanded: boolean };
   /** Camera shake and screen flashes on big hits. */
@@ -69,11 +75,11 @@ export const DEFAULT_BINDINGS: Bindings = {
   throwBomb: ['KeyG', ''],
 };
 
-/** Keys the game keeps for itself: pause, mute, aim toggle, respawn picks, confirm. */
-export const RESERVED_KEYS = new Set(['Escape', 'KeyM', 'KeyT', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Enter', 'Tab', 'MetaLeft', 'MetaRight']);
+export { RESERVED_KEYS };
 
 export const DEFAULT_SETTINGS: Settings = {
   bindings: DEFAULT_BINDINGS,
+  bindings2p: DEFAULT_BINDINGS_2P,
   aimMode: 'auto',
   touch: { size: 1, opacity: 0.9, leftHanded: false },
   shake: true,
@@ -145,6 +151,7 @@ export const sanitize = (raw: unknown): Settings => {
   const a = (r.audio ?? {}) as Record<string, unknown>;
   return {
     bindings: sanitizeBindings(r.bindings),
+    bindings2p: sanitizeBindings2P(r.bindings2p),
     aimMode: pick(r.aimMode, ['auto', 'mouse'] as const, d.aimMode),
     touch: { size: clamp(t.size, 0.75, 1.35, d.touch.size), opacity: clamp(t.opacity, 0.3, 1, d.touch.opacity), leftHanded: bool(t.leftHanded, d.touch.leftHanded) },
     shake: bool(r.shake, d.shake),
@@ -297,6 +304,13 @@ export const createSettingsStore = (storage: StorageLike | null) => {
     },
     clearBinding: (action: Button, slot: 0 | 1) => commit({ ...current, bindings: clearBinding(current.bindings, action, slot) }),
     resetBindings: () => commit({ ...current, bindings: cloneBindings(DEFAULT_BINDINGS) }),
+    rebind2P: (player: Player, action: Action2P, code: string) => {
+      const r = rebind2P(current.bindings2p, player, action, code);
+      if (r.ok) commit({ ...current, bindings2p: r.bindings });
+      return r;
+    },
+    /** "Reset 2 player keys": only the 2-player map, the 1-player keys stay. */
+    resetBindings2P: () => commit({ ...current, bindings2p: sanitizeBindings2P({}) }),
     /** Back to the defaults; the developer/regular answer stays (it is not a tuning knob). */
     resetAll: () => commit({ ...sanitize({}), audience: current.audience }),
     /** Sound is off when the player muted it or the platform asked for silence. */
