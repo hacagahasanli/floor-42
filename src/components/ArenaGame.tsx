@@ -1212,7 +1212,7 @@ export const ArenaGame = ({
                     </button>
                   ) : (
                     <Link
-                      href="/?select"
+                      href="/characters"
                       className="panel-cut bg-cream/10 px-8 py-4 [@media(max-height:600px)]:py-2 font-bold uppercase tracking-wider hover:bg-cream/20"
                     >
                       Change fighter

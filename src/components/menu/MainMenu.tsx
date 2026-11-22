@@ -352,6 +352,9 @@ const HowTo = ({ touch }: { touch: boolean }) => {
   );
 };
 
+/** The fighter select's own URL on the site. */
+const SELECT_PATH = '/characters';
+
 const nextInRoster = (id: CharacterId) => ROSTER[(ROSTER.findIndex((r) => r.id === id) + 1) % ROSTER.length].id;
 
 export const MainMenu = ({
@@ -440,11 +443,50 @@ export const MainMenu = ({
     showcase.current?.setFighterHidden(screen === '2p');
   }, [screen, live]);
 
+  // The fighter select has its own URL, /characters (site only; the portal keeps its hash routes for whole pages).
+  // FIGHTER pushes it, Back / Esc goes back to /, and the browser's Back and Forward buttons move between the two.
+  const pushedSelect = useRef(false);
+  const openFighterSelect = () => {
+    setScreen('select');
+    if (PORTAL || window.location.pathname === SELECT_PATH) return;
+    window.history.pushState(null, '', SELECT_PATH);
+    pushedSelect.current = true;
+  };
+  useEffect(() => {
+    if (PORTAL) return;
+    const onPop = () => {
+      if (window.location.pathname === SELECT_PATH) {
+        setScreen('select');
+        pushedSelect.current = true;
+      } else {
+        pushedSelect.current = false;
+        setScreen((s) => {
+          if (s !== 'select') return s;
+          setPreview(fighterRef.current);
+          return 'main';
+        });
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const fighterRef = useRef(fighter);
+  fighterRef.current = fighter;
+
   const back = () => {
     if (settingsOpen) return;
     if (screen !== 'main') {
       menuSound.back();
       setPreview(fighter);
+      if (screen === 'select' && !PORTAL && window.location.pathname === SELECT_PATH) {
+        // We pushed /characters: step back in history (popstate finishes the switch). Opened directly: swap the URL.
+        if (pushedSelect.current) {
+          pushedSelect.current = false;
+          window.history.back();
+          return;
+        }
+        window.history.replaceState(null, '', '/');
+      }
       setScreen('main');
     }
   };
@@ -482,7 +524,7 @@ export const MainMenu = ({
       label: 'PLAY',
       sub: `Fight the bot as ${entryOf(fighter).name}`,
       primary: true,
-      onSelect: () => setScreen('select'),
+      onSelect: openFighterSelect,
     },
     // Local 2-player, second (spec local-2p.md 3.1). Hidden on touch-only devices until a gamepad connects.
     ...(show2PMenuItem(touch, pad)
@@ -499,7 +541,7 @@ export const MainMenu = ({
     {
       label: 'FIGHTER',
       sub: 'Hotfix, Legacy, Standup or Intern',
-      onSelect: () => setScreen('select'),
+      onSelect: openFighterSelect,
     },
     {
       label: 'SETTINGS',

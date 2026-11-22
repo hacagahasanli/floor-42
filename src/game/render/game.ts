@@ -983,7 +983,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const onKey = (e: KeyboardEvent) => {
     if (opts.backdrop) return;
     sfx.unlock();
-    if (e.code === 'KeyM') store.setAudio({ muted: !settings.audio.muted });
+    // In 2-player M is P2's sit key, not mute (mute stays in Pause > Settings).
+    if (e.code === 'KeyM' && !tp) store.setAudio({ muted: !settings.audio.muted });
     if (e.code === 'KeyT' && !touch && !tp) store.set({ aimMode: aimMode === 'auto' ? 'mouse' : 'auto' });
   };
   window.addEventListener('keydown', onKey);

@@ -123,6 +123,7 @@ export const stripParts = (
     { keys: [k('fire')], text: 'shoot' },
     { keys: [k('push')], text: 'push' },
     { keys: [k('dash')], text: 'dash' },
+    { keys: [k('crouch')], text: 'sit' },
   ];
 };
 

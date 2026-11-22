@@ -5,7 +5,6 @@
 import { useEffect, useState } from 'react';
 
 import { ArenaGame } from '~/components/ArenaGame';
-import { CharacterSelect } from '~/components/CharacterSelect';
 import { MainMenu } from '~/components/menu/MainMenu';
 import { SettingsRoot } from '~/components/menu/SettingsRoot';
 import { getSettings } from '~/game/settings';
@@ -37,7 +36,8 @@ const Screen = ({ hash }: { hash: string }) => {
     const opponent: CharacterId = isCharacterId(p2) ? p2 : pickOther(player);
     return <ArenaGame player={player} opponent={opponent} demo={query.has('demo')} level={level} />;
   }
-  if (path === '/characters') return <CharacterSelect />;
+  // One fighter screen: #/characters opens the main menu on its fighter select.
+  if (path === '/characters') return <MainMenu openSelect />;
   // Online is off in the portal build for now (bot play only): /play falls through to the menu.
   const p1 = query.get('p1');
   const p2 = query.get('p2');

@@ -210,7 +210,7 @@ const TwoPlayerKeys = () => {
       const r = store.rebind2P(capture.player, capture.action, e.code);
       if (!r.ok) {
         setNote({
-          text: `${keyLabel(e.code)} can't be a 2 player key (Space, Shift, Enter, Tab, Ctrl, Alt, Esc, M, T, 1-4, ' / and the numpad are kept out). Pick another key.`,
+          text: `${keyLabel(e.code)} can't be a 2 player key (Space, Shift, Enter, Tab, Ctrl, Alt, Esc, T, 1-4, ' / and the numpad are kept out; M only for P2 Sit). Pick another key.`,
           tone: 'warn',
         });
         return;

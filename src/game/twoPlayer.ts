@@ -12,8 +12,11 @@ import type { InputState } from './sim/types';
 export type Player = 'p1' | 'p2';
 export const PLAYERS: Player[] = ['p1', 'p2'];
 
-/** The seven things a 2-player fighter does. Pick up, reload, crouch-anywhere and throw bomb are automatic. */
-export type Action2P = 'left' | 'right' | 'up' | 'down' | 'fire' | 'push' | 'dash';
+/**
+ * The eight things a 2-player fighter does. `crouch` is the 1P crouch-anywhere action (walkways too; Down keeps its
+ * drop-through). Pick up, reload and throw bomb are automatic.
+ */
+export type Action2P = 'left' | 'right' | 'up' | 'down' | 'crouch' | 'fire' | 'push' | 'dash';
 
 /** One key per action per player. */
 export type Bindings2P = Record<Player, Record<Action2P, string>>;
@@ -24,18 +27,23 @@ export const ACTIONS_2P: { id: Action2P; label: string }[] = [
   { id: 'right', label: 'Move right' },
   { id: 'up', label: 'Jump' },
   { id: 'down', label: 'Crouch' },
+  { id: 'crouch', label: 'Sit' },
   { id: 'fire', label: 'Shoot' },
   { id: 'push', label: 'Push' },
   { id: 'dash', label: 'Dash' },
 ];
 
-/** Spec 1.1: P1 = WASD + F G H, P2 = arrows + ; L K (a mirror by finger, J empty between the two players' hands). */
+/**
+ * Spec 1.1: P1 = WASD + F G H, P2 = arrows + ; L K (a mirror by finger, J empty between the two players' hands).
+ * Owner decision 2026-11-23: sit (crouch anywhere) on V for P1 and M for P2.
+ */
 export const DEFAULT_BINDINGS_2P: Bindings2P = {
   p1: {
     left: 'KeyA',
     right: 'KeyD',
     up: 'KeyW',
     down: 'KeyS',
+    crouch: 'KeyV',
     fire: 'KeyF',
     push: 'KeyG',
     dash: 'KeyH',
@@ -45,6 +53,7 @@ export const DEFAULT_BINDINGS_2P: Bindings2P = {
     right: 'ArrowRight',
     up: 'ArrowUp',
     down: 'ArrowDown',
+    crouch: 'KeyM',
     fire: 'Semicolon',
     push: 'KeyL',
     dash: 'KeyK',
@@ -59,8 +68,21 @@ export const DEFAULT_BINDINGS_2P: Bindings2P = {
 const ALLOWED_2P =
   /^(Key[A-Z]|Digit[0-9]|Arrow(Left|Right|Up|Down)|Semicolon|Comma|Period|BracketLeft|BracketRight|Backslash|Minus|Equal|Backquote|IntlBackslash)$/;
 
-/** True when `code` can go on a 2-player action (and is not one the game keeps: Esc, M, T, 1-4, Enter, Tab). */
-export const allowed2P = (code: string) => ALLOWED_2P.test(code) && !RESERVED_KEYS.has(code);
+/**
+ * M is mute everywhere else, so in a 2-player map it may only be P2's sit key (where it sits by default); in a 2-player
+ * match M does not mute.
+ */
+export const M_EXCEPTION = { code: 'KeyM', player: 'p2' as Player, action: 'crouch' as Action2P };
+
+/**
+ * True when `code` can go on a 2-player action (and is not one the game keeps: Esc, M, T, 1-4, Enter, Tab). With a
+ * player and action, KeyM is allowed for P2's sit key only.
+ */
+export const allowed2P = (code: string, player?: Player, action?: Action2P) => {
+  if (code === M_EXCEPTION.code)
+    return player === M_EXCEPTION.player && action === M_EXCEPTION.action;
+  return ALLOWED_2P.test(code) && !RESERVED_KEYS.has(code);
+};
 
 const clone2P = (b: Bindings2P): Bindings2P => ({ p1: { ...b.p1 }, p2: { ...b.p2 } });
 
@@ -75,7 +97,7 @@ export const sanitizeBindings2P = (raw: unknown): Bindings2P => {
     const side = r[p] && typeof r[p] === 'object' ? (r[p] as Record<string, unknown>) : {};
     for (const { id } of ACTIONS_2P) {
       const v = side[id];
-      if (v === '' || (typeof v === 'string' && allowed2P(v))) out[p][id] = v;
+      if (v === '' || (typeof v === 'string' && allowed2P(v, p, id))) out[p][id] = v;
     }
   }
   const seen = new Set<string>();
@@ -104,15 +126,17 @@ export const rebind2P = (
   action: Action2P,
   code: string,
 ): Rebind2PResult => {
-  if (!allowed2P(code)) return { ok: false, reason: 'reserved' };
+  if (!allowed2P(code, player, action)) return { ok: false, reason: 'reserved' };
   const next = clone2P(b);
   const previous = next[player][action];
   let swapped: { player: Player; action: Action2P; code: string } | null = null;
   for (const p of PLAYERS)
     for (const { id } of ACTIONS_2P) {
       if ((p !== player || id !== action) && next[p][id] === code) {
-        next[p][id] = previous;
-        swapped = { player: p, action: id, code: previous };
+        // The key given back in a swap must be allowed there too (M only ever goes back to P2's sit).
+        const back = previous && allowed2P(previous, p, id) ? previous : '';
+        next[p][id] = back;
+        swapped = { player: p, action: id, code: back };
       }
     }
   next[player][action] = code;

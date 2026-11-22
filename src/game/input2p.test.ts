@@ -37,8 +37,17 @@ describe('2-player controls (keyboard routing)', () => {
     const c = createControls2P(DEFAULT_BINDINGS_2P);
     for (const k of ['KeyW', 'KeyH', 'ArrowUp', 'ArrowDown', 'Semicolon', 'KeyL', 'Space'])
       expect(fire('keydown', k)).toHaveBeenCalled();
-    for (const k of ['Escape', 'KeyM', 'Enter', 'Tab', 'KeyR'])
+    for (const k of ['Escape', 'Enter', 'Tab', 'KeyR'])
       expect(fire('keydown', k)).not.toHaveBeenCalled();
+    c.dispose();
+  });
+
+  it('M is P2 sit in 2-player (swallowed, routed), V is P1 sit', () => {
+    const c = createControls2P(DEFAULT_BINDINGS_2P);
+    expect(fire('keydown', 'KeyM')).toHaveBeenCalled();
+    fire('keydown', 'KeyV');
+    const [a, b] = c.read();
+    expect([a.crouch, b.crouch]).toEqual([true, true]);
     c.dispose();
   });
 

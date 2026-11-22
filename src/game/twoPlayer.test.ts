@@ -67,12 +67,13 @@ const FORBIDDEN = [
 ];
 
 describe('2-player default keys', () => {
-  it('match the spec: P1 WASD + F G H, P2 arrows + ; L K', () => {
+  it('match the spec: P1 WASD + F G H + V sit, P2 arrows + ; L K + M sit', () => {
     expect(DEFAULT_BINDINGS_2P.p1).toEqual({
       left: 'KeyA',
       right: 'KeyD',
       up: 'KeyW',
       down: 'KeyS',
+      crouch: 'KeyV',
       fire: 'KeyF',
       push: 'KeyG',
       dash: 'KeyH',
@@ -82,6 +83,7 @@ describe('2-player default keys', () => {
       right: 'ArrowRight',
       up: 'ArrowUp',
       down: 'ArrowDown',
+      crouch: 'KeyM',
       fire: 'Semicolon',
       push: 'KeyL',
       dash: 'KeyK',
@@ -90,14 +92,39 @@ describe('2-player default keys', () => {
 
   it('never share a key between P1 and P2 or between two actions', () => {
     const keys = all();
-    expect(keys).toHaveLength(14);
-    expect(new Set(keys).size).toBe(14);
+    expect(keys).toHaveLength(16);
+    expect(new Set(keys).size).toBe(16);
     const p1 = new Set(Object.values(DEFAULT_BINDINGS_2P.p1));
     for (const k of Object.values(DEFAULT_BINDINGS_2P.p2)) expect(p1.has(k)).toBe(false);
   });
 
-  it('use no reserved key (Esc, M, T, 1-4, Enter, Tab, Meta)', () => {
-    for (const k of all()) expect(RESERVED_KEYS.has(k)).toBe(false);
+  it('use no reserved key (Esc, T, 1-4, Enter, Tab, Meta); M only as P2 sit', () => {
+    for (const p of PLAYERS)
+      for (const { id } of ACTIONS_2P) {
+        const k = DEFAULT_BINDINGS_2P[p][id];
+        if (k === 'KeyM') expect([p, id]).toEqual(['p2', 'crouch']);
+        else expect(RESERVED_KEYS.has(k)).toBe(false);
+      }
+  });
+
+  it('allow KeyM only on P2 sit, in defaults, rebinding and saved maps', () => {
+    expect(allowed2P('KeyM')).toBe(false);
+    expect(allowed2P('KeyM', 'p2', 'crouch')).toBe(true);
+    expect(allowed2P('KeyM', 'p1', 'crouch')).toBe(false);
+    expect(allowed2P('KeyM', 'p2', 'fire')).toBe(false);
+    expect(rebind2P(DEFAULT_BINDINGS_2P, 'p1', 'crouch', 'KeyM')).toEqual({
+      ok: false,
+      reason: 'reserved',
+    });
+    expect(sanitizeBindings2P({ p1: { crouch: 'KeyM' } }).p1.crouch).toBe('KeyV');
+    // P2 sit moves to N, then back to M: fine.
+    const a = rebind2P(DEFAULT_BINDINGS_2P, 'p2', 'crouch', 'KeyN');
+    if (!a.ok) throw new Error('rebind failed');
+    expect(rebind2P(a.bindings, 'p2', 'crouch', 'KeyM').ok).toBe(true);
+    // P2 sit takes P1 dash's H: P1 dash would get M back in the swap, which is not allowed there, so it is cleared.
+    const b = rebind2P(DEFAULT_BINDINGS_2P, 'p2', 'crouch', 'KeyH');
+    expect(b.ok && b.bindings.p1.dash).toBe('');
+    expect(b.ok && b.swapped).toEqual({ player: 'p1', action: 'dash', code: '' });
   });
 
   it('use none of Space, Shift, Enter, Tab, Ctrl, Alt, Meta, the numpad, function keys, quote or slash', () => {
@@ -140,7 +167,17 @@ describe('allowed2P', () => {
 
 describe('2-player rebinding', () => {
   it('refuses reserved and forbidden keys', () => {
-    for (const k of ['Space', 'ShiftLeft', 'Escape', 'KeyM', 'Digit1', 'Numpad4', 'Quote', 'Slash'])
+    for (const k of [
+      'Space',
+      'ShiftLeft',
+      'Escape',
+      'KeyM',
+      'Digit1',
+      'Numpad4',
+      'Quote',
+      'Slash',
+      'KeyT',
+    ])
       expect(rebind2P(DEFAULT_BINDINGS_2P, 'p1', 'fire', k)).toEqual({
         ok: false,
         reason: 'reserved',
@@ -194,6 +231,14 @@ describe('2-player rebinding', () => {
 });
 
 describe('2-player input routing', () => {
+  it('V and M crouch P1 and P2 at once (the 1P crouch-anywhere action), S and down keep Down', () => {
+    const [a, b] = route2P(['KeyV', 'KeyM'], DEFAULT_BINDINGS_2P);
+    expect([a.crouch, b.crouch]).toEqual([true, true]);
+    expect([a.down, b.down]).toEqual([false, false]);
+    const [c, d] = route2P(['KeyS', 'ArrowDown'], DEFAULT_BINDINGS_2P);
+    expect([c.down, d.down, c.crouch, d.crouch]).toEqual([true, true, false, false]);
+  });
+
   it('sends each player only their own keys', () => {
     const [a, b] = route2P(['KeyA', 'KeyF', 'ArrowRight', 'KeyL'], DEFAULT_BINDINGS_2P);
     expect(a).toEqual({ ...EMPTY_INPUT, left: true, fire: true });
