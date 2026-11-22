@@ -302,10 +302,17 @@ const Panel = ({
             </span>
           )}
         </span>
-        <span className="flex items-center gap-1 text-[11px] text-cream/70">
-          <SmallKey k={label(b.left)} />
-          <SmallKey k={label(b.right)} /> move · <SmallKey k={label(b.fire)} /> ready
-        </span>
+        {pad ? (
+          // A pad drives this panel: pad words, not keyboard keys.
+          <span className="text-[11px] text-cream/70" data-testid={`pad-hint-${player}`}>
+            Stick move · A ready
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-[11px] text-cream/70">
+            <SmallKey k={label(b.left)} />
+            <SmallKey k={label(b.right)} /> move · <SmallKey k={label(b.fire)} /> ready
+          </span>
+        )}
       </header>
       <div
         className={`grid gap-2 ${narrow ? 'grid-cols-4' : 'grid-cols-2'}`}
@@ -363,40 +370,40 @@ const Panel = ({
           );
         })}
       </div>
-      <div className="relative flex min-h-[3.25rem] flex-col justify-center">
+      <div className="flex min-h-[3.25rem] flex-col justify-center">
+        <span
+          className="font-display text-3xl leading-none [@media(max-height:600px)]:text-2xl"
+          style={{ color: r.accent }}
+        >
+          {r.name.toUpperCase()}
+        </span>
+        <span className="text-sm text-cream/70">{copy.fighters[r.id].role}</span>
+      </div>
+      {/* The Ready slot: the button, or once locked the READY stamp in the same box (no height change). A click on
+          the stamp unlocks, like moving the cursor. */}
+      <div className="flex h-14 items-stretch [@media(max-height:500px)]:h-11">
         {ready ? (
-          // Locked in: READY stamped across the bottom of the panel in the player colour.
-          <span
+          <button
+            type="button"
             data-testid={`ready-stamp-${player}`}
-            className="flex -rotate-3 justify-center border-4 py-0.5 font-display text-4xl leading-none [animation:riseIn_0.15s_ease-out] [@media(max-height:600px)]:text-3xl"
+            aria-label={`P${index + 1} ready. Click to change fighter.`}
+            onClick={onReady}
+            className="flex w-full -rotate-3 cursor-pointer items-center justify-center border-4 font-display text-4xl leading-none transition-opacity [animation:riseIn_0.12s_ease-out] hover:opacity-85 [@media(max-height:600px)]:text-3xl"
             style={{ color: colour, borderColor: colour }}
           >
             READY
-          </span>
+          </button>
         ) : (
-          <>
-            <span
-              className="font-display text-3xl leading-none [@media(max-height:600px)]:text-2xl"
-              style={{ color: r.accent }}
-            >
-              {r.name.toUpperCase()}
-            </span>
-            <span className="text-sm text-cream/70">{copy.fighters[r.id].role}</span>
-          </>
+          <button
+            type="button"
+            onClick={onReady}
+            className="focus-ring w-full -skew-x-12 border px-4 text-sm font-bold tracking-wider transition hover:brightness-110"
+            style={{ borderColor: colour, color: colour }}
+          >
+            <span className="inline-block skew-x-12">Ready</span>
+          </button>
         )}
       </div>
-      <button
-        type="button"
-        onClick={onReady}
-        className="focus-ring -skew-x-12 border px-4 py-2 text-sm font-bold tracking-wider transition hover:brightness-110"
-        style={
-          ready
-            ? { background: colour, borderColor: colour, color: '#0a0d18' }
-            : { borderColor: colour, color: colour }
-        }
-      >
-        <span className="inline-block skew-x-12">Ready</span>
-      </button>
     </div>
   );
 };

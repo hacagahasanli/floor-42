@@ -273,8 +273,11 @@ export const sessionStore = (): StorageLike | null => {
   }
 };
 
-/** Spec 6: 2 PLAYER shows on keyboard devices, and on touch devices only while a gamepad is connected. */
-export const show2PMenuItem = (touch: boolean, padConnected: boolean) => !touch || padConnected;
+/**
+ * Spec 6 + F-012: 2 PLAYER shows on keyboard devices; on touch-only devices only while two pads are connected (there is
+ * no keyboard for P1 there).
+ */
+export const show2PMenuItem = (touch: boolean, pads: number) => !touch || pads >= 2;
 
 export type CursorDir = 'left' | 'right' | 'up' | 'down';
 

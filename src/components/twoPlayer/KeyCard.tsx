@@ -176,6 +176,32 @@ const StartLine = ({ ready }: { ready: [boolean, boolean] }) => {
   );
 };
 
+/** One line arrow for all four arrow keys (the font draws ↑ ↓ as small triangles and ← → as long lines). */
+const ARROW_TURN: Record<string, number> = {
+  ArrowRight: 0,
+  ArrowDown: 90,
+  ArrowLeft: 180,
+  ArrowUp: 270,
+};
+const ArrowGlyph = ({ turn }: { turn: number }) => (
+  <svg
+    viewBox="0 0 20 20"
+    width="20"
+    height="20"
+    aria-hidden
+    style={{ transform: `rotate(${turn}deg)` }}
+  >
+    <path
+      d="M3 10h13M11 5l5 5-5 5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const PAD_ROWS: { label: string; glyph: string; action: Action2P }[] = [
   { glyph: 'Stick', label: 'Move', action: 'left' },
   { glyph: 'A', label: 'Jump', action: 'up' },
@@ -210,7 +236,7 @@ const Half = ({
   const b = bindings[player];
   const cap = (a: Action2P, text?: string) => (
     <BigKeycap colour={colour} lit={held.has(b[a])} label={text}>
-      {label(b[a])}
+      {ARROW_TURN[b[a]] !== undefined ? <ArrowGlyph turn={ARROW_TURN[b[a]]} /> : label(b[a])}
     </BigKeycap>
   );
   const cross = (

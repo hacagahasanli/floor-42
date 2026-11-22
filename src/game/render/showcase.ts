@@ -76,6 +76,8 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
 
   let rig: Rig | null = null;
   let character = first;
+  /** The 2-player select is open: no fighter, no floor glow, only the room. */
+  let hidden = false;
   let drop = 0; // height above the floor while dropping in
   let dropV = 0;
   const squash = { s: 0, v: 0 };
@@ -167,7 +169,10 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
     const sy = 1 + squash.s * 0.18;
     rig.root.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
     rig.root.updateMatrixWorld(true);
-    for (const k of SHOW_GUNS) guns[k].root.visible = k === gun;
+    for (const k of SHOW_GUNS) guns[k].root.visible = k === gun && !hidden;
+    rig.root.visible = !hidden;
+    glow.visible = !hidden;
+    rim.intensity = hidden ? 0 : 18;
     rig.hand.getWorldPosition(tmpV);
     rig.hand.getWorldQuaternion(tmpQ);
     guns[gun].root.position.copy(tmpV);
@@ -234,6 +239,16 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
       place(id, true);
       if (opts.still) {
         framesLeft = 40;
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(frame);
+      }
+    },
+    /** Hide the fighter, its gun, rim light and floor glow (the 2-player select), or bring them back. */
+    setFighterHidden: (on: boolean) => {
+      if (on === hidden) return;
+      hidden = on;
+      if (opts.still) {
+        framesLeft = 4;
         cancelAnimationFrame(raf);
         raf = requestAnimationFrame(frame);
       }

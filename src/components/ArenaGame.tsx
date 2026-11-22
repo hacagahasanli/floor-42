@@ -280,8 +280,8 @@ const PauseMenu = ({
   onQuit: () => void;
   /** Local 2-player: Controls opens the key card in view mode. */
   onControls?: () => void;
-  /** Local 2-player: who paused (a pad's Start says who; Esc is shared, so it is not known then). */
-  pausedBy?: 0 | 1 | null;
+  /** Local 2-player: who paused (a pad's Start says who; Esc is shared, so it is not known then), or a lost pad. */
+  pausedBy?: 0 | 1 | 'pad' | null;
 }) => {
   const first = useRef<HTMLButtonElement>(null);
   useEffect(() => first.current?.focus(), []);
@@ -333,7 +333,7 @@ const PauseMenu = ({
           </h2>
           {onControls && pausedBy !== null && pausedBy !== undefined && (
             <p className="text-sm text-cream/70" data-testid="paused-by">
-              P{pausedBy + 1} paused
+              {pausedBy === 'pad' ? 'Pad disconnected' : `P${pausedBy + 1} paused`}
             </p>
           )}
           {!paused && online && (
@@ -391,10 +391,10 @@ export const ArenaGame = ({
   const colours = usePlayerColours();
   /** Local 2-player: the key card before the first round ('start') or from Pause > Controls ('view'). */
   const [keyCard, setKeyCard] = useState<'start' | 'view' | null>(null);
-  const [pausedBy, setPausedBy] = useState<0 | 1 | null>(null);
+  const [pausedBy, setPausedBy] = useState<0 | 1 | 'pad' | null>(null);
   const [tally, setTally] = useState<Tally>({ p1: 0, p2: 0 });
   const counted = useRef(false);
-  const padPauseRef = useRef<(who: 0 | 1) => void>(() => undefined);
+  const padPauseRef = useRef<(who: 0 | 1 | 'pad') => void>(() => undefined);
   useGamepadNav(menuOpen);
   // Rival left: wait up to three rounds of WAIT_SECONDS, asking in between, then the link expires.
   const [waitRound, setWaitRound] = useState(0);
@@ -407,6 +407,14 @@ export const ArenaGame = ({
   // Phones and tablets: touch controls, auto-aim, landscape. Known only after mount.
   const [touch, setTouch] = useState(false);
   useEffect(() => setTouch(isTouchDevice()), []);
+  /** A window under 800 px tall (e.g. 1280x720): the floor pill steps aside during play. */
+  const [short, setShort] = useState(false);
+  useEffect(() => {
+    const on = () => setShort(window.innerHeight < 800);
+    on();
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
   const portrait = useLandscape();
   // Phones: keep the office clear of the control strips (and the notch).
   useEffect(() => {
@@ -431,7 +439,7 @@ export const ArenaGame = ({
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
   // Anonymous usage events: a no-op unless the site started counting (never on a portal build).
-  useRoundTelemetry(hud, { demo, online: !!online });
+  useRoundTelemetry(hud, { demo, online: !!online, twoPlayer: tp });
 
   // The lift ride up: real loading steps, shown until the first frame of the office is on screen.
   const [loaded, setLoaded] = useState({ fonts: false, office: false });
@@ -462,7 +470,14 @@ export const ArenaGame = ({
           aimMode: isTouchDevice() ? 'auto' : readAim(),
           onHud: setHud,
           online: online?.session,
-          ...(tp && kosToWin ? { twoPlayer: { kosToWin }, hold: card, onPadPause: (who: 0 | 1) => padPauseRef.current(who) } : {}),
+          ...(tp && kosToWin
+            ? {
+                twoPlayer: { kosToWin },
+                hold: card,
+                onPadPause: (who: 0 | 1) => padPauseRef.current(who),
+                onPadLost: () => padPauseRef.current('pad'),
+              }
+            : {}),
         });
         if (card) setKeyCard('start');
         gameRef.current = game;
@@ -591,9 +606,14 @@ export const ArenaGame = ({
   }, []);
 
   /** The touch pause button: the same as Esc. A pad's Start in 2-player says who paused. */
-  const openMenu = (who: 0 | 1 | null = null) => {
+  const openMenu = (who: 0 | 1 | 'pad' | null = null) => {
     const h = hudRef.current;
-    if (!h || h.phase === 'over' || menuOpenRef.current) return;
+    if (!h || h.phase === 'over') return;
+    if (menuOpenRef.current) {
+      // Already paused: a lost pad still says so.
+      if (who === 'pad') setPausedBy('pad');
+      return;
+    }
     if (!h.paused) gameRef.current?.requestPause();
     setPausedBy(who);
     setMenuOpen(true);
@@ -732,12 +752,17 @@ export const ArenaGame = ({
               {Math.max(hud.fighters[0].kos, hud.fighters[1].kos) === hud.kosToWin - 1 ? (
                 <span className="text-[10px] font-bold tracking-widest text-gold">MATCH POINT</span>
               ) : (
-                <span className="text-[10px] font-semibold tracking-widest text-cream/50">
+                <span className="text-[10px] font-semibold tracking-widest text-cream/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]">
                   FIRST TO {hud.kosToWin}
                 </span>
               )}
               {!touch && (
-                <span className="panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1">
+                // Under 800 px tall the pill covers the top walkway: it shows on the title card, fades out when the
+                // round starts and comes back in pause and results.
+                <span
+                  data-testid="floor-pill"
+                  className={`panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1 transition-opacity duration-200 ${short && hud.phase === 'fight' && !hud.paused && !menuOpen ? 'opacity-0' : 'opacity-100'}`}
+                >
                   <span className="font-display text-base text-gold">FLOOR 42</span>
                   <span className="text-[11px] text-cream/70">{copy.hudRoom}</span>
                 </span>
@@ -887,6 +912,10 @@ export const ArenaGame = ({
             </div>
           )}
 
+          {/* 2-player pause: both sides of the HUD dim the same, so nobody looks still in play. */}
+          {tp && (hud.paused || menuOpen) && hud.phase !== 'over' && (
+            <div aria-hidden data-testid="pause-dim-2p" className="pointer-events-none absolute inset-0 z-[9] bg-ink-deep/55" />
+          )}
           {(hud.paused || menuOpen) && hud.phase !== 'over' && !rivalLeft && dropLeft === null && (
             <PauseMenu
               paused={hud.paused}
@@ -1138,13 +1167,19 @@ export const ArenaGame = ({
                     {tp && (
                       <span className="ml-3 inline-flex gap-1.5 align-middle text-sm" data-testid="rematch-ticks">
                         {[0, 1].map((i) => (
+                          // Both chips keep their ticked width from the start (the ✓ is only hidden), so the
+                          // button never grows; idle chips are ink on the yellow with a thin outline.
                           <span
                             key={i}
+                            data-ticked={rematchTicks[i]}
                             className="px-1.5"
-                            style={rematchTicks[i] ? { background: colours[i], color: '#0a0d18' } : { opacity: 0.45 }}
+                            style={
+                              rematchTicks[i]
+                                ? { background: colours[i], color: '#0a0d18', boxShadow: `inset 0 0 0 1px ${colours[i]}` }
+                                : { color: 'rgba(22,17,14,0.45)', boxShadow: 'inset 0 0 0 1px rgba(22,17,14,0.3)' }
+                            }
                           >
-                            P{i + 1}
-                            {rematchTicks[i] ? ' ✓' : ''}
+                            P{i + 1} <span className={rematchTicks[i] ? '' : 'invisible'}>✓</span>
                           </span>
                         ))}
                       </span>

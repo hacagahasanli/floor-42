@@ -271,10 +271,12 @@ describe('gamepads', () => {
 });
 
 describe('2-player menu, colours, length and tally', () => {
-  it('shows 2 PLAYER on keyboards, hides it on touch-only devices until a pad connects', () => {
-    expect(show2PMenuItem(false, false)).toBe(true);
-    expect(show2PMenuItem(true, false)).toBe(false);
-    expect(show2PMenuItem(true, true)).toBe(true);
+  it('shows 2 PLAYER on keyboards, and on touch-only devices only with two pads', () => {
+    expect(show2PMenuItem(false, 0)).toBe(true);
+    expect(show2PMenuItem(false, 1)).toBe(true);
+    expect(show2PMenuItem(true, 0)).toBe(false);
+    expect(show2PMenuItem(true, 1)).toBe(false);
+    expect(show2PMenuItem(true, 2)).toBe(true);
   });
 
   it('uses red / blue, or the colour-blind pair', () => {

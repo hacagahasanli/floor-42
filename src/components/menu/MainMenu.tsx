@@ -363,7 +363,7 @@ export const MainMenu = ({
   twoPlayer?: { p1?: CharacterId; p2?: CharacterId; n: MatchLength; keep: boolean };
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const showcase = useRef<{ setCharacter: (id: CharacterId) => void } | null>(null);
+  const showcase = useRef<{ setCharacter: (id: CharacterId) => void; setFighterHidden: (on: boolean) => void } | null>(null);
   const columnRef = useRef<HTMLDivElement>(null);
   const [screen, setScreen] = useState<Screen>(twoPlayer ? '2p' : openSelect ? 'select' : 'main');
   /** The 2-player select's starting picks and match length. */
@@ -435,6 +435,10 @@ export const MainMenu = ({
   useEffect(() => {
     showcase.current?.setCharacter(preview);
   }, [preview]);
+  // The 2-player select shows only the dimmed room behind its panels: no menu fighter, no floor glow.
+  useEffect(() => {
+    showcase.current?.setFighterHidden(screen === '2p');
+  }, [screen, live]);
 
   const back = () => {
     if (settingsOpen) return;
@@ -482,7 +486,13 @@ export const MainMenu = ({
     },
     // Local 2-player, second (spec local-2p.md 3.1). Hidden on touch-only devices until a gamepad connects.
     ...(show2PMenuItem(touch, pad)
-      ? [{ label: '2 PLAYER', sub: pad ? 'One keyboard or two pads' : 'One keyboard, two fighters', onSelect: open2P }]
+      ? [
+          {
+            label: '2 PLAYER',
+            sub: touch ? 'Two pads, two fighters' : pad ? 'One keyboard or two pads' : 'One keyboard, two fighters',
+            onSelect: open2P,
+          },
+        ]
       : []),
     // Online is off in the portal build for now (bot play only, decided 2026-11-21).
     ...(PORTAL ? [] : [{ label: 'PLAY ONLINE', sub: 'Send a link, settle it 1 v 1', href: '/play' }]),
@@ -511,7 +521,7 @@ export const MainMenu = ({
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(10,13,24,0.97)_0%,rgba(10,13,24,0.88)_26%,rgba(10,13,24,0.35)_46%,rgba(10,13,24,0)_64%)] max-sm:bg-[linear-gradient(180deg,rgba(10,13,24,0.7)_0%,rgba(10,13,24,0)_30%,rgba(10,13,24,0.2)_45%,rgba(10,13,24,0.95)_68%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_65%_50%,transparent_40%,rgba(5,7,14,0.75)_100%)]" />
       <div
-        className="pointer-events-none absolute inset-0 opacity-50 transition-[background] duration-700"
+        className={`pointer-events-none absolute inset-0 transition-[background,opacity] duration-700 ${screen === '2p' ? 'opacity-0' : 'opacity-50'}`}
         style={{
           background: `radial-gradient(ellipse 35% 50% at 72% 70%, ${accent}22, transparent 70%)`,
         }}

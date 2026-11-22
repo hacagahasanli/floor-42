@@ -93,6 +93,8 @@ export interface ArenaOptions {
   hold?: boolean;
   /** Local 2-player: a player pressed Start on their pad (pause). */
   onPadPause?: (player: 0 | 1) => void;
+  /** Local 2-player on a touch-only device: a pad went away mid-match (someone has no controls now). */
+  onPadLost?: () => void;
 }
 
 const randomSeed = () => (Math.random() * 1e9) | 0;
@@ -121,6 +123,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const newGame = () =>
     createGame([opts.player, opts.opponent], randomSeed(), false, tp ? { kosToWin: tp.kosToWin, assist: true } : undefined);
   let hold = !!opts.hold;
+  let padsSeen = 0;
   /** Which fighter you are. Offline you are always 0. */
   const me = online?.slot ?? 0;
   let state: GameState = online ? online.state : newGame();
@@ -1004,6 +1007,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     if (controls2) {
       const who = controls2.takeStart();
       if (who !== null) opts.onPadPause?.(who);
+      if (touch) {
+        const n = controls2.padCount();
+        if (n < padsSeen) opts.onPadLost?.();
+        padsSeen = n;
+      }
     }
     while (acc >= DT) {
       savePrev();

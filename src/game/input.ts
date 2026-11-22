@@ -196,6 +196,8 @@ export const createControls2P = (bindings: Bindings2P, listen = true) => {
       startPressed[0] = startPressed[1] = false;
       return who;
     },
+    /** How many pads are connected right now (at most two count). */
+    padCount: () => Math.min(2, pads().length),
     /** The keys held right now (the key card's tester lights them). */
     held: () => down,
     setBindings: (next: Bindings2P) => {
