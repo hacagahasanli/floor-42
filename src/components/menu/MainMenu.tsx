@@ -15,7 +15,12 @@ import { CHARACTERS } from '~/game/sim/constants';
 import { asset, PORTAL } from '~/lib/portal';
 import { GAME_VERSION, STUDIO_NAME } from '~/lib/studio';
 
+import { PlayerChip, stripParts, useKeyLabel, usePlayerColours } from '~/components/twoPlayer/shared';
+import { TwoPlayerSelect } from '~/components/twoPlayer/TwoPlayerSelect';
+import { readLength, resetTally, sessionStore, show2PMenuItem } from '~/game/twoPlayer';
+
 import { AudiencePrompt, useAskAudience } from './AudiencePrompt';
+import { CreditsPanel, SidePanel } from './Credits';
 import { menuSound } from './menuSound';
 import { SettingsPanel } from './SettingsPanel';
 import { useCopy } from './useCopy';
@@ -24,6 +29,7 @@ import { useSettings } from './useSettings';
 
 import type { BotLevel } from '~/game/sim/bot';
 import type { CharacterId } from '~/game/sim/types';
+import type { MatchLength } from '~/game/twoPlayer';
 import type { ReactNode } from 'react';
 
 /**
@@ -33,7 +39,7 @@ import type { ReactNode } from 'react';
  * Keyboard: ↑/↓ move, Enter picks, Esc goes back. Gamepads drive the same keys.
  */
 
-type Screen = 'main' | 'select' | 'howto' | 'credits';
+type Screen = 'main' | 'select' | 'howto' | 'credits' | '2p';
 type Rival = CharacterId | 'random';
 
 const entryOf = (id: CharacterId) => ROSTER.find((r) => r.id === id)!;
@@ -245,65 +251,36 @@ const Nameplate = ({ id, label }: { id: CharacterId; label: string }) => {
   );
 };
 
-/** A side panel for How to play and Credits: same slide and Back as Settings. */
-const SidePanel = ({
-  title,
-  kicker,
-  onClose,
-  children,
-}: {
-  title: string;
-  kicker: string;
-  onClose: () => void;
-  children: ReactNode;
-}) => {
-  const ref = useRef<HTMLButtonElement>(null);
-  useEffect(() => ref.current?.focus(), []);
-  return (
-    <div className="fixed inset-0 z-[60]">
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-ink-deep/40 [animation:fadeIn_0.25s_ease-out]"
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="relative flex h-full w-full flex-col border-r border-gold/20 bg-[linear-gradient(180deg,rgba(20,26,43,0.97),rgba(10,13,24,0.98))] shadow-[30px_0_80px_rgba(0,0,0,0.6)] [animation:slideInLeft_0.32s_cubic-bezier(.2,.9,.2,1)] sm:w-[min(600px,100vw)]"
-      >
-        <header className="flex flex-col px-5 pb-3 pt-5 sm:px-8 sm:pt-8 [@media(max-height:500px)]:pt-3">
-          <h2 className="font-display text-4xl leading-none sm:text-5xl [@media(max-height:500px)]:text-3xl">
-            {title}
-          </h2>
-          {kicker && <span className="mt-2 text-sm text-cream/60">{kicker}</span>}
-        </header>
-        <div className="flex-1 overflow-y-auto px-5 pb-6 pt-2 sm:px-8">{children}</div>
-        <footer className="border-t border-cream/10 bg-ink-deep/60 px-5 py-3 sm:px-8">
-          <button
-            ref={ref}
-            type="button"
-            onClick={onClose}
-            className="focus-ring flex -skew-x-12 items-center gap-2 bg-cream/10 px-5 py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-cream/20"
-          >
-            <span className="inline-flex skew-x-12 items-center gap-2">
-              <kbd className="hidden border border-cream/30 px-1 text-[10px] sm:inline">Esc</kbd>{' '}
-              Back
-            </span>
-          </button>
-        </footer>
-      </aside>
-    </div>
-  );
-};
-
 const Keycap = ({ k }: { k: string }) => (
   <kbd className="inline-flex min-w-7 items-center justify-center border border-b-2 border-cream/30 bg-cream/10 px-1.5 py-0.5 text-xs font-bold text-cream">
     {k}
   </kbd>
 );
+
+/** How to play: the two 2-player key strips as rows (spec local-2p.md 8). */
+const TwoPlayerHowTo = () => {
+  const s = useSettings();
+  const label = useKeyLabel();
+  const colours = usePlayerColours();
+  return (
+    <div className="flex flex-col" data-testid="howto-2p">
+      <span className="mb-2 text-[11px] font-bold uppercase tracking-[0.3em] text-gold/90">2 player keys</span>
+      {(['p1', 'p2'] as const).map((p, i) => (
+        <div key={p} className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-cream/5 py-2.5 text-sm text-cream/80">
+          <PlayerChip index={i as 0 | 1} colour={colours[i]} />
+          {stripParts(s.bindings2p, p, label).map((part) => (
+            <span key={part.text} className="flex items-center gap-1">
+              {part.keys.map((k, n) => (
+                <Keycap key={n} k={k} />
+              ))}{' '}
+              {part.text}
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const HowTo = ({ touch }: { touch: boolean }) => {
   const s = useSettings();
@@ -370,42 +347,29 @@ const HowTo = ({ touch }: { touch: boolean }) => {
           <span className="mt-3 text-xs text-cream/45">Change any key in Settings → Controls.</span>
         )}
       </div>
+      {!touch && <TwoPlayerHowTo />}
     </div>
   );
 };
 
-const Credits = () => (
-  <div className="flex flex-col gap-5 text-sm text-cream/80">
-    <div className="flex items-center gap-4">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={asset('nalbaki-mark.svg')} alt="" width={64} height={64} className="h-16 w-16" />
-      <div className="flex flex-col">
-        <span className="font-display text-2xl text-cream">{STUDIO_NAME}</span>
-        <span className="text-cream/60">Floor 42 · version {GAME_VERSION}</span>
-      </div>
-    </div>
-    <p>
-      Design, code, models, office and most sounds made in code by {STUDIO_NAME}. Every character,
-      gun and room is original.
-    </p>
-    <div className="flex flex-col gap-2">
-      <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-gold/90">Thanks</span>
-      <p>Gun sounds by Snake (f8studios), from Snake&apos;s Authentic Gun Sounds.</p>
-      <p>
-        Fonts: Bungee by David Jonathan Ross and Chakra Petch by Cadson Demak (SIL Open Font
-        License).
-      </p>
-      <p>Built with three.js, React and Next.js.</p>
-    </div>
-    <Support variant="pause" className="self-start" />
-  </div>
-);
+const nextInRoster = (id: CharacterId) => ROSTER[(ROSTER.findIndex((r) => r.id === id) + 1) % ROSTER.length].id;
 
-export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
+export const MainMenu = ({
+  openSelect = false,
+  twoPlayer,
+}: {
+  openSelect?: boolean;
+  /** Open on the 2-player select: from a 2-player match's "Change fighters" (`keep`: the tally carries on). */
+  twoPlayer?: { p1?: CharacterId; p2?: CharacterId; n: MatchLength; keep: boolean };
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const showcase = useRef<{ setCharacter: (id: CharacterId) => void } | null>(null);
   const columnRef = useRef<HTMLDivElement>(null);
-  const [screen, setScreen] = useState<Screen>(openSelect ? 'select' : 'main');
+  const [screen, setScreen] = useState<Screen>(twoPlayer ? '2p' : openSelect ? 'select' : 'main');
+  /** The 2-player select's starting picks and match length. */
+  const [twoP, setTwoP] = useState<{ picks: [CharacterId, CharacterId]; n: MatchLength } | null>(
+    twoPlayer ? { picks: [twoPlayer.p1 ?? 'hotfix', twoPlayer.p2 ?? twoPlayer.p1 ?? 'legacy'], n: twoPlayer.n } : null,
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fighter, setFighter] = useState<CharacterId>('hotfix');
   const [preview, setPreview] = useState<CharacterId>('hotfix');
@@ -416,7 +380,8 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
   const [lastMain, setLastMain] = useState(0);
   const portraits = usePortraits();
   useMenuTelemetry(!!portraits);
-  const pad = useGamepadNav();
+  // The 2-player select reads the pads itself (each pad drives its own player's panel).
+  const pad = useGamepadNav(screen !== '2p');
   const copy = useCopy();
   const asking = useAskAudience();
 
@@ -427,7 +392,16 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       setFighter(saved);
       setPreview(saved);
     }
+    // A fresh 2-player session (not "Change fighters") starts tonight's tally at 0 - 0.
+    if (twoPlayer && !twoPlayer.keep) resetTally(sessionStore());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const open2P = () => {
+    resetTally(sessionStore());
+    setTwoP({ picks: [fighter, nextInRoster(fighter)], n: readLength(sessionStore()) });
+    setScreen('2p');
+  };
 
   // The live office behind the menu, started after first paint.
   useEffect(() => {
@@ -506,6 +480,10 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       primary: true,
       onSelect: () => setScreen('select'),
     },
+    // Local 2-player, second (spec local-2p.md 3.1). Hidden on touch-only devices until a gamepad connects.
+    ...(show2PMenuItem(touch, pad)
+      ? [{ label: '2 PLAYER', sub: pad ? 'One keyboard or two pads' : 'One keyboard, two fighters', onSelect: open2P }]
+      : []),
     // Online is off in the portal build for now (bot play only, decided 2026-11-21).
     ...(PORTAL ? [] : [{ label: 'PLAY ONLINE', sub: 'Send a link, settle it 1 v 1', href: '/play' }]),
     {
@@ -519,11 +497,11 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       onSelect: () => setSettingsOpen(true),
     },
     { label: 'HOW TO PLAY', sub: copy.goal, onSelect: () => setScreen('howto') },
-    { label: 'CREDITS', sub: STUDIO_NAME, onSelect: () => setScreen('credits') },
+    // Credits lives in the footer link and the last row of Settings now (spec local-2p.md section 7).
   ];
 
   return (
-    <main className="relative h-[100dvh] w-full select-none overflow-hidden bg-ink-deep text-cream">
+    <main data-screen={screen} className="relative h-[100dvh] w-full select-none overflow-hidden bg-ink-deep text-cream">
       <canvas
         ref={canvasRef}
         aria-hidden
@@ -541,9 +519,21 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(255,255,255,0.025)_0px,rgba(255,255,255,0.025)_1px,transparent_1px,transparent_3px)]" />
 
       {/* Left column (bottom sheet on a phone held upright). */}
+      {screen === '2p' && twoP && (
+        <TwoPlayerSelect
+          initial={twoP.picks}
+          length={twoP.n}
+          portraits={portraits}
+          onBack={() => {
+            resetTally(sessionStore());
+            setScreen('main');
+          }}
+          onFight={(p1, p2, n) => lift.go(`/arena?mode=2p&p1=${p1}&p2=${p2}&n=${n}`)}
+        />
+      )}
       <div
         ref={columnRef}
-        className="relative z-10 flex h-full w-full flex-col justify-between gap-4 px-5 pb-5 pt-6 sm:w-[38%] sm:min-w-[400px] sm:max-w-[540px] sm:px-10 sm:pb-8 sm:pt-10 [@media(max-height:500px)]:gap-2 [@media(max-height:500px)]:px-6 [@media(max-height:500px)]:pb-3 [@media(max-height:500px)]:pt-4"
+        className={`relative z-10 flex h-full ${screen === '2p' ? 'invisible' : ''} w-full flex-col justify-between gap-4 px-5 pb-5 pt-6 sm:w-[38%] sm:min-w-[400px] sm:max-w-[540px] sm:px-10 sm:pb-8 sm:pt-10 [@media(max-height:500px)]:gap-2 [@media(max-height:500px)]:px-6 [@media(max-height:500px)]:pb-3 [@media(max-height:500px)]:pt-4`}
       >
         {/* The fighter list needs the whole column on a short window, so the corner logo steps aside there (the page
             keeps its h1 for screen readers). Behind the settings, rules and credits panels it is only hidden, so the
@@ -713,13 +703,24 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
 
         <footer className="flex items-end justify-between gap-3 text-xs font-medium text-cream/45 [@media(max-height:500px)]:hidden">
           <span>
-            {STUDIO_NAME} · v{GAME_VERSION}
+            {STUDIO_NAME} · v{GAME_VERSION} ·{' '}
+            <button
+              type="button"
+              data-testid="credits-link"
+              onClick={() => {
+                menuSound.confirm();
+                setScreen('credits');
+              }}
+              className="text-cream/45 outline-none hover:underline focus-visible:text-cream focus-visible:underline"
+            >
+              Credits
+            </button>
           </span>
         </footer>
       </div>
 
       {/* Support us: a card under the lift display on wide screens, one line on phones; never over the menu itself. */}
-      {screen !== 'select' && (
+      {screen !== 'select' && screen !== '2p' && (
         <>
           <div className="absolute right-6 top-20 z-20 hidden sm:right-10 sm:top-24 sm:block [@media(max-height:500px)]:hidden">
             <Support variant="menu" />
@@ -734,13 +735,13 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
       )}
 
       {/* Right side: the fighter nameplate and the control hints. */}
-      <div className="pointer-events-none absolute bottom-16 right-6 z-10 sm:right-10 [@media(max-height:500px)]:bottom-10">
+      <div className={`pointer-events-none absolute bottom-16 right-6 z-10 sm:right-10 [@media(max-height:500px)]:bottom-10 ${screen === '2p' ? 'hidden' : ''}`}>
         <Nameplate
           id={preview}
           label={screen === 'select' && preview !== fighter ? 'Preview' : 'Your fighter'}
         />
       </div>
-      <div className="pointer-events-none absolute bottom-5 right-6 z-10 flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-cream/55 max-sm:hidden sm:right-10 [@media(max-height:500px)]:bottom-2">
+      <div className="pointer-events-none absolute bottom-5 right-6 z-10 flex items-center gap-4 text-[10px] [[data-screen='2p']_&]:hidden font-bold uppercase tracking-widest text-cream/55 max-sm:hidden sm:right-10 [@media(max-height:500px)]:bottom-2">
         {(pad
           ? [
               ['✚', 'Move'],
@@ -780,11 +781,7 @@ export const MainMenu = ({ openSelect = false }: { openSelect?: boolean }) => {
           <HowTo touch={touch} />
         </SidePanel>
       )}
-      {screen === 'credits' && (
-        <SidePanel title="CREDITS" kicker={`Floor 42 · ${STUDIO_NAME}`} onClose={back}>
-          <Credits />
-        </SidePanel>
-      )}
+      {screen === 'credits' && <CreditsPanel onClose={back} />}
     </main>
   );
 };

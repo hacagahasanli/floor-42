@@ -10,6 +10,7 @@ import { MainMenu } from '~/components/menu/MainMenu';
 import { SettingsRoot } from '~/components/menu/SettingsRoot';
 import { getSettings } from '~/game/settings';
 import { isCharacterId, ROSTER } from '~/game/roster';
+import { parseLength } from '~/game/twoPlayer';
 import { getPlatform } from '~/platform';
 
 import { parseHash } from './route';
@@ -29,12 +30,26 @@ const Screen = ({ hash }: { hash: string }) => {
     const p1 = query.get('p1');
     const p2 = query.get('p2');
     const player: CharacterId = isCharacterId(p1) ? p1 : 'hotfix';
+    if (query.get('mode') === '2p') {
+      const p2Pick: CharacterId = isCharacterId(p2) ? p2 : player;
+      return <ArenaGame player={player} opponent={p2Pick} twoPlayer={{ kosToWin: parseLength(query.get('n')) }} />;
+    }
     const opponent: CharacterId = isCharacterId(p2) ? p2 : pickOther(player);
     return <ArenaGame player={player} opponent={opponent} demo={query.has('demo')} level={level} />;
   }
   if (path === '/characters') return <CharacterSelect />;
   // Online is off in the portal build for now (bot play only): /play falls through to the menu.
-  return <MainMenu openSelect={query.has('select')} />;
+  const p1 = query.get('p1');
+  const p2 = query.get('p2');
+  const twoPlayer = query.has('2p')
+    ? {
+        p1: isCharacterId(p1) ? p1 : undefined,
+        p2: isCharacterId(p2) ? p2 : undefined,
+        n: parseLength(query.get('n')),
+        keep: query.has('keep'),
+      }
+    : undefined;
+  return <MainMenu openSelect={query.has('select')} twoPlayer={twoPlayer} />;
 };
 
 export const App = () => {
