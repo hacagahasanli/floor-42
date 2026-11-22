@@ -99,3 +99,81 @@ Engineering flags: (1) dark bottom-left clouds on desktop -> F-008.1. (2) far cl
 - Expected result: desktop-menu bottom-left shows warm cloud tops under the slab like the bottom-right; the sky between the fighter's head, the panel and the HUD holds only the gradient (and the standee when it is up).
 - Related spec: lobby-v2.md 3.1, 3.2, F-002.
 - Status: done (engineering, 2026-11-21)
+
+---
+
+# Review R-010: local 2-player build 24e7135..215299b (2026-11-23)
+
+Verdict: **accepted with changes.** The mode reads as a real couch-duel feature: 2 PLAYER sits second in the menu with the right sub, the split select with player cursors, the mirror split border and the `First to 5` chip is clear, the key card works as a tester (one key lit per player, ticks), the HUD carries P1/P2 chips, red/blue score digits, head tags and the two key strips, results show `P1 WINS`, the column heads and the `Tonight:` tally, Credits lives in the footer and in Settings, How to play has the 2 player rows, AZERTY reads Z Q S D (and P2 Shoot correctly reads M, the physical `;` key; mute is bound by `KeyM`, so no clash), and the phone menu hides 2 PLAYER. No P0. Four P1 items before it goes to CrazyGames, three P2 polish items.
+
+Reviewed from: 1440x900 shots 02, 04-12, 14, 15, 17, 18, 21, 22; 1280x720 06, 09 (top crop), 10; 1024x768 06; 1280x720-azerty 07; p844x390 01 and pad-02; portal-d1280x720-match. The rest are the same screens at other sizes. Not seen: motion (pops, stamp, fades), sound, the < 1024 single-row select, real keyboards, real pads, Firefox/Safari, the CrazyGames iframe.
+
+Deviations (LOG 2026-11-23):
+- (a) Pause line only after a pad's Start: **accepted.** No line is better than a wrong one.
+- (b) 2 Player as a `1 Player | 2 Player` switch inside Controls: **accepted**; it reads well and keeps the tab row short. The swap message `K was P2 Dash: swapped, that is now H.` is fine.
+- (c) Pads on select: A ready, B back, X or LB cycles length: **accepted.** A is the confirm every pad player expects.
+- (d) Rings leaning 0.38 rad toward the camera: **accepted.** They are faint but present; the head tags carry identity.
+- (e) Caps in the pause menu (`PAUSED`, `CONTROLS`): **accepted**; it matches the existing menu caps style. Spec copy table updated in spirit: menu items and headlines are caps.
+- (f), (g), (h), (i): **accepted.** (j) telemetry: not creative; file a P3 engineering follow-up if you want the 2P share number (I do want it for the tablet-split decision in spec section 6).
+
+Pre-existing `FLOOR 42 · open office` vs `FIRST TO N` at 1280x720: confirmed, see F-010.
+
+## F-009 — 2P select: locking in hides the fighter's name, and READY appears twice (P1)
+- What is wrong: in 04/06 (all sizes) the READY stamp takes the place of the big fighter name + description, and the filled `Ready` button stays under it. A locked panel shows `READY` + `Ready` and no name; in 06 neither player can read what they locked except from the small card label.
+- Why it matters: the moment two friends lock in is the moment they say "Hotfix vs Legacy". The name is the payoff; the duplicate word is noise.
+- What should change:
+  1. The name (fighter accent) and description line stay visible in every state, locked or not, in the same position.
+  2. The `Ready` button slot becomes the stamp when locked: hide the button, draw the existing READY stamp (same tilt, player-colour outline, same size as now) in that slot, so the panel height does not change. The stamp keeps the 1.06x card pop and its 120 ms entry.
+  3. Clicking the stamp unlocks (same as moving the cursor). Mouse hover on it: cursor pointer, stamp at 85 % opacity. No new copy.
+- Expected result: 06 shows, per panel, the grid, `HOTFIX / High flyer`, then a READY stamp; no `Ready` button while locked; no layout shift between 03, 04 and 06.
+- Related spec: local-2p.md 3.2.
+- Status: done (engineering, 2026-11-23; see LOG.md)
+
+## F-010 — Top HUD at 720 px tall: floor pill crowds `FIRST TO N` and covers the top walkway (P1, also 1P)
+- What is wrong: at 1280x720 (09, 10, portal shot) the arena starts at y ~105, so `FIRST TO N` sits grey on the light ceiling band (barely legible) and the `FLOOR 42 · open office` pill touches it and covers the centre of the top walkway, where a gun and a fighter can be.
+- Why it matters: 1280x720 is a common CrazyGames iframe size; the HUD must never hide play space, and the match length must read.
+- What should change:
+  1. When the viewport is under 800 px tall, the floor pill shows during the title card / countdown, then fades out (200 ms) when the round starts; it shows again in pause and results. At 800 px and taller nothing changes.
+  2. `FIRST TO N`: add `text-shadow: 0 1px 2px rgba(0,0,0,.85)` and cream at 70 % (from the current grey), all sizes.
+  3. Applies to 1P and 2P alike.
+- Expected result: 1280x720 mid-match shows nothing between the score and the arena except `FIRST TO 5`, readable over the ceiling; 1440x900 unchanged.
+- Related spec: local-2p.md 4.2 (and the existing match HUD).
+- Status: done (engineering, 2026-11-23; see LOG.md)
+
+## F-011 — P1 must start on the left (P1)
+- What is wrong: in portal-d1280x720-match (timer 149, one second in) and d1280x720-10, P1 Hotfix is on the right and P2 Legacy top-left, under the P2 plate. The plates say P1 left / P2 right; the fighters disagree.
+- Why it matters: in 2P the first second is "which one am I?". Spawning under your own plate and on your own side of the keyboard answers it with no reading. Stills only; if the 1280 shot is just movement, the portal shot at 149 still shows a swapped start.
+- What should change: in 2P, the match start (and any full-round reset) puts P1 on the left-half spawn and P2 on the right-half spawn of the same spawn pair used today. Respawns after a KO keep today's rule. 1P and online unchanged.
+- Expected result: every 2P match starts with P1 under the P1 plate (left) and P2 under the P2 plate (right).
+- Related spec: local-2p.md 3.3, 4.2.
+- Status: done (engineering, 2026-11-23; see LOG.md)
+
+## F-012 — Touch device with one pad: P1 has no controls; pad panel shows keyboard hints (P1)
+- What is wrong: p844x390-pad-01/02: one pad on a phone shows 2 PLAYER and the pad drives P2, but a touch-only device has no keyboard, so P1 cannot move. My spec 1.6 (one pad = P2) assumed a keyboard; section 6 did not cover one pad. Also the pad-driven panel still shows `← → move · ; ready`.
+- What should change:
+  1. On touch-only devices, 2 PLAYER appears only when **two** pads are connected; pad 1 = P1, pad 2 = P2. Sub: `Two pads, two fighters`. With one pad it stays hidden. Keyboard devices unchanged (one pad = P2).
+  2. If a pad disconnects mid-match on a touch-only device, pause at once with the pause line `Pad disconnected` (new string).
+  3. In a panel driven by a pad, replace the key hint with `Stick move · A ready` (pad glyph already shown keeps its place).
+- Expected result: no state where a player on screen has no input; pad panels show pad hints.
+- Related spec: local-2p.md 1.6, 3.2, 6, 8 (two new strings: `Two pads, two fighters`, `Pad disconnected`, plus `Stick move · A ready`).
+- Status: done (engineering, 2026-11-23; see LOG.md)
+
+## F-013 — 2P select: the menu fighter's legs stick out under the P2 panel (P2)
+- What is wrong: 04-06 at 1440/1280/1024: the main-menu showcase fighter and floor glow stay behind the select; his legs and shoes poke out below the P2 panel.
+- What should change: while the 2P select is open, hide the menu showcase fighter and its floor glow (backdrop room stays, dimmed as now). Restore on Esc.
+- Expected result: nothing but the dimmed office behind the two panels.
+- Related spec: local-2p.md 3.2 ("no new 3D rigs" meant none at all on this screen).
+- Status: done (engineering, 2026-11-23; see LOG.md)
+
+## F-014 — Results: Rematch button grows when a tick appears; idle ticks too faint (P2)
+- What is wrong: 14 vs 15: the Rematch button widens ~14 px when `P1 ✓` appears and pushes CHANGE FIGHTERS sideways. The idle `P1 P2` marks on yellow are low contrast.
+- What should change: reserve the ticked width from the start (both chips always rendered at full size); idle chips: ink `#16110E` text at 45 % with a 1 px ink 30 % outline; ticked: player-colour fill as now.
+- Expected result: no layout shift on either tick; both idle marks readable at arm's length.
+- Related spec: local-2p.md 4.5.
+- Status: done (engineering, 2026-11-23; see LOG.md)
+
+## F-015 — Pause in 2P dims P1's side of the HUD only; key card arrows mismatched (P2)
+- What is wrong: (1) 11: the pause scrim fades left to right, so P1's plate and key strip go dark while P2's stay full bright; in 2P that reads as "P2 is still playing". (2) Key card: ↑ ↓ are small filled triangles, ← → are long line arrows.
+- What should change: (1) in 2P pause, both plates and both key strips sit at the same dim level (keep the left scrim for the menu text, add a flat 55 % ink layer over the HUD). 1P unchanged. (2) Key card ↑ ↓ ← → all use the same line-arrow glyph at the same size (as ← → now).
+- Related spec: local-2p.md 4.1, 4.4.
+- Status: done (engineering, 2026-11-23; see LOG.md)

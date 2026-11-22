@@ -83,6 +83,12 @@ export interface Fighter {
   weapon: Weapon;
   /** Bombs carried (0 or 1): a separate slot, thrown with Throw bomb while your gun stays in hand. */
   bombs: number;
+  /**
+   * Local 2-player assists only: seconds spent standing on a floor gun that is not taken at once (0.5 s swaps), and
+   * which pickup it is. Absent in every other mode.
+   */
+  pickupHold?: number;
+  pickupHoldId?: number;
   /** Picked while dead: you respawn as this character. */
   nextCharacter: CharacterId | null;
   firing: number; // seconds since the last shot, for muzzle flash / recoil
@@ -159,6 +165,13 @@ export interface GameState {
    * on the far side, or start for a hit the guessing side predicted and the authority never had.
    */
   net?: boolean;
+  /** KOs needed to win; RULES.kosToWin when absent (local 2-player picks 3, 5 or 7). */
+  kosToWin?: number;
+  /**
+   * Local 2-player: pick up, reload and the bomb throw are automatic or folded into Push (spec local-2p.md section 2).
+   * Absent (off) vs the bot and online.
+   */
+  assist?: boolean;
   seed: number; // deterministic RNG state (spread, drops)
   dropTimer: number;
   nextId: number;

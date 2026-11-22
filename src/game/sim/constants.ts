@@ -181,6 +181,16 @@ export const RULES = {
   regenPerSecond: 15,
 };
 
+/** Local 2-player assists (spec local-2p.md section 2). */
+export const ASSIST = {
+  /** Seconds standing on a floor gun before it swaps (when not taken at once). */
+  swapHold: 0.5,
+  /** Below this share of a gun's full load (magazine + reserve), walking over a gun takes it at once. */
+  lowAmmo: 0.25,
+  /** Seconds without a shot before a part-empty magazine reloads itself. */
+  reloadIdle: 1.2,
+};
+
 export const PHYS = {
   gravity: 42,
   fastFall: 70,

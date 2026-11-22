@@ -1,5 +1,6 @@
 import {
   ARENA,
+  ASSIST,
   BOMB,
   CHARACTERS,
   CROUCH,
@@ -105,7 +106,12 @@ export const createFighter = (id: number, character: CharacterId): Fighter => {
 };
 
 /** `net`: an online match (no hitstop, see GameState.net). */
-export const createGame = (characters: [CharacterId, CharacterId], seed = 1, net = false): GameState => {
+export const createGame = (
+  characters: [CharacterId, CharacterId],
+  seed = 1,
+  net = false,
+  local?: { kosToWin: number; assist: boolean },
+): GameState => {
   const fighters = characters.map((c, i) => createFighter(i, c));
   fighters.forEach((f) => Object.assign(f, { x: 0, y: 0 }));
   const pickups: Pickup[] = ARENA.gunSpawns.map((_, i) => ({
@@ -139,6 +145,7 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1, net
     paused: false,
     hitstop: 0,
     ...(net ? { net: true } : {}),
+    ...(local ? { kosToWin: local.kosToWin, assist: local.assist } : {}),
     seed,
     dropTimer: ARENA.dropEvery,
     nextId: 1,
@@ -149,6 +156,18 @@ export const createGame = (characters: [CharacterId, CharacterId], seed = 1, net
   };
   // Random starting spots (far apart) and random guns on each floor.
   for (const f of state.fighters) placeAtSpawn(state, f);
+  // Local 2-player: P1 starts on the left, under the P1 plate, P2 on the right (same two spots, swapped if needed).
+  // Respawns after a KO keep the normal rule.
+  if (local && fighters[0].x > fighters[1].x) {
+    const [a, b] = fighters;
+    const spot = { x: a.x, y: a.y };
+    Object.assign(a, { x: b.x, y: b.y });
+    Object.assign(b, spot);
+    for (const f of fighters) {
+      f.facing = f.x < 0 ? 1 : -1;
+      f.aim = f.facing > 0 ? 0 : Math.PI;
+    }
+  }
   for (const p of state.pickups) if (p.spawn !== null) placeGun(state, p);
   return state;
 };
@@ -232,7 +251,7 @@ const knockOut = (state: GameState, f: Fighter) => {
   f.stats.streak = 0;
   scorer.stats.streak += 1;
   scorer.stats.bestStreak = Math.max(scorer.stats.bestStreak, scorer.stats.streak);
-  if (scorer.kos >= RULES.kosToWin) {
+  if (scorer.kos >= (state.kosToWin ?? RULES.kosToWin)) {
     state.phase = 'over';
     state.winner = scorer.id;
     state.endReason = 'kos';
@@ -382,6 +401,44 @@ const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
   state.events.push({ type: 'pickup', fighter: f.id, gun: p.kind });
 };
 
+/** Under a quarter of the gun's full load (magazine + reserve) left. The pistol never runs low. */
+export const lowAmmo = (w: Weapon) => {
+  const g = GUNS[w.kind];
+  if (w.kind === 'pistol' || !Number.isFinite(g.reserve)) return false;
+  return w.mag + w.reserve < ASSIST.lowAmmo * (g.mag + g.reserve);
+};
+
+/**
+ * Local 2-player pick up (no Pick up key): a bomb goes in its slot, a gun is taken at once with only the pistol or a
+ * nearly empty gun, otherwise after standing on it for ASSIST.swapHold seconds. Stepping off resets the wait.
+ */
+const assistPickup = (state: GameState, f: Fighter, near: Pickup | null) => {
+  if (!near) {
+    f.pickupHold = 0;
+    f.pickupHoldId = undefined;
+    return;
+  }
+  if (near.kind === 'bomb') {
+    if (!f.bombs) takePickup(state, f, near);
+    return;
+  }
+  if (f.pickupHoldId !== near.id) {
+    f.pickupHoldId = near.id;
+    f.pickupHold = 0;
+  }
+  if (f.weapon.kind === 'pistol' || lowAmmo(f.weapon)) {
+    takePickup(state, f, near);
+    f.pickupHold = 0;
+    return;
+  }
+  f.pickupHold = (f.pickupHold ?? 0) + DT;
+  if (f.pickupHold >= ASSIST.swapHold - 1e-9) {
+    takePickup(state, f, near);
+    f.pickupHold = 0;
+    f.pickupHoldId = undefined;
+  }
+};
+
 const updateWeapon = (state: GameState, f: Fighter, input: InputState, canAct: boolean) => {
   const w = f.weapon;
   const g = GUNS[w.kind];
@@ -403,6 +460,11 @@ const updateWeapon = (state: GameState, f: Fighter, input: InputState, canAct: b
     state.events.push({ type: 'reload', fighter: f.id });
   };
   if (canAct && input.reload && !f.prev.reload) startReload();
+  // Local 2-player: a part-empty magazine reloads itself after a pause in shooting.
+  if (state.assist && canAct && w.mag > 0 && f.firing >= ASSIST.reloadIdle) {
+    startReload();
+    if (w.reload > 0) return;
+  }
   if (w.mag <= 0) {
     if (w.reserve > 0) startReload();
     else if (w.kind !== 'pistol') {
@@ -556,7 +618,9 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     state.events.push({ type: 'dash', x: f.x, y: f.y, fighter: f.id });
   }
 
-  if (canAct && pressed('push') && f.pushCooldown <= 0) {
+  // Local 2-player: while a bomb is carried, Push throws it instead.
+  const pushThrows = !!state.assist && f.bombs > 0 && pressed('push');
+  if (canAct && !pushThrows && pressed('push') && f.pushCooldown <= 0) {
     f.pushTime = PUSH.duration;
     f.pushCooldown = PUSH.cooldown;
     f.pushHit = [];
@@ -567,12 +631,13 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   // Reload (R) only reloads.
   const near = canAct ? pickupCandidate(state, f) : null;
   // A bomb is always picked up (one at a time: a second stays where it is); a gun needs Pick up or a pistol in hand.
-  if (near && (near.kind === 'bomb' ? !f.bombs : pressed('pickup') || f.weapon.kind === 'pistol'))
+  if (state.assist) assistPickup(state, f, near);
+  else if (near && (near.kind === 'bomb' ? !f.bombs : pressed('pickup') || f.weapon.kind === 'pistol'))
     takePickup(state, f, near);
 
   updateWeapon(state, f, input, canAct);
   // Throw bomb: your gun stays in hand; the bomb is lobbed to the aim point.
-  if (canAct && f.bombs > 0 && pressed('throwBomb') && f.pushTime <= 0) {
+  if (canAct && f.bombs > 0 && (pressed('throwBomb') || pushThrows) && f.pushTime <= 0) {
     f.bombs = 0;
     fire(state, f, 'bomb');
   }

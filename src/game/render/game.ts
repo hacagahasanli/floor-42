@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
-import { createControls, isTouchDevice } from '../input';
+import { createControls, createControls2P, isTouchDevice } from '../input';
+import { playerColour } from '../twoPlayer';
 
 import type { Button } from '../input';
 import type { AimMode } from '../input';
@@ -9,7 +10,7 @@ import { getSettings, primaryLabel } from '../settings';
 
 import type { Settings } from '../settings';
 import { createBot } from '../sim/bot';
-import { ARENA, CHARACTERS, DT, GUNS, PUSH, PHYS, RULES } from '../sim/constants';
+import { ARENA, ASSIST, CHARACTERS, DT, GUNS, PUSH, PHYS, RULES } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step, visibleAim } from '../sim/step';
 
 import { buildArena } from './arena';
@@ -47,6 +48,8 @@ export interface HudFighter {
 
 export interface HudState {
   phase: Phase;
+  /** KOs needed to win this match (5, or 3/5/7 in local 2-player). */
+  kosToWin: number;
   time: number;
   winner: number | null;
   fighters: HudFighter[];
@@ -81,6 +84,17 @@ export interface ArenaOptions {
   online?: OnlineSession;
   /** A backdrop (the home page): no sound, no keyboard. */
   backdrop?: boolean;
+  /**
+   * Local 2-player on one keyboard (spec local-2p.md): no bot, both fighters read their own keys and pads, auto-aim
+   * for both, automatic pick up and reload, the fixed full-office camera, P1/P2 tags and rings, shake capped at 0.6.
+   */
+  twoPlayer?: { kosToWin: number };
+  /** Start with the clock held (the 2-player key card): nothing moves until `setHold(false)`. */
+  hold?: boolean;
+  /** Local 2-player: a player pressed Start on their pad (pause). */
+  onPadPause?: (player: 0 | 1) => void;
+  /** Local 2-player on a touch-only device: a pad went away mid-match (someone has no controls now). */
+  onPadLost?: () => void;
 }
 
 const randomSeed = () => (Math.random() * 1e9) | 0;
@@ -105,13 +119,20 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
   const level = opts.level ?? 'normal';
   const online = opts.online;
+  const tp = online || opts.demo ? undefined : opts.twoPlayer;
+  const newGame = () =>
+    createGame([opts.player, opts.opponent], randomSeed(), false, tp ? { kosToWin: tp.kosToWin, assist: true } : undefined);
+  let hold = !!opts.hold;
+  let padsSeen = 0;
   /** Which fighter you are. Offline you are always 0. */
   const me = online?.slot ?? 0;
-  let state: GameState = online ? online.state : createGame([opts.player, opts.opponent], randomSeed());
+  let state: GameState = online ? online.state : newGame();
   let bot = createBot(1, randomSeed(), level);
   let demoBot = createBot(0, randomSeed(), level);
-  const controls = createControls(canvas, !opts.backdrop, settings.bindings);
-  let aimMode: AimMode = touch ? 'auto' : (opts.aimMode ?? settings.aimMode);
+  // In 2-player the 1-player keys and the mouse stay silent (Space, Shift, R, F... do nothing there).
+  const controls = createControls(canvas, !opts.backdrop && !tp, settings.bindings);
+  const controls2 = tp ? createControls2P(settings.bindings2p, !opts.backdrop) : null;
+  let aimMode: AimMode = touch || tp ? 'auto' : (opts.aimMode ?? settings.aimMode);
   const sfx = createSfx({ volumes: settings.audio, muted: store.effectiveMute() });
   let muted = store.effectiveMute();
 
@@ -282,6 +303,99 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const savePrev = () => state.fighters.forEach((f, i) => Object.assign(prevF[i], { x: f.x, y: f.y }));
   const smooth = state.fighters.map((f) => ({ x: f.x, y: f.y }));
 
+  // ---------- Local 2-player marks (spec 4.2): a P1/P2 tag over each head, a thin ground ring under the feet in the
+  // player colour, and the 0.5 s swap ring that fills while standing on a floor gun. Four quads plus two swap rings.
+  const tagCanvases = [0, 1].map(() => {
+    const c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 36;
+    return c;
+  });
+  const tagTex = tagCanvases.map((c) => {
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  });
+  const tags = tagTex.map((map) => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map, depthTest: false, transparent: true }));
+    sp.renderOrder = 10;
+    sp.visible = false;
+    scene.add(sp);
+    return sp;
+  });
+  const RING_TILT = -Math.PI / 2 + 0.38;
+  const ringMats = [0, 1].map(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }));
+  const rings = ringMats.map((m) => {
+    const r = new THREE.Mesh(new THREE.RingGeometry(0.48, 0.62, 40), m);
+    // The camera looks at the office almost side-on: a ring flat on the floor would be a 2 px line, so it leans
+    // toward the camera a little and reads as an ellipse round the feet.
+    r.rotation.x = RING_TILT;
+    r.scale.set(1.25, 1, 1);
+    r.renderOrder = 2;
+    r.visible = false;
+    scene.add(r);
+    return r;
+  });
+  const SWAP_SEGMENTS = 32;
+  const swapMats = [0, 1].map(() => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
+  const swapRings = swapMats.map((m) => {
+    const r = new THREE.Mesh(new THREE.RingGeometry(0.66, 0.84, SWAP_SEGMENTS, 1, Math.PI / 2), m);
+    r.rotation.x = RING_TILT;
+    r.scale.set(1.25, 1, 1);
+    r.renderOrder = 3;
+    r.visible = false;
+    scene.add(r);
+    return r;
+  });
+  const recolourMarks = () => {
+    [0, 1].forEach((i) => {
+      const colour = playerColour(i as 0 | 1, settings.colourBlind);
+      const c = tagCanvases[i];
+      const g = c.getContext('2d');
+      if (g) {
+        g.clearRect(0, 0, c.width, c.height);
+        g.fillStyle = colour;
+        g.beginPath();
+        g.roundRect?.(2, 2, c.width - 4, c.height - 4, 6);
+        if (!g.roundRect) g.rect(2, 2, c.width - 4, c.height - 4);
+        g.fill();
+        g.fillStyle = '#0a0d18';
+        g.font = 'bold 24px "Chakra Petch", system-ui, sans-serif';
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillText(`P${i + 1}`, c.width / 2, c.height / 2 + 1);
+      }
+      tagTex[i].needsUpdate = true;
+      ringMats[i].color.set(colour);
+      swapMats[i].color.set(colour);
+    });
+  };
+  if (tp) recolourMarks();
+  const drawPlayerMarks = (st: GameState) => {
+    // World units per CSS pixel at the fight plane, so the tag keeps its 12 px text at any window size.
+    const h = canvas.clientHeight || 1;
+    const wpp = (2 * Math.abs(camera.position.z) * Math.tan((camera.fov * Math.PI) / 360)) / h;
+    st.fighters.forEach((f, i) => {
+      if (i > 1) return;
+      const rig = rigs[i];
+      const alive = f.respawn <= 0;
+      const x = rig.root.position.x;
+      const y = rig.root.position.y;
+      tags[i].visible = alive;
+      rings[i].visible = alive && f.onGround;
+      tags[i].scale.set(32 * wpp, 18 * wpp, 1);
+      tags[i].position.set(x, y + CHARACTERS[f.character].height + (8 + 9) * wpp, 0.6);
+      rings[i].position.set(x, y + 0.02, 0);
+      const hold = (f.pickupHold ?? 0) / ASSIST.swapHold;
+      const sw = swapRings[i];
+      sw.visible = alive && hold > 0;
+      if (sw.visible) {
+        sw.position.set(x, y + 0.03, 0);
+        sw.geometry.setDrawRange(0, 6 * Math.max(1, Math.round(SWAP_SEGMENTS * Math.min(1, hold))));
+      }
+    });
+  };
+
   // ---------- Game feel (see the web-game-feel skill): one tiered feedback() per event.
   // Camera shake and flashes: Settings > Camera, and off whenever reduced motion is on.
   const motionOf = (s: Settings) => (s.shake && !s.reducedMotion ? 1 : 0);
@@ -299,7 +413,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const hitFlash = state.fighters.map(() => 0);
   const feedback = (tier: Tier, target?: number) => {
     const t = TIERS[tier];
-    trauma = Math.min(1, trauma + t.trauma * motion);
+    // 2-player: one player's hit must not blind the other (spec 4.2).
+    trauma = Math.min(tp ? 0.6 : 1, trauma + t.trauma * motion);
     fovKick = Math.max(fovKick, t.fov * motion);
     if (target !== undefined && t.flash) hitFlash[target] = Math.max(hitFlash[target], t.flash * (motion ? 1 : 0.5));
     if (tier === 'huge') flash = Math.max(flash, 0.12 * motion);
@@ -492,7 +607,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     let tx = 0;
     let ty = ARENA.ceiling / 2 + 0.6;
     let tz = dist;
-    if (touch) {
+    if (touch && !tp) {
       // Phones: closer, so the fighters read bigger. The camera follows the pair and pulls back
       // only as far as it must to keep both in the clear middle of the screen.
       const [a, b] = state.fighters;
@@ -689,7 +804,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       fl.position.copy(fwd);
       fl.scale.setScalar(f.weapon.kind === 'shotgun' || f.weapon.kind === 'launcher' ? 1.8 : 1);
 
-      if (i === me && !opts.demo) {
+      if (i === me && !opts.demo && !tp) {
         const len = 2.2;
         aimLine.visible = rig.root.visible && state.phase === 'fight';
         aimLine.scale.set(len, 1, 1);
@@ -697,7 +812,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         aimLine.rotation.set(0, 0, f.aim);
       }
     });
-    if (opts.demo) aimLine.visible = false;
+    if (opts.demo || tp) aimLine.visible = false;
+    if (tp) drawPlayerMarks(state);
     rigs.forEach((rig, i) => {
       const l = fillLights[i];
       l.position.set(rig.root.position.x, rig.root.position.y + 1.4, 1.6);
@@ -718,7 +834,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     // The keycap beside the gun you're standing on (with only a pistol it's picked up automatically).
     // Phones have the Swap button instead.
     const self = state.fighters[me];
-    const cand = !opts.demo && !touch && self.respawn <= 0 && self.weapon.kind !== 'pistol' ? pickupCandidate(state, self) : null;
+    const cand = !opts.demo && !touch && !tp && self.respawn <= 0 && self.weapon.kind !== 'pistol' ? pickupCandidate(state, self) : null;
     const near = cand && cand.kind !== 'bomb' ? cand : null; // bombs are picked up automatically
     prompt.visible = !!near && settings.showKeyHints;
     if (near) prompt.position.set(near.x, near.y + 1.15, 0.5);
@@ -804,7 +920,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
   const hintFor = (): HudState['hint'] => {
     const self = state.fighters[me];
-    if (opts.demo || state.phase !== 'fight' || self.respawn > 0) return [];
+    if (opts.demo || tp || state.phase !== 'fight' || self.respawn > 0) return [];
     if (self.bombs > 0) return [{ key: touch ? 'Bomb' : primaryLabel(settings.bindings, 'throwBomb'), text: 'throw the bomb' }];
     return [];
   };
@@ -815,6 +931,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     const state = viewState();
     opts.onHud({
       phase: state.phase,
+      kosToWin: state.kosToWin ?? RULES.kosToWin,
       time: state.phaseTime,
       // The HUD always shows you first.
       winner: state.winner === null || state.winner < 0 ? state.winner : state.winner === me ? 0 : 1,
@@ -867,7 +984,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     if (opts.backdrop) return;
     sfx.unlock();
     if (e.code === 'KeyM') store.setAudio({ muted: !settings.audio.muted });
-    if (e.code === 'KeyT' && !touch) store.set({ aimMode: aimMode === 'auto' ? 'mouse' : 'auto' });
+    if (e.code === 'KeyT' && !touch && !tp) store.set({ aimMode: aimMode === 'auto' ? 'mouse' : 'auto' });
   };
   window.addEventListener('keydown', onKey);
   // On phones audio starts with the first touch.
@@ -885,11 +1002,31 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     time += dt;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
     acc += dt;
+    // The 2-player key card holds the clock: the office renders, nothing moves.
+    if (hold) acc = 0;
+    if (controls2) {
+      const who = controls2.takeStart();
+      if (who !== null) opts.onPadPause?.(who);
+      if (touch) {
+        const n = controls2.padCount();
+        if (n < padsSeen) opts.onPadLost?.();
+        padsSeen = n;
+      }
+    }
     while (acc >= DT) {
       savePrev();
       const aim = aimMode === 'mouse' ? mouseAim() : autoAim(me);
       let events: GameEvent[];
-      if (online) {
+      if (controls2) {
+        const [a, b] = controls2.read();
+        const aimA = autoAim(0);
+        const aimB = autoAim(1);
+        step(state, [
+          { ...a, aimX: aimA.x, aimY: aimA.y },
+          { ...b, aimX: aimB.x, aimY: aimB.y },
+        ]);
+        events = state.events;
+      } else if (online) {
         events = online.tick(controls.read(aim.x, aim.y, aimMode));
         state = online.state;
       } else {
@@ -965,7 +1102,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       controls.setBindings(s.bindings);
       drawKeycap(primaryLabel(s.bindings, 'pickup'));
     }
-    if (!touch) aimMode = s.aimMode;
+    if (!touch && !tp) aimMode = s.aimMode;
+    if (controls2 && prev.bindings2p !== s.bindings2p) controls2.setBindings(s.bindings2p);
+    if (tp && prev.colourBlind !== s.colourBlind) recolourMarks();
     emitHud();
   };
   const offSettings = store.subscribe(applySettings);
@@ -981,7 +1120,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       online.rematch();
       return;
     }
-    state = createGame([opts.player, opts.opponent], randomSeed());
+    state = newGame();
     bot = createBot(1, randomSeed(), level);
     demoBot = createBot(0, randomSeed(), level);
     started = false;
@@ -1041,10 +1180,17 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       controls.setTouch(b, on);
     },
     setAimMode: (m: AimMode) => store.set({ aimMode: m }),
+    /** Local 2-player: the keys held and both fighters' buttons, for the key card and the rematch ticks. */
+    peek2P: () => controls2?.peek() ?? null,
+    /** Hold the clock (the 2-player key card) or let the match run. */
+    setHold: (on: boolean) => {
+      hold = on;
+    },
     dispose: () => {
       cancelAnimationFrame(raf);
       offSettings();
       controls.dispose();
+      controls2?.dispose();
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pointerdown', onFirstTouch);
       scene.traverse((o) => {

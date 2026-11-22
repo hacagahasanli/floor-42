@@ -12,7 +12,9 @@ import {
 } from '~/components/TouchControls';
 import { readAim } from '~/components/AimChoice';
 import { SettingsPanel } from '~/components/menu/SettingsPanel';
-import { useCopy } from '~/components/menu/useCopy';
+import { useCopy, useCopyVariant } from '~/components/menu/useCopy';
+import { KeyCard } from '~/components/twoPlayer/KeyCard';
+import { KeyStrip, PlayerChip, useBothPress, usePlayerColours } from '~/components/twoPlayer/shared';
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useSettings } from '~/components/menu/useSettings';
 import { menuSound } from '~/components/menu/menuSound';
@@ -24,6 +26,7 @@ import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
 import { keyLabel } from '~/game/settings';
+import { addToTally, keyCardSeen, markKeyCardSeen, readTally, resetTally, sessionStore } from '~/game/twoPlayer';
 import { navigate, PORTAL } from '~/lib/portal';
 import { getPlatform } from '~/platform';
 
@@ -36,6 +39,7 @@ import type { HudFighter, HudState } from '~/game/render/game';
 import type { BotLevel } from '~/game/sim/bot';
 import type { Bindings } from '~/game/settings';
 import type { CharacterId } from '~/game/sim/types';
+import type { Tally } from '~/game/twoPlayer';
 
 const accent = (id: CharacterId) => ROSTER.find((r) => r.id === id)?.accent ?? '#fff';
 const WAIT_SECONDS = 60;
@@ -48,14 +52,30 @@ const Key = ({ k }: { k: string }) => (
 );
 
 /** A small cooldown bar: fills up, then lights up when the move is ready. */
-const Ready = ({ label, value }: { label: string; value: number }) => {
+const BombIcon = () => (
+  <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden className="inline-block">
+    <circle cx="7" cy="9.5" r="5.5" fill="currentColor" />
+    <path d="M10.5 5.5 L13 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <circle cx="13.6" cy="2.4" r="1.4" fill="var(--color-orange)" />
+  </svg>
+);
+
+const Ready = ({ label, value, bomb }: { label: string; value: number; bomb?: boolean }) => {
+  // Local 2-player: Push throws a carried bomb, so the Push bar shows a bomb, full, while one is carried.
+  if (bomb) value = 1;
   const ready = value >= 1;
   return (
     <span
       className={`flex items-center gap-1 ${ready ? 'text-gold' : 'text-cream/40'}`}
       title={ready ? `${label} ready` : `${label} recharging`}
     >
-      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      {bomb ? (
+        <span className="flex items-center gap-0.5 text-orange" title="Push throws the bomb" data-testid="push-bomb">
+          <BombIcon />
+        </span>
+      ) : (
+        <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      )}
       <span className="h-1.5 w-8 overflow-hidden rounded bg-cream/15">
         <span
           className={`block h-full ${ready ? 'bg-gold' : 'bg-cream/50'}`}
@@ -92,6 +112,7 @@ const FighterPanel = ({
   align,
   compact,
   bombKey,
+  chip,
 }: {
   f: HudFighter;
   label: string;
@@ -99,15 +120,18 @@ const FighterPanel = ({
   compact?: boolean;
   /** The Throw bomb key to show beside the bomb badge (null: no key hint). */
   bombKey?: string | null;
+  /** Local 2-player: the P1 / P2 chip in the player colour replaces the YOU / BOT label, and both plates show cooldowns. */
+  chip?: { index: 0 | 1; colour: string };
 }) => (
   <div
     className={`flex ${compact ? 'w-48' : 'w-72'} flex-col gap-1 ${align === 'right' ? 'items-end text-right' : ''}`}
   >
     <div className={`flex items-baseline gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+      {chip && <PlayerChip index={chip.index} colour={chip.colour} className="self-center" />}
       <span className="font-display text-lg leading-none" style={{ color: accent(f.character) }}>
-        {f.name}
+        {chip ? f.name.toUpperCase() : f.name}
       </span>
-      <span className="text-[10px] font-semibold tracking-widest text-cream/50">{label}</span>
+      {!chip && <span className="text-[10px] font-semibold tracking-widest text-cream/50">{label}</span>}
     </div>
     <div className="panel-cut h-3 w-full bg-ink-deep/80">
       <div
@@ -131,16 +155,16 @@ const FighterPanel = ({
           Bomb {bombKey ? <Key k={bombKey} /> : null}
         </span>
       )}
-      {label === 'YOU' && (
+      {(label === 'YOU' || chip) && (
         <>
           <Ready label="Dash" value={f.dash} />
-          <Ready label="Push" value={f.push} />
+          <Ready label="Push" value={f.push} bomb={!!chip && f.bombs > 0} />
         </>
       )}
       {f.reloading > 0 ? (
         <span className="text-gold">reloading</span>
       ) : (
-        <span className={`tabular-nums ${f.mag === 0 ? 'text-orange' : ''}`}>
+        <span className={`whitespace-nowrap tabular-nums ${f.mag === 0 ? 'text-orange' : ''}`}>
           {f.mag}/{f.reserve === Infinity ? '∞' : f.reserve}
         </span>
       )}
@@ -195,7 +219,7 @@ const END_TEXT = (hud: HudState, demo: boolean, copy: Copy) => {
   return {
     title: name,
     sub:
-      hud.endReason === 'time' ? 'More KOs when time ran out.' : `First to ${RULES.kosToWin} KOs.`,
+      hud.endReason === 'time' ? 'More KOs when time ran out.' : `First to ${hud.kosToWin} KOs.`,
   };
 };
 
@@ -246,12 +270,18 @@ const PauseMenu = ({
   onResume,
   onSettings,
   onQuit,
+  onControls,
+  pausedBy,
 }: {
   paused: boolean;
   online: boolean;
   onResume: () => void;
   onSettings: () => void;
   onQuit: () => void;
+  /** Local 2-player: Controls opens the key card in view mode. */
+  onControls?: () => void;
+  /** Local 2-player: who paused (a pad's Start says who; Esc is shared, so it is not known then), or a lost pad. */
+  pausedBy?: 0 | 1 | 'pad' | null;
 }) => {
   const first = useRef<HTMLButtonElement>(null);
   useEffect(() => first.current?.focus(), []);
@@ -301,6 +331,11 @@ const PauseMenu = ({
           <h2 className="-skew-x-6 font-display text-6xl leading-none text-cream [@media(max-height:500px)]:text-4xl">
             {paused ? 'PAUSED' : 'PAUSE?'}
           </h2>
+          {onControls && pausedBy !== null && pausedBy !== undefined && (
+            <p className="text-sm text-cream/70" data-testid="paused-by">
+              {pausedBy === 'pad' ? 'Pad disconnected' : `P${pausedBy + 1} paused`}
+            </p>
+          )}
           {!paused && online && (
             <p className="max-w-xs text-sm text-cream/70">
               Waiting for your rival to pause too. The game keeps going until they do.
@@ -309,6 +344,7 @@ const PauseMenu = ({
         </div>
         <nav aria-label="Pause menu" className="flex flex-col gap-1">
           {item(paused ? 'RESUME' : 'KEEP PLAYING', onResume, { primary: true, ref: first })}
+          {onControls && item('CONTROLS', onControls)}
           {item('SETTINGS', onSettings)}
           {item(online ? 'LEAVE MATCH' : 'QUIT TO MENU', onQuit, { danger: true })}
         </nav>
@@ -329,13 +365,18 @@ export const ArenaGame = ({
   demo = false,
   level = 'normal',
   online,
+  twoPlayer,
 }: {
   player: CharacterId;
   opponent: CharacterId;
   demo?: boolean;
   level?: BotLevel;
   online?: { session: OnlineSession; room: Room };
+  /** Local 2-player on one keyboard: `player` is P1's fighter, `opponent` P2's; first to `kosToWin`. */
+  twoPlayer?: { kosToWin: number };
 }) => {
+  const tp = !!twoPlayer && !online && !demo;
+  const kosToWin = twoPlayer?.kosToWin;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<ReturnType<typeof startArena> | null>(null);
   const keyTrapRef = useRef<HTMLInputElement>(null);
@@ -346,6 +387,14 @@ export const ArenaGame = ({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settings = useSettings();
   const copy = useCopy();
+  const variant = useCopyVariant();
+  const colours = usePlayerColours();
+  /** Local 2-player: the key card before the first round ('start') or from Pause > Controls ('view'). */
+  const [keyCard, setKeyCard] = useState<'start' | 'view' | null>(null);
+  const [pausedBy, setPausedBy] = useState<0 | 1 | 'pad' | null>(null);
+  const [tally, setTally] = useState<Tally>({ p1: 0, p2: 0 });
+  const counted = useRef(false);
+  const padPauseRef = useRef<(who: 0 | 1 | 'pad') => void>(() => undefined);
   useGamepadNav(menuOpen);
   // Rival left: wait up to three rounds of WAIT_SECONDS, asking in between, then the link expires.
   const [waitRound, setWaitRound] = useState(0);
@@ -358,10 +407,18 @@ export const ArenaGame = ({
   // Phones and tablets: touch controls, auto-aim, landscape. Known only after mount.
   const [touch, setTouch] = useState(false);
   useEffect(() => setTouch(isTouchDevice()), []);
+  /** A window under 800 px tall (e.g. 1280x720): the floor pill steps aside during play. */
+  const [short, setShort] = useState(false);
+  useEffect(() => {
+    const on = () => setShort(window.innerHeight < 800);
+    on();
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
   const portrait = useLandscape();
   // Phones: keep the office clear of the control strips (and the notch).
   useEffect(() => {
-    if (!touch || demo) return;
+    if (!touch || demo || tp) return;
     const apply = () => {
       const sa = safeArea();
       // Left-handed swaps the strips: the stick lives on the right.
@@ -378,11 +435,11 @@ export const ArenaGame = ({
     apply();
     window.addEventListener('resize', apply);
     return () => window.removeEventListener('resize', apply);
-  }, [touch, demo, settings.touch.leftHanded, settings.touch.size]);
+  }, [touch, demo, tp, settings.touch.leftHanded, settings.touch.size]);
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
   // Anonymous usage events: a no-op unless the site started counting (never on a portal build).
-  useRoundTelemetry(hud, { demo, online: !!online });
+  useRoundTelemetry(hud, { demo, online: !!online, twoPlayer: tp });
 
   // The lift ride up: real loading steps, shown until the first frame of the office is on screen.
   const [loaded, setLoaded] = useState({ fonts: false, office: false });
@@ -403,6 +460,8 @@ export const ArenaGame = ({
     // Two frames first, so the loading screen is painted before the office is built (that blocks the page).
     let raf = requestAnimationFrame(() => {
       raf = requestAnimationFrame(() => {
+        // Local 2-player: the key card holds the clock the first time in this browser session.
+        const card = tp && !keyCardSeen(sessionStore());
         game = startArena(canvas, {
           player,
           opponent,
@@ -411,7 +470,16 @@ export const ArenaGame = ({
           aimMode: isTouchDevice() ? 'auto' : readAim(),
           onHud: setHud,
           online: online?.session,
+          ...(tp && kosToWin
+            ? {
+                twoPlayer: { kosToWin },
+                hold: card,
+                onPadPause: (who: 0 | 1) => padPauseRef.current(who),
+                onPadLost: () => padPauseRef.current('pad'),
+              }
+            : {}),
         });
+        if (card) setKeyCard('start');
         gameRef.current = game;
         setLoaded((l) => ({ ...l, office: true }));
         // Effects that ran before the game existed (touch insets) apply on resize.
@@ -423,7 +491,7 @@ export const ArenaGame = ({
       game?.dispose();
       gameRef.current = null;
     };
-  }, [player, opponent, demo, level, online]);
+  }, [player, opponent, demo, level, online, tp, kosToWin]);
 
   // Online: the server starts each new round and tells us if the rival leaves.
   useEffect(() => {
@@ -500,8 +568,12 @@ export const ArenaGame = ({
 
   const exit = () => {
     if (online) void online.room.leave();
+    // Leaving a 2-player session for the main menu ends tonight's tally.
+    if (tp) resetTally(sessionStore());
     navigate(online ? '/play' : '/');
   };
+  /** Local 2-player: back to the split fighter select, both picks kept (unlocked), the tally kept. */
+  const changeFighters = () => navigate(`/?2p&p1=${player}&p2=${opponent}&n=${kosToWin ?? RULES.kosToWin}&keep=1`);
 
   // Esc: ask to pause (online the rival has to agree the same way) and open the menu, on the first press.
   // It used to take two presses within 450 ms, which read as Esc not working.
@@ -520,9 +592,12 @@ export const ArenaGame = ({
         }
         if (h.phase === 'over') return;
         if (!h.paused) gameRef.current?.requestPause();
+        setPausedBy(null);
         setMenuOpen(true);
         return;
       }
+      // 2-player: no mid-match fighter change, 1-4 are inert.
+      if (tpRef.current) return;
       const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4'].indexOf(e.code);
       if (n >= 0 && h.respawnIn !== null) gameRef.current?.pickCharacter(ROSTER[n].id);
     };
@@ -530,17 +605,27 @@ export const ArenaGame = ({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  /** The touch pause button: the same as Esc. */
-  const openMenu = () => {
+  /** The touch pause button: the same as Esc. A pad's Start in 2-player says who paused. */
+  const openMenu = (who: 0 | 1 | 'pad' | null = null) => {
     const h = hudRef.current;
     if (!h || h.phase === 'over') return;
+    if (menuOpenRef.current) {
+      // Already paused: a lost pad still says so.
+      if (who === 'pad') setPausedBy('pad');
+      return;
+    }
     if (!h.paused) gameRef.current?.requestPause();
+    setPausedBy(who);
     setMenuOpen(true);
   };
+  padPauseRef.current = (who) => openMenu(who);
+  const tpRef = useRef(tp);
+  tpRef.current = tp;
 
   const closeMenu = () => {
     setMenuOpen(false);
     setSettingsOpen(false);
+    setKeyCard(null);
     setTimeout(() => keyTrapRef.current?.focus({ preventScroll: true }), 0);
     if (hudRef.current?.paused) gameRef.current?.resume();
     else gameRef.current?.cancelPause();
@@ -553,8 +638,29 @@ export const ArenaGame = ({
   const rematch = () => {
     // Only online waits for the rival; against the bot the rematch starts at once.
     if (online) setRematchAsked(true);
+    counted.current = false;
     gameRef.current?.restart();
   };
+
+  // Local 2-player: count the decided match once into tonight's tally (draws don't count).
+  useEffect(() => {
+    if (!tp) return;
+    if (hud?.phase === 'over' && !counted.current) {
+      counted.current = true;
+      setTally(addToTally(sessionStore(), hud.winner));
+    } else if (hud && hud.phase !== 'over') counted.current = false;
+    if (!hud) setTally(readTally(sessionStore()));
+  }, [tp, hud?.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startFromCard = useCallback(() => {
+    markKeyCardSeen(sessionStore());
+    setKeyCard(null);
+    gameRef.current?.setHold(false);
+    setTimeout(() => keyTrapRef.current?.focus({ preventScroll: true }), 0);
+  }, []);
+  const peek2P = useCallback(() => gameRef.current?.peek2P() ?? null, []);
+  // Results: rematch when both players press Shoot.
+  const rematchTicks = useBothPress(peek2P, tp && hud?.phase === 'over', () => rematch());
 
   // Keyboard-navigation extensions (Vimium and friends) swallow keys like D, J, K, L
   // unless a text field has focus. Keep an invisible one focused while the game runs.
@@ -598,8 +704,10 @@ export const ArenaGame = ({
   useEffect(() => () => getPlatform().gameplayStop(), []);
 
   const toggleAim = () => gameRef.current?.setAimMode(hud?.aimMode === 'mouse' ? 'auto' : 'mouse');
-  const showKo = hud?.lastKo && hud.phase === 'fight' && hud.fighters[hud.lastKo.fighter]?.out;
+  const showKo = hud?.lastKo && hud.phase === 'fight' && !hud.paused && hud.fighters[hud.lastKo.fighter]?.out;
   const end = hud?.phase === 'over' ? END_TEXT(hud, demo, copy) : null;
+  const tpWinner = tp && hud && hud.winner !== null && hud.winner >= 0 ? (hud.winner as 0 | 1) : null;
+  const tpChip = (i: 0 | 1) => (tp ? { index: i, colour: colours[i] } : undefined);
 
   return (
     <main className="relative h-[100dvh] w-screen touch-none select-none overflow-hidden bg-ink-deep">
@@ -624,7 +732,8 @@ export const ArenaGame = ({
               label={demo ? 'BOT' : 'YOU'}
               align="left"
               compact={touch}
-              bombKey={!touch && settings.showKeyHints ? keyLabel(settings.bindings.throwBomb[0] || settings.bindings.throwBomb[1]) : null}
+              chip={tpChip(0)}
+              bombKey={!touch && !tp && settings.showKeyHints ? keyLabel(settings.bindings.throwBomb[0] || settings.bindings.throwBomb[1]) : null}
             />
             <div className="flex flex-col items-center gap-1.5">
               <span className="font-display text-3xl leading-none tabular-nums text-cream">
@@ -635,19 +744,25 @@ export const ArenaGame = ({
                 aria-label={`Score ${hud.fighters[0].kos} to ${hud.fighters[1].kos}`}
                 className="flex items-center gap-2"
               >
-                <ScoreDigit value={hud.fighters[0].kos} color={accent(hud.fighters[0].character)} compact={touch} />
+                {/* 2-player: the score digits use the player colours, so a mirror match still reads. */}
+                <ScoreDigit value={hud.fighters[0].kos} color={tp ? colours[0] : accent(hud.fighters[0].character)} compact={touch} />
                 <span className="font-display text-2xl leading-none text-cream/40">:</span>
-                <ScoreDigit value={hud.fighters[1].kos} color={accent(hud.fighters[1].character)} compact={touch} />
+                <ScoreDigit value={hud.fighters[1].kos} color={tp ? colours[1] : accent(hud.fighters[1].character)} compact={touch} />
               </div>
-              {Math.max(hud.fighters[0].kos, hud.fighters[1].kos) === RULES.kosToWin - 1 ? (
+              {Math.max(hud.fighters[0].kos, hud.fighters[1].kos) === hud.kosToWin - 1 ? (
                 <span className="text-[10px] font-bold tracking-widest text-gold">MATCH POINT</span>
               ) : (
-                <span className="text-[10px] font-semibold tracking-widest text-cream/50">
-                  FIRST TO {RULES.kosToWin}
+                <span className="text-[10px] font-semibold tracking-widest text-cream/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]">
+                  FIRST TO {hud.kosToWin}
                 </span>
               )}
               {!touch && (
-                <span className="panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1">
+                // Under 800 px tall the pill covers the top walkway: it shows on the title card, fades out when the
+                // round starts and comes back in pause and results.
+                <span
+                  data-testid="floor-pill"
+                  className={`panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1 transition-opacity duration-200 ${short && hud.phase === 'fight' && !hud.paused && !menuOpen ? 'opacity-0' : 'opacity-100'}`}
+                >
                   <span className="font-display text-base text-gold">FLOOR 42</span>
                   <span className="text-[11px] text-cream/70">{copy.hudRoom}</span>
                 </span>
@@ -658,6 +773,7 @@ export const ArenaGame = ({
               label={online ? 'RIVAL' : `BOT · ${level}`}
               align="right"
               compact={touch}
+              chip={tpChip(1)}
             />
           </div>
 
@@ -675,7 +791,7 @@ export const ArenaGame = ({
                 {copy.introTitle[1]}
               </div>
               <div className="max-w-md text-sm text-cream/85 [animation:fadeIn_0.8s_ease-out] sm:text-base">
-                {copy.introLine}
+                {hud.kosToWin === RULES.kosToWin ? copy.introLine : copy.introLine.replace(/First to \d+/, `First to ${hud.kosToWin}`)}
               </div>
               {copy.introBelow && (
                 <div className="font-mono text-xs tracking-[0.3em] text-orange/90 [animation:fadeIn_0.4s_ease-out]">
@@ -751,7 +867,7 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {hud.respawnIn !== null && hud.phase === 'fight' && !hud.paused && !demo && (
+          {hud.respawnIn !== null && hud.phase === 'fight' && !hud.paused && !demo && !tp && (
             <div
               className={`absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-32' : 'bottom-16'}`}
             >
@@ -796,6 +912,10 @@ export const ArenaGame = ({
             </div>
           )}
 
+          {/* 2-player pause: both sides of the HUD dim the same, so nobody looks still in play. */}
+          {tp && (hud.paused || menuOpen) && hud.phase !== 'over' && (
+            <div aria-hidden data-testid="pause-dim-2p" className="pointer-events-none absolute inset-0 z-[9] bg-ink-deep/55" />
+          )}
           {(hud.paused || menuOpen) && hud.phase !== 'over' && !rivalLeft && dropLeft === null && (
             <PauseMenu
               paused={hud.paused}
@@ -803,6 +923,7 @@ export const ArenaGame = ({
               onResume={closeMenu}
               onSettings={() => setSettingsOpen(true)}
               onQuit={exit}
+              {...(tp ? { onControls: () => setKeyCard('view'), pausedBy } : {})}
             />
           )}
           {settingsOpen && (hud.paused || menuOpen) && (
@@ -881,44 +1002,69 @@ export const ArenaGame = ({
           )}
 
           {end && !rivalLeft && (
-            <div className="absolute inset-0 z-30 flex animate-[fadeIn_0.6s_ease-out] items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.75),rgba(10,13,24,0.95))] px-6 backdrop-blur-sm">
-              <div className="flex w-full max-w-3xl flex-col gap-7">
+            <div className="absolute inset-0 z-30 flex animate-[fadeIn_0.6s_ease-out] overflow-y-auto bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.75),rgba(10,13,24,0.95))] px-6 py-4 backdrop-blur-sm">
+              <div className="m-auto flex w-full max-w-3xl flex-col gap-7 [@media(max-height:600px)]:gap-3 [@media(max-height:420px)]:gap-2!">
                 {/* The result lands: a light streak sweeps the screen and the title slams in. */}
                 <div aria-hidden className="f42-wipe" />
                 <div className="flex flex-col gap-2">
-                  <h2 className="font-display text-5xl leading-none text-gold sm:text-6xl">
-                    <span className="f42-slam">{end.title}</span>
+                  <h2
+                    className="font-display text-5xl leading-none text-gold sm:text-6xl [@media(max-height:600px)]:text-4xl [@media(max-height:420px)]:text-3xl!"
+                    style={tpWinner !== null ? { color: colours[tpWinner] } : undefined}
+                  >
+                    <span className="f42-slam">{tpWinner !== null ? `P${tpWinner + 1} WINS` : end.title}</span>
                   </h2>
-                  <p className="text-lg text-cream/75 [animation:riseIn_0.4s_ease-out_0.2s_both]">
-                    <span
-                      className={`font-semibold ${hud.winner === 0 && !demo ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
-                    >
-                      {hud.winner === 0 && !demo
-                        ? copy.resultWin
-                        : hud.winner === null || hud.winner === -1
-                          ? copy.resultDraw
-                          : copy.resultLoss}
-                    </span>{' '}
+                  <p className="text-lg text-cream/75 [@media(max-height:600px)]:text-base [animation:riseIn_0.4s_ease-out_0.2s_both]">
+                    {tpWinner !== null ? (
+                      <span className="font-semibold" style={{ color: colours[tpWinner] }}>
+                        {hud.fighters[tpWinner].name} {variant === 'developer' ? 'merged first.' : 'takes the floor.'}
+                      </span>
+                    ) : (
+                      <span
+                        className={`font-semibold ${hud.winner === 0 && !demo && !tp ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
+                      >
+                        {hud.winner === 0 && !demo && !tp
+                          ? copy.resultWin
+                          : hud.winner === null || hud.winner === -1
+                            ? copy.resultDraw
+                            : copy.resultLoss}
+                      </span>
+                    )}{' '}
                     {end.sub}
                   </p>
                 </div>
 
                 {/* You against them, stat by stat; the better number lights up. */}
-                <div className="panel-cut grid grid-cols-[1fr_auto_1fr] items-center gap-x-6 gap-y-3 bg-ink/90 p-6">
+                <div className="panel-cut grid grid-cols-[1fr_auto_1fr] items-center gap-x-6 gap-y-3 bg-ink/90 p-6 [@media(max-height:600px)]:gap-y-1 [@media(max-height:600px)]:p-3 [@media(max-height:420px)]:gap-y-0! [@media(max-height:420px)]:py-2!">
                   <span
                     className="font-display text-2xl"
                     style={{ color: accent(hud.fighters[0].character) }}
                   >
-                    {hud.fighters[0].name}{' '}
-                    <span className="text-xs text-cream/50">{demo ? 'BOT' : 'YOU'}</span>
+                    {tp ? (
+                      <>
+                        <span style={{ color: colours[0] }}>P1</span> <span className="text-cream/40">·</span> {hud.fighters[0].name}
+                      </>
+                    ) : (
+                      <>
+                        {hud.fighters[0].name}{' '}
+                        <span className="text-xs text-cream/50">{demo ? 'BOT' : 'YOU'}</span>
+                      </>
+                    )}
                   </span>
                   <span />
                   <span
                     className="text-right font-display text-2xl"
                     style={{ color: accent(hud.fighters[1].character) }}
                   >
-                    {hud.fighters[1].name}{' '}
-                    <span className="text-xs text-cream/50">{online ? 'RIVAL' : 'BOT'}</span>
+                    {tp ? (
+                      <>
+                        <span style={{ color: colours[1] }}>P2</span> <span className="text-cream/40">·</span> {hud.fighters[1].name}
+                      </>
+                    ) : (
+                      <>
+                        {hud.fighters[1].name}{' '}
+                        <span className="text-xs text-cream/50">{online ? 'RIVAL' : 'BOT'}</span>
+                      </>
+                    )}
                   </span>
                   {(
                     [
@@ -959,7 +1105,7 @@ export const ArenaGame = ({
                         style={{ animationDelay: `${0.2 + row * 0.07}s` }}
                       >
                         <span
-                          className={`font-display text-3xl tabular-nums ${aWins ? 'text-gold' : 'text-cream/70'}`}
+                          className={`font-display text-3xl [@media(max-height:600px)]:text-xl [@media(max-height:420px)]:text-lg! tabular-nums ${aWins ? 'text-gold' : 'text-cream/70'}`}
                         >
                           {a}
                           {unit}
@@ -968,7 +1114,7 @@ export const ArenaGame = ({
                           {label}
                         </span>
                         <span
-                          className={`text-right font-display text-3xl tabular-nums ${bWins ? 'text-gold' : 'text-cream/70'}`}
+                          className={`text-right font-display text-3xl [@media(max-height:600px)]:text-xl [@media(max-height:420px)]:text-lg! tabular-nums ${bWins ? 'text-gold' : 'text-cream/70'}`}
                         >
                           {b}
                           {unit}
@@ -978,6 +1124,12 @@ export const ArenaGame = ({
                   })}
                 </div>
 
+                {tp && (
+                  <p className="text-xl font-semibold text-cream/85 [@media(max-height:600px)]:text-base" data-testid="tally">
+                    Tonight: <span style={{ color: colours[0] }}>P1</span> {tally.p1} – {tally.p2}{' '}
+                    <span style={{ color: colours[1] }}>P2</span>
+                  </p>
+                )}
                 {online && (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs uppercase tracking-widest text-cream/50">
@@ -1005,15 +1157,52 @@ export const ArenaGame = ({
                     autoFocus
                     onClick={rematch}
                     disabled={rematchAsked}
-                    className="panel-cut bg-gold px-10 py-4 font-display text-xl uppercase text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.3)] hover:brightness-110 disabled:opacity-60"
+                    className="panel-cut bg-gold px-10 py-4 [@media(max-height:600px)]:py-2 font-display text-xl uppercase text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.3)] hover:brightness-110 disabled:opacity-60"
                   >
                     {rematchAsked
                       ? 'Waiting for rival…'
                       : touch
                         ? 'Rematch →'
                         : 'Rematch (Enter) →'}
+                    {tp && (
+                      <span className="ml-3 inline-flex gap-1.5 align-middle text-sm" data-testid="rematch-ticks">
+                        {[0, 1].map((i) => (
+                          // Both chips keep their ticked width from the start (the ✓ is only hidden), so the
+                          // button never grows; idle chips are ink on the yellow with a thin outline.
+                          <span
+                            key={i}
+                            data-ticked={rematchTicks[i]}
+                            className="px-1.5"
+                            style={
+                              rematchTicks[i]
+                                ? { background: colours[i], color: '#0a0d18', boxShadow: `inset 0 0 0 1px ${colours[i]}` }
+                                : { color: 'rgba(22,17,14,0.45)', boxShadow: 'inset 0 0 0 1px rgba(22,17,14,0.3)' }
+                            }
+                          >
+                            P{i + 1} <span className={rematchTicks[i] ? '' : 'invisible'}>✓</span>
+                          </span>
+                        ))}
+                      </span>
+                    )}
                   </button>
-                  {online ? (
+                  {tp ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={changeFighters}
+                        className="panel-cut bg-cream/10 px-8 py-4 [@media(max-height:600px)]:py-2 font-bold uppercase tracking-wider hover:bg-cream/20"
+                      >
+                        Change fighters
+                      </button>
+                      <button
+                        type="button"
+                        onClick={exit}
+                        className="panel-cut bg-cream/10 px-8 py-4 [@media(max-height:600px)]:py-2 font-bold uppercase tracking-wider hover:bg-cream/20"
+                      >
+                        Main menu
+                      </button>
+                    </>
+                  ) : online ? (
                     <button
                       type="button"
                       onClick={exit}
@@ -1024,7 +1213,7 @@ export const ArenaGame = ({
                   ) : (
                     <Link
                       href="/?select"
-                      className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20"
+                      className="panel-cut bg-cream/10 px-8 py-4 [@media(max-height:600px)]:py-2 font-bold uppercase tracking-wider hover:bg-cream/20"
                     >
                       Change fighter
                     </Link>
@@ -1035,8 +1224,15 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {!demo && !touch && settings.showKeyHints && <Controls aim={hud.aimMode} bindings={settings.bindings} />}
-          {!demo && touch && hud.phase !== 'over' && !rivalLeft && !menuOpen && !hud.paused && (
+          {!demo && !touch && !tp && settings.showKeyHints && <Controls aim={hud.aimMode} bindings={settings.bindings} />}
+          {tp && settings.showKeyHints && hud.phase !== 'over' && !keyCard && (
+            <>
+              {/* Full strength until the first KO, then they step back. */}
+              <KeyStrip bindings={settings.bindings2p} player="p1" align="left" dim={hud.fighters[0].kos + hud.fighters[1].kos > 0} />
+              <KeyStrip bindings={settings.bindings2p} player="p2" align="right" dim={hud.fighters[0].kos + hud.fighters[1].kos > 0} />
+            </>
+          )}
+          {!demo && !tp && touch && hud.phase !== 'over' && !rivalLeft && !menuOpen && !hud.paused && (
             <TouchControls
               press={(b, on) => gameRef.current?.touch(b, on)}
               onPause={openMenu}
@@ -1048,9 +1244,9 @@ export const ArenaGame = ({
             />
           )}
           <div
-            className={`absolute flex items-center gap-3 text-[10px] text-cream/50 ${touch ? 'right-3 top-20' : 'bottom-3 right-3'}`}
+            className={`absolute flex items-center gap-3 text-[10px] text-cream/50 ${tp ? 'bottom-3 left-1/2 -translate-x-1/2' : touch ? 'right-3 top-20' : 'bottom-3 right-3'}`}
           >
-            {!demo && !touch && (
+            {!demo && !touch && !tp && (
               <button
                 type="button"
                 onClick={toggleAim}
@@ -1073,6 +1269,16 @@ export const ArenaGame = ({
             {settings.showFps && <span className="tabular-nums">{hud.fps} fps</span>}
           </div>
         </>
+      )}
+      {tp && keyCard && hud && (
+        <KeyCard
+          bindings={settings.bindings2p}
+          fighters={[player, opponent]}
+          mode={keyCard}
+          peek={peek2P}
+          onStart={startFromCard}
+          onBack={() => (keyCard === 'start' ? changeFighters() : setKeyCard(null))}
+        />
       )}
       {touch && portrait && <RotateHint />}
       {lift && (

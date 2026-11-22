@@ -23,15 +23,16 @@ const MAP: [number, () => void][] = [
   [5, () => press('BracketRight')],
 ];
 
+/** Returns how many pads are connected (0 = none), so a menu can show pad glyphs or pad-only entries. */
 export const useGamepadNav = (enabled = true) => {
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected] = useState(0);
   useEffect(() => {
     if (!enabled || typeof navigator === 'undefined' || !navigator.getGamepads) return;
     let raf = 0;
     const held = new Map<string, number>();
     const poll = (now: number) => {
       const pads = navigator.getGamepads().filter(Boolean) as Gamepad[];
-      setConnected((c) => (c === pads.length > 0 ? c : pads.length > 0));
+      setConnected((c) => (c === pads.length ? c : pads.length));
       for (const pad of pads) {
         const ax = pad.axes[0] ?? 0;
         const ay = pad.axes[1] ?? 0;

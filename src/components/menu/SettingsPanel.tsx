@@ -7,12 +7,17 @@ import { isTouchDevice } from '~/game/input';
 import { deviceFacts, resolveTier } from '~/game/render/quality';
 import { ACTIONS, getSettings, keyLabel, unboundActions } from '~/game/settings';
 
+import { useKeyLabel, usePlayerColours, PlayerChip } from '~/components/twoPlayer/shared';
+import { ACTIONS_2P, unbound2P } from '~/game/twoPlayer';
+
+import { CreditsPanel } from './Credits';
 import { menuSound } from './menuSound';
 import { useSettings } from './useSettings';
 
 import type { CopyVariant } from '~/game/copy';
 import type { Button } from '~/game/input';
 import type { Quality } from '~/game/settings';
+import type { Action2P, Player } from '~/game/twoPlayer';
 import type { ReactNode } from 'react';
 
 /**
@@ -177,8 +182,148 @@ const Slider = ({
 
 const pct = (v: number) => `${Math.round(v * 100)}`;
 
+/**
+ * Settings > Controls > 2 Player (spec local-2p.md 1.5): both players' keys, one per action. A key may be on only one
+ * action across both players (taking one swaps), reserved and browser keys are refused, and "Reset 2 player keys" puts
+ * back WASD + F G H and the arrows + ; L K. Click a key cell, then press the new key; Esc cancels.
+ */
+const TwoPlayerKeys = () => {
+  const s = useSettings();
+  const store = getSettings();
+  const label = useKeyLabel();
+  const colours = usePlayerColours();
+  const [capture, setCapture] = useState<{ player: Player; action: Action2P } | null>(null);
+  const [note, setNote] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
+  const name = (a: Action2P) => ACTIONS_2P.find((x) => x.id === a)!.label;
+
+  useEffect(() => {
+    if (!capture) return;
+    rebinding = true;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.code === 'Escape') {
+        setCapture(null);
+        setNote(null);
+        return;
+      }
+      const r = store.rebind2P(capture.player, capture.action, e.code);
+      if (!r.ok) {
+        setNote({
+          text: `${keyLabel(e.code)} can't be a 2 player key (Space, Shift, Enter, Tab, Ctrl, Alt, Esc, M, T, 1-4, ' / and the numpad are kept out). Pick another key.`,
+          tone: 'warn',
+        });
+        return;
+      }
+      const who = (p: Player) => (p === 'p1' ? 'P1' : 'P2');
+      setNote(
+        r.swapped
+          ? {
+              text: `${label(e.code)} was ${who(r.swapped.player)} ${name(r.swapped.action)}: swapped, that is now ${r.swapped.code ? label(r.swapped.code) : 'unbound'}.`,
+              tone: 'warn',
+            }
+          : { text: `${who(capture.player)} ${name(capture.action)} → ${label(e.code)}`, tone: 'ok' },
+      );
+      menuSound.confirm();
+      setCapture(null);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      rebinding = false;
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [capture, store]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const unbound = unbound2P(s.bindings2p);
+  return (
+    <>
+      <div className="mt-2 grid grid-cols-[1fr_auto_auto] items-center gap-x-2 gap-y-1" data-testid="settings-2p">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-cream/40">Action</span>
+        {(['p1', 'p2'] as Player[]).map((p, i) => (
+          <span key={p} className="flex w-24 justify-center">
+            <PlayerChip index={i as 0 | 1} colour={colours[i]} />
+          </span>
+        ))}
+        {ACTIONS_2P.map(({ id, label: actionLabel }) => (
+          <div key={id} className="contents">
+            <span className="text-sm font-semibold text-cream/85">{actionLabel}</span>
+            {(['p1', 'p2'] as Player[]).map((p) => {
+              const listening = capture?.player === p && capture.action === id;
+              const code = s.bindings2p[p][id];
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  aria-label={`${p === 'p1' ? 'P1' : 'P2'} ${actionLabel}: ${code ? label(code) : 'none'}. Press Enter to change.`}
+                  onClick={() => {
+                    setNote(null);
+                    setCapture({ player: p, action: id });
+                    menuSound.confirm();
+                  }}
+                  className={`focus-ring h-9 w-24 -skew-x-12 border text-sm font-bold transition ${
+                    listening
+                      ? 'animate-pulse border-gold bg-gold/20 text-gold'
+                      : code
+                        ? 'border-cream/20 bg-ink text-cream hover:border-gold/60'
+                        : 'border-dashed border-orange/50 bg-transparent text-cream/30 hover:border-gold/60'
+                  }`}
+                >
+                  <span className="inline-block skew-x-12">{listening ? 'Press key' : label(code)}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex min-h-6 flex-wrap items-center justify-between gap-2" aria-live="polite">
+        <span className={`text-xs ${note?.tone === 'warn' ? 'text-gold' : 'text-cream/60'}`}>
+          {capture
+            ? 'Press a key · Esc cancels'
+            : (note?.text ??
+              (unbound.length
+                ? `No key for: ${unbound.map((u) => `${u.player.toUpperCase()} ${name(u.action)}`).join(', ')}`
+                : 'Click a key to change it'))}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            store.resetBindings2P();
+            setNote({ text: '2 player keys back to default', tone: 'ok' });
+            menuSound.back();
+          }}
+          className="focus-ring border border-cream/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-cream/70 hover:border-cream/40 hover:text-cream"
+        >
+          Reset 2 player keys
+        </button>
+      </div>
+    </>
+  );
+};
+
 /** Click (or Enter) a key cell, then press the new key. Esc cancels, Backspace clears. */
 const ControlsTab = ({ touch }: { touch: boolean }) => {
+  const [players, setPlayers] = useState<'1' | '2'>('1');
+  return (
+    <>
+      {!touch && (
+        <div className="mb-3">
+          <Segmented<'1' | '2'>
+            label="Controls for"
+            value={players}
+            options={[
+              { id: '1', label: '1 Player' },
+              { id: '2', label: '2 Player' },
+            ]}
+            onChange={setPlayers}
+          />
+        </div>
+      )}
+      {players === '2' && !touch ? <TwoPlayerKeys /> : <OnePlayerControls touch={touch} />}
+    </>
+  );
+};
+
+const OnePlayerControls = ({ touch }: { touch: boolean }) => {
   const s = useSettings();
   const store = getSettings();
   const [capture, setCapture] = useState<{ action: Button; slot: 0 | 1 } | null>(null);
@@ -502,7 +647,7 @@ const AudioTab = () => {
   );
 };
 
-const AccessTab = () => {
+const AccessTab = ({ onCredits }: { onCredits: () => void }) => {
   const s = useSettings();
   const store = getSettings();
   return (
@@ -546,6 +691,20 @@ const AccessTab = () => {
           />
         </Row>
       )}
+      {/* Credits moved out of the main menu (spec local-2p.md 7): the last row of the last tab. */}
+      <Row label="Credits">
+        <button
+          type="button"
+          data-testid="settings-credits"
+          onClick={() => {
+            menuSound.confirm();
+            onCredits();
+          }}
+          className="focus-ring border border-cream/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-cream/70 hover:border-cream/40 hover:text-cream"
+        >
+          Credits
+        </button>
+      </Row>
     </>
   );
 };
@@ -559,6 +718,7 @@ export const SettingsPanel = ({
 }) => {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [credits, setCredits] = useState(false);
   const [touch, setTouch] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -583,6 +743,16 @@ export const SettingsPanel = ({
     const onKey = (e: KeyboardEvent) => {
       const panel = panelRef.current;
       if (!panel || rebinding) return;
+      // The Credits panel on top takes Esc and closes itself first.
+      if (credits) {
+        if (e.code === 'Escape') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          menuSound.back();
+          setCredits(false);
+        }
+        return;
+      }
       if (e.code === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -716,7 +886,7 @@ export const SettingsPanel = ({
           {tab === 'camera' && <CameraTab />}
           {tab === 'graphics' && <GraphicsTab />}
           {tab === 'audio' && <AudioTab />}
-          {tab === 'access' && <AccessTab />}
+          {tab === 'access' && <AccessTab onCredits={() => setCredits(true)} />}
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-cream/10 bg-ink-deep/60 px-5 py-3 sm:px-8 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]">
@@ -753,6 +923,7 @@ export const SettingsPanel = ({
           </button>
         </footer>
       </aside>
+      {credits && <CreditsPanel onClose={() => setCredits(false)} />}
     </div>
   );
 };

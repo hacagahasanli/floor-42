@@ -89,6 +89,24 @@ After a KO you are back in **3 seconds**, at a random spot far from your rival, 
 
 If your rival's connection drops, the game holds for 20 seconds while they reconnect. If they leave, you can keep the room open for them (up to three minutes, asked minute by minute) and they come back with the same link.
 
+### Two players, one keyboard
+
+**2 PLAYER** in the main menu (second item) is a same-keyboard duel: no bot, first to 3, 5 or 7 KOs.
+
+| Action | P1 (left hand WASD) | P2 (right hand arrows) |
+| --- | --- | --- |
+| move | A / D | ← / → |
+| jump, double jump, wall-kick | W | ↑ |
+| crouch, drop through a walkway | S | ↓ |
+| shoot (hold for automatic fire, auto-aim always on) | F | ; |
+| Force Push (throws the bomb while you carry one) | G | L |
+| dash | H | K |
+| pause (either player) | Esc | Esc |
+
+Keys are bound by physical position, so they stay put on AZERTY or QWERTZ, and the key card shows your layout's letters. Pick up and reload are automatic in 2 player: walking onto a gun takes it at once with the pistol or a nearly empty gun, otherwise stand on it for half a second. Space, Shift, Enter, Tab, Ctrl, Alt, the numpad, ' and / are never used in 2 player. Both maps can be changed in Settings → Controls → 2 Player.
+
+On the fighter select each player moves their own cursor, presses their Shoot key to lock in, and either Push key changes the match length. Before the first match a key card lights every key while it is held: if one stays dark, that keyboard can't take the combo, so move it in Settings. Gamepads: one pad plays P2, two pads play P1 and P2 (stick or d-pad move, A jump, X or RT shoot, B or LB push, RB or LT dash, Start pause). On a phone or tablet (no keyboard) 2 PLAYER only shows while two gamepads are connected, and unplugging one mid-match pauses the game.
+
 ## Guns
 
 | Gun | What it does | How often |
@@ -138,4 +156,5 @@ Floor 42 is free. If you enjoyed it, you can [☕ support the studio](https://na
 | Four characters, five guns, one arena | ✅ |
 | Online 1v1: invite link, quick match, rematch (Colyseus on Fly.io, server-authoritative, client prediction) | ✅ |
 | Public deploy of the pages | ✅ live at [floor42.nalbakigames.com](https://floor42.nalbakigames.com) |
-| Mobile and touch | not planned yet |
+| Mobile and touch: on-screen stick and buttons, landscape, follow camera | ✅ |
+| Local 2 player on one keyboard (and up to two gamepads) | ✅ |
