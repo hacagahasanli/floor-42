@@ -1,5 +1,6 @@
 import { ArenaGame } from '~/components/ArenaGame';
 import { isCharacterId, ROSTER } from '~/game/roster';
+import { parseLength } from '~/game/twoPlayer';
 
 import type { CharacterId } from '~/game/sim/types';
 import type { Metadata } from 'next';
@@ -7,7 +8,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = { title: 'Arena' };
 
 interface Props {
-  searchParams: Promise<{ p1?: string; p2?: string; demo?: string; bot?: string }>;
+  searchParams: Promise<{ p1?: string; p2?: string; demo?: string; bot?: string; mode?: string; n?: string }>;
 }
 
 const pickOther = (not: CharacterId): CharacterId => {
@@ -16,10 +17,15 @@ const pickOther = (not: CharacterId): CharacterId => {
 };
 
 const ArenaPage = async ({ searchParams }: Props) => {
-  const { p1, p2, demo, bot } = await searchParams;
+  const { p1, p2, demo, bot, mode, n } = await searchParams;
   const level = bot === 'easy' || bot === 'hard' ? bot : 'normal';
   const player: CharacterId = isCharacterId(p1) ? p1 : 'hotfix';
   const opponent: CharacterId = isCharacterId(p2) ? p2 : pickOther(player);
+  // `mode=2p`: local 2-player on one keyboard, P1 = p1, P2 = p2, first to n (3, 5 or 7).
+  if (mode === '2p') {
+    const p2Pick: CharacterId = isCharacterId(p2) ? p2 : player;
+    return <ArenaGame player={player} opponent={p2Pick} twoPlayer={{ kosToWin: parseLength(n) }} />;
+  }
   return <ArenaGame player={player} opponent={opponent} demo={demo !== undefined} level={level} />;
 };
 
