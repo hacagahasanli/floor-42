@@ -156,6 +156,18 @@ export const createGame = (
   };
   // Random starting spots (far apart) and random guns on each floor.
   for (const f of state.fighters) placeAtSpawn(state, f);
+  // Local 2-player: P1 starts on the left, under the P1 plate, P2 on the right (same two spots, swapped if needed).
+  // Respawns after a KO keep the normal rule.
+  if (local && fighters[0].x > fighters[1].x) {
+    const [a, b] = fighters;
+    const spot = { x: a.x, y: a.y };
+    Object.assign(a, { x: b.x, y: b.y });
+    Object.assign(b, spot);
+    for (const f of fighters) {
+      f.facing = f.x < 0 ? 1 : -1;
+      f.aim = f.facing > 0 ? 0 : Math.PI;
+    }
+  }
   for (const p of state.pickups) if (p.spawn !== null) placeGun(state, p);
   return state;
 };

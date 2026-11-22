@@ -193,3 +193,17 @@ describe('first to N', () => {
     expect(s.assist).toBeUndefined();
   });
 });
+
+describe('2-player start sides', () => {
+  it('P1 always starts left of P2 (any seed); vs bot keeps the random sides', () => {
+    let swappedVsBot = false;
+    for (let seed = 1; seed <= 60; seed++) {
+      const s = createGame(['hotfix', 'legacy'], seed, false, { kosToWin: 5, assist: true });
+      expect(s.fighters[0].x).toBeLessThan(s.fighters[1].x);
+      expect(s.fighters[0].facing).toBe(s.fighters[0].x < 0 ? 1 : -1);
+      const b = createGame(['hotfix', 'legacy'], seed);
+      if (b.fighters[0].x > b.fighters[1].x) swappedVsBot = true;
+    }
+    expect(swappedVsBot).toBe(true);
+  });
+});
