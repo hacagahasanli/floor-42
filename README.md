@@ -105,7 +105,7 @@ If your rival's connection drops, the game holds for 20 seconds while they recon
 
 Keys are bound by physical position, so they stay put on AZERTY or QWERTZ, and the key card shows your layout's letters. Pick up and reload are automatic in 2 player: walking onto a gun takes it at once with the pistol or a nearly empty gun, otherwise stand on it for half a second. Space, Shift, Enter, Tab, Ctrl, Alt, the numpad, ' and / are never used in 2 player. Both maps can be changed in Settings → Controls → 2 Player.
 
-On the fighter select each player moves their own cursor, presses their Shoot key to lock in, and either Push key changes the match length. Before the first match a key card lights every key while it is held: if one stays dark, that keyboard can't take the combo, so move it in Settings. Gamepads: one pad plays P2, two pads play P1 and P2 (stick or d-pad move, A jump, X or RT shoot, B or LB push, RB or LT dash, Start pause). On a phone or tablet 2 PLAYER only shows while a gamepad is connected.
+On the fighter select each player moves their own cursor, presses their Shoot key to lock in, and either Push key changes the match length. Before the first match a key card lights every key while it is held: if one stays dark, that keyboard can't take the combo, so move it in Settings. Gamepads: one pad plays P2, two pads play P1 and P2 (stick or d-pad move, A jump, X or RT shoot, B or LB push, RB or LT dash, Start pause). On a phone or tablet (no keyboard) 2 PLAYER only shows while two gamepads are connected, and unplugging one mid-match pauses the game.
 
 ## Guns
 
