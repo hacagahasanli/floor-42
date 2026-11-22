@@ -140,7 +140,7 @@ const FighterPanel = ({
       {f.reloading > 0 ? (
         <span className="text-gold">reloading</span>
       ) : (
-        <span className={`tabular-nums ${f.mag === 0 ? 'text-orange' : ''}`}>
+        <span className={`whitespace-nowrap tabular-nums ${f.mag === 0 ? 'text-orange' : ''}`}>
           {f.mag}/{f.reserve === Infinity ? '∞' : f.reserve}
         </span>
       )}
@@ -598,7 +598,7 @@ export const ArenaGame = ({
   useEffect(() => () => getPlatform().gameplayStop(), []);
 
   const toggleAim = () => gameRef.current?.setAimMode(hud?.aimMode === 'mouse' ? 'auto' : 'mouse');
-  const showKo = hud?.lastKo && hud.phase === 'fight' && hud.fighters[hud.lastKo.fighter]?.out;
+  const showKo = hud?.lastKo && hud.phase === 'fight' && !hud.paused && hud.fighters[hud.lastKo.fighter]?.out;
   const end = hud?.phase === 'over' ? END_TEXT(hud, demo, copy) : null;
 
   return (
@@ -881,15 +881,15 @@ export const ArenaGame = ({
           )}
 
           {end && !rivalLeft && (
-            <div className="absolute inset-0 z-30 flex animate-[fadeIn_0.6s_ease-out] items-center justify-center bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.75),rgba(10,13,24,0.95))] px-6 backdrop-blur-sm">
-              <div className="flex w-full max-w-3xl flex-col gap-7">
+            <div className="absolute inset-0 z-30 flex animate-[fadeIn_0.6s_ease-out] overflow-y-auto bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.75),rgba(10,13,24,0.95))] px-6 py-4 backdrop-blur-sm">
+              <div className="m-auto flex w-full max-w-3xl flex-col gap-7 [@media(max-height:600px)]:gap-3 [@media(max-height:420px)]:gap-2!">
                 {/* The result lands: a light streak sweeps the screen and the title slams in. */}
                 <div aria-hidden className="f42-wipe" />
                 <div className="flex flex-col gap-2">
-                  <h2 className="font-display text-5xl leading-none text-gold sm:text-6xl">
+                  <h2 className="font-display text-5xl leading-none text-gold sm:text-6xl [@media(max-height:600px)]:text-4xl [@media(max-height:420px)]:text-3xl!">
                     <span className="f42-slam">{end.title}</span>
                   </h2>
-                  <p className="text-lg text-cream/75 [animation:riseIn_0.4s_ease-out_0.2s_both]">
+                  <p className="text-lg text-cream/75 [@media(max-height:600px)]:text-base [animation:riseIn_0.4s_ease-out_0.2s_both]">
                     <span
                       className={`font-semibold ${hud.winner === 0 && !demo ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
                     >
@@ -904,7 +904,7 @@ export const ArenaGame = ({
                 </div>
 
                 {/* You against them, stat by stat; the better number lights up. */}
-                <div className="panel-cut grid grid-cols-[1fr_auto_1fr] items-center gap-x-6 gap-y-3 bg-ink/90 p-6">
+                <div className="panel-cut grid grid-cols-[1fr_auto_1fr] items-center gap-x-6 gap-y-3 bg-ink/90 p-6 [@media(max-height:600px)]:gap-y-1 [@media(max-height:600px)]:p-3 [@media(max-height:420px)]:gap-y-0! [@media(max-height:420px)]:py-2!">
                   <span
                     className="font-display text-2xl"
                     style={{ color: accent(hud.fighters[0].character) }}
@@ -959,7 +959,7 @@ export const ArenaGame = ({
                         style={{ animationDelay: `${0.2 + row * 0.07}s` }}
                       >
                         <span
-                          className={`font-display text-3xl tabular-nums ${aWins ? 'text-gold' : 'text-cream/70'}`}
+                          className={`font-display text-3xl [@media(max-height:600px)]:text-xl [@media(max-height:420px)]:text-lg! tabular-nums ${aWins ? 'text-gold' : 'text-cream/70'}`}
                         >
                           {a}
                           {unit}
@@ -968,7 +968,7 @@ export const ArenaGame = ({
                           {label}
                         </span>
                         <span
-                          className={`text-right font-display text-3xl tabular-nums ${bWins ? 'text-gold' : 'text-cream/70'}`}
+                          className={`text-right font-display text-3xl [@media(max-height:600px)]:text-xl [@media(max-height:420px)]:text-lg! tabular-nums ${bWins ? 'text-gold' : 'text-cream/70'}`}
                         >
                           {b}
                           {unit}
@@ -1005,7 +1005,7 @@ export const ArenaGame = ({
                     autoFocus
                     onClick={rematch}
                     disabled={rematchAsked}
-                    className="panel-cut bg-gold px-10 py-4 font-display text-xl uppercase text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.3)] hover:brightness-110 disabled:opacity-60"
+                    className="panel-cut bg-gold px-10 py-4 [@media(max-height:600px)]:py-2 font-display text-xl uppercase text-ink-deep shadow-[0_0_40px_rgba(255,210,63,0.3)] hover:brightness-110 disabled:opacity-60"
                   >
                     {rematchAsked
                       ? 'Waiting for rival…'
@@ -1024,7 +1024,7 @@ export const ArenaGame = ({
                   ) : (
                     <Link
                       href="/?select"
-                      className="panel-cut bg-cream/10 px-8 py-4 font-bold uppercase tracking-wider hover:bg-cream/20"
+                      className="panel-cut bg-cream/10 px-8 py-4 [@media(max-height:600px)]:py-2 font-bold uppercase tracking-wider hover:bg-cream/20"
                     >
                       Change fighter
                     </Link>
