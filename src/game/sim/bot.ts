@@ -24,6 +24,8 @@ const LEVELS: Record<BotLevel, { reaction: number; aimError: number; trigger: nu
 
 /** How long one duck lasts (ticks): long enough to let a shot pass, short enough to keep the bot moving. */
 const DUCK_TICKS = 18;
+/** Opening seconds of each fight in which the easy bot leaves guns alone (60 ticks a second). */
+export const EASY_GUN_GRACE_TICKS = 15 * 60;
 
 /** Preferred distance to the target for each gun. */
 const RANGE: Record<GunKind, [number, number]> = {
@@ -58,6 +60,10 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
   let plan: Plan = { move: 0, presses: [], fire: false, aimErr: 0 };
   let last: InputState = { ...EMPTY_INPUT };
   let crouchUntil = -1;
+  // Easy bot: no detours to guns in the opening seconds of a fight (playtest 2026-11-27: a new player met a rocket
+  // launcher two seconds in). The sim's gunGrace option stops it taking one it walks over.
+  const gunGraceTicks = level === 'easy' ? EASY_GUN_GRACE_TICKS : 0;
+  let fightFrom = -1;
 
   /**
    * Crouch now and then, like a person: duck a bullet or pellet on its way that would hit a standing body but
@@ -89,7 +95,10 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
     const presses: Press[] = [];
     let move: -1 | 0 | 1 = 0;
     const aimErr = (rand() - 0.5) * 2 * cfg.aimError;
+    if (state.phase !== 'fight') fightFrom = -1;
+    else if (fightFrom < 0) fightFrom = state.tick;
     if (state.phase !== 'fight' || me.respawn > 0) return { move, presses, fire: false, aimErr };
+    const leaveGuns = gunGraceTicks > 0 && state.tick - fightFrom < gunGraceTicks;
 
     const dx = foe.x - me.x;
     const dy = foe.y - me.y;
@@ -100,9 +109,10 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
     if (me.bombs > 0 && foe.respawn <= 0 && dist >= 3.5 && dist <= 13) presses.push('throwBomb');
 
     // Only a pistol: a better gun nearby is worth a detour.
-    if (me.weapon.kind === 'pistol') {
+    if (me.weapon.kind === 'pistol' && !leaveGuns) {
       const gun = state.pickups
-        .filter((p) => p.active && Math.abs(p.y - me.y) < 3.5)
+        // The easy bot never goes out of its way for the power weapons (playtest: it closed matches with rockets).
+        .filter((p) => p.active && Math.abs(p.y - me.y) < 3.5 && !(level === 'easy' && (p.kind === 'launcher' || p.kind === 'railgun')))
         .sort((a, b) => Math.abs(a.x - me.x) - Math.abs(b.x - me.x))[0];
       if (gun && Math.abs(gun.x - me.x) < 9) {
         move = gun.x < me.x ? -1 : 1;

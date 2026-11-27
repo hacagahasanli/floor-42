@@ -29,6 +29,9 @@ voices ─> sfx (Effects) / ui (UI) / amb (0.5, ducked) / guns (Guns) ─┬─>
 | reload | - | 2 | |
 | empty (out of ammo) | 250 ms | 1 | the mistake click, once |
 | menu tick / confirm / back | 40 / 80 / 80 ms | 2 / 1 / 1 | menuSound also keeps 40 ms between ticks |
+| stamp / stampBig | 60 / 150 ms | 2 / 1 | `<Stamp>` md-lg / xl; ui bus |
+| doorSlam / liftDing / floorTick | 150 / 300 / 70 ms | 1 / 1 / 2 | lift doors, ui bus |
+| winSting / lossSting | 300 ms | 1 | result screen, ui bus |
 
 ## Adding a sound
 

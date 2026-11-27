@@ -3,15 +3,17 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
-import { useLiftTo } from '~/components/Elevator';
 import { readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
+import { Stamp } from '~/components/Stamp';
 import { useMenuTelemetry } from '~/components/useTelemetry';
+import { useVsTo, vsTags } from '~/components/VsDoors';
+import { warmDoorPortraits } from '~/components/vsPortraits';
 import { Support } from '~/components/SupportLink';
 import { isTouchDevice } from '~/game/input';
 import { deviceFacts, renderProfile } from '~/game/render/quality';
 import { ROSTER } from '~/game/roster';
 import { getSettings, primaryLabel } from '~/game/settings';
-import { CHARACTERS } from '~/game/sim/constants';
+import { CHARACTERS, RULES } from '~/game/sim/constants';
 import { asset, PORTAL } from '~/lib/portal';
 import { GAME_VERSION, STUDIO_NAME } from '~/lib/studio';
 
@@ -27,6 +29,7 @@ import { useCopy } from './useCopy';
 import { useGamepadNav } from './useGamepadNav';
 import { useSettings } from './useSettings';
 
+import { readFinishedMatch } from '~/game/firstMatch';
 import type { BotLevel } from '~/game/sim/bot';
 import type { CharacterId } from '~/game/sim/types';
 import type { MatchLength } from '~/game/twoPlayer';
@@ -114,6 +117,7 @@ const MenuItem = ({
   onSelect,
   href,
   autoFocus,
+  flash,
 }: {
   index: number;
   label: string;
@@ -123,6 +127,8 @@ const MenuItem = ({
   onSelect?: () => void;
   href?: string;
   autoFocus?: boolean;
+  /** The bar goes solid gold for a beat when the entry is confirmed (R-013 4.2). */
+  flash?: boolean;
 }) => {
   const ref = useRef<HTMLButtonElement & HTMLAnchorElement>(null);
   useEffect(() => {
@@ -134,6 +140,7 @@ const MenuItem = ({
   const body = (
     <>
       {/* The accent bar slides in on focus or hover; the sweep follows it. */}
+      {flash && <span aria-hidden className="absolute inset-0 bg-gold" />}
       <span
         className="absolute inset-y-0 left-0 w-1.5 origin-left scale-x-0 transition-transform duration-200 group-hover:scale-x-100 group-focus-visible:scale-x-100"
         style={{ background: accent }}
@@ -213,26 +220,27 @@ const Bar = ({
 );
 
 /** The fighter's nameplate, bottom right over the live scene. */
-const Nameplate = ({ id, label }: { id: CharacterId; label: string }) => {
+const Nameplate = ({ id, label, dim }: { id: CharacterId; label: string; dim?: boolean }) => {
   const copy = useCopy();
   const e = entryOf(id);
   const s = CHARACTERS[id];
   return (
     <div
       key={id}
-      className="pointer-events-none flex w-80 flex-col items-end gap-2 text-right [animation:riseIn_0.4s_ease-out] max-sm:hidden [@media(max-height:500px)]:w-60"
+      className="pointer-events-none flex w-[260px] flex-col items-end gap-2 border-l-2 bg-ink-deep/72 p-4 text-right [animation:riseIn_0.4s_ease-out] panel-cut max-sm:hidden"
+      style={{ borderLeftColor: e.accent }}
     >
       <span className="text-sm font-semibold text-cream/70">
         {label}
       </span>
       <span
-        className="-skew-x-6 font-display text-6xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] [@media(max-height:500px)]:text-4xl"
+        className={`relative -skew-x-6 font-display text-5xl leading-none drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] transition-opacity [@media(max-height:500px)]:text-4xl ${dim ? 'opacity-60' : ''}`}
         style={{ color: e.accent }}
       >
         {e.name.toUpperCase()}
       </span>
       <span className="text-sm font-semibold text-cream/80">{copy.fighters[id].role}</span>
-      <div className="panel-cut mt-1 flex w-64 flex-col gap-2.5 bg-ink-deep/75 p-3 text-left backdrop-blur-sm [@media(max-height:500px)]:hidden">
+      <div className="mt-1 flex w-full flex-col gap-2.5 text-left [@media(max-height:500px)]:hidden">
         <Bar label="Speed" value={s.speed / 11} text={`${s.speed} m/s`} color="#3ec5ff" />
         <Bar
           label="Jump"
@@ -321,7 +329,7 @@ const HowTo = ({ touch }: { touch: boolean }) => {
     <div className="flex flex-col gap-6">
       <div className="grid gap-3">
         {copy.howTo.map(([t, d], i) => [String(i + 1).padStart(2, '0'), t, d]).map(([n, t, d]) => (
-          <div key={n} className="panel-cut flex gap-4 bg-ink/80 p-4">
+          <div key={n} className="panel-cut flex gap-4 bg-ink p-4 ring-1 ring-inset ring-cream/10">
             <span className="font-display text-3xl text-gold/80">{n}</span>
             <div className="flex flex-col gap-1">
               <span className="font-display text-lg">{t}</span>
@@ -378,6 +386,18 @@ export const MainMenu = ({
   const [preview, setPreview] = useState<CharacterId>('hotfix');
   const [rival, setRival] = useState<Rival>('random');
   const [level, setLevel] = useState<BotLevel>('normal');
+  // The very first match runs against the easy bot (firstMatch.ts): show that, instead of NORMAL, until one is finished.
+  const [firstMatch, setFirstMatch] = useState(false);
+  useEffect(() => {
+    if (!readFinishedMatch()) {
+      setLevel('easy');
+      setFirstMatch(true);
+    }
+  }, []);
+  /** The picked fighter's row while it locks in, and the PLAY bar while it flashes (R-013 4.2, 4.3). */
+  const [locked, setLocked] = useState<CharacterId | null>(null);
+  const [rowFill, setRowFill] = useState<CharacterId | null>(null);
+  const [playFlash, setPlayFlash] = useState(false);
   const [live, setLive] = useState(false);
   const [touch, setTouch] = useState(false);
   const [lastMain, setLastMain] = useState(0);
@@ -438,6 +458,10 @@ export const MainMenu = ({
   useEffect(() => {
     showcase.current?.setCharacter(preview);
   }, [preview]);
+  // The VS doors' portraits, rendered in idle time once the backdrop has its first frame (R-013 8.10).
+  useEffect(() => {
+    if (live) warmDoorPortraits();
+  }, [live]);
   // The 2-player select shows only the dimmed room behind its panels: no menu fighter, no floor glow.
   useEffect(() => {
     showcase.current?.setFighterHidden(screen === '2p');
@@ -470,11 +494,13 @@ export const MainMenu = ({
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+  /** Set while a lock-in or the doors are running: Back is ignored then. */
+  const vsBusyRef = useRef(false);
   const fighterRef = useRef(fighter);
   fighterRef.current = fighter;
 
   const back = () => {
-    if (settingsOpen) return;
+    if (settingsOpen || vsBusyRef.current) return;
     if (screen !== 'main') {
       menuSound.back();
       setPreview(fighter);
@@ -505,11 +531,39 @@ export const MainMenu = ({
     saveCharacter(id);
   };
 
-  const lift = useLiftTo();
-  const fight = () => {
-    menuSound.confirm();
-    const p2 = rival === 'random' ? '' : `&p2=${rival}`;
-    lift.go(`/arena?p1=${fighter}${p2}&bot=${level}`);
+  const vs = useVsTo();
+  vsBusyRef.current = vs.busy || locked !== null;
+  /** Start a 1-player match at once: the VS doors close over the menu (the rival is picked here, so the doors show them). */
+  const fight = (as: CharacterId = fighter) => {
+    if (vs.busy) return;
+    const others = ROSTER.filter((r) => r.id !== as);
+    const p2 = rival !== 'random' && rival !== as ? rival : others[Math.floor(Math.random() * others.length)].id;
+    const lvl: BotLevel = firstMatch ? 'easy' : level;
+    vs.go(`/arena?p1=${as}&p2=${p2}&bot=${lvl}`, {
+      p1: as,
+      p2,
+      tag1: vsTags('1p', lvl)[0],
+      tag2: vsTags('1p', lvl)[1],
+      kosToWin: RULES.kosToWin,
+    });
+  };
+  /** PLAY: the bar flashes gold for 80 ms, then the doors. */
+  const play = () => {
+    if (vs.busy || playFlash) return;
+    setPlayFlash(true);
+    window.setTimeout(() => {
+      setPlayFlash(false);
+      fight();
+    }, 80);
+  };
+  /** Enter or a click on a fighter row: pick, lock in (row fills 80 ms, LOCKED IN lands), then the doors 180 ms later. */
+  const lockIn = (id: CharacterId) => {
+    if (vs.busy || locked) return;
+    pickFighter(id);
+    setRowFill(id);
+    window.setTimeout(() => setRowFill(null), 80);
+    window.setTimeout(() => setLocked(id), 120);
+    window.setTimeout(() => fight(id), 300);
   };
 
   const accent = entryOf(preview).accent;
@@ -522,9 +576,9 @@ export const MainMenu = ({
   }[] = [
     {
       label: 'PLAY',
-      sub: `Fight the bot as ${entryOf(fighter).name}`,
+      sub: copy.playSub.replace('{name}', entryOf(fighter).name).replace('{level}', level),
       primary: true,
-      onSelect: openFighterSelect,
+      onSelect: play,
     },
     // Local 2-player, second (spec local-2p.md 3.1). Hidden on touch-only devices until a gamepad connects.
     ...(show2PMenuItem(touch, pad)
@@ -553,11 +607,16 @@ export const MainMenu = ({
   ];
 
   return (
-    <main data-screen={screen} className="relative h-[100dvh] w-full select-none overflow-hidden bg-ink-deep text-cream">
+    <main
+      data-screen={screen}
+      className="relative h-[100dvh] w-full select-none overflow-hidden bg-ink-deep text-cream"
+      // A still of the backdrop (always Hotfix) from the first paint; the live scene fades in over it.
+      style={{ background: `#0a0d18 url(${asset('menu-poster.webp')}) center / cover` }}
+    >
       <canvas
         ref={canvasRef}
         aria-hidden
-        className={`absolute inset-0 h-full w-full transition-opacity duration-1000 ${live ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 h-full w-full transition-opacity duration-[400ms] ${live ? 'opacity-100' : 'opacity-0'}`}
       />
       {/* Cinematic grade: dark gradient behind the menu column, vignette, a faint scanline, the fighter's colour bleeding in. */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(10,13,24,0.97)_0%,rgba(10,13,24,0.88)_26%,rgba(10,13,24,0.35)_46%,rgba(10,13,24,0)_64%)] max-sm:bg-[linear-gradient(180deg,rgba(10,13,24,0.7)_0%,rgba(10,13,24,0)_30%,rgba(10,13,24,0.2)_45%,rgba(10,13,24,0.95)_68%)]" />
@@ -580,7 +639,9 @@ export const MainMenu = ({
             resetTally(sessionStore());
             setScreen('main');
           }}
-          onFight={(p1, p2, n) => lift.go(`/arena?mode=2p&p1=${p1}&p2=${p2}&n=${n}`)}
+          onFight={(p1, p2, n) =>
+            vs.go(`/arena?mode=2p&p1=${p1}&p2=${p2}&n=${n}`, { p1, p2, tag1: vsTags('2p')[0], tag2: vsTags('2p')[1], kosToWin: n })
+          }
         />
       )}
       <div
@@ -609,6 +670,7 @@ export const MainMenu = ({
                 index={i + 1}
                 accent={m.primary ? '#ffd23f' : accent}
                 autoFocus={screen === 'main' && !touch && i === lastMain}
+                flash={m.primary && playFlash}
                 {...m}
                 onSelect={
                   m.onSelect &&
@@ -650,14 +712,15 @@ export const MainMenu = ({
                     onMouseEnter={() => setPreview(r.id)}
                     onMouseLeave={() => setPreview(fighter)}
                     onClick={() => {
-                      pickFighter(r.id);
                       menuSound.confirm();
+                      lockIn(r.id);
                     }}
                     className={`group relative flex h-16 -skew-x-[8deg] items-center gap-3 overflow-hidden border-l-4 pl-3 pr-3 text-left outline-none transition [animation:menuItemIn_0.4s_ease-out_both] focus-visible:bg-cream/10 sm:h-[4.5rem] [@media(max-height:640px)]:h-12 ${
                       on ? 'bg-cream/[0.09]' : 'bg-ink-deep/60 hover:bg-cream/[0.05]'
                     }`}
                     style={{
                       borderColor: on ? r.accent : 'transparent',
+                      ...(rowFill === r.id ? { background: r.accent } : {}),
                       animationDelay: `${i * 0.05}s`,
                     }}
                   >
@@ -718,8 +781,8 @@ export const MainMenu = ({
               </span>
               <ChoiceRow<BotLevel>
                 label="Bot difficulty"
-                value={level}
-                onChange={setLevel}
+                value={firstMatch ? 'easy' : level}
+                onChange={(v) => !firstMatch && setLevel(v)}
                 options={[
                   { id: 'easy', label: 'Easy' },
                   { id: 'normal', label: 'Normal' },
@@ -727,12 +790,16 @@ export const MainMenu = ({
                 ]}
               />
             </div>
+            {firstMatch && <p className="-mt-1 text-xs text-cream/60">First match is on easy</p>}
             <div className="mt-1 flex items-stretch gap-2">
               <button
                 type="button"
                 data-nav
                 onFocus={() => menuSound.tick()}
-                onClick={fight}
+                onClick={() => {
+                  menuSound.confirm();
+                  fight();
+                }}
                 className="focus-ring group flex flex-1 -skew-x-[8deg] items-center justify-center gap-3 bg-gold px-6 py-3.5 font-display text-2xl text-ink-deep [@media(max-height:640px)]:py-2 shadow-[0_0_40px_rgba(255,210,63,0.35)] transition hover:brightness-110 [@media(max-height:500px)]:py-2 [@media(max-height:500px)]:text-lg"
               >
                 <span className="skew-x-[8deg]">
@@ -787,22 +854,31 @@ export const MainMenu = ({
       )}
 
       {/* Right side: the fighter nameplate and the control hints. */}
-      <div className={`pointer-events-none absolute bottom-16 right-6 z-10 sm:right-10 [@media(max-height:500px)]:bottom-10 ${screen === '2p' ? 'hidden' : ''}`}>
+      <div className={`pointer-events-none absolute bottom-16 right-3 z-10 [@media(max-height:500px)]:bottom-10 ${screen === '2p' ? 'hidden' : ''}`}>
         <Nameplate
           id={preview}
           label={screen === 'select' && preview !== fighter ? 'Preview' : 'Your fighter'}
+          dim={screen === 'select' && preview !== fighter}
         />
+        {/* The lock-in stamp lands across the name (R-013 4.3); outside the plate, whose clipped corners would cut it. */}
+        {locked === preview && (
+          <div className="absolute right-0 top-[52px] whitespace-nowrap" data-testid="locked-in">
+            <Stamp size="lg" plate colour={entryOf(preview).accent} rot={-6}>
+              LOCKED IN
+            </Stamp>
+          </div>
+        )}
       </div>
       <div className="pointer-events-none absolute bottom-5 right-6 z-10 flex items-center gap-4 text-[10px] [[data-screen='2p']_&]:hidden font-bold uppercase tracking-widest text-cream/55 max-sm:hidden sm:right-10 [@media(max-height:500px)]:bottom-2">
         {(pad
           ? [
               ['✚', 'Move'],
-              ['A', 'Select'],
+              ['A', screen === 'select' ? 'Fight' : 'Select'],
               ['B', 'Back'],
             ]
           : [
               ['↑↓', 'Move'],
-              ['Enter', 'Select'],
+              ['Enter', screen === 'select' ? 'Fight' : 'Select'],
               ['Esc', 'Back'],
             ]
         ).map(([k, t]) => (
@@ -819,7 +895,7 @@ export const MainMenu = ({
 
       {/* Every screen change: a light streak sweeps across as the new column lands. */}
       <div key={screen} aria-hidden className="f42-wipe" />
-      {lift.doors}
+      {vs.doors}
       <AudiencePrompt />
       {settingsOpen && (
         <SettingsPanel

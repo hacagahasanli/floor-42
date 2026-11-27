@@ -92,14 +92,20 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
     return ir;
   };
 
+  // iOS reports 'interrupted' after a call or a trip to the background, not 'suspended': resume from
+  // anything that is not running (a closed context cannot come back).
+  const wake = (c: AudioContext) => {
+    if (c.state !== 'running' && c.state !== 'closed') void c.resume().catch(() => {});
+  };
+
   const ensure = () => {
     if (ctx) {
-      if (ctx.state === 'suspended') void ctx.resume();
+      wake(ctx);
       return ctx;
     }
     ctx = openContext();
     if (!ctx) return null;
-    if (ctx.state === 'suspended') void ctx.resume();
+    wake(ctx);
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14;
     comp.knee.value = 8;
@@ -215,6 +221,13 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
     g.gain.cancelScheduledValues(t);
     g.gain.setTargetAtTime(0.5 * Math.pow(10, db / 20), t, 0.01);
     g.gain.setTargetAtTime(0.5, t + 0.05, back / 3);
+  };
+
+  /** The rubber stamp thunk (R-013 3.3); `k` scales the volume (stampBig uses 1.4). */
+  const stampVoices = (k: number) => {
+    tone('sine', 110, 48, 0.16, 0.3 * k, { room: 0.15, bus: 'ui' });
+    noise('lowpass', 900, 200, 0.09, 0.28 * k, 1, { room: 0.15, bus: 'ui' });
+    noise('bandpass', 2400, 1600, 0.02, 0.16 * k, 4, { bus: 'ui' });
   };
 
   const panOf = (x?: number) => (x === undefined ? 0 : x / HALF_VIEW);
@@ -339,6 +352,31 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
       tone('triangle', 660, 660, 0.08, 0.16, { room: 0.25, bus: 'ui' });
       tone('triangle', 990, 990, 0.14, 0.14, { delay: 0.07, room: 0.3, bus: 'ui' });
     },
+    /** R-013 UI sounds: the stamp announcer, the lift doors and the result stings (all on the ui bus). */
+    stamp: () => may('stamp') && stampVoices(1),
+    stampBig: () => {
+      if (!may('stampBig')) return;
+      stampVoices(1.2);
+      tone('sine', 62, 32, 0.5, 0.3, { room: 0.4, bus: 'ui' });
+    },
+    doorSlam: () => {
+      if (!may('doorSlam')) return;
+      noise('lowpass', 600, 90, 0.22, 0.4, 0.8, { room: 0.3, bus: 'ui' });
+      tone('square', 70, 42, 0.12, 0.16, { bus: 'ui' });
+      tone('triangle', 2200, 2100, 0.05, 0.05, { delay: 0.02, bus: 'ui' });
+    },
+    liftDing: () => {
+      if (!may('liftDing')) return;
+      tone('sine', 1319, 1319, 0.9, 0.2, { room: 0.5, bus: 'ui' });
+      tone('sine', 1047, 1047, 1.1, 0.18, { delay: 0.14, room: 0.5, bus: 'ui' });
+    },
+    /** The floor counter ticking up: n is the floor number. */
+    floorTick: (n: number) => may('floorTick') && tone('triangle', 700 + n * 14, 700 + n * 14, 0.025, 0.05, { bus: 'ui' }),
+    winSting: () => {
+      if (!may('winSting')) return;
+      [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.12, 0.12, { delay: i * 0.07, bus: 'ui' }));
+    },
+    lossSting: () => may('lossSting') && tone('sine', 392, 311, 0.45, 0.14, { room: 0.4, bus: 'ui' }),
     back: () => may('back') && tone('triangle', 700, 420, 0.1, 0.12, { room: 0.2, bus: 'ui' }),
     hit: (power: number, x?: number) => {
       if (!may('hit')) return;

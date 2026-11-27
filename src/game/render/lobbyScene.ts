@@ -140,7 +140,7 @@ export const startLobbyScene = (
   });
   renderer.setPixelRatio(profile.pixelRatio);
   renderer.shadowMap.enabled = profile.shadows;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoft was removed in r187 (it already fell back to PCF)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;

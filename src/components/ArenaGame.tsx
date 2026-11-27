@@ -19,8 +19,13 @@ import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useSettings } from '~/components/menu/useSettings';
 import { menuSound } from '~/components/menu/menuSound';
 import { LiftLoading } from '~/components/Elevator';
+import { VsRun, vsTags } from '~/components/VsDoors';
 import { useRoundTelemetry } from '~/components/useTelemetry';
+import { CountUp, FirstMatchKeys, KnockoutBand, KoStamp, LateStamp, useKeyStrip } from '~/components/FightStamps';
+import { Stamp } from '~/components/Stamp';
+import { LoserFace, WinnerBar, WinnerSlab } from '~/components/ResultSlab';
 import { Support } from '~/components/SupportLink';
+import { botLevelFor, readFinishedMatch, saveFinishedMatch } from '~/game/firstMatch';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
@@ -363,7 +368,7 @@ export const ArenaGame = ({
   player,
   opponent,
   demo = false,
-  level = 'normal',
+  level: requestedLevel = 'normal',
   online,
   twoPlayer,
 }: {
@@ -376,12 +381,17 @@ export const ArenaGame = ({
   twoPlayer?: { kosToWin: number };
 }) => {
   const tp = !!twoPlayer && !online && !demo;
+  // The very first match against the bot is always easy; after that the menu's choice stands.
+  const [firstMatch] = useState(() => !readFinishedMatch());
+  const level = demo || online || tp ? requestedLevel : botLevelFor(requestedLevel, !firstMatch);
   const kosToWin = twoPlayer?.kosToWin;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<ReturnType<typeof startArena> | null>(null);
   const keyTrapRef = useRef<HTMLInputElement>(null);
   const [hud, setHud] = useState<HudState | null>(null);
   const [rematchAsked, setRematchAsked] = useState(false);
+  /** Offline rematch: the VS doors close, the match restarts behind them, they open (R-013 4.4). */
+  const [vsRematch, setVsRematch] = useState(false);
   const [rivalLeft, setRivalLeft] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -401,6 +411,8 @@ export const ArenaGame = ({
   const [waitLeft, setWaitLeft] = useState(0);
   const [asking, setAsking] = useState(false);
   const [expired, setExpired] = useState(false);
+  // The GPU dropped the 3D view and did not give it back (weak or busy graphics driver).
+  const [glLost, setGlLost] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   /** Seconds left for a rival whose connection dropped to come back, or null. */
   const [dropLeft, setDropLeft] = useState<number | null>(null);
@@ -438,6 +450,8 @@ export const ArenaGame = ({
   }, [touch, demo, tp, settings.touch.leftHanded, settings.touch.size]);
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
+  const [tag1, tag2] = vsTags(tp ? '2p' : '1p', level);
+  const vsInfo = { p1: player, p2: opponent, tag1, tag2, kosToWin: kosToWin ?? RULES.kosToWin };
   // Anonymous usage events: a no-op unless the site started counting (never on a portal build).
   useRoundTelemetry(hud, { demo, online: !!online, twoPlayer: tp });
 
@@ -469,6 +483,7 @@ export const ArenaGame = ({
           level,
           aimMode: isTouchDevice() ? 'auto' : readAim(),
           onHud: setHud,
+          onContextLost: () => setGlLost(true),
           online: online?.session,
           ...(tp && kosToWin
             ? {
@@ -636,11 +651,21 @@ export const ArenaGame = ({
   closeMenuRef.current = closeMenu;
 
   const rematch = () => {
+    if (vsRematch) return;
     // Only online waits for the rival; against the bot the rematch starts at once.
     if (online) setRematchAsked(true);
     counted.current = false;
+    if (!online && !demo) {
+      setVsRematch(true);
+      return;
+    }
     gameRef.current?.restart();
   };
+
+  // Remember that this player has finished a match against the bot (the next one uses the menu's level).
+  useEffect(() => {
+    if (hud?.phase === 'over' && !demo && !online && !tp) saveFinishedMatch();
+  }, [hud?.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Local 2-player: count the decided match once into tonight's tally (draws don't count).
   useEffect(() => {
@@ -705,12 +730,44 @@ export const ArenaGame = ({
 
   const toggleAim = () => gameRef.current?.setAimMode(hud?.aimMode === 'mouse' ? 'auto' : 'mouse');
   const showKo = hud?.lastKo && hud.phase === 'fight' && !hud.paused && hud.fighters[hud.lastKo.fighter]?.out;
-  const end = hud?.phase === 'over' ? END_TEXT(hud, demo, copy) : null;
+  // The match-winning KO: offline the slow-motion holds the fight (hud.finale); online and 2-player have none, so the band holds 1.1 s.
+  const quickOver = !!hud && hud.phase === 'over' && hud.endReason === 'kos' && (!!online || tp) && hud.winner !== null && hud.winner >= 0;
+  const [quickDone, setQuickDone] = useState(false);
+  useEffect(() => {
+    if (!quickOver) {
+      setQuickDone(false);
+      return;
+    }
+    const t = window.setTimeout(() => setQuickDone(true), 1100);
+    return () => window.clearTimeout(t);
+  }, [quickOver]);
+  const bandHold = quickOver && !quickDone;
+  const bandWinner: 0 | 1 | null = hud && (hud.finale || bandHold) && (hud.winner === 0 || hud.winner === 1) ? hud.winner : null;
+  const stripOn = !demo && !online && !tp && !touch && firstMatch;
+  const keyStrip = useKeyStrip(stripOn, hud?.phase, settings.bindings);
+  // FIGHT! stays 140 ms into the fight to play its exit.
+  const [goOut, setGoOut] = useState(false);
+  const prevPhase = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (prevPhase.current === 'countdown' && hud?.phase === 'fight') {
+      setGoOut(true);
+      const t = window.setTimeout(() => setGoOut(false), 160);
+      prevPhase.current = hud.phase;
+      return () => window.clearTimeout(t);
+    }
+    prevPhase.current = hud?.phase;
+  }, [hud?.phase]);
+  const end = hud?.phase === 'over' && !bandHold ? END_TEXT(hud, demo, copy) : null;
+  const resultWinner: 0 | 1 | null = hud && end && (hud.winner === 0 || hud.winner === 1) ? hud.winner : null;
+  const resultColour = (i: 0 | 1) => (tp ? colours[i] : accent(hud!.fighters[i].character));
   const tpWinner = tp && hud && hud.winner !== null && hud.winner >= 0 ? (hud.winner as 0 | 1) : null;
+  // Win sting: you won, or it is a demo / 2-player (somebody always wins there). Loss sting: you lost. A draw is silent.
+  const resultSting: 'win' | 'loss' | undefined =
+    resultWinner === null ? undefined : demo || tp || resultWinner === 0 ? 'win' : 'loss';
   const tpChip = (i: 0 | 1) => (tp ? { index: i, colour: colours[i] } : undefined);
 
   return (
-    <main className="relative h-[100dvh] w-screen touch-none select-none overflow-hidden bg-ink-deep">
+    <main data-kick-root className="relative h-[100dvh] w-screen touch-none select-none overflow-hidden bg-ink-deep">
       <canvas
         ref={canvasRef}
         className={`block h-full w-full ${hud?.aimMode === 'mouse' ? 'cursor-crosshair' : ''}`}
@@ -777,53 +834,44 @@ export const ArenaGame = ({
             />
           </div>
 
-          {/* Every round opens on what the game is about, then the merge goes wrong. */}
-          {hud.phase === 'countdown' && hud.time > 1.6 && (
-            <div className="pointer-events-none absolute inset-0 z-[4] flex flex-col items-center justify-center gap-4 bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.55),rgba(10,13,24,0.15)_70%)] px-6 text-center">
-              {copy.introAbove && (
-                <div className="font-mono text-xs tracking-[0.3em] text-green/90 [animation:fadeIn_0.4s_ease-out]">
-                  {copy.introAbove}
-                </div>
-              )}
-              <div className="font-display text-4xl leading-none text-gold drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] [animation:riseIn_0.5s_ease-out] sm:text-7xl">
-                {copy.introTitle[0]}
-                <br />
-                {copy.introTitle[1]}
-              </div>
-              <div className="max-w-md text-sm text-cream/85 [animation:fadeIn_0.8s_ease-out] sm:text-base">
-                {hud.kosToWin === RULES.kosToWin ? copy.introLine : copy.introLine.replace(/First to \d+/, `First to ${hud.kosToWin}`)}
-              </div>
-              {copy.introBelow && (
-                <div className="font-mono text-xs tracking-[0.3em] text-orange/90 [animation:fadeIn_0.4s_ease-out]">
-                  {copy.introBelow}
-                </div>
+          {/* READY / FIGHT! land as stamps (R-013 4.5). Offline counts down 2 s: READY from 1.8 s; online keeps 3.6 s: READY from 1.6 s. */}
+          {((hud.phase === 'countdown' && hud.time <= (online ? 1.6 : 1.8)) || goOut) && (
+            <div className="pointer-events-none absolute inset-x-0 top-1/3 z-[5] flex justify-center">
+              {goOut ? (
+                <Stamp key="go" size="xl" colour="#ffd23f" rot={4} leaving silent>
+                  {copy.countdownGo}
+                </Stamp>
+              ) : hud.time > 0.8 ? (
+                <Stamp key="ready" size="lg" colour="#e6ebf5">
+                  {copy.countdownReady}
+                </Stamp>
+              ) : (
+                <Stamp key="go" size="xl" colour="#ffd23f" rot={4}>
+                  {copy.countdownGo}
+                </Stamp>
               )}
             </div>
           )}
-          {hud.phase === 'countdown' && hud.time <= 1.6 && (
-            <div className="pointer-events-none absolute inset-x-0 top-1/3 flex flex-col items-center gap-3">
-              <div className="font-display text-5xl drop-shadow-lg">
-                {hud.time > 0.8 ? (
-                  <span className="text-cream">{copy.countdownReady}</span>
-                ) : (
-                  <span className="text-orange">{copy.countdownGo}</span>
-                )}
-              </div>
-              <div className="panel-cut bg-ink-deep/80 px-4 py-2 text-sm text-cream/80">
-                Keep moving. Furniture stops bullets: use it.
-              </div>
-            </div>
-          )}
+          {/* FIGHT! leaves with the first frame of the fight: the stamp unmounts at phase 'fight'. */}
 
-          {showKo && hud.lastKo && (
-            <div className="pointer-events-none absolute inset-x-0 top-1/3 flex justify-center">
-              <div className="font-display text-4xl text-gold drop-shadow-lg">
-                {hud.fighters[hud.lastKo.fighter].name} is out
-              </div>
-            </div>
+          {hud.lastKo && hud.phase === 'fight' && !hud.finale && (
+            <KoStamp
+              key={hud.lastKo.at}
+              name={hud.fighters[hud.lastKo.fighter].name}
+              colour={accent(hud.fighters[hud.lastKo.fighter].character)}
+              rot={(hud.fighters[0].kos + hud.fighters[1].kos) % 2 ? -5 : 4}
+            />
           )}
+          <KnockoutBand
+            show={bandWinner !== null}
+            colour={accent(hud.fighters[hud.winner === 1 ? 1 : 0].character)}
+            title={copy.knockoutStamp}
+            line={copy.knockoutLine.replace('{NAME}', hud.fighters[hud.winner === 1 ? 1 : 0].name.toUpperCase())}
+            delayMs={hud.finale ? 300 : 0}
+          />
+          <FirstMatchKeys strip={keyStrip} bindings={settings.bindings} />
 
-          {hud.hint.length > 0 && settings.showKeyHints && (
+          {hud.hint.length > 0 && settings.showKeyHints && !keyStrip.shown && (
             <div
               className={`pointer-events-none absolute inset-x-0 z-[6] flex justify-center ${touch ? 'top-36' : 'bottom-10'}`}
             >
@@ -930,6 +978,23 @@ export const ArenaGame = ({
             <SettingsPanel onClose={() => setSettingsOpen(false)} />
           )}
 
+          {glLost && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink-deep/90">
+              <div className="panel-cut flex w-[26rem] max-w-[90vw] flex-col items-center gap-4 bg-ink p-7 text-center">
+                <div className="font-display text-2xl text-gold">Graphics paused</div>
+                <p className="text-sm text-cream/70">Your browser stopped drawing the game. Reload to jump back in. This match will start over.</p>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => window.location.reload()}
+                  className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
+                >
+                  Reload
+                </button>
+              </div>
+            </div>
+          )}
+
           {rivalLeft && (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-ink-deep/80">
               <div className="panel-cut flex w-[26rem] flex-col items-center gap-4 bg-ink p-7 text-center">
@@ -1003,15 +1068,19 @@ export const ArenaGame = ({
 
           {end && !rivalLeft && (
             <div className="absolute inset-0 z-30 flex animate-[fadeIn_0.6s_ease-out] overflow-y-auto bg-[radial-gradient(ellipse_at_center,rgba(10,13,24,0.75),rgba(10,13,24,0.95))] px-6 py-4 backdrop-blur-sm">
-              <div className="m-auto flex w-full max-w-3xl flex-col gap-7 [@media(max-height:600px)]:gap-3 [@media(max-height:420px)]:gap-2!">
+              <div className="m-auto flex w-full max-w-3xl min-[1024px]:max-w-5xl flex-col gap-7 [@media(max-height:600px)]:gap-3 [@media(max-height:420px)]:gap-2!">
                 {/* The result lands: a light streak sweeps the screen and the title slams in. */}
                 <div aria-hidden className="f42-wipe" />
                 <div className="flex flex-col gap-2">
-                  <h2
-                    className="font-display text-5xl leading-none text-gold sm:text-6xl [@media(max-height:600px)]:text-4xl [@media(max-height:420px)]:text-3xl!"
-                    style={tpWinner !== null ? { color: colours[tpWinner] } : undefined}
-                  >
-                    <span className="f42-slam">{tpWinner !== null ? `P${tpWinner + 1} WINS` : end.title}</span>
+                  <h2 className="font-display leading-none pb-4 pt-3 [@media(max-height:600px)]:pb-2 [@media(max-height:600px)]:pt-1">
+                    <LateStamp
+                      delayMs={380}
+                      size="lg"
+                      colour={tpWinner !== null ? colours[tpWinner] : resultSting === 'win' ? '#ffd23f' : '#e6ebf5'}
+                      sting={resultSting}
+                    >
+                      {tpWinner !== null ? `P${tpWinner + 1} WINS` : end.title}
+                    </LateStamp>
                   </h2>
                   <p className="text-lg text-cream/75 [@media(max-height:600px)]:text-base [animation:riseIn_0.4s_ease-out_0.2s_both]">
                     {tpWinner !== null ? (
@@ -1020,13 +1089,16 @@ export const ArenaGame = ({
                       </span>
                     ) : (
                       <span
-                        className={`font-semibold ${hud.winner === 0 && !demo && !tp ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
+                        className={`font-semibold ${demo && resultWinner !== null ? '' : hud.winner === 0 && !demo && !tp ? 'text-green' : hud.winner === null || hud.winner === -1 ? 'text-blue' : 'text-orange'}`}
+                        style={demo && resultWinner !== null ? { color: resultColour(resultWinner) } : undefined}
                       >
-                        {hud.winner === 0 && !demo && !tp
-                          ? copy.resultWin
-                          : hud.winner === null || hud.winner === -1
-                            ? copy.resultDraw
-                            : copy.resultLoss}
+                        {demo && resultWinner !== null
+                          ? copy.resultDemo.replace('{NAME}', hud.fighters[resultWinner].name)
+                          : hud.winner === 0 && !demo && !tp
+                            ? copy.resultWin
+                            : hud.winner === null || hud.winner === -1
+                              ? copy.resultDraw
+                              : copy.resultLoss}
                       </span>
                     )}{' '}
                     {end.sub}
@@ -1034,11 +1106,17 @@ export const ArenaGame = ({
                 </div>
 
                 {/* You against them, stat by stat; the better number lights up. */}
-                <div className="panel-cut grid grid-cols-[1fr_auto_1fr] items-center gap-x-6 gap-y-3 bg-ink/90 p-6 [@media(max-height:600px)]:gap-y-1 [@media(max-height:600px)]:p-3 [@media(max-height:420px)]:gap-y-0! [@media(max-height:420px)]:py-2!">
+                <div className="flex items-stretch gap-6">
+                {resultWinner !== null && (
+                  <WinnerSlab character={hud.fighters[resultWinner].character} colour={resultColour(resultWinner)} />
+                )}
+                <div className="panel-cut grid min-w-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-x-6 gap-y-3 bg-ink/90 p-6 [@media(max-height:600px)]:gap-y-1 [@media(max-height:600px)]:p-3 [@media(max-height:420px)]:gap-y-0! [@media(max-height:420px)]:py-2!">
+                  {resultWinner !== null && <WinnerBar colour={resultColour(resultWinner)} />}
                   <span
                     className="font-display text-2xl"
                     style={{ color: accent(hud.fighters[0].character) }}
                   >
+                    {resultWinner === 1 && <LoserFace character={hud.fighters[0].character} />}
                     {tp ? (
                       <>
                         <span style={{ color: colours[0] }}>P1</span> <span className="text-cream/40">·</span> {hud.fighters[0].name}
@@ -1065,6 +1143,7 @@ export const ArenaGame = ({
                         <span className="text-xs text-cream/50">{online ? 'RIVAL' : 'BOT'}</span>
                       </>
                     )}
+                    {resultWinner === 0 && <LoserFace character={hud.fighters[1].character} />}
                   </span>
                   {(
                     [
@@ -1102,13 +1181,12 @@ export const ArenaGame = ({
                       <div
                         key={label}
                         className="contents animate-[riseIn_0.5s_ease-out_both]"
-                        style={{ animationDelay: `${0.2 + row * 0.07}s` }}
+                        style={{ animationDelay: `${0.26 + row * 0.04}s` }}
                       >
                         <span
                           className={`font-display text-3xl [@media(max-height:600px)]:text-xl [@media(max-height:420px)]:text-lg! tabular-nums ${aWins ? 'text-gold' : 'text-cream/70'}`}
                         >
-                          {a}
-                          {unit}
+                          <CountUp value={a} unit={unit} delayMs={260 + row * 40} />
                         </span>
                         <span className="text-center text-[11px] font-semibold uppercase tracking-widest text-cream/50">
                           {label}
@@ -1116,12 +1194,12 @@ export const ArenaGame = ({
                         <span
                           className={`text-right font-display text-3xl [@media(max-height:600px)]:text-xl [@media(max-height:420px)]:text-lg! tabular-nums ${bWins ? 'text-gold' : 'text-cream/70'}`}
                         >
-                          {b}
-                          {unit}
+                          <CountUp value={b} unit={unit} delayMs={260 + row * 40} />
                         </span>
                       </div>
                     );
                   })}
+                </div>
                 </div>
 
                 {tp && (
@@ -1224,7 +1302,7 @@ export const ArenaGame = ({
             </div>
           )}
 
-          {!demo && !touch && !tp && settings.showKeyHints && <Controls aim={hud.aimMode} bindings={settings.bindings} />}
+          {!demo && !touch && !tp && settings.showKeyHints && !keyStrip.shown && <Controls aim={hud.aimMode} bindings={settings.bindings} />}
           {tp && settings.showKeyHints && hud.phase !== 'over' && !keyCard && (
             <>
               {/* Full strength until the first KO, then they step back. */}
@@ -1281,7 +1359,7 @@ export const ArenaGame = ({
         />
       )}
       {touch && portrait && <RotateHint />}
-      {lift && (
+      {lift && (online || demo) && (
         <LiftLoading
           steps={[
             { label: 'Game code', done: true },
@@ -1290,6 +1368,23 @@ export const ArenaGame = ({
             { label: 'First frame', done: hud !== null },
           ]}
           onDone={endLift}
+        />
+      )}
+      {lift && !online && !demo && (
+        <VsRun
+          mode="load"
+          info={vsInfo}
+          progress={(1 + Number(loaded.fonts) + Number(loaded.office) + Number(hud !== null)) / 4}
+          onDone={endLift}
+        />
+      )}
+      {vsRematch && !lift && (
+        <VsRun
+          mode="rematch"
+          info={vsInfo}
+          progress={1}
+          onShut={() => gameRef.current?.restart()}
+          onDone={() => setVsRematch(false)}
         />
       )}
     </main>

@@ -9,15 +9,17 @@ import { createSfx } from '../sfx';
 import { getSettings, primaryLabel } from '../settings';
 
 import type { Settings } from '../settings';
-import { createBot } from '../sim/bot';
-import { ARENA, ASSIST, CHARACTERS, DT, GUNS, PUSH, PHYS, RULES } from '../sim/constants';
+import { createBot, EASY_GUN_GRACE_TICKS } from '../sim/bot';
+import { ARENA, ASSIST, CHARACTERS, DT, GUNS, OFFLINE_COUNTDOWN_SECONDS, PUSH, PHYS, RULES } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step, visibleAim } from '../sim/step';
 
 import { buildArena } from './arena';
 import { buildRig, poseDeath, poseSide, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
+import { createGovernor, MAX_STEPS_PER_FRAME, stepDown } from './governor';
 import { createVfx } from './vfx';
+import { DESKTOP_CAM, finaleHolding, finaleScale, followTarget, followWeight, koBeatWeight, nextFollowTime, PHONE_CAM } from './cameraMath';
 
 import type { Rig } from './characters';
 import type { NetStatus, OnlineSession, Presentation } from '../net/client';
@@ -70,6 +72,8 @@ export interface HudState {
   character: CharacterId;
   nextCharacter: CharacterId | null;
   endReason: EndReason | null;
+  /** Offline match-winning KO: the slow-motion and hold are running and the result card waits (the KNOCKOUT band shows). */
+  finale: boolean;
 }
 
 export interface ArenaOptions {
@@ -95,6 +99,8 @@ export interface ArenaOptions {
   onPadPause?: (player: 0 | 1) => void;
   /** Local 2-player on a touch-only device: a pad went away mid-match (someone has no controls now). */
   onPadLost?: () => void;
+  /** The GPU dropped the WebGL context and it did not come back within a few seconds. */
+  onContextLost?: () => void;
 }
 
 const randomSeed = () => (Math.random() * 1e9) | 0;
@@ -108,7 +114,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const profile0 = renderProfile(settings, deviceFacts());
   renderer.setPixelRatio(profile0.pixelRatio);
   renderer.shadowMap.enabled = profile0.shadows;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoft was removed in r187 (it already fell back to PCF)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -120,8 +126,17 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const level = opts.level ?? 'normal';
   const online = opts.online;
   const tp = online || opts.demo ? undefined : opts.twoPlayer;
+  // Against the easy bot the bot cannot take guns in the opening seconds (sim gunGrace, offline only).
+  const grace = !online && !tp && !opts.demo && (opts.level ?? 'normal') === 'easy';
   const newGame = () =>
-    createGame([opts.player, opts.opponent], randomSeed(), false, tp ? { kosToWin: tp.kosToWin, assist: true } : undefined);
+    createGame(
+      [opts.player, opts.opponent],
+      randomSeed(),
+      false,
+      tp ? { kosToWin: tp.kosToWin, assist: true } : undefined,
+      // Offline only (never `online`): the shorter countdown is opt-in, so the shared sim default stays 3.6 s.
+      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS },
+    );
   let hold = !!opts.hold;
   let padsSeen = 0;
   /** Which fighter you are. Offline you are always 0. */
@@ -485,8 +500,54 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     Object.assign(n, { life: 0.7, x: x + (Math.random() - 0.5) * 0.6, y: y + 0.4, size: big ? 1.5 : 1.1 });
     n.sprite.visible = true;
   };
+  // Pickup callouts: two pooled sprites (one per fighter), textures drawn once at start.
+  const CALLOUT_GOLD = '#ffd23f';
+  const CALLOUT_NAMES: Partial<Record<GunKind, string>> = { smg: 'SMG', shotgun: 'SHOTGUN', uzi: 'UZI', launcher: 'ROCKETS', railgun: 'RAILGUN', bomb: 'BOMB' };
+  const calloutTex = new Map<GunKind, THREE.CanvasTexture>();
+  for (const kind of Object.keys(CALLOUT_NAMES) as GunKind[]) {
+    const big = kind === 'railgun' || kind === 'launcher';
+    const c = document.createElement('canvas');
+    const g = c.getContext('2d')!;
+    // Drawn at 2x so it stays crisp: 22 px text (28 px for the big two) on screen.
+    g.font = `400 ${(big ? 28 : 22) * 2}px Bungee, Impact, sans-serif`;
+    c.width = Math.ceil(g.measureText(CALLOUT_NAMES[kind]!).width) + 16;
+    c.height = (big ? 28 : 22) * 2 + 24;
+    g.font = `400 ${(big ? 28 : 22) * 2}px Bungee, Impact, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.lineWidth = 6; // 3 px outside the letters on screen
+    g.strokeStyle = '#0a0d18';
+    g.strokeText(CALLOUT_NAMES[kind]!, c.width / 2, c.height / 2);
+    g.fillStyle = CALLOUT_GOLD;
+    g.fillText(CALLOUT_NAMES[kind]!, c.width / 2, c.height / 2);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    calloutTex.set(kind, t);
+  }
+  const callouts = state.fighters.map(() => {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: calloutTex.get('smg')!, transparent: true, depthTest: false }));
+    sprite.renderOrder = 12;
+    sprite.visible = false;
+    scene.add(sprite);
+    return { sprite, life: 0 };
+  });
+  const CALLOUT_LIFE = 0.9;
+  const popCallout = (fighter: number, gun: GunKind) => {
+    const tex = calloutTex.get(gun);
+    const c = callouts[fighter];
+    if (!tex || !c) return;
+    (c.sprite.material as THREE.SpriteMaterial).map = tex;
+    c.life = CALLOUT_LIFE;
+    c.sprite.visible = true;
+  };
   let lastKo: HudState['lastKo'] = null;
   let time = 0;
+  // Final-KO slow-motion (offline only): pending until the hit-stop is over, then `finaleT0` is the real time it began.
+  let finalePending = false;
+  let finaleT0 = -1;
+  let finaleWasHolding = false;
+  const finaleSince = () => (finaleT0 >= 0 ? time - finaleT0 : -1);
   let started = false;
 
   const fireBeam = (x: number, y: number, angle: number) => {
@@ -559,6 +620,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         vfx.ring(e.x, e.y, 0xf0c24a, { grow: 14, life: 0.5 });
         feedback('huge');
         lastKo = { fighter: e.fighter, at: time };
+        if (!online && !tp) {
+          koAt = time;
+          koX = e.x;
+          koY = e.y;
+          if (state.phase === 'over' && state.endReason === 'kos') finalePending = true;
+        }
         sfx.ko(e.x);
         break;
       case 'jump':
@@ -571,6 +638,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         break;
       case 'pickup':
         sfx.pickup();
+        popCallout(e.fighter, e.gun);
         break;
       case 'reload':
         // Yours loud and centred-ish, the rival's quieter: you hear them reloading.
@@ -593,6 +661,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   // fighter is ever hidden behind a button; the city outside fills the strips.
   let insets = { left: 0, right: 0, top: 0, bottom: 0 };
   const camBase = camera.position.clone();
+  const camGoal = { x: 0, y: 0, z: 0 };
+  let followT = 0;
+  // Knockout beat (offline only): where and when the last KO happened.
+  let koAt = -99;
+  let koX = 0;
+  let koY = 0;
   const updateCamera = (dt: number) => {
     const tanHalf = Math.tan((camera.fov * Math.PI) / 360);
     const w = canvas.clientWidth || 1;
@@ -607,25 +681,34 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     let tx = 0;
     let ty = ARENA.ceiling / 2 + 0.6;
     let tz = dist;
-    if (touch && !tp) {
-      // Phones: closer, so the fighters read bigger. The camera follows the pair and pulls back
-      // only as far as it must to keep both in the clear middle of the screen.
-      const [a, b] = state.fighters;
-      const hwNeed = Math.abs(a.x - b.x) / 2 + 3.2;
-      const hhNeed = Math.abs(a.y - b.y) / 2 + 2.6;
-      tz = Math.min(dist, Math.max(dist / 1.8, hwNeed / (tanHalf * camera.aspect * fw), hhNeed / (tanHalf * fh)));
-      const hw = tz * tanHalf * camera.aspect * fw;
-      const hh = tz * tanHalf * fh;
-      const maxX = Math.max(0, ARENA.right + 1.5 - hw);
-      tx = Math.max(-maxX, Math.min(maxX, (a.x + b.x) / 2));
-      const lowY = ARENA.floor - 1 + hh;
-      const highY = ARENA.ceiling + 1 - hh;
-      ty = lowY > highY ? (lowY + highY) / 2 : Math.max(lowY, Math.min(highY, (a.y + b.y) / 2 + 1));
+    let kxy = 3;
+    let kz = 3;
+    // Phones always follow. Desktop follows too, except in local 2-player (both need the whole floor)
+    // and on the menu backdrop. Desktop holds the wide establishing view through the countdown, then leans in.
+    if (!tp && (touch || !opts.backdrop)) {
+      const rig = touch ? PHONE_CAM : DESKTOP_CAM;
+      if (!touch) followT = nextFollowTime(followT, state.phase === 'countdown', dt);
+      const w = touch ? 1 : followWeight(followT);
+      const [a, b] = smooth;
+      followTarget(
+        {
+          ax: a.x, ay: a.y, bx: b.x, by: b.y, tanHalf, aspect: camera.aspect, fw, fh, dist,
+          floor: ARENA.floor, ceiling: ARENA.ceiling, halfWidth: ARENA.right + 1.5, rig,
+          beat: online ? 0 : koBeatWeight(time - koAt), beatX: koX, beatY: koY,
+        },
+        camGoal,
+      );
+      tx = camGoal.x * w;
+      ty += (camGoal.y - ty) * w;
+      tz = dist + (camGoal.z - dist) * w;
+      kxy = rig.kxy;
+      kz = rig.kz;
     }
-    const k = 1 - Math.exp(-3 * dt);
-    camBase.x += (tx - camBase.x) * k;
-    camBase.y += (ty - camBase.y) * k;
-    camBase.z += (tz - camBase.z) * k;
+    const kp = 1 - Math.exp(-kxy * dt);
+    const kd = 1 - Math.exp(-kz * dt);
+    camBase.x += (tx - camBase.x) * kp;
+    camBase.y += (ty - camBase.y) * kp;
+    camBase.z += (tz - camBase.z) * kd;
     // Trauma shake: amount = trauma², offsets from smooth noise (summed sines), never Math.random().
     const amt = trauma * trauma;
     const n = (f: number, p: number) => Math.sin(time * f + p) * 0.6 + Math.sin(time * f * 2.3 + p) * 0.4;
@@ -910,6 +993,22 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       n.sprite.scale.set(1.6 * n.size * pop, 0.8 * n.size * pop, 1);
       (n.sprite.material as THREE.SpriteMaterial).opacity = Math.min(1, n.life / 0.25);
     }
+    // Pickup callouts ride above the fighter, 18 px up over their life, fading out over the last 0.3 s.
+    const wpp = (2 * camera.position.z * Math.tan((camera.fov * Math.PI) / 360)) / (canvas.clientHeight || 1);
+    callouts.forEach((c, i) => {
+      if (!c.sprite.visible) return;
+      c.life -= dt;
+      if (c.life <= 0) {
+        c.sprite.visible = false;
+        return;
+      }
+      const k = 1 - c.life / CALLOUT_LIFE;
+      const img = (c.sprite.material as THREE.SpriteMaterial).map!.image as HTMLCanvasElement;
+      const p = rigs[i].root.position;
+      c.sprite.position.set(p.x, p.y + CHARACTERS[state.fighters[i].character].height + 0.9 + 18 * k * wpp, 0.8);
+      c.sprite.scale.set((img.width / 2) * wpp, (img.height / 2) * wpp, 1);
+      (c.sprite.material as THREE.SpriteMaterial).opacity = Math.min(1, c.life / 0.3);
+    });
     arena.update(dt, time);
     vfx.update(dt);
     updateCamera(dt);
@@ -929,8 +1028,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   let hudTimer = 0;
   const emitHud = () => {
     const state = viewState();
+    // The final KO's slow-motion and hold keep the match on screen: the result card waits.
+    const hold = state.phase === 'over' && finaleHolding(finalePending, finaleSince());
     opts.onHud({
-      phase: state.phase,
+      phase: hold ? 'fight' : state.phase,
       kosToWin: state.kosToWin ?? RULES.kosToWin,
       time: state.phaseTime,
       // The HUD always shows you first.
@@ -943,13 +1044,14 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       pauseRequests: online
         ? [online.pauseRequests[me] ?? false, online.pauseRequests[1 - me] ?? false]
         : [state.paused, state.paused],
-      respawnIn: state.fighters[me].respawn > 0 ? state.fighters[me].respawn : null,
+      respawnIn: !hold && state.fighters[me].respawn > 0 ? state.fighters[me].respawn : null,
       character: state.fighters[me].character,
       nextCharacter: state.fighters[me].nextCharacter,
       hint: hintFor(),
       muted,
       aimMode,
       endReason: state.endReason,
+      finale: hold,
       fighters: [state.fighters[me], state.fighters[1 - me]].map((f) => {
         const g = GUNS[f.weapon.kind];
         return {
@@ -997,14 +1099,59 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   let raf = 0;
   let last = performance.now();
   let acc = 0;
+  // Auto quality: watch real frame times and step down (pixel ratio, then shadows) on a slow machine.
+  const governor = createGovernor();
+  const setShadows = (on: boolean) => {
+    if (renderer.shadowMap.enabled === on) return;
+    renderer.shadowMap.enabled = on;
+    // Shadow use is compiled into each material's shader: rebuild them once.
+    scene.traverse((o) => {
+      if (o instanceof THREE.Mesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true));
+    });
+  };
+  const govern = (frameMs: number) => {
+    if (settings.quality !== 'auto' || !governor.sample(frameMs)) return;
+    const next = stepDown({ pixelRatio: renderer.getPixelRatio(), shadows: renderer.shadowMap.enabled });
+    if (!next) return;
+    if (next.pixelRatio !== renderer.getPixelRatio()) renderer.setPixelRatio(next.pixelRatio);
+    // Shadows off recompiles every shader (a freeze on a weak GPU): wait for a pause in the fight.
+    if (!next.shadows) shadowsOffPending = true;
+  };
+  let shadowsOffPending = false;
+  // three.js keeps the scene through a context loss and rebuilds on restore; if the GPU never gives the
+  // context back the canvas stays black, so tell the page after a few seconds.
+  let lostTimer = 0;
+  const onLost = () => {
+    lostTimer = window.setTimeout(() => opts.onContextLost?.(), 3000);
+  };
+  const onRestored = () => {
+    window.clearTimeout(lostTimer);
+    governor.reset();
+  };
+  canvas.addEventListener('webglcontextlost', onLost);
+  canvas.addEventListener('webglcontextrestored', onRestored);
   const frame = (now: number) => {
-    const dt = Math.min(0.1, (now - last) / 1000);
+    const rawMs = now - last;
+    const dt = Math.min(0.1, rawMs / 1000);
     last = now;
+    if (!document.hidden) govern(rawMs);
+    if (shadowsOffPending && state.phase !== 'fight') {
+      shadowsOffPending = false;
+      setShadows(false);
+      governor.reset();
+    }
     time += dt;
     if (dt > 0) fps += (1 / dt - fps) * 0.05;
-    acc += dt;
+    if (finalePending && state.hitstop === 0) {
+      finalePending = false;
+      finaleT0 = time;
+    }
+    acc += dt * finaleScale(finaleSince());
     // The 2-player key card holds the clock: the office renders, nothing moves.
     if (hold) acc = 0;
+    // Offline a slow frame may not snowball into ever more sim steps: play slower, never freeze.
+    // Online the clock follows the server, so every step runs.
+    if (!online && acc > DT * MAX_STEPS_PER_FRAME) acc = DT * MAX_STEPS_PER_FRAME;
     if (controls2) {
       const who = controls2.takeStart();
       if (who !== null) opts.onPadPause?.(who);
@@ -1046,6 +1193,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       pres.events.forEach(handleEvent);
     }
     renderFrame(dt, acc / DT, viewState());
+    // The result card appears the moment the slow-motion and the hold end.
+    const holding = finaleHolding(finalePending, finaleSince());
+    if (finaleWasHolding && !holding) hudTimer = 0;
+    finaleWasHolding = holding;
     hudTimer -= dt;
     if (hudTimer <= 0) {
       hudTimer = 0.1;
@@ -1089,13 +1240,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     settings = s;
     const p = renderProfile(s, deviceFacts());
     if (renderer.getPixelRatio() !== p.pixelRatio) renderer.setPixelRatio(p.pixelRatio);
-    if (renderer.shadowMap.enabled !== p.shadows) {
-      renderer.shadowMap.enabled = p.shadows;
-      // Shadow use is compiled into each material's shader: rebuild them once.
-      scene.traverse((o) => {
-        if (o instanceof THREE.Mesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true));
-      });
-    }
+    setShadows(p.shadows);
+    governor.reset();
     motion = motionOf(s);
     muted = store.effectiveMute();
     sfx.apply(s.audio, muted);
@@ -1113,7 +1259,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   raf = requestAnimationFrame(frame);
   // Dev-only handle for automated checks.
   if (process.env.NODE_ENV !== 'production') {
-    (window as unknown as { __mc?: unknown }).__mc = { state: () => state, me, renderer, view: () => smooth, net: () => online && { ...online.status, tl: (online as unknown as { timeline?: unknown }).timeline }, muzzle: () => muzzle(state.fighters[0]) };
+    (window as unknown as { __mc?: unknown }).__mc = { cam: () => ({ z: camera.position.z, fov: camera.fov }), state: () => state, me, renderer, view: () => smooth, net: () => online && { ...online.status, tl: (online as unknown as { timeline?: unknown }).timeline }, muzzle: () => muzzle(state.fighters[0]) };
   }
 
   const restart = () => {
@@ -1127,6 +1273,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     started = false;
     savePrev();
     lastKo = null;
+    finalePending = false;
+    finaleT0 = -1;
+    koAt = -99;
+    callouts.forEach((c) => (c.sprite.visible = false));
     emitHud();
   };
 
@@ -1189,6 +1339,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     },
     dispose: () => {
       cancelAnimationFrame(raf);
+      window.clearTimeout(lostTimer);
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
       offSettings();
       controls.dispose();
       controls2?.dispose();

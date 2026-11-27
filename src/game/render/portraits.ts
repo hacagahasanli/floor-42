@@ -9,9 +9,13 @@ import type { CharacterId } from '../sim/types';
  * Portraits of the fighters for the home page: each one standing ready with a pistol, lit in
  * their own colour from behind, rendered once offscreen to an image.
  */
-export const renderPortraits = (accents: Record<CharacterId, string>): Record<CharacterId, string> => {
-  const W = 360;
-  const H = 440;
+export const renderPortraits = (
+  accents: Record<CharacterId, string>,
+  /** `scale` renders bigger (the VS doors use 2), `only` renders just those fighters. */
+  opts: { scale?: number; only?: CharacterId[] } = {},
+): Record<CharacterId, string> => {
+  const W = 360 * (opts.scale ?? 1);
+  const H = 440 * (opts.scale ?? 1);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
   renderer.setSize(W, H);
@@ -21,7 +25,7 @@ export const renderPortraits = (accents: Record<CharacterId, string>): Record<Ch
   camera.position.set(1.4, 1.55, 3.8);
   camera.lookAt(0, 1.05, 0);
   const out = {} as Record<CharacterId, string>;
-  for (const id of Object.keys(accents) as CharacterId[]) {
+  for (const id of (opts.only ?? (Object.keys(accents) as CharacterId[]))) {
     const scene = new THREE.Scene();
     scene.add(new THREE.HemisphereLight(0xe8f0ff, 0x30384a, 1.6));
     const key = new THREE.DirectionalLight(0xfff0d8, 2.4);

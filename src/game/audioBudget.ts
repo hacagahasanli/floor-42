@@ -34,6 +34,14 @@ export const BUDGET = {
   tick: { cooldownMs: 40, maxVoices: 2, lengthMs: 40 },
   confirm: { cooldownMs: 80, maxVoices: 1, lengthMs: 210 },
   back: { cooldownMs: 80, maxVoices: 1, lengthMs: 100 },
+  // Rubber-stamp announcer and lift (R-013): one at a time, each its own length.
+  stamp: { cooldownMs: 60, maxVoices: 2, lengthMs: 200 },
+  stampBig: { cooldownMs: 150, maxVoices: 1, lengthMs: 600 },
+  doorSlam: { cooldownMs: 150, maxVoices: 1, lengthMs: 300 },
+  liftDing: { cooldownMs: 300, maxVoices: 1, lengthMs: 1100 },
+  floorTick: { cooldownMs: 70, maxVoices: 2, lengthMs: 30 },
+  winSting: { cooldownMs: 300, maxVoices: 1, lengthMs: 400 },
+  lossSting: { cooldownMs: 300, maxVoices: 1, lengthMs: 500 },
 } as const satisfies Record<string, Budget>;
 
 export type SoundName = keyof typeof BUDGET;

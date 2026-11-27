@@ -50,6 +50,13 @@ export const COPY = {
     developer: `First to ${K} KOs takes the merge`,
     regular: `First to ${K} KOs wins`,
   },
+  /** The sub-label under PLAY on the home screen (R-013 4.2, F-026); `{name}` is the current fighter, `{level}` the bot level. */
+  playSub: {
+    developer: `Fight the {level} bot as {name} · first to ${K} takes the merge`,
+    regular: `Fight the {level} bot as {name} · first to ${K}`,
+  },
+  /** The VS doors' bottom line (R-013 4.4); `{n}` is the match length. */
+  vsFirstTo: { developer: 'FIRST TO {n} · TAKES THE MERGE', regular: 'FIRST TO {n}' },
   /** The title card before every round. `above`/`below` are the small lines around it ('' = none). */
   introAbove: { developer: '<<<<<<< HEAD', regular: '' },
   introTitle: {
@@ -69,6 +76,11 @@ export const COPY = {
   /** The result screen's coloured line before the score reason. */
   resultWin: { developer: 'Conflict resolved, your way.', regular: 'The floor is yours.' },
   resultLoss: { developer: 'Conflict resolved, their way.', regular: 'They took the floor.' },
+  /** Final-KO band: the stamp and the line under it ({NAME} is the winner, upper case). */
+  knockoutStamp: { developer: 'MERGED', regular: 'KNOCKOUT' },
+  knockoutLine: { developer: "{NAME}'S BRANCH WINS", regular: '{NAME} TAKES THE FLOOR' },
+  /** Result line when nobody is "you" (bot against bot): {NAME} is the winner. */
+  resultDemo: { developer: 'Merged by {NAME}.', regular: '{NAME} took the floor.' },
   resultDraw: { developer: 'Still conflicted.', regular: 'Dead even.' },
   drawSub: {
     developer: 'Time ran out with nothing resolved.',

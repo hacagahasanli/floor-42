@@ -111,6 +111,7 @@ export const createGame = (
   seed = 1,
   net = false,
   local?: { kosToWin: number; assist: boolean },
+  extra?: { gunGrace?: { fighter: number; ticks: number }; countdownSeconds?: number },
 ): GameState => {
   const fighters = characters.map((c, i) => createFighter(i, c));
   fighters.forEach((f) => Object.assign(f, { x: 0, y: 0 }));
@@ -139,13 +140,14 @@ export const createGame = (
   const state: GameState = {
     tick: 0,
     phase: 'countdown',
-    phaseTime: RULES.countdownSeconds,
+    phaseTime: extra?.countdownSeconds ?? RULES.countdownSeconds,
     winner: null,
     endReason: null,
     paused: false,
     hitstop: 0,
     ...(net ? { net: true } : {}),
     ...(local ? { kosToWin: local.kosToWin, assist: local.assist } : {}),
+    ...(extra?.gunGrace ? { gunGrace: { ...extra.gunGrace } } : {}),
     seed,
     dropTimer: ARENA.dropEvery,
     nextId: 1,
@@ -629,7 +631,8 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
 
   // Only a pistol: walk over a gun to take it. Bombs are always picked up (own slot). Otherwise press Pick up (F) to swap;
   // Reload (R) only reloads.
-  const near = canAct ? pickupCandidate(state, f) : null;
+  const graced = state.gunGrace?.fighter === f.id && state.tick < (state.gunGrace.until ?? Infinity);
+  const near = canAct && !graced ? pickupCandidate(state, f) : null;
   // A bomb is always picked up (one at a time: a second stays where it is); a gun needs Pick up or a pistol in hand.
   if (state.assist) assistPickup(state, f, near);
   else if (near && (near.kind === 'bomb' ? !f.bombs : pressed('pickup') || f.weapon.kind === 'pistol'))
@@ -987,6 +990,7 @@ export const step = (state: GameState, inputs: InputState[]): GameState => {
     if (state.phaseTime <= 0) {
       state.phase = 'fight';
       state.phaseTime = RULES.roundSeconds;
+      if (state.gunGrace && state.gunGrace.until === undefined) state.gunGrace.until = state.tick + state.gunGrace.ticks;
     }
   } else if (state.phase === 'fight') {
     state.phaseTime -= DT;

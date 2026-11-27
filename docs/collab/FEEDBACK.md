@@ -177,3 +177,127 @@ Pre-existing `FLOOR 42 · open office` vs `FIRST TO N` at 1280x720: confirmed, s
 - What should change: (1) in 2P pause, both plates and both key strips sit at the same dim level (keep the left scrim for the menu text, add a flat 55 % ink layer over the HUD). 1P unchanged. (2) Key card ↑ ↓ ← → all use the same line-arrow glyph at the same size (as ← → now).
 - Related spec: local-2p.md 4.1, 4.4.
 - Status: done (engineering, 2026-11-23; see LOG.md)
+
+## F-016 — Home and select: fighter name and `Your fighter` overlap the 3D fighter (P1, ship today)
+- What is wrong: in shots/aliveness-2026-11-27/a6 and a7 (1280x720), the right column (`Your fighter` / `HOTFIX` / `High flyer`, x ≈ 990-1240, y ≈ 410-520) sits on top of the showcase fighter's arm and the planter. The name's letters cross the model.
+- Why it matters: this is the first screen a CrazyGames player sees. Text on top of the hero reads as broken layout.
+- What should change: put the right info column (label, name, tagline and the stat card) in one panel 260 px wide, with background `rgba(10,13,24,0.72)`, a 2 px left border in the fighter's colour, 16 px padding, and the same slanted corner as the stat card. Leave the 3D scene as it is.
+- Expected result: the name reads over a solid panel, and the fighter's body stays fully visible to the left of the panel at 1280, 1440 and 1024 wide.
+- Related spec: CREATIVE/specifications/aliveness-audit.md T7.
+- Status: closed at 1280 and wider (R-012 review, 2026-11-27); narrow screens continue as F-018.
+
+## F-017 — A KO'd body comes to rest outside the glass wall (P2, next)
+- What is wrong: in shots/aliveness-2026-11-27/a2, Legacy's ragdoll lies at the far left at about y 265, beyond the building's glass edge.
+- Why it matters: it reads as a clipping bug, not as a splat, and it weakens the "glass cracks when you hit it" promise.
+- What should change: clamp ragdoll and body positions to the inner face of the glass (x within ARENA.left/right minus the body's half width). A body that hits the glass at speed splats against it and slides down; it never passes through.
+- Expected result: no body is ever drawn outside the building outline.
+- Related spec: aliveness-audit.md section 3, item 5.
+- Status: open
+
+---
+
+# Review R-012: R-011 TODAY build (T1-T8), portal build, 2026-11-27
+
+Verdict: **ship today. No P0.** Nothing below should block the CrazyGames upload. F-018 and F-019 are about 20 minutes together and worth doing before the upload if there is time. If there is not, upload anyway.
+
+Played: `npm run build:portal`, served with `scripts/portal-serve.mjs` under `/games/floor-42/`, in headless Chromium with SwiftShader. I captured home at 1280x720, 1024x768 and 844x390, and one full `#/arena?p1=legacy&p2=standup&bot=hard&demo` match at 1280x720, shot every 3 s from the loader to the result screen (it ended 2:5, Standup won). No page errors and no console errors. I also reviewed every shot listed in R-012. Evidence: `shots/review-r012/`.
+
+On spec, verified in the portal build:
+- **T1 follow camera:** it holds the wide view through `ONE FLOOR / NO MERCY` and then leans in. Fighters are about 80-100 px tall in play (`portal-demo-follow.png`), against about 45 px before. This is the change that matters most, and it landed.
+- **T2 and T3:** the final KO is framed close, with the burst, `-110` and `LEGACY IS OUT` all in shot (`portal-demo-final-ko.png`). The 0.3x timing is not verifiable at SwiftShader frame rates, but its maths are unit-tested.
+- **T5 result slab:** the winner portrait slab, the grey loser face and the bot-wins title (`They took the floor.`) all read well. **T6 callouts:** they show (`UZI`, `SHOTGUN` on the sheet). **T7 panel:** it is clean at 1280 and 1440.
+- **Accepted engineering deviations:** RAILGUN/ROCKETS naming, no KO beat or slow-mo in 2P, no sfx rate change, `easy` for the whole first session.
+
+Not verified: real-GPU timing (slow-mo, card delay, governor steps), sound, the CrazyGames iframe sizes, real touch, and the WebGL-lost overlay in a live state (I reviewed its copy from the source only).
+
+## F-018 — Narrow screens: the name panel covers the showcase fighter (P1, before upload if time)
+- What is wrong: at 1024x768 the 260 px panel (x ≈ 752-1012) covers Hotfix's hands, gun and legs (fighter at x ≈ 790-905, `portal-1024x768-home.png`). At 844x390 it covers the hands, gun and legs again (fighter at x ≈ 555-620, panel at x ≈ 573-832, `portal-844x390-home.png`). This is the F-016 overlap, moved rather than fixed.
+- Why it matters: on CrazyGames the game runs in an iframe that is often narrower than the window. [Assumption: a 1366-wide laptop gives an iframe of about 1000 px.] So the narrow case is a common first screen, not an edge case.
+- **Decision: move the fighter, not the panel.** The panel stays exactly as built: 260 px, 12 px from the right edge, same everywhere. The panel is the constant; the 3D picture slides.
+- What should change (`showcase.ts`, landscape only, i.e. `!portrait`):
+  - After `camera.lookAt(look)`, project the fighter's bounding box (or `SPOT` plus a half-width of 0.45 m, whichever is simpler) to screen space.
+  - `panelLeft = w - 12 - 260`. `shift = max(0, fighterRightPx - (panelLeft - 24))`.
+  - Then call `camera.setViewOffset(w, h, shift, 0, w, h)`, or `clearViewOffset()` when `shift` is 0. A positive x offset slides the picture left.
+  - Smooth `shift` with `k = 1 - exp(-4 * dt)` so the slow camera arc never makes the fighter twitch.
+  - Leave it at 0 at 1280 and wider, where the overlap is already clear. Portrait and 2P (fighter hidden) stay unchanged.
+- Expected result: at 1024x768, 844x390 and any width in between, the whole fighter (head to shoes, gun included) sits at least 24 px left of the panel, and stays clear of the menu column: the left edge is right of the PLAY highlight bar at 844x390, and right of the rival chips on select. Re-shoot the 8 `aliveness-today-ui/portal-*` shots.
+- Related spec: aliveness-audit.md T7, F-016.
+- Status: open. F-016 is closed for 1280 and wider and continues here.
+
+## F-019 — WebGL-lost overlay copy (P1, a one-line change)
+- What is wrong: the body copy says "Your graphics card took a break." That is not always true: the context is also lost when a phone backgrounds the tab or the driver resets. It also does not warn that reloading ends the match in progress.
+- **Decision (final copy):**
+  - Title: `Graphics paused`. Keep it: it is short and calm, and nobody is blamed.
+  - Body: `Your browser stopped drawing the game. Reload to jump back in. This match will start over.`
+  - Button: `Reload`. Keep it.
+- Expected result: the copy is exactly as above, with the layout and styles unchanged. For an online match the last sentence still holds, because a reload leaves the room. If that is not true, tell me and I will change the copy.
+- Related spec: none (engineering-owned overlay, copy approved here).
+- Status: open
+
+## F-020 — Pickup callout sits on the gold FLOOR 42 neon (P2, next)
+- What is wrong: in `aliveness-today/callout-1.png`, `SHOTGUN` lands on the `FLOOR 42` neon sign and reads as "FL SHOTGUN 2". Gold on gold, and the ink stroke does not separate them.
+- What should change: give the callout text a soft ink backing, a rounded box at `#0A0D18` 60 %, 6 px padding, drawn into the same canvas texture. No new draw call.
+- Expected result: the gun name reads against the sign, against windows and against the sky.
+- Related spec: aliveness-audit.md T6.
+- Status: open
+
+## F-021 — Cold first load: home shows no 3D scene for 6+ s under SwiftShader (P2, verify on real hardware)
+- What is wrong: on the first cold load of the portal build at 1280x720, the home screen after 6 s showed only the UI on flat dark navy, with no office and no fighter (`portal-1280x720-home-cold6s.png`). Warm loads were fine (`portal-1280x720-home-warm.png`). This is probably SwiftShader being slow, not the build. [Unverified on a GPU.]
+- What should change: release QA times "first 3D frame on home" on a low-end laptop inside the CrazyGames QA tool. If it is over 2 s, show the rendered Hotfix portrait (as on the result slab) in the showcase spot until the canvas fades in, as the lobby's CSS fallback already does.
+- Status: open (measure first)
+
+---
+
+# Review R-014: R-013 "Doors and Stamps" TODAY build, portal (2026-11-27)
+
+Verdict: **ship to CrazyGames today after one P0 (F-022, a CSS value).** Doors and Stamps landed. I played `dist/portal` (fresh `npm run build:portal`) in headless Chromium + SwiftShader at 1280x720 and 1920x1080: cold home, PLAY -> doors -> a full first match against the easy bot (won 5:3) with live `INTERN IS OUT` stamps and the live `KNOCKOUT / HOTFIX TAKES THE FLOOR` band, result, REMATCH (short doors), select -> ArrowDown -> Enter (locked Legacy, doors, Legacy vs Standup), How to play, 2 PLAYER select -> both ready -> 2P doors. I also read the playtest critic's real-GPU set `shots/playtest-2026-11-27-b/`. My shots: `shots/review-r014/`.
+
+On spec (acceptance list section 8): 1 poster from first paint (no empty gradient frame seen); 3 doors at 1280 and 1920, names clear of the VS plate; 4 Enter on a row locks in and fights, footer `ENTER FIGHT`; 5 no title card, key strip shown; 7 `KNOCKOUT` in the winner's accent and no `IS OUT` for the final KO; 9 How to play opaque. Engineering deviations accepted: doors only for offline/2P/rematch (online and demo keep LiftLoading until N3); random rival picked at PLAY; counter by the clock to 41, then 42 with the ding; `LOCKED IN` outside the clipped plate; easy-bot 15 s gun grace; EASY on the menu until a match is finished.
+
+Not verified: sound by ear (nothing heard), real-GPU timings of my own (I used the critic's real-GPU frames for that), 1024x768, Shake OFF / reduced-motion paths, online, the CrazyGames iframe. Acceptance 2 (doors in 100 ms) and 10 (no wait on portraits) cannot be timed under SwiftShader (doors appeared about 450-800 ms after Enter there, with the 3D backdrop running at a few fps).
+
+## F-022 — First-match key strip covers the player's own fighter at FIGHT! (P0, blocks the upload, a CSS change)
+- What is wrong: at 1280x720 the strip sits 120 px above the bottom, which is on the arena floor in the wide opening shot. The player spawns behind the `W` cap for about 3 s (critic, real GPU: `playtest-2026-11-27-b/1280-08`, `1280-10`; also my `review-r014/1280x720-b03-arena`). At 1920x1080 it sits on the floor next to the desks (`1920-12`).
+- Why it matters: it is the first second of the first match for every new CrazyGames player, and they cannot see themselves. My spec value (120 px) was wrong. It did not account for the wide opening view.
+- What should change: anchor the strip in the dark band under the floor. `bottom: 12px` (was 120 px). Caps 48 px tall with Bungee 24 px when the viewport is under 800 px tall, 56 px / Bungee 28 px from 800 px up. Labels stay below the caps, Chakra 14 px, 4 px gap. The groups stay 40 px apart. Everything else (gold flash, leave rule, hiding the bottom key bar) is unchanged.
+- Expected result: at 1280x720 the strip's top edge is at or below y 640 (floor edge is about 615). At no time between the doors opening and the strip leaving does it overlap either fighter, at 1280x720, 1366x768 and 1920x1080.
+- Related spec: fight-feel-pages.md 4.5 (value superseded here).
+- Status: open
+
+## F-023 — Stamp volume decision: lower the thumps, retire the "ui peak <= confirm" rule (P1, today if 5 min; does not block)
+- Decision: the recipe wins over the rule, but at lower values. `confirm` (0.16, a 660 Hz triangle) is the wrong yardstick for a 48-110 Hz thump: at 0.16 the stamp disappears on laptop speakers, which is where CrazyGames players are. But 0.5/0.45 (and x1.4 for `stampBig`) puts `VS`, `FIGHT!` and `KNOCKOUT` close to an explosion, and it drives the -14 dB compressor at the exact moment the KO sound should own the mix.
+- New rule (replaces the 3.3 mix rule): **no UI voice is louder than the game event it announces; `ko()` is the reference.**
+- Exact values in `sfx.ts`:
+  - `stampVoices`: sine `0.5 -> 0.3`, lowpass noise `0.45 -> 0.28`, bandpass click `0.16` unchanged (the click is what laptop speakers carry).
+  - `stampBig`: `stampVoices(1.4) -> stampVoices(1.2)`, sub tone `0.45 -> 0.3`.
+  - `doorSlam`: lowpass noise `0.6 -> 0.4`. The square and triangle voices stay the same.
+  - `liftDing`, `floorTick`, `winSting`, `lossSting`: unchanged (they already sit near `confirm`).
+  - Update the matching rows in `audioBudget.ts` and `docs/SOUND.md`.
+- Expected result: a stamp sums to about 0.74 before the ui bus (0.52 after it), under `ko()` (0.8). `stampBig` sits at about `ko()`. [Design arithmetic. Not heard: someone has to check it once by ear on laptop speakers before NEXT.]
+- Related spec: fight-feel-pages.md 3.3.
+- Status: open
+
+## F-024 — HUD text does not scale at 1920x1080 (P1, next build)
+- What is wrong: at 1920x1080 the weapon/ammo line is about 11 px and the names about 16 px (critic `1920-12`, my `1920x1080-g05-arena`). It is the 1280 HUD at the same pixel size.
+- What should change: scale the HUD corner blocks (names, health bars, weapon/ammo, dash/push) and the bottom key bar by `s = min(1.5, max(1, innerHeight / 720))`, each with `transform-origin` set to its own anchor corner. The score block in the centre top and the stamps are excluded (they already scale).
+- Expected result: at 1080 the names are about 24 px and the weapon line about 16 px. Nothing changes at 720.
+- Status: open
+
+## F-025 — The camera is still wide at FIGHT! (P1, next build)
+- What is wrong: with the 2.0 s offline countdown, the follow ease-in (0.8 s from FIGHT) means the fighters are about 45 px at the moment control starts (critic, real GPU).
+- What should change: start the follow ease-in when `READY` shows (offline: 1.0 s before FIGHT; online: from 1.6 s, as now), keeping the 0.8 s smoothstep. The first 1.0 s of the countdown stays wide, to show the floor.
+- Expected result: at FIGHT! the fighters are at follow size (about 80-100 px at 720p). This keeps R-011 T1 except for the start time.
+- Status: open
+
+## F-026 — PLAY sub-label hides the bot level (P1, copy)
+- Copy: `Fight the {level} bot as {Fighter} · first to 5`, where `{level}` is the level that will actually run, in lowercase (`easy` on the first match whatever the setting; then `easy`/`normal`/`hard`). Developer audience: `Fight the {level} bot as {Fighter} · first to 5 takes the merge`.
+- Status: open
+
+## F-027 — On a slow machine the VS stamp and counter wait for the arena to mount (P2, verify on low-end)
+- What is wrong: only the arena-side `VsRun` draws the VS plate, the counter and `FIRST TO 5`. The menu-side doors carry only the portraits and names. Under SwiftShader the doors sat shut with no VS for seconds, and the stamps were stuck at opacity 0 while the main thread was busy loading (`review-r014/1280x720-b01`, `i02`; DOM probe: VS mounted, opacity 0, for about 6 s). On the critic's real GPU the VS lands on time (`1280-03`, `1280-29`), so this only bites low-end machines.
+- What should change (next): render the floor plate and the `VS` stamp in the menu-side doors too, at 260 ms on the shared clock, and let `VsRun` take them over without re-landing them.
+- Status: open
+
+## F-028 — How to play footer still says `ENTER SELECT` (P2)
+- What should change: there is nothing to select on that panel, so the footer shows only `ESC BACK`.
+- Status: open

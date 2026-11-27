@@ -19,6 +19,13 @@ const get = () => {
   return sfx;
 };
 
+const play = (fn: (s: Sfx) => unknown) => {
+  const s = get();
+  if (!s) return;
+  s.unlock();
+  fn(s);
+};
+
 let lastTick = 0;
 export const menuSound = {
   tick: () => {
@@ -45,4 +52,12 @@ export const menuSound = {
     s?.unlock();
     s?.dash();
   },
+  /** R-013 announcer and lift sounds (see sfx.ts). */
+  stamp: () => play((s) => s.stamp()),
+  stampBig: () => play((s) => s.stampBig()),
+  doorSlam: () => play((s) => s.doorSlam()),
+  liftDing: () => play((s) => s.liftDing()),
+  floorTick: (n: number) => play((s) => s.floorTick(n)),
+  winSting: () => play((s) => s.winSting()),
+  lossSting: () => play((s) => s.lossSting()),
 };

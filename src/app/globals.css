@@ -321,3 +321,122 @@
   .f42-wipe::before { animation: none; opacity: 0; }
 }
 :root[data-motion='reduced'] .f42-door-open { opacity: 0; }
+
+/* ---------- Result screen: winner slab (spec aliveness-audit T5) ---------- */
+.f42-slab, .f42-loser { display: none; }
+.f42-winbar { display: block; height: 6px; margin: -24px -24px 12px; }
+@media (max-height: 600px) { .f42-winbar { margin: -12px -12px 8px; } }
+@media (min-width: 1024px) and (min-height: 640px) {
+  .f42-winbar { display: none; }
+  .f42-slab {
+    display: block; position: relative; flex: none; width: 260px; height: 300px; align-self: center;
+    background: #0a0d18; clip-path: polygon(14% 0, 100% 0, 86% 100%, 0 100%);
+    animation: f42SlabIn 260ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  }
+  .f42-slab-in {
+    position: absolute; inset: 4px; opacity: 0.85; clip-path: polygon(14% 0, 100% 0, 86% 100%, 0 100%);
+  }
+  .f42-slab-img {
+    position: absolute; left: 50%; bottom: 8px; height: 280px; width: auto;
+    transform: translateX(-50%) rotate(-4deg);
+  }
+  .f42-loser { display: inline-block; width: 59px; height: 72px; vertical-align: middle; margin: 0 12px; }
+  .f42-loser img { display: block; height: 72px; width: auto; filter: grayscale(1); opacity: 0.55; }
+}
+@keyframes f42SlabIn {
+  from { opacity: 0; transform: translateX(-40px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .f42-slab { animation: none !important; } }
+:root[data-motion='reduced'] .f42-slab { animation: none !important; }
+
+/* ---------- Stamp (src/components/Stamp.tsx, spec fight-feel-pages 3.2) ---------- */
+@keyframes f42StampIn {
+  0% { opacity: 0; transform: scale(1.7) rotate(calc(var(--stamp-rot, -6deg) - 8deg)); }
+  36% { opacity: 1; }
+  100% { opacity: 1; transform: scale(1) rotate(var(--stamp-rot, -6deg)); }
+}
+@keyframes f42StampOut {
+  from { opacity: 1; transform: scale(1) rotate(var(--stamp-rot, -6deg)); }
+  to { opacity: 0; transform: scale(1.06) rotate(var(--stamp-rot, -6deg)); }
+}
+@keyframes f42StampOutFlat { from { opacity: 1; } to { opacity: 0; } }
+@keyframes f42StampFlash { 0% { opacity: 0; } 50% { opacity: 0.55; } 100% { opacity: 0; } }
+@keyframes f42StampFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes f42Kick {
+  0% { transform: translate(0, 0); }
+  40% { transform: translate(0, 6px); }
+  75% { transform: translate(0, -3px); }
+  100% { transform: translate(0, 0); }
+}
+.f42-kick { animation: f42Kick 160ms ease-out; }
+.f42-stamp {
+  --stamp-stroke: 4px;
+  display: inline-block;
+  position: relative;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--stamp-colour, #ffd23f);
+  paint-order: stroke fill;
+  -webkit-text-stroke: var(--stamp-stroke) #0a0d18;
+  transform: rotate(var(--stamp-rot, -6deg));
+  animation: f42StampIn 110ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  pointer-events: none;
+}
+.f42-stamp-md { font-size: clamp(28px, 4.4vh, 44px); --stamp-stroke: 4px; }
+.f42-stamp-lg { font-size: clamp(48px, 8vh, 80px); --stamp-stroke: 5px; }
+.f42-stamp-xl { font-size: min(14vh, 12vw, 140px); --stamp-stroke: 6px; }
+.f42-stamp-plate {
+  padding: 0.18em 0.45em;
+  background: rgba(10, 13, 24, 0.92);
+  border: 4px solid var(--stamp-colour, #ffd23f);
+  border-radius: 2px 6px 3px 5px;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+.f42-stamp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #f4f6fb;
+  opacity: 0;
+  animation: f42StampFlash 70ms linear 60ms both;
+}
+.f42-stamp[data-leaving] { animation: f42StampOut 140ms ease-in forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .f42-stamp { animation: f42StampFade 120ms linear both; transform: rotate(var(--stamp-rot, -6deg)); }
+  .f42-stamp::after { animation: none; }
+  .f42-stamp[data-leaving] { animation: f42StampOutFlat 140ms linear forwards; }
+  .f42-kick { animation: none; }
+}
+:root[data-motion='reduced'] .f42-stamp { animation: f42StampFade 120ms linear both; }
+:root[data-motion='reduced'] .f42-stamp::after { animation: none; }
+:root[data-motion='reduced'] .f42-stamp[data-leaving] { animation: f42StampOutFlat 140ms linear forwards; }
+:root[data-motion='reduced'] .f42-kick { animation: none; }
+
+/* ---------- KNOCKOUT band (src/components/FightStamps.tsx) ---------- */
+@keyframes f42BandIn { from { transform: translateX(-100%) skewY(-3deg); } to { transform: translateX(0) skewY(-3deg); } }
+@keyframes f42BandOut { from { transform: translateX(0) skewY(-3deg); } to { transform: translateX(100%) skewY(-3deg); } }
+.f42-band-in { animation: f42BandIn 140ms ease-out both; }
+.f42-band-out { animation: f42BandOut 160ms ease-in forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .f42-band-in { animation: f42StampFade 120ms linear both; transform: skewY(-3deg); }
+  .f42-band-out { animation: f42StampOutFlat 160ms linear forwards; }
+}
+:root[data-motion='reduced'] .f42-band-in { animation: f42StampFade 120ms linear both; transform: skewY(-3deg); }
+:root[data-motion='reduced'] .f42-band-out { animation: f42StampOutFlat 160ms linear forwards; }
+
+/* ---------- VS doors (src/components/VsDoors.tsx, spec fight-feel-pages 4.4) ---------- */
+.f42-door-vs.f42-door-close { animation-duration: var(--vs-close, 220ms); animation-timing-function: cubic-bezier(.7, 0, .9, .4); }
+.f42-door-vs.f42-door-open { animation-duration: 300ms; animation-timing-function: ease-in; }
+@keyframes f42VsPush { from { transform: scale(1); } to { transform: scale(1.04); } }
+.f42-vs-portrait { transform-origin: 50% 100%; animation: f42VsPush 1200ms linear both; }
+.f42-vs-plate { animation: f42HoloIn 0.3s ease-out both; }
+@keyframes f42VsFade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .f42-vs-portrait { animation: none; }
+  .f42-vs-root { animation: f42VsFade 120ms linear both; }
+}
+:root[data-motion='reduced'] .f42-vs-portrait { animation: none; }
+:root[data-motion='reduced'] .f42-vs-root { animation: f42VsFade 120ms linear both; }

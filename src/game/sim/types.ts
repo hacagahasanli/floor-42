@@ -172,6 +172,11 @@ export interface GameState {
    * Absent (off) vs the bot and online.
    */
   assist?: boolean;
+  /**
+   * Offline vs the easy bot only: this fighter cannot take guns or bombs until tick `until` (set when the first
+   * fight starts). Absent online and in 2-player, so those runs are unchanged.
+   */
+  gunGrace?: { fighter: number; ticks: number; until?: number };
   seed: number; // deterministic RNG state (spread, drops)
   dropTimer: number;
   nextId: number;

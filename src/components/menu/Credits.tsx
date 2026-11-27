@@ -40,7 +40,7 @@ export const SidePanel = ({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative flex h-full w-full flex-col border-r border-gold/20 bg-[linear-gradient(180deg,rgba(20,26,43,0.97),rgba(10,13,24,0.98))] shadow-[30px_0_80px_rgba(0,0,0,0.6)] [animation:slideInLeft_0.32s_cubic-bezier(.2,.9,.2,1)] sm:w-[min(600px,100vw)]"
+        className="relative flex h-full w-full flex-col border-r border-gold/20 bg-[linear-gradient(180deg,#141a2b,#0a0d18)] shadow-[30px_0_80px_rgba(0,0,0,0.6)] [animation:slideInLeft_0.32s_cubic-bezier(.2,.9,.2,1)] sm:w-[min(600px,100vw)]"
       >
         <header className="flex flex-col px-5 pb-3 pt-5 sm:px-8 sm:pt-8 [@media(max-height:500px)]:pt-3">
           <h2 className="font-display text-4xl leading-none sm:text-5xl [@media(max-height:500px)]:text-3xl">

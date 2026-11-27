@@ -166,6 +166,9 @@ export const ARENA = {
   dropKinds: ['bomb'] as GunKind[],
 };
 
+/** Offline matches (bot, 2-player, demo) count down faster (R-013 4.5). Opt-in through createGame's `extra`; online keeps RULES.countdownSeconds. */
+export const OFFLINE_COUNTDOWN_SECONDS = 2;
+
 export const RULES = {
   hp: 100,
   kosToWin: 5,

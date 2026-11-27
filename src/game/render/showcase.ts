@@ -37,7 +37,7 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: profile.tier !== 'low', powerPreference: 'high-performance' });
   renderer.setPixelRatio(profile.pixelRatio);
   renderer.shadowMap.enabled = profile.shadows;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoft was removed in r187 (it already fell back to PCF)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.08;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -111,6 +111,21 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
   const tmpV = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();
   const look = new THREE.Vector3();
+  // F-018: on narrow landscape screens the 260 px name panel (12 px from the right edge) covered the fighter.
+  // Slide the view so the fighter's right edge stays 24 px clear of it; 0 on wide screens.
+  const PANEL_CLEAR_PX = 12 + 260 + 24;
+  let viewShift = 0;
+  const edgeV = new THREE.Vector3();
+  const rightEdgePx = (w: number) => {
+    if (!rig) return 0;
+    let max = -Infinity;
+    for (const p of [edgeV.set(SPOT.x + 0.7, SPOT.y + 1, 0), tmpV]) {
+      const q = p === tmpV ? edgeV.copy(tmpV) : p;
+      q.project(camera);
+      max = Math.max(max, ((q.x + 1) / 2) * w);
+    }
+    return max;
+  };
 
   const resize = () => {
     const w = canvas.clientWidth || 1;
@@ -189,6 +204,17 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
     camera.position.set(SPOT.x - (portrait ? 0 : 1.8) + Math.sin(ang) * dist, (portrait ? 2.6 : 2.3) + Math.sin(t * 0.17) * 0.35, Math.cos(ang) * dist);
     look.set(SPOT.x - (portrait ? 0 : 2.4), portrait ? 0.4 : 1.6, 0);
     camera.lookAt(look);
+    const w = canvas.clientWidth || 1;
+    const h = canvas.clientHeight || 1;
+    let target = 0;
+    if (!portrait && !hidden) {
+      camera.clearViewOffset();
+      camera.updateMatrixWorld();
+      target = Math.max(0, rightEdgePx(w) - (w - PANEL_CLEAR_PX));
+    }
+    viewShift += (target - viewShift) * (still ? 1 : 1 - Math.exp(-4 * dt));
+    if (viewShift > 0.5) camera.setViewOffset(w, h, viewShift, 0, w, h);
+    else camera.clearViewOffset();
 
     renderer.render(scene, camera);
     if (!readySent) {

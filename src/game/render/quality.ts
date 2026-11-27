@@ -25,7 +25,9 @@ export const TIER_PROFILE: Record<Tier, { maxPixelRatio: number; shadows: boolea
 export const autoTier = (f: DeviceFacts): Tier => {
   const weak = (f.cores > 0 && f.cores <= 4) || (f.memory > 0 && f.memory <= 3);
   if (f.touch) return weak ? 'low' : 'medium';
-  return f.cores > 0 && f.cores <= 2 ? 'low' : 'high';
+  if (f.cores > 0 && f.cores <= 2) return 'low';
+  // A 4-core laptop is usually integrated graphics: start at medium, the frame-time governor cuts further.
+  return weak ? 'medium' : 'high';
 };
 
 export const resolveTier = (q: Quality, f: DeviceFacts): Tier => (q === 'auto' ? autoTier(f) : q);
