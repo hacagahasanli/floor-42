@@ -48,7 +48,7 @@ describe('timeline: the rival drawn from the authority', () => {
 
   it('adapts the delay to the measured jitter, within MIN_DELAY_MS..250 ms', () => {
     const calm = drive(4000).tl.delay;
-    const rough = drive(4000, (i) => ((i * 7919) % 13) * 6).tl.delay; // 0..72 ms of jitter
+    const rough = drive(4000, (i) => ((i * 7919) % 13) * 8).tl.delay; // 0..96 ms of jitter
     expect(calm).toBeGreaterThanOrEqual(MIN_DELAY_MS);
     expect(rough).toBeGreaterThan(calm + 25);
     expect(drive(4000, (i) => ((i * 7919) % 13) * 40).tl.delay).toBeLessThanOrEqual(MAX_DELAY_MS);
