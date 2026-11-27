@@ -25,12 +25,13 @@ import { CountUp, FirstMatchKeys, KnockoutBand, KoStamp, LateStamp, useKeyStrip 
 import { Stamp } from '~/components/Stamp';
 import { LoserFace, WinnerBar, WinnerSlab } from '~/components/ResultSlab';
 import { Support } from '~/components/SupportLink';
+import { ARENA_COPY, resolveArena } from '~/game/arenaChoice';
 import { botLevelFor, readFinishedMatch, saveFinishedMatch } from '~/game/firstMatch';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
-import { keyLabel } from '~/game/settings';
+import { getSettings, keyLabel } from '~/game/settings';
 import { addToTally, keyCardSeen, markKeyCardSeen, readTally, resetTally, sessionStore } from '~/game/twoPlayer';
 import { navigate, PORTAL } from '~/lib/portal';
 import { getPlatform } from '~/platform';
@@ -369,6 +370,7 @@ export const ArenaGame = ({
   opponent,
   demo = false,
   level: requestedLevel = 'normal',
+  arena: requestedArena,
   online,
   twoPlayer,
 }: {
@@ -376,6 +378,8 @@ export const ArenaGame = ({
   opponent: CharacterId;
   demo?: boolean;
   level?: BotLevel;
+  /** The `arena=` of the URL: which arena an offline match is played in (else the remembered pick, else the default). */
+  arena?: string | null;
   online?: { session: OnlineSession; room: Room };
   /** Local 2-player on one keyboard: `player` is P1's fighter, `opponent` P2's; first to `kosToWin`. */
   twoPlayer?: { kosToWin: number };
@@ -385,6 +389,8 @@ export const ArenaGame = ({
   const [firstMatch] = useState(() => !readFinishedMatch());
   const level = demo || online || tp ? requestedLevel : botLevelFor(requestedLevel, !firstMatch);
   const kosToWin = twoPlayer?.kosToWin;
+  // Fixed for the life of the page: changing the pick in settings mid-match must not rebuild the arena.
+  const [arenaId] = useState(() => resolveArena({ online: !!online, query: requestedArena, saved: getSettings().get().arena }));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<ReturnType<typeof startArena> | null>(null);
   const keyTrapRef = useRef<HTMLInputElement>(null);
@@ -481,6 +487,7 @@ export const ArenaGame = ({
           opponent,
           demo,
           level,
+          arena: arenaId,
           aimMode: isTouchDevice() ? 'auto' : readAim(),
           onHud: setHud,
           onContextLost: () => setGlLost(true),
@@ -506,7 +513,7 @@ export const ArenaGame = ({
       game?.dispose();
       gameRef.current = null;
     };
-  }, [player, opponent, demo, level, online, tp, kosToWin]);
+  }, [player, opponent, demo, level, arenaId, online, tp, kosToWin]);
 
   // Online: the server starts each new round and tells us if the rival leaves.
   useEffect(() => {
@@ -820,8 +827,18 @@ export const ArenaGame = ({
                   data-testid="floor-pill"
                   className={`panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1 transition-opacity duration-200 ${short && hud.phase === 'fight' && !hud.paused && !menuOpen ? 'opacity-0' : 'opacity-100'}`}
                 >
-                  <span className="font-display text-base text-gold">FLOOR 42</span>
-                  <span className="text-[11px] text-cream/70">{copy.hudRoom}</span>
+                  {arenaId === 'office' ? (
+                    <>
+                      <span className="font-display text-base text-gold">FLOOR 42</span>
+                      <span className="text-[11px] text-cream/70">{copy.hudRoom}</span>
+                    </>
+                  ) : (
+                    // The arena's name and card line (arena-2.md section 7) instead of the office's floor sign.
+                    <>
+                      <span className="font-display text-base text-gold">{ARENA_COPY[arenaId].name}</span>
+                      <span className="text-[11px] text-cream/70">{ARENA_COPY[arenaId].line}</span>
+                    </>
+                  )}
                 </span>
               )}
             </div>

@@ -1,4 +1,4 @@
-import { ARENA, baseOf, CHARACTERS, CROUCH, isSolid } from './constants';
+import { arenaOf, baseOf, CHARACTERS, CROUCH, isSolid } from './constants';
 import { bodyHeight, visibleAim } from './step';
 import { EMPTY_INPUT } from './types';
 
@@ -182,7 +182,7 @@ export const createBot = (myId: number, seed = 42, level: BotLevel = 'normal') =
     if (plan.move !== 0 && !last.up) {
       const halfW = CHARACTERS[me.character].width / 2;
       const ahead = me.x + plan.move * (halfW + 0.5);
-      const blocked = ARENA.platforms.some(
+      const blocked = arenaOf(state).platforms.some(
         (p) => isSolid(p) && me.y < p.y && me.y >= baseOf(p) - 0.05 && ahead > p.x0 && ahead < p.x1,
       );
       if (blocked && (me.onGround || (me.airJumps > 0 && me.vy < 1))) out.up = true;

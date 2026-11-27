@@ -31,10 +31,10 @@ const Screen = ({ hash }: { hash: string }) => {
     const player: CharacterId = isCharacterId(p1) ? p1 : 'hotfix';
     if (query.get('mode') === '2p') {
       const p2Pick: CharacterId = isCharacterId(p2) ? p2 : player;
-      return <ArenaGame player={player} opponent={p2Pick} twoPlayer={{ kosToWin: parseLength(query.get('n')) }} />;
+      return <ArenaGame player={player} opponent={p2Pick} twoPlayer={{ kosToWin: parseLength(query.get('n')) }} arena={query.get('arena')} />;
     }
     const opponent: CharacterId = isCharacterId(p2) ? p2 : pickOther(player);
-    return <ArenaGame player={player} opponent={opponent} demo={query.has('demo')} level={level} />;
+    return <ArenaGame player={player} opponent={opponent} demo={query.has('demo')} level={level} arena={query.get('arena')} />;
   }
   // One fighter screen: #/characters opens the main menu on its fighter select.
   if (path === '/characters') return <MainMenu openSelect />;

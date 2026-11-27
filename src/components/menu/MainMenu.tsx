@@ -9,11 +9,12 @@ import { useMenuTelemetry } from '~/components/useTelemetry';
 import { useVsTo, vsTags } from '~/components/VsDoors';
 import { warmDoorPortraits } from '~/components/vsPortraits';
 import { Support } from '~/components/SupportLink';
+import { ARENA_COPY } from '~/game/arenaChoice';
 import { isTouchDevice } from '~/game/input';
 import { deviceFacts, renderProfile } from '~/game/render/quality';
 import { ROSTER } from '~/game/roster';
 import { getSettings, primaryLabel } from '~/game/settings';
-import { CHARACTERS, RULES } from '~/game/sim/constants';
+import { ARENA_IDS, CHARACTERS, RULES } from '~/game/sim/constants';
 import { asset, PORTAL } from '~/lib/portal';
 import { GAME_VERSION, STUDIO_NAME } from '~/lib/studio';
 
@@ -31,6 +32,7 @@ import { useSettings } from './useSettings';
 
 import { readFinishedMatch } from '~/game/firstMatch';
 import type { BotLevel } from '~/game/sim/bot';
+import type { ArenaId } from '~/game/sim/constants';
 import type { CharacterId } from '~/game/sim/types';
 import type { MatchLength } from '~/game/twoPlayer';
 import type { ReactNode } from 'react';
@@ -386,6 +388,9 @@ export const MainMenu = ({
   const [preview, setPreview] = useState<CharacterId>('hotfix');
   const [rival, setRival] = useState<Rival>('random');
   const [level, setLevel] = useState<BotLevel>('normal');
+  // The arena for offline matches is remembered in Settings (the menu backdrop stays the office either way).
+  const arena = useSettings().arena;
+  const setArena = (id: ArenaId) => getSettings().set({ arena: id });
   // The very first match runs against the easy bot (firstMatch.ts): show that, instead of NORMAL, until one is finished.
   const [firstMatch, setFirstMatch] = useState(false);
   useEffect(() => {
@@ -539,7 +544,7 @@ export const MainMenu = ({
     const others = ROSTER.filter((r) => r.id !== as);
     const p2 = rival !== 'random' && rival !== as ? rival : others[Math.floor(Math.random() * others.length)].id;
     const lvl: BotLevel = firstMatch ? 'easy' : level;
-    vs.go(`/arena?p1=${as}&p2=${p2}&bot=${lvl}`, {
+    vs.go(`/arena?p1=${as}&p2=${p2}&bot=${lvl}&arena=${arena}`, {
       p1: as,
       p2,
       tag1: vsTags('1p', lvl)[0],
@@ -640,7 +645,7 @@ export const MainMenu = ({
             setScreen('main');
           }}
           onFight={(p1, p2, n) =>
-            vs.go(`/arena?mode=2p&p1=${p1}&p2=${p2}&n=${n}`, { p1, p2, tag1: vsTags('2p')[0], tag2: vsTags('2p')[1], kosToWin: n })
+            vs.go(`/arena?mode=2p&p1=${p1}&p2=${p2}&n=${n}&arena=${arena}`, { p1, p2, tag1: vsTags('2p')[0], tag2: vsTags('2p')[1], kosToWin: n })
           }
         />
       )}
@@ -791,6 +796,20 @@ export const MainMenu = ({
               />
             </div>
             {firstMatch && <p className="-mt-1 text-xs text-cream/60">First match is on easy</p>}
+            <div data-nav className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-cream/50">
+                Arena
+              </span>
+              <ChoiceRow<ArenaId>
+                label="Arena"
+                value={arena}
+                onChange={setArena}
+                options={ARENA_IDS.map((id) => ({ id, label: ARENA_COPY[id].name }))}
+              />
+              <p className="text-xs text-cream/60" data-testid="arena-line">
+                {ARENA_COPY[arena].line}
+              </p>
+            </div>
             <div className="mt-1 flex items-stretch gap-2">
               <button
                 type="button"

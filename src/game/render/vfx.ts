@@ -185,12 +185,18 @@ export const createVfx = (scene: THREE.Scene) => {
     }
   };
 
+  /** An arena's own dust and chip colours (OFFSITE: sand). Recolours the shared materials in place. */
+  const setColors = (c: Partial<Record<ParticleColor, number>>) => {
+    for (const [k, hex] of Object.entries(c) as [ParticleColor, number][]) mats[k].color.setHex(hex);
+    if (c.dust !== undefined) puffMat.color.setHex(c.dust);
+  };
+
   const setPuffs = (on: boolean) => {
     puffsOn = on;
     if (!on) for (const p of puffs) p.mesh.visible = false;
   };
 
-  return { burst, ring, update, puff, setPuffs };
+  return { burst, ring, update, puff, setPuffs, setColors };
 };
 
 export type Vfx = ReturnType<typeof createVfx>;

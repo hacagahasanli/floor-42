@@ -1,14 +1,15 @@
 import * as THREE from 'three';
 
 import { getSettings } from '../settings';
-import { ARENA, GUNS, menuSpotX } from '../sim/constants';
+import { arenaOf, GUNS, menuSpotX } from '../sim/constants';
 
-import { buildArena } from './arena';
+import { buildArenaFor } from './arenaView';
 import { buildRig, disposeRig, lifeRig, poseSide, setCharacterFx, setRimStrength, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 
 import type { Settings } from '../settings';
+import type { ArenaId } from '../sim/constants';
 import type { CharacterId, GunKind } from '../sim/types';
 import type { GunView } from './guns';
 import type { Rig } from './characters';
@@ -26,10 +27,16 @@ import type { Rig } from './characters';
  * Where the fighter stands: right of centre, so the menu column on the left never covers them, and on open floor
  * between the meeting table and the kitchen counter (at 3.2 they stood inside the end of the table).
  */
-const SPOT = { x: menuSpotX(), y: ARENA.floor };
 const SHOW_GUNS: GunKind[] = ['pistol', 'smg', 'shotgun', 'railgun'];
 
-export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opts: { still?: boolean; onReady?: () => void } = {}) => {
+export const startShowcase = (
+  canvas: HTMLCanvasElement,
+  first: CharacterId,
+  /** `arena`: the menu backdrop is the office (brand: "Floor 42"); the other arenas are only for matches. */
+  opts: { still?: boolean; onReady?: () => void; arena?: ArenaId } = {},
+) => {
+  const A = arenaOf({ arena: opts.arena });
+  const SPOT = { x: menuSpotX(A), y: A.floor };
   const store = getSettings();
   let settings: Settings = store.get();
   let profile = renderProfile(settings, deviceFacts());
@@ -44,7 +51,7 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 400);
-  const arena = buildArena(scene, 0);
+  const arena = buildArenaFor(opts.arena ?? 'office', scene, 0, { tier: profile.tier });
   // Behind the menu the left of the room sits under the menu column: no whiteboard text bleeding through it.
   for (const o of arena.whiteboard) o.visible = false;
 

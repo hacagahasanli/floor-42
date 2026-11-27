@@ -15,7 +15,7 @@ Project tooling, one line: the game was built with agent skills from the owner's
 
 Floor 42 is a side-on, 1v1 office shootout that runs in the browser.
 
-- Two fighters on a 36-unit-wide office (`ARENA.left = -18`, `right = 18`, `ceiling = 13.5`). One world unit is roughly one metre.
+- Two fighters on a 36-unit-wide arena (the office: `ARENA.left = -18`, `right = 18`, `ceiling = 13.5`; OFFSITE has the same bounds, see Arenas in section 6). One world unit is roughly one metre.
 - Every fighter has 100 hp. How many hits a KO takes depends on the gun and the range: the pistol does 50 up close, the Uzi 12, the rocket and the railgun knock you out in one (see `GUNS`).
 - First to 5 KOs wins (`RULES.kosToWin`), or the higher KO count when the 150 s round ends (`RULES.roundSeconds`).
 - Your gun **auto-aims** at the opponent by default; you only move, jump, dash, push and fire. Mouse aim is an option.
@@ -369,6 +369,13 @@ Three.js is a 3D library: you build a **scene** (objects), a **camera**, and cal
 - **Flat-shaded low-poly.** Materials come from one cached factory, `mat()` (`palette.ts:25`), which sets `flatShading: true` so each face has one colour. Colours are in `PALETTE` (`palette.ts:4`), a night office with git-diff accents.
 - **Canvas textures.** Surfaces that need a pattern (sky gradient, skyline facade, floor tiles, the whiteboard with merge-conflict markers, the glass-crack decal) are drawn with the 2D canvas API at startup and wrapped in `THREE.CanvasTexture` (`arena.ts:9-18`). Decor uses a small seeded RNG so it is identical on every load (`arena.ts:21`).
 - Renderer: antialiasing, PCF soft shadows, ACES filmic tone mapping (`game.ts:61-67`). Pixel ratio capped at 2.
+
+### Arenas (R-016, OFFSITE)
+
+- **Arena = data in the state.** `ArenaData` (`constants.ts`) holds bounds, platforms, spawns, gun spawns, drop settings and `menuSpotX`. `ARENAS = { office: ARENA, offsite: OFFSITE }`; `GameState.arena?: ArenaId` is set by `createGame`'s `extra.arena` and **omitted for the office**, so online states, snapshots and every older state keep their shape (no protocol change; `server/` and `net/` pass nothing and get the office). Everything that used the old global reads `arenaOf(state)`: `step.ts`, `bot.ts`, `game.ts`; the menu showcase reads `arenaOf({ arena })` and `menuSpotX(arena)`. `ARENA` stays exported and is the office object (the office tests mutate it).
+- **Which arena.** `arenaChoice.ts`: online = office; else a known `arena=` in the URL (`/arena?...&arena=office|offsite`, portal `#/arena?...`); else `Settings.arena` (the menu's Arena row, remembered); else `DEFAULT_ARENA` (`constants.ts`, one constant, currently `'offsite'`). The menu backdrop is always the office.
+- **OFFSITE** (`docs/collab/CREATIVE/levels/arena-2.md`): collision uses the office's rule styles (`desk` = boulder, `walkway` = plank, `crate`). Render: `render/arenaOffsite.ts` (built from the same platform data; backdrop is one merged vertex-coloured mesh with the cloud-shadow and shimmer terms in its material) and `render/offsiteWind.ts` (the one render-only wind: own seeded RNG, never the sim's). `buildArenaFor` (`arenaView.ts`) maps an id to its builder; `ArenaView` exposes `exposure`, `wall` (`glass`/`rock`), `vfxColors`, `react(event)`, `syncPickups`, `finale`, `lighten`, `setReducedMotion`.
+- **Tests:** `arenas.test.ts` (office golden hashes recorded at a9d0683, data fingerprint, no `arena` field on default/online states), `offsite.test.ts` (A1 data, A6 reachability with the real physics via `sim/reach.ts`), `botOffsite.test.ts` (A7), `offsiteWind.test.ts`, `arenaChoice.test.ts`.
 
 ### Procedural animation
 

@@ -7,6 +7,7 @@ import { ARENA, baseOf, isSolid } from '../sim/constants';
 import { mat, mesh, PALETTE } from './palette';
 
 import type { Platform } from '../sim/constants';
+import type { GameEvent, Pickup } from '../sim/types';
 
 export const canvasTexture = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => {
   const c = document.createElement('canvas');
@@ -641,6 +642,24 @@ export interface ArenaView {
   markers: THREE.Mesh[];
   /** The whiteboard and its frame (the menu hides them: they sit right behind the menu column). */
   whiteboard: THREE.Object3D[];
+  /** Tone-mapping exposure of this arena; a hit flash adds to it (the office 1.05, OFFSITE 0.95). */
+  exposure: number;
+  /** What the side walls are made of: decides the wall-splat effect and sound (glass shards, or rock dust and pebbles). */
+  wall: 'glass' | 'rock';
+  /** Dust / chip colours for the shared vfx pool (OFFSITE: sand). Absent: the office's. */
+  vfxColors?: Partial<Record<'dust' | 'glass', number>>;
+  /** The render-only wind, 0..1 (OFFSITE; for devtools and the ambient-life checks). */
+  wind?: () => number;
+  /** Render-only reactions to the sim's events (OFFSITE ambient life). */
+  react?: (e: GameEvent) => void;
+  /** Bombs on parachutes: called every frame with the pickups. */
+  syncPickups?: (pickups: readonly Pickup[]) => void;
+  /** The final KO: a tumbleweed rolls through behind the winner at `x`. */
+  finale?: (x: number) => void;
+  /** The frame-time governor stepped down: drop the next ambient layer. */
+  lighten?: () => void;
+  /** Reduced motion on or off (OFFSITE: gusts peak lower, no kicks, vultures do not scatter). */
+  setReducedMotion?: (on: boolean) => void;
 }
 
 export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => {
@@ -901,6 +920,8 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   return {
     markers,
     whiteboard,
+    exposure: 1.05,
+    wall: 'glass',
     crack: (side, y) => {
       const candidates = cracks.filter((c) => c.mesh.userData.side === side);
       const c = candidates[nextCrack++ % candidates.length];

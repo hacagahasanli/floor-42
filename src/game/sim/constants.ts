@@ -39,14 +39,42 @@ export const isClosed = (p: Platform) => CLOSED_STYLES.includes(p.style);
 /** Where a solid box stands. */
 export const baseOf = (p: Platform) => p.base ?? 0;
 
+/** The arenas a match can be played in. Online play is always the office; offline picks one (DEFAULT_ARENA or the menu's choice). */
+export type ArenaId = 'office' | 'offsite';
+export const ARENA_IDS: readonly ArenaId[] = ['offsite', 'office'];
+/** The arena offline matches (bot, 2-player, demo) use unless the player picked another. One value to swap back (arena-2.md section 8). */
+export const DEFAULT_ARENA: ArenaId = 'offsite';
+
+export interface GunSpawn {
+  spots: { x: number; y: number }[];
+  kinds: GunKind[];
+  respawn?: number;
+}
+
+/** Everything the sim, the bot and the renderers need to know about one arena. */
+export interface ArenaData {
+  id: ArenaId;
+  left: number;
+  right: number;
+  floor: number;
+  ceiling: number;
+  platforms: Platform[];
+  /** Respawn points on every level. Entries 0 and 1 are the match start pair. */
+  spawns: { x: number; y: number }[];
+  gunSpawns: GunSpawn[];
+  dropEvery: number;
+  dropSlots: number;
+  dropKinds: GunKind[];
+  /** Where the menu backdrop's fighter stands: open floor with headroom, clear of every piece. */
+  menuSpotX: number;
+}
+
 /**
  * Where the menu backdrop's fighter stands: on open floor 2.2 m past the end of the meeting table, so neither
- * their body nor the turn of their shoulders ever reaches into the furniture.
+ * their body nor the turn of their shoulders ever reaches into the furniture. Per-arena data now (the office's
+ * value is its table's end + 2.2).
  */
-export const menuSpotX = () => {
-  const table = ARENA.platforms.find((p) => p.style === 'table')!;
-  return table.x1 + 2.2;
-};
+export const menuSpotX = (arena: ArenaData = ARENA) => arena.menuSpotX;
 
 /**
  * Floor 42, open-plan. The walkways, shelves and cabinets are one-way platforms: jump up through them,
@@ -71,7 +99,8 @@ export const GUN_TABLE: GunKind[] = [
 /** The top floor only ever offers a power weapon: worth the climb, six shots, then it's gone. */
 export const POWER_TABLE: GunKind[] = ['railgun', 'railgun', 'launcher', 'launcher', 'launcher'];
 
-export const ARENA = {
+export const ARENA: ArenaData = {
+  id: 'office',
   left: -18,
   right: 18,
   floor: 0,
@@ -159,12 +188,68 @@ export const ARENA = {
       kinds: POWER_TABLE,
       respawn: 15,
     },
-  ] as { spots: { x: number; y: number }[]; kinds: GunKind[]; respawn?: number }[],
+  ] as GunSpawn[],
   /** Bombs fall from the ceiling vents now and then. */
   dropEvery: 18,
   dropSlots: 2,
   dropKinds: ['bomb'] as GunKind[],
+  menuSpotX: 5.2,
 };
+
+/**
+ * Arena 2, OFFSITE: a bright desert canyon (docs/collab/CREATIVE/levels/arena-2.md sections 4.1, 4.3, 4.4). Same
+ * bounds as the office, 10 pieces instead of 23, symmetric about x = 0. The collision styles are the office's rules:
+ * 'desk' is a solid boulder from the floor, 'walkway' a one-way plank, 'crate' a closed box on a plank. The renderer
+ * draws them as rock, plank and crate (arenaOffsite.ts). The cliffs at +-18 are the same walls as the office's glass
+ * (clamp, wall-kick, wall splat): only the look and the sound differ.
+ */
+export const OFFSITE: ArenaData = {
+  id: 'offsite',
+  left: -18,
+  right: 18,
+  floor: 0,
+  ceiling: 13.5,
+  platforms: [
+    { x0: -14.6, x1: -12.2, y: 1.4, style: 'desk' }, // boulder L
+    { x0: 12.2, x1: 14.6, y: 1.4, style: 'desk' }, // boulder R
+    { x0: -11.4, x1: -3.4, y: 4.0, style: 'walkway' }, // boardwalk L
+    { x0: 3.4, x1: 11.4, y: 4.0, style: 'walkway' }, // boardwalk R
+    { x0: -4.5, x1: -3.4, y: 5.0, base: 4.0, style: 'crate' }, // supply crate L
+    { x0: 3.4, x1: 4.5, y: 5.0, base: 4.0, style: 'crate' }, // supply crate R
+    { x0: -2.4, x1: 2.4, y: 7.0, style: 'walkway' }, // tower deck
+    { x0: -17.9, x1: -10.6, y: 7.8, style: 'walkway' }, // lookout L
+    { x0: 10.6, x1: 17.9, y: 7.8, style: 'walkway' }, // lookout R
+    { x0: -3.6, x1: 3.6, y: 10.4, style: 'walkway' }, // tower roof
+  ] as Platform[],
+  spawns: [
+    { x: -13.4, y: 1.4 }, // S0 boulder L (match start)
+    { x: 13.4, y: 1.4 }, // S1 boulder R (match start), 26.8 m apart
+    { x: -7.5, y: 4.0 }, // S2 boardwalk L
+    { x: 7.5, y: 4.0 }, // S3 boardwalk R
+    { x: 0, y: 7.0 }, // S4 tower deck
+    { x: -15.5, y: 7.8 }, // S5 lookout L
+    { x: 15.5, y: 7.8 }, // S6 lookout R
+  ],
+  gunSpawns: [
+    { spots: [{ x: 0, y: 0 }, { x: -9, y: 0 }, { x: 9, y: 0 }], kinds: GUN_TABLE }, // G0 floor
+    { spots: [{ x: -7.5, y: 4.0 }, { x: 7.5, y: 4.0 }, { x: 0, y: 7.0 }], kinds: GUN_TABLE }, // G1 mid
+    { spots: [{ x: -13.4, y: 1.4 }, { x: 13.4, y: 1.4 }], kinds: GUN_TABLE }, // G2 second floor gun, on the boulders
+    { spots: [{ x: -10, y: 4.0 }, { x: 10, y: 4.0 }], kinds: GUN_TABLE }, // G3 second mid gun, outer boardwalk
+    // The power weapons stay last (tests and the HUD count on it): lookouts and the roof.
+    { spots: [{ x: -16, y: 7.8 }, { x: 16, y: 7.8 }, { x: 0, y: 10.4 }], kinds: POWER_TABLE, respawn: 15 }, // G4
+  ],
+  dropEvery: 18,
+  dropSlots: 2,
+  dropKinds: ['bomb'],
+  menuSpotX: 5.2,
+};
+
+export const ARENAS: Record<ArenaId, ArenaData> = { office: ARENA, offsite: OFFSITE };
+
+/** The arena a match is played in. `arena` is absent on the state for the office (online, old snapshots). */
+export const arenaOf = (s: { arena?: ArenaId }): ArenaData => ARENAS[s.arena ?? 'office'] ?? ARENA;
+
+export const isArenaId = (v: unknown): v is ArenaId => v === 'office' || v === 'offsite';
 
 /** Offline matches (bot, 2-player, demo) count down faster (R-013 4.5). Opt-in through createGame's `extra`; online keeps RULES.countdownSeconds. */
 export const OFFLINE_COUNTDOWN_SECONDS = 2;

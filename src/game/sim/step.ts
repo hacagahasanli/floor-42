@@ -1,5 +1,6 @@
 import {
   ARENA,
+  arenaOf,
   ASSIST,
   BOMB,
   CHARACTERS,
@@ -18,6 +19,7 @@ import {
 } from './constants';
 import { EMPTY_INPUT } from './types';
 
+import type { ArenaData, ArenaId } from './constants';
 import type {
   CharacterId,
   Fighter,
@@ -35,8 +37,8 @@ const approach = (v: number, target: number, delta: number) =>
 const sign = (v: number): 1 | -1 => (v < 0 ? -1 : 1);
 
 /** On top of a desk, the table or the counter: Down does nothing there (there is no room under it). */
-const standingOnSolid = (f: Fighter, halfW: number) =>
-  ARENA.platforms.some((p) => isSolid(p) && Math.abs(f.y - p.y) < 0.001 && f.x + halfW * 0.5 >= p.x0 && f.x - halfW * 0.5 <= p.x1);
+const standingOnSolid = (A: ArenaData, f: Fighter, halfW: number) =>
+  A.platforms.some((p) => isSolid(p) && Math.abs(f.y - p.y) < 0.001 && f.x + halfW * 0.5 >= p.x0 && f.x - halfW * 0.5 <= p.x1);
 
 /** Deterministic PRNG kept in the state, so a server and a replay agree. */
 const nextRandom = (state: GameState) => {
@@ -63,8 +65,8 @@ export const muzzle = (f: Fighter) => {
   return { x: f.x + Math.cos(f.aim) * 0.7, y: f.y + bodyHeight(f) * 0.62 + Math.sin(f.aim) * 0.7 };
 };
 
-export const createFighter = (id: number, character: CharacterId): Fighter => {
-  const spawn = ARENA.spawns[id % ARENA.spawns.length];
+export const createFighter = (id: number, character: CharacterId, A: ArenaData = ARENA): Fighter => {
+  const spawn = A.spawns[id % A.spawns.length];
   const c = CHARACTERS[character];
   return {
     id,
@@ -111,11 +113,12 @@ export const createGame = (
   seed = 1,
   net = false,
   local?: { kosToWin: number; assist: boolean },
-  extra?: { gunGrace?: { fighter: number; ticks: number }; countdownSeconds?: number },
+  extra?: { gunGrace?: { fighter: number; ticks: number }; countdownSeconds?: number; arena?: ArenaId },
 ): GameState => {
-  const fighters = characters.map((c, i) => createFighter(i, c));
+  const A = arenaOf({ arena: extra?.arena });
+  const fighters = characters.map((c, i) => createFighter(i, c, A));
   fighters.forEach((f) => Object.assign(f, { x: 0, y: 0 }));
-  const pickups: Pickup[] = ARENA.gunSpawns.map((_, i) => ({
+  const pickups: Pickup[] = A.gunSpawns.map((_, i) => ({
     id: i,
     kind: 'smg',
     x: 0,
@@ -125,12 +128,12 @@ export const createGame = (
     respawn: 0,
     spawn: i,
   }));
-  for (let i = 0; i < ARENA.dropSlots; i++) {
+  for (let i = 0; i < A.dropSlots; i++) {
     pickups.push({
       id: pickups.length,
       kind: 'smg',
       x: 0,
-      y: ARENA.ceiling,
+      y: A.ceiling,
       vy: 0,
       active: false,
       respawn: Infinity,
@@ -148,8 +151,10 @@ export const createGame = (
     ...(net ? { net: true } : {}),
     ...(local ? { kosToWin: local.kosToWin, assist: local.assist } : {}),
     ...(extra?.gunGrace ? { gunGrace: { ...extra.gunGrace } } : {}),
+    // The office is the absence of the field, so online states and snapshots stay as they were.
+    ...(A.id !== 'office' ? { arena: A.id } : {}),
     seed,
-    dropTimer: ARENA.dropEvery,
+    dropTimer: A.dropEvery,
     nextId: 1,
     fighters,
     pickups,
@@ -179,7 +184,7 @@ const placeAtSpawn = (state: GameState, f: Fighter) => {
   const others = state.fighters.filter(
     (o) => o !== f && o.respawn <= 0 && (o.x !== 0 || o.y !== 0),
   );
-  const scored = ARENA.spawns.map((p) => ({
+  const scored = arenaOf(state).spawns.map((p) => ({
     p,
     d: others.length ? Math.min(...others.map((o) => Math.hypot(o.x - p.x, o.y - p.y))) : 99,
   }));
@@ -194,7 +199,7 @@ const placeAtSpawn = (state: GameState, f: Fighter) => {
 
 /** A floor's gun appears at a random spot on that floor, as a random kind. */
 const placeGun = (state: GameState, p: Pickup) => {
-  const def = ARENA.gunSpawns[p.spawn!];
+  const def = arenaOf(state).gunSpawns[p.spawn!];
   const spot = def.spots[Math.floor(nextRandom(state) * def.spots.length)];
   Object.assign(p, {
     kind: def.kinds[Math.floor(nextRandom(state) * def.kinds.length)],
@@ -399,7 +404,7 @@ const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
   if (p.kind === 'bomb') f.bombs = 1;
   else f.weapon = newWeapon(p.kind);
   p.active = false;
-  p.respawn = p.spawn !== null ? (ARENA.gunSpawns[p.spawn].respawn ?? RULES.gunRespawn) : Infinity;
+  p.respawn = p.spawn !== null ? (arenaOf(state).gunSpawns[p.spawn].respawn ?? RULES.gunRespawn) : Infinity;
   state.events.push({ type: 'pickup', fighter: f.id, gun: p.kind });
 };
 
@@ -527,6 +532,7 @@ const updatePush = (state: GameState, f: Fighter) => {
 };
 
 const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
+  const A = arenaOf(state);
   const c = CHARACTERS[f.character];
   const halfW = c.width / 2;
   const pressed = (k: keyof InputState) => input[k] && !f.prev[k];
@@ -566,7 +572,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   // Crouch: held on the ground. Down crouches where it cannot drop you (the floor, a desk, the table, the
   // counter, a box); the Crouch key also works on walkways. Not in the air (Down is the fast fall there) and
   // not during a dash; a jump or a dash stands you up.
-  const solidGround = f.y <= ARENA.floor + 0.01 || standingOnSolid(f, halfW);
+  const solidGround = f.y <= A.floor + 0.01 || standingOnSolid(A, f, halfW);
   const wantCrouch = canAct && f.onGround && f.dashTime <= 0 && (input.crouch || (input.down && solidGround));
   f.crouch = approach(f.crouch ?? 0, wantCrouch ? 1 : 0, DT / CROUCH.time);
   if (Math.abs(f.crouch - Math.round(f.crouch)) < 1e-9) f.crouch = Math.round(f.crouch); // no float dust at the ends
@@ -602,7 +608,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     }
   }
 
-  if (canAct && pressed('down') && f.onGround && f.y > ARENA.floor + 0.01 && !standingOnSolid(f, halfW)) {
+  if (canAct && pressed('down') && f.onGround && f.y > A.floor + 0.01 && !standingOnSolid(A, f, halfW)) {
     f.dropTime = PHYS.dropTime;
     f.onGround = false;
   }
@@ -662,9 +668,9 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   f.y += f.vy * DT;
 
   // A box standing on a walkway or a balcony has an underside: a jump from below stops under it.
-  for (const p of ARENA.platforms) {
+  for (const p of A.platforms) {
     const base = baseOf(p);
-    if (!isSolid(p) || base <= ARENA.floor) continue;
+    if (!isSolid(p) || base <= A.floor) continue;
     if (prevY + c.height > base + 0.001 || f.y + c.height <= base) continue;
     if (f.x + halfW * 0.5 <= p.x0 || f.x - halfW * 0.5 >= p.x1) continue;
     f.y = base - c.height;
@@ -673,7 +679,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
 
   // Desks, the table, the counter and boxes are solid: below their top you stop at their side.
   // Only if you were already below the top last tick; coming down onto them is a landing (below).
-  for (const p of ARENA.platforms) {
+  for (const p of A.platforms) {
     if (!isSolid(p) || prevY >= p.y - 0.001 || f.y >= p.y - 0.001) continue;
     if (f.y + c.height <= baseOf(p) + 0.001) continue;
     if (f.x + halfW <= p.x0 || f.x - halfW >= p.x1) continue;
@@ -687,7 +693,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   // Glass walls.
   let touching: -1 | 0 | 1 = 0;
   for (const side of [-1, 1] as const) {
-    const limit = side < 0 ? ARENA.left + halfW : ARENA.right - halfW;
+    const limit = side < 0 ? A.left + halfW : A.right - halfW;
     const past = side < 0 ? f.x <= limit + 0.02 : f.x >= limit - 0.02;
     if (!past) continue;
     touching = side;
@@ -707,8 +713,8 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
     }
   }
 
-  if (f.y + c.height > ARENA.ceiling) {
-    f.y = ARENA.ceiling - c.height;
+  if (f.y + c.height > A.ceiling) {
+    f.y = A.ceiling - c.height;
     f.vy = Math.min(f.vy, 0);
   }
 
@@ -718,9 +724,9 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   // or the furniture under you.
   if (f.y <= prevY) {
     let landY: number | null = null;
-    if (f.y <= ARENA.floor) landY = ARENA.floor;
+    if (f.y <= A.floor) landY = A.floor;
     else if (f.dropTime <= 0) {
-      for (const p of ARENA.platforms) {
+      for (const p of A.platforms) {
         if (f.x + halfW * 0.5 < p.x0 || f.x - halfW * 0.5 > p.x1) continue;
         if (prevY >= p.y - 0.001 && f.y <= p.y) {
           landY = p.y;
@@ -752,7 +758,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
  * crossing them, however flat, so whoever stands on one is covered from below. Rails pierce bodies, one-way
  * floors and the closed boxes, but stop at desks, the table and the counter.
  */
-const furnitureCut = (px: number, py: number, ddx: number, ddy: number, kind: Projectile['kind']) => {
+const furnitureCut = (A: ArenaData, px: number, py: number, ddx: number, ddy: number, kind: Projectile['kind']) => {
   let tEnd = Infinity;
   const cut = (t: number) => {
     if (t >= 0 && t < tEnd) tEnd = t;
@@ -761,14 +767,14 @@ const furnitureCut = (px: number, py: number, ddx: number, ddy: number, kind: Pr
   const ey = py + ddy;
   if (kind !== 'rail' && ddy !== 0) {
     const steep = Math.abs(ddy) > Math.abs(ddx) * 0.15;
-    for (const pl of ARENA.platforms) {
+    for (const pl of A.platforms) {
       if ((py - pl.y) * (ey - pl.y) > 0 || (!steep && isSolid(pl))) continue;
       const t = (pl.y - py) / ddy;
       const cx = px + ddx * t;
       if (cx >= pl.x0 && cx <= pl.x1) cut(t);
     }
   }
-  for (const pl of ARENA.platforms) {
+  for (const pl of A.platforms) {
     // Rails still go through the closed boxes up on the walkways and balconies (they are leg cover against guns).
     if (!isSolid(pl) || (kind === 'rail' && isClosed(pl))) continue;
     const base = baseOf(pl);
@@ -788,8 +794,8 @@ const furnitureCut = (px: number, py: number, ddx: number, ddy: number, kind: Pr
 };
 
 /** True when a round fired from (ax, ay) would reach (bx, by) without furniture stopping it. */
-export const clearShot = (ax: number, ay: number, bx: number, by: number, kind: Projectile['kind'] = 'bullet') =>
-  furnitureCut(ax, ay, bx - ax, by - ay, kind) > 1;
+export const clearShot = (A: ArenaData, ax: number, ay: number, bx: number, by: number, kind: Projectile['kind'] = 'bullet') =>
+  furnitureCut(A, ax, ay, bx - ax, by - ay, kind) > 1;
 
 /** Where a fighter's shots come from when aiming at (tx, ty): the muzzle for that aim. */
 const muzzleToward = (f: Fighter, tx: number, ty: number) => {
@@ -814,12 +820,13 @@ export const visibleAim = (state: GameState, id: number): { x: number; y: number
     const tx = foe.x;
     const ty = foe.y + h * k;
     const m = muzzleToward(me, tx, ty);
-    if (clearShot(m.x, m.y, tx, ty, kind)) return { x: tx, y: ty };
+    if (clearShot(arenaOf(state), m.x, m.y, tx, ty, kind)) return { x: tx, y: ty };
   }
   return null;
 };
 
 const updateProjectiles = (state: GameState) => {
+  const A = arenaOf(state);
   state.projectiles = state.projectiles.filter((p) => {
     p.life -= DT;
     const px = p.x;
@@ -849,11 +856,11 @@ const updateProjectiles = (state: GameState) => {
     };
     const ddx = p.x - px;
     const ddy = p.y - py;
-    if (p.x < ARENA.left) cut((ARENA.left - px) / ddx);
-    if (p.x > ARENA.right) cut((ARENA.right - px) / ddx);
-    if (p.y < ARENA.floor) cut((ARENA.floor - py) / ddy);
-    if (p.y > ARENA.ceiling) cut((ARENA.ceiling - py) / ddy);
-    cut(furnitureCut(px, py, ddx, ddy, p.kind));
+    if (p.x < A.left) cut((A.left - px) / ddx);
+    if (p.x > A.right) cut((A.right - px) / ddx);
+    if (p.y < A.floor) cut((A.floor - py) / ddy);
+    if (p.y > A.ceiling) cut((A.ceiling - py) / ddy);
+    cut(furnitureCut(A, px, py, ddx, ddy, p.kind));
     // A stopped shot ends just short of what stopped it: a body standing on a walkway starts
     // exactly at its top, and a shot that stops under the walkway must not touch their feet.
     const tHit = blocked ? Math.max(0, tEnd - 0.01 / (Math.hypot(ddx, ddy) || 1)) : tEnd;
@@ -937,6 +944,7 @@ const segmentHitsBox = (
 };
 
 const updatePickups = (state: GameState) => {
+  const A = arenaOf(state);
   for (const p of state.pickups) {
     if (!p.active) {
       if (p.spawn === null) continue;
@@ -949,11 +957,11 @@ const updatePickups = (state: GameState) => {
     const prevY = p.y;
     p.vy = Math.max(p.vy - PHYS.gravity * 0.5 * DT, -12);
     p.y += p.vy * DT;
-    if (p.y <= ARENA.floor) {
-      p.y = ARENA.floor;
+    if (p.y <= A.floor) {
+      p.y = A.floor;
       p.vy = 0;
     }
-    for (const pl of ARENA.platforms) {
+    for (const pl of A.platforms) {
       if (p.x >= pl.x0 && p.x <= pl.x1 && prevY >= pl.y && p.y <= pl.y) {
         p.y = pl.y;
         p.vy = 0;
@@ -964,12 +972,12 @@ const updatePickups = (state: GameState) => {
   if (state.phase !== 'fight') return;
   state.dropTimer -= DT;
   if (state.dropTimer > 0) return;
-  state.dropTimer = ARENA.dropEvery;
+  state.dropTimer = A.dropEvery;
   const slot = state.pickups.find((p) => p.spawn === null && !p.active);
   if (!slot) return;
-  const kind = ARENA.dropKinds[Math.floor(nextRandom(state) * ARENA.dropKinds.length)];
-  const x = ARENA.left + 2 + nextRandom(state) * (ARENA.right - ARENA.left - 4);
-  Object.assign(slot, { kind, x, y: ARENA.ceiling - 0.4, vy: 0, active: true });
+  const kind = A.dropKinds[Math.floor(nextRandom(state) * A.dropKinds.length)];
+  const x = A.left + 2 + nextRandom(state) * (A.right - A.left - 4);
+  Object.assign(slot, { kind, x, y: A.ceiling - 0.4, vy: 0, active: true });
   state.events.push({ type: 'drop', x });
 };
 

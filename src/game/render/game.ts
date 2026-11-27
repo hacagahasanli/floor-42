@@ -10,10 +10,10 @@ import { getSettings, primaryLabel } from '../settings';
 
 import type { Settings } from '../settings';
 import { createBot, EASY_GUN_GRACE_TICKS } from '../sim/bot';
-import { ARENA, ASSIST, CHARACTERS, DT, GUNS, OFFLINE_COUNTDOWN_SECONDS, PUSH, PHYS, RULES } from '../sim/constants';
+import { arenaOf, ASSIST, CHARACTERS, DEFAULT_ARENA, DT, GUNS, OFFLINE_COUNTDOWN_SECONDS, PUSH, PHYS, RULES } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step, visibleAim } from '../sim/step';
 
-import { buildArena } from './arena';
+import { buildArenaFor } from './arenaView';
 import { buildRig, cancelWinner, CHARACTER_FX, disposeRig, lifeRig, poseDeath, poseSide, setCharacterFx, setRimStrength, startFlinch, startLanding, startShot, startTakeoff, startWinner, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
@@ -25,6 +25,7 @@ import type { Rig } from './characters';
 import type { NetStatus, OnlineSession, Presentation } from '../net/client';
 import type { StartMessage } from '../net/protocol';
 import type { GunView } from './guns';
+import type { ArenaId } from '../sim/constants';
 import type { BotLevel } from '../sim/bot';
 import type { CharacterId, EndReason, GameEvent, GameState, GunKind, Phase } from '../sim/types';
 
@@ -83,6 +84,8 @@ export interface ArenaOptions {
   /** Both sides are bots: attract mode, and handy for recording. */
   demo?: boolean;
   level?: BotLevel;
+  /** Which arena offline matches are played in (default DEFAULT_ARENA). Online is always the office. */
+  arena?: ArenaId;
   aimMode?: AimMode;
   /** Online match: the server owns the game, this client predicts. */
   online?: OnlineSession;
@@ -120,8 +123,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
+  // Online play is always the office (the protocol carries no arena); offline uses the pick or the default.
+  const arenaId: ArenaId = opts.online ? 'office' : (opts.arena ?? DEFAULT_ARENA);
+  const A = arenaOf({ arena: arenaId });
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 400);
-  camera.position.set(0, ARENA.ceiling / 2, 40);
+  camera.position.set(0, A.ceiling / 2, 40);
 
   const level = opts.level ?? 'normal';
   const online = opts.online;
@@ -135,7 +141,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       false,
       tp ? { kosToWin: tp.kosToWin, assist: true } : undefined,
       // Offline only (never `online`): the shorter countdown is opt-in, so the shared sim default stays 3.6 s.
-      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS },
+      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS, arena: arenaId },
     );
   let hold = !!opts.hold;
   let padsSeen = 0;
@@ -151,8 +157,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const sfx = createSfx({ volumes: settings.audio, muted: store.effectiveMute() });
   let muted = store.effectiveMute();
 
-  const arena = buildArena(scene, state.pickups.length);
+  const arena = buildArenaFor(arenaId, scene, state.pickups.length, { tier: profile0.tier, seed: state.seed, reducedMotion: settings.reducedMotion });
   const vfx = createVfx(scene);
+  if (arena.vfxColors) vfx.setColors(arena.vfxColors);
 
   /**
    * A soft fill light that rides in front of each fighter: they stand out from the room.
@@ -596,8 +603,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     // Out to the room's edge.
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
-    const tx = dx > 0 ? (ARENA.right - x) / dx : dx < 0 ? (ARENA.left - x) / dx : Infinity;
-    const ty = dy > 0 ? (ARENA.ceiling - y) / dy : dy < 0 ? (ARENA.floor - y) / dy : Infinity;
+    const tx = dx > 0 ? (A.right - x) / dx : dx < 0 ? (A.left - x) / dx : Infinity;
+    const ty = dy > 0 ? (A.ceiling - y) / dy : dy < 0 ? (A.floor - y) / dy : Infinity;
     const len = Math.min(tx, ty);
     const b = beams[nextBeam++ % beams.length];
     b.life = 0.3;
@@ -609,6 +616,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   };
 
   const handleEvent = (e: GameEvent) => {
+    arena.react?.(e);
     switch (e.type) {
       case 'shot':
         if (rigs[e.fighter]) startShot(rigs[e.fighter], e.gun);
@@ -650,11 +658,20 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         sfx.deflect(e.x);
         break;
       case 'wallSplat': {
-        const x = e.side < 0 ? ARENA.left : ARENA.right;
+        const x = e.side < 0 ? A.left : A.right;
         arena.crack(e.side, e.y);
-        vfx.burst(x - e.side * 0.2, e.y, 30, 'glass', { speed: 7, dirX: -e.side, life: 0.8, size: 1.3 });
-        feedback('heavy');
-        sfx.glass(x);
+        if (arena.wall === 'rock') {
+          // A sandstone cliff: dust (8-12 puffs, plus chips on the low tier, which has no puffs), pebbles from crack(), no glass.
+          vfx.burst(x - e.side * 0.2, e.y, 10, 'dust', { speed: 4, dirX: -e.side, up: 1, gravity: 5, life: 0.5, size: 1.6 });
+          vfx.puff(x - e.side * 0.6, e.y - 0.6, -e.side, 10, 1.8, 0.6);
+          feedback('heavy');
+          sfx.land(x);
+          sfx.impact(x);
+        } else {
+          vfx.burst(x - e.side * 0.2, e.y, 30, 'glass', { speed: 7, dirX: -e.side, life: 0.8, size: 1.3 });
+          feedback('heavy');
+          sfx.glass(x);
+        }
         break;
       }
       case 'ko':
@@ -662,6 +679,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         downY[e.fighter] = e.y - 1;
         vfx.burst(e.x, e.y, 40, 'ko', { speed: 9, up: 4, life: 0.9, size: 1.4 });
         vfx.ring(e.x, e.y, 0xf0c24a, { grow: 14, life: 0.5 });
+        // OFFSITE: a dust cloud where the fighter lies (14 puffs, size 1.6, spread 0.8; none on the low tier, as today).
+        if (arena.wall === 'rock') vfx.puff(e.x, downY[e.fighter], 0, 14, 1.6, 0.8);
         feedback('huge');
         lastKo = { fighter: e.fighter, at: time };
         if (!online && !tp) {
@@ -698,7 +717,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         sfx.empty();
         break;
       case 'drop':
-        vfx.burst(e.x, ARENA.ceiling - 0.3, 12, 'dust', { speed: 2, up: -1, gravity: 3, life: 0.6, size: 1.5 });
+        // The office's bombs fall out of a ceiling vent; OFFSITE has open sky (the parachute appears by itself).
+        if (arena.wall === 'glass') vfx.burst(e.x, A.ceiling - 0.3, 12, 'dust', { speed: 2, up: -1, gravity: 3, life: 0.6, size: 1.5 });
         sfx.drop(e.x);
         break;
       case 'rail':
@@ -713,6 +733,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const camBase = camera.position.clone();
   const camGoal = { x: 0, y: 0, z: 0 };
   let followT = 0;
+  /** Dev handle only (never set in production): hold the wide establishing view, for captures. */
+  let devWide = false;
   // Knockout beat (offline only): where and when the last KO happened.
   let koAt = -99;
   let koX = 0;
@@ -723,19 +745,19 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     const h = canvas.clientHeight || 1;
     const fw = Math.max(0.3, (w - insets.left - insets.right) / w);
     const fh = Math.max(0.3, (h - insets.top - insets.bottom) / h);
-    const dist = Math.max((ARENA.right + 1.5) / (tanHalf * camera.aspect * fw), (ARENA.ceiling / 2 + 2) / (tanHalf * fh));
+    const dist = Math.max((A.right + 1.5) / (tanHalf * camera.aspect * fw), (A.ceiling / 2 + 2) / (tanHalf * fh));
     const ox = (insets.right - insets.left) / 2;
     const oy = (insets.bottom - insets.top) / 2;
     if (ox || oy) camera.setViewOffset(w, h, ox, oy, w, h);
     else if (camera.view) camera.clearViewOffset();
     let tx = 0;
-    let ty = ARENA.ceiling / 2 + 0.6;
+    let ty = A.ceiling / 2 + 0.6;
     let tz = dist;
     let kxy = 3;
     let kz = 3;
     // Phones always follow. Desktop follows too, except in local 2-player (both need the whole floor)
     // and on the menu backdrop. Desktop holds the wide establishing view through the countdown, then leans in.
-    if (!tp && (touch || !opts.backdrop)) {
+    if (!tp && !devWide && (touch || !opts.backdrop)) {
       const rig = touch ? PHONE_CAM : DESKTOP_CAM;
       if (!touch) followT = nextFollowTime(followT, state.phase === 'countdown', dt);
       const w = touch ? 1 : followWeight(followT);
@@ -743,7 +765,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       followTarget(
         {
           ax: a.x, ay: a.y, bx: b.x, by: b.y, tanHalf, aspect: camera.aspect, fw, fh, dist,
-          floor: ARENA.floor, ceiling: ARENA.ceiling, halfWidth: ARENA.right + 1.5, rig,
+          floor: A.floor, ceiling: A.ceiling, halfWidth: A.right + 1.5, rig,
           beat: online ? 0 : koBeatWeight(time - koAt), beatX: koX, beatY: koY,
         },
         camGoal,
@@ -812,7 +834,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const downY: number[] = [];
   /** The top of whatever is under x at or below y: a platform or the floor. */
   const groundBelow = (x: number, y: number) =>
-    ARENA.platforms.reduce((best, p) => (x >= p.x0 && x <= p.x1 && p.y <= y + 0.01 && p.y > best ? p.y : best), ARENA.floor);
+    A.platforms.reduce((best, p) => (x >= p.x0 && x <= p.x1 && p.y <= y + 0.01 && p.y > best ? p.y : best), A.floor);
   const fwd = new THREE.Vector3();
   /**
    * Online clients draw two clocks: your own fighter and shots from your prediction (instant), the
@@ -994,6 +1016,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       marker.position.set(p.x, p.y + 0.012, 0.25);
     });
 
+    arena.syncPickups?.(state.pickups);
+
     // The keycap beside the gun you're standing on (with only a pistol it's picked up automatically).
     // Phones have the Swap button instead.
     const self = state.fighters[me];
@@ -1092,7 +1116,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     arena.update(dt, time);
     vfx.update(dt);
     updateCamera(dt);
-    renderer.toneMappingExposure = 1.05 + flash * 3;
+    renderer.toneMappingExposure = arena.exposure + flash * 3;
     flash = Math.max(0, flash - dt);
     renderer.render(scene, camera);
   };
@@ -1200,6 +1224,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     CHARACTER_FX.lite = true;
     vfx.setPuffs(false);
     setRimStrength(0);
+    arena.lighten?.();
   };
   let shadowsOffPending = false;
   // three.js keeps the scene through a context loss and rebuilds on restore; if the GPU never gives the
@@ -1229,6 +1254,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     if (finalePending && state.hitstop === 0) {
       finalePending = false;
       finaleT0 = time;
+      // OFFSITE's joke: a tumbleweed crosses behind the winner.
+      const w = state.winner !== null && state.winner >= 0 ? state.fighters[state.winner] : null;
+      arena.finale?.(w ? w.x : koX);
     }
     acc += dt * finaleScale(finaleSince());
     // The 2-player key card holds the clock: the office renders, nothing moves.
@@ -1329,6 +1357,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     setShadows(p.shadows);
     governor.reset();
     motion = motionOf(s);
+    arena.setReducedMotion?.(s.reducedMotion);
     muted = store.effectiveMute();
     sfx.apply(s.audio, muted);
     if (prev.bindings !== s.bindings) {
@@ -1345,7 +1374,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   raf = requestAnimationFrame(frame);
   // Dev-only handle for automated checks.
   if (process.env.NODE_ENV !== 'production') {
-    (window as unknown as { __mc?: unknown }).__mc = { cam: () => ({ z: camera.position.z, fov: camera.fov }), state: () => state, me, renderer, view: () => smooth, rigs, net: () => online && { ...online.status, tl: (online as unknown as { timeline?: unknown }).timeline }, muzzle: () => muzzle(state.fighters[0]) };
+    (window as unknown as { __mc?: unknown }).__mc = { wide: (on: boolean) => (devWide = on), arenaId, arena, vfx, emit: (e: GameEvent) => handleEvent(e), scene, camera, cam: () => ({ z: camera.position.z, fov: camera.fov }), state: () => state, me, renderer, view: () => smooth, rigs, net: () => online && { ...online.status, tl: (online as unknown as { timeline?: unknown }).timeline }, muzzle: () => muzzle(state.fighters[0]) };
   }
 
   const restart = () => {

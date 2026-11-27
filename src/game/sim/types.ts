@@ -1,5 +1,7 @@
 // Pure simulation types. No DOM, no Three.js: the same code will run on the game server.
 
+import type { ArenaId } from './constants';
+
 export type CharacterId = 'hotfix' | 'legacy' | 'standup' | 'intern';
 
 export type GunKind = 'pistol' | 'smg' | 'shotgun' | 'railgun' | 'launcher' | 'uzi' | 'bomb';
@@ -106,7 +108,7 @@ export interface Pickup {
   vy: number;
   active: boolean;
   respawn: number;
-  /** Index into ARENA.gunSpawns, or null for a ceiling drop that is gone once taken. */
+  /** Index into the arena's gunSpawns, or null for a ceiling drop that is gone once taken. */
   spawn: number | null;
 }
 
@@ -177,6 +179,11 @@ export interface GameState {
    * fight starts). Absent online and in 2-player, so those runs are unchanged.
    */
   gunGrace?: { fighter: number; ticks: number; until?: number };
+  /**
+   * Which arena the match is played in (arenaOf). Absent = the office: online matches and every older state carry
+   * nothing, so snapshots and the protocol are unchanged. Set only by createGame's `extra.arena` (offline).
+   */
+  arena?: ArenaId;
   seed: number; // deterministic RNG state (spread, drops)
   dropTimer: number;
   nextId: number;
