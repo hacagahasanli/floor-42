@@ -1314,7 +1314,7 @@
 .fd-res-root:not(.r-land) .fd-res-track {
   transform: translateY(240px);
 }
-.fd-res-star {
+.fd-res-burst {
   position: absolute;
   left: 420px;
   top: 150px;
@@ -1326,11 +1326,11 @@
     transform 220ms var(--ease-spring),
     opacity 120ms linear;
 }
-.fd-res-root.r-impact .fd-res-star {
+.fd-res-root.r-impact .fd-res-burst {
   opacity: 1;
   transform: scale(1);
 }
-.fd-res-root.r-land .fd-res-star {
+.fd-res-root.r-land .fd-res-burst {
   opacity: 0;
   transform: scale(1.1);
 }
@@ -2016,4 +2016,83 @@
 }
 .fd-res-root.r-modal .fd-res-rays {
   opacity: 0.35 !important;
+}
+
+/* R-026 11: trait disc, sticker, line pill, signature-moves tiles, rival clock. */
+.fd-tdisc {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--c, var(--sun));
+  border: 2px solid var(--grape);
+  box-sizing: border-box;
+}
+.fd-tsticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 2px;
+  box-sizing: border-box;
+  border: 3px solid var(--grape);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 3px 0 var(--grape);
+  font: 800 12px/1 'Baloo 2', sans-serif;
+  letter-spacing: 0.6px;
+  color: var(--grape);
+  white-space: nowrap;
+  rotate: -3deg;
+}
+.fd-tline {
+  align-items: center;
+  gap: 10px;
+  padding: 6px 18px 5px 8px;
+  animation: fd-xfade 120ms ease-out both;
+}
+@keyframes fd-xfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fd-sig {
+  box-sizing: border-box;
+  width: 256px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: #fff;
+  border: 3px solid var(--grape);
+  border-radius: 16px;
+}
+.fd-sig > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.fd-sig small {
+  font: 700 12px/1.15 'Baloo 2', sans-serif;
+  color: var(--grape-2);
+}
+.fd-clock-turn {
+  animation: fd-turn 2s linear infinite;
+}
+@keyframes fd-turn {
+  to {
+    rotate: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fd-clock-turn,
+  .fd-tline {
+    animation: none;
+  }
 }

@@ -34,6 +34,7 @@ voices ─> sfx (Effects) / ui (UI) / amb (0.5, ducked) / guns (Guns) ─┬─>
 | winSting / lossSting | 300 ms | 1 | old result screen, ui bus |
 | resultWhoosh / drumroll / partyHorn / wahwah / thud / slideWhistle | 150-300 ms | 1 | Field Day result reveal (spec 4), ui bus, synth stand-ins |
 | ding / softPop | 100 / 40 ms | 2 | award dings (3 rising), button pops |
+| leapfrog / teaBreak / sugarRush / packedExtra | 300 ms | 1 | signature-trait fires (R-026 spec 11.2), sfx bus, synth stand-ins, peak >= 8 dB under a gunshot; Tea Break's sigh is 580 ms |
 | crowd | 1000 ms | 2 | murmur under the result idle, repeated to 8 s |
 
 ## Adding a sound

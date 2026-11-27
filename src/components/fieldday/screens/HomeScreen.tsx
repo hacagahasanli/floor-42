@@ -8,7 +8,7 @@ import { FD_COPY } from '../copy';
 import { fighterView, FIGHTER_IDS } from '../fighters';
 import { Icon } from '../Icon';
 import { useSpatialNav } from '../nav';
-import { Card, Chip, HintStrip, Keycap, Pill, Ribbon, Wordmark } from '../parts';
+import { Card, Chip, HintStrip, Keycap, Pill, Ribbon, TraitDisc, Wordmark } from '../parts';
 import { Portrait } from '../Portrait';
 import { Frame } from '../Stage';
 import { Sunburst } from '../Sunburst';
@@ -53,13 +53,19 @@ export interface HomeProps {
 const STUDIO_PILL: React.CSSProperties = { fontSize: 13 };
 
 /** The speech bubble pops in 0.8 s after the screen appears, stays 4 s, goes away and returns 10 s later (spec 5). */
-const useBubble = (lines: readonly string[]) => {
-  const [state, setState] = useState<{ n: number; on: boolean }>({ n: 0, on: false });
+/** The fighter's long trait line is one of the lines and is the first one shown per session (R-026 11.3). */
+let traitLineShown = false;
+const useBubble = (lines: readonly string[], traitLine: string) => {
+  const [state, setState] = useState<{ n: number; on: boolean; trait: boolean }>({ n: 0, on: false, trait: false });
+  const latest = useRef(traitLine);
+  latest.current = traitLine;
   useEffect(() => {
     let n = 0;
     let t = 0;
     const show = () => {
-      setState({ n, on: true });
+      const trait = !traitLineShown;
+      traitLineShown = true;
+      setState({ n, on: true, trait });
       t = window.setTimeout(hide, 4000);
     };
     const hide = () => {
@@ -70,7 +76,7 @@ const useBubble = (lines: readonly string[]) => {
     t = window.setTimeout(show, 800);
     return () => window.clearTimeout(t);
   }, []);
-  return { line: lines[state.n % lines.length], on: state.on };
+  return { line: state.trait ? latest.current : lines[state.n % lines.length], on: state.on };
 };
 
 export const HomeScreen = (p: HomeProps) => {
@@ -80,7 +86,7 @@ export const HomeScreen = (p: HomeProps) => {
   const v = fighterView(p.fighter);
   const index = FIGHTER_IDS.indexOf(p.fighter);
   const step = (d: number) => p.onFighter(FIGHTER_IDS[(index + d + FIGHTER_IDS.length) % FIGHTER_IDS.length]);
-  const bubble = useBubble(FD_COPY.home.bubble);
+  const bubble = useBubble(FD_COPY.home.bubble, v.trait.line);
   const h = FD_COPY.home;
   const focusProps = (id: string) => ({
     'data-nav': true,
@@ -114,7 +120,7 @@ export const HomeScreen = (p: HomeProps) => {
           style={{ position: 'absolute', left: 62, top: 170 }}
           data-testid="arena-ribbon"
         >
-          <Icon name="star" /> {h.ribbon(p.arenaName)} <Icon name="star" />
+          <Icon name="pennant" /> {h.ribbon(p.arenaName)} <Icon name="pennant" />
         </Ribbon>
 
         <div className="fd-abs" style={{ left: 56, top: 244, width: 372, display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -173,16 +179,21 @@ export const HomeScreen = (p: HomeProps) => {
             <Sunburst size={492} left={-60} top={-60} soft={false} />
           </div>
           <Card className="fd-sway" style={{ position: 'absolute', left: 61, top: 92, width: 252, height: 356, transform: 'rotate(3deg)' }} data-testid="home-card" key={p.fighter}>
-            <Portrait id={p.fighter} w={244} h={246} head={0.3} card style={{ borderBottom: '4px solid var(--grape)', width: '100%' }} />
+            <Portrait id={p.fighter} w={244} h={226} head={0.3} card style={{ borderBottom: '4px solid var(--grape)', width: '100%' }} />
             <div className="fd-titan fd-ol" style={{ fontSize: 32, textAlign: 'center', marginTop: 10, ['--o' as string]: '3px', ['--d' as string]: '4px' }} data-testid="home-name">
               {v.name}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '8px 6px', marginTop: 10 }}>
               {v.traits.map((t) => (
                 <Chip key={t.text} color={`var(--${t.tone})`} height={26} fontSize={12}>
                   {t.text}
                 </Chip>
               ))}
+              {/* The signature trait replaces the weight chip (R-026 11.3): the accent disc and the name. Weight moved to select. */}
+              <Chip color="#fff" height={26} fontSize={12} style={{ paddingLeft: 2 }} data-testid="home-trait">
+                <TraitDisc id={v.trait.id} accent={v.accent} size={20} />
+                {v.trait.label}
+              </Chip>
             </div>
           </Card>
           {bubble.on && (

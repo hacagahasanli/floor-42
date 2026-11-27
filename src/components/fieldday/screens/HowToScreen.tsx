@@ -6,7 +6,9 @@ import { keyLabel } from '~/game/settings';
 import { RULES } from '~/game/sim/constants';
 
 import { FdButton } from '../Button';
-import { Card, Keycap, Pill } from '../parts';
+import { FD_COPY } from '../copy';
+import { fighterView, FIGHTER_IDS } from '../fighters';
+import { Card, Keycap, Pill, TraitDisc } from '../parts';
 
 import { arrowNote, capLabel, KOS_TEXT, moveGroup } from './howToKeys';
 import { Modal } from './Modal';
@@ -23,7 +25,11 @@ import type { ReactNode } from 'react';
 const KeyRow = ({ children }: { children: ReactNode }) => <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>{children}</div>;
 const Big = ({ k }: { k: string }) => <Keycap k={k} className="fd-big" />;
 
-export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToWin }: { onClose: () => void; touch?: boolean; z?: number; kos?: number }) => {
+/**
+ * `traits` is false online (signature traits are offline only today): the SIGNATURE MOVES strip is hidden and the layout is the old one.
+ * With traits (R-026 11.3) the card headers are 130 high, the strip sits at y 450-514, the 2-player pill at 528 and GOT IT at 584.
+ */
+export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToWin, traits = true }: { onClose: () => void; touch?: boolean; z?: number; kos?: number; traits?: boolean }) => {
   const s = useSettings();
   const label = useKeyLabel();
   const b = s.bindings;
@@ -89,6 +95,7 @@ export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToW
       note: 'Watch the chips under your health',
     },
   ];
+  const L = traits ? { cardsTop: 152, head: 130, cardH: 282, pill: 528, done: 584 } : { cardsTop: 150, head: 150, cardH: 306, pill: 488, done: 560 };
   return (
     <Modal label="How to play" tint={0.42} onBack={onClose} escCapture z={z} testId="howto">
       <div className="fd-abs" style={{ inset: 0 }}>
@@ -103,10 +110,10 @@ export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToW
             Knock your rival out. <b style={{ color: 'var(--sun)' }}>{KOS_TEXT(kos)}</b>
           </Pill>
         </div>
-        <div className="fd-abs" style={{ left: 0, right: 0, top: 150, display: 'flex', justifyContent: 'center', gap: 28 }}>
+        <div className="fd-abs" style={{ left: 0, right: 0, top: L.cardsTop, display: 'flex', justifyContent: 'center', gap: 28 }}>
           {cards.map((c) => (
-            <Card key={c.title} style={{ position: 'relative', width: 340, height: 306 }} data-testid="howto-card">
-              <div className="fd-howhead" style={{ background: c.tone }}>
+            <Card key={c.title} style={{ position: 'relative', width: 340, height: L.cardH }} data-testid="howto-card">
+              <div className="fd-howhead" style={{ background: c.tone, height: L.head }}>
                 <div>{c.keys}</div>
               </div>
               <div style={{ padding: '16px 22px 0' }}>
@@ -123,14 +130,34 @@ export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToW
             </Card>
           ))}
         </div>
+        {traits && (
+          <div className="fd-abs" style={{ left: 102, top: 450, width: 1072, display: 'flex', gap: 16 }} role="list" aria-label={FD_COPY.howTo.signature} data-testid="howto-signature">
+            {FIGHTER_IDS.map((id) => {
+              const v = fighterView(id);
+              return (
+                <div key={id} className="fd-sig" role="listitem" data-testid={`sig-${id}`}>
+                  <TraitDisc id={v.trait.id} accent={v.accent} size={40} />
+                  <span>
+                    <span className="fd-titan" style={{ fontSize: 16, lineHeight: 1 }}>
+                      {v.trait.label}
+                    </span>
+                    <small>
+                      {v.name} {'·'} {v.trait.short}
+                    </small>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {!touch && (
-          <div className="fd-abs" style={{ left: '50%', top: 488, transform: 'translateX(-50%)' }}>
+          <div className="fd-abs" style={{ left: '50%', top: L.pill, transform: 'translateX(-50%)' }}>
             <Pill style={{ fontSize: 14, padding: '7px 18px 6px', gap: 8 }} data-testid="howto-2p">
               2 PLAYER on one keyboard: P1 {twoP(s.bindings2p.p1)} · P2 {twoP(s.bindings2p.p2)}
             </Pill>
           </div>
         )}
-        <div className="fd-abs" style={{ left: 0, right: 0, top: 560, display: 'flex', justifyContent: 'center' }}>
+        <div className="fd-abs" style={{ left: 0, right: 0, top: L.done, display: 'flex', justifyContent: 'center' }}>
           <FdButton tone="sun" size="md" fontSize={28} icon="check" primary data-nav data-nav-pref data-testid="howto-done" after={touch ? undefined : <Keycap k="ENTER" />} onClick={onClose}>
             GOT IT!
           </FdButton>

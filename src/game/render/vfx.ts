@@ -18,6 +18,9 @@ interface Ring {
   life: number;
   max: number;
   grow: number;
+  /** Start and end radius in metres, when set (a trait ring); otherwise the default swell by `grow`. */
+  r0: number;
+  r1: number;
 }
 
 const COLORS = {
@@ -59,7 +62,7 @@ export const createVfx = (scene: THREE.Scene) => {
     );
     m.visible = false;
     scene.add(m);
-    rings.push({ mesh: m, life: 0, max: 1, grow: 1 });
+    rings.push({ mesh: m, life: 0, max: 1, grow: 1, r0: 0, r1: 0 });
   }
   let nextRing = 0;
 
@@ -125,15 +128,17 @@ export const createVfx = (scene: THREE.Scene) => {
     }
   };
 
-  const ring = (x: number, y: number, color: number, opts: { grow?: number; life?: number; facing?: number } = {}) => {
+  const ring = (x: number, y: number, color: number, opts: { grow?: number; life?: number; facing?: number; r0?: number; r1?: number } = {}) => {
     const r = rings[nextRing++ % rings.length];
     r.life = r.max = opts.life ?? 0.35;
     r.grow = opts.grow ?? 8;
+    r.r0 = opts.r0 ?? 0;
+    r.r1 = opts.r1 ?? 0;
     r.mesh.position.set(x, y, 0.2);
     // A push ring stands up facing the push direction; others face the camera.
     r.mesh.rotation.set(0, opts.facing ? Math.PI / 2 : 0, 0);
     (r.mesh.material as THREE.MeshBasicMaterial).color.setHex(color);
-    r.mesh.scale.setScalar(0.3);
+    r.mesh.scale.setScalar(r.r1 ? r.r0 / 0.5 : 0.3);
     r.mesh.visible = true;
     r.mesh.userData.vx = (opts.facing ?? 0) * 9;
   };
@@ -179,7 +184,8 @@ export const createVfx = (scene: THREE.Scene) => {
         continue;
       }
       const k = 1 - r.life / r.max;
-      r.mesh.scale.setScalar(0.3 + k * r.grow * 0.25);
+      // The torus has a 0.5 m radius: a trait ring asks for metres, the old rings swell by `grow`.
+      r.mesh.scale.setScalar(r.r1 ? (r.r0 + (r.r1 - r.r0) * k) / 0.5 : 0.3 + k * r.grow * 0.25);
       r.mesh.position.x += (r.mesh.userData.vx as number) * dt;
       (r.mesh.material as THREE.MeshBasicMaterial).opacity = (1 - k) * 0.85;
     }

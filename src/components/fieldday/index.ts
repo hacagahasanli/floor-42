@@ -13,11 +13,11 @@ export { buntingPennants, DESIGN_H, DESIGN_W, stageMetrics } from './geometry';
 export { FIGHTER_IDS, fighterView, HEAD_ANCHOR, portraitCrop } from './fighters';
 export { ICON_NAMES, Icon, Pointer, RibbonTail, WEAPON_NAMES, WeaponIcon } from './Icon';
 export { pickNext, useSpatialNav } from './nav';
-export { Card, Chip, HintStrip, Keycap, KeyLabel, Panel, Pill, Pips, Ribbon, StatRow, Wordmark, useFit } from './parts';
+export { Card, Chip, HintStrip, Keycap, KeyLabel, Panel, Pill, Pips, Ribbon, StatRow, TraitDisc, TraitLine, TraitSticker, Wordmark, useFit } from './parts';
 export { Portrait, useFighterPortraits } from './Portrait';
 export { fdSound } from './sound';
 export { Frame, Stage, useReducedMotion, useStage } from './Stage';
-export { jumpPips, speedPips, statsOf, traitsOf, weightPips } from './stats';
+export { healthPips, jumpPips, speedPips, statsOf, traitsOf, weightPips } from './stats';
 export { Sunburst } from './Sunburst';
 
 export type { ButtonSize, ButtonTone, FdButtonProps } from './Button';

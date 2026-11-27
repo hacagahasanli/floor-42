@@ -2,7 +2,9 @@
  * Every line of player-facing game copy in one flat table. R-022: the developer-themed variant and the audience question
  * are gone (the game has one voice, plain words anyone reads at once). Pure (no React), so the table is unit-tested.
  */
+import { ROSTER } from './roster';
 import { RULES } from './sim/constants';
+import { TRAIT_HP } from './sim/traits';
 
 import type { ArenaId } from './sim/constants';
 import type { CharacterId } from './sim/types';
@@ -21,6 +23,19 @@ const FIGHTERS: Record<CharacterId, FighterCopy> = {
   legacy: { role: 'The Office Dad', pitch: 'Slow, wide and impossible to shove.' },
   standup: { role: 'The Tiny Coach', pitch: 'Smallest, fastest, three jumps.' },
   intern: { role: 'The Trailblazer', pitch: 'Balanced in every stat.' },
+};
+
+/**
+ * The health line of How to play (R-026 section 11.3). With traits (offline) the fighters whose health differs are listed from the
+ * data (TRAIT_HP), most health first; online (traits off) everybody has the same health and the old line stays.
+ */
+export const healthLine = (traits: boolean): string => {
+  const tail = `A pistol shot point blank takes about half, a rocket takes it all. First to ${K} KOs wins.`;
+  if (!traits) return `Everyone has ${RULES.hp} health. A pistol shot point blank takes half, a rocket takes it all. First to ${K} KOs wins.`;
+  const odd = ROSTER.filter((r) => TRAIT_HP[r.id] !== RULES.hp)
+    .sort((a, b) => TRAIT_HP[b.id] - TRAIT_HP[a.id])
+    .map((r) => `${r.name} ${TRAIT_HP[r.id]}`);
+  return `Most fighters have ${RULES.hp} health: ${odd.join(', ')}. ${tail}`;
 };
 
 export const COPY = {
@@ -54,7 +69,7 @@ export const COPY = {
   drawSub: 'Time ran out with the score level.',
   /** How to play: the three rule cards (title, text). */
   howTo: [
-    ['Knock them out', `Everyone has ${RULES.hp} health. A pistol shot point blank takes half, a rocket takes it all. First to ${K} KOs wins.`],
+    ['Knock them out', healthLine(true)],
     ['Grab a gun', 'Pistol in hand; an SMG, an Uzi, a shotgun, a sniper rail and rockets lie around the floor.'],
     ['Use the cover', 'Desks and the meeting table stop bullets. The glass breaks: push them through it.'],
   ],
@@ -70,6 +85,8 @@ export const COPY = {
     'The Uzi shreds up close, the SMG holds the middle, the pistol is the steadiest at range.',
     'A shotgun blast kills only point blank: get right in their face, then pump.',
   ]),
+  /** Loading tips that are only true with signature traits (offline play): the lift adds them when traits are on. */
+  traitTips: ['Ormo starts healing a second early: keep him busy.', 'Brix gets her dash back when she jumps over your head.'],
   /** Fighter flavour (character select, nameplates). */
   fighters: FIGHTERS,
 };

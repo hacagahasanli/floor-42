@@ -6,7 +6,7 @@ import { useSettings } from '~/components/menu/useSettings';
 import { keyLabel } from '~/game/settings';
 import { playerColour } from '~/game/twoPlayer';
 
-import type { Action2P, Bindings2P, Player } from '~/game/twoPlayer';
+import type { Player } from '~/game/twoPlayer';
 import type { CSSProperties, ReactNode } from 'react';
 
 /**
@@ -100,65 +100,6 @@ export const BigKeycap = ({
     {label && <span className="text-[11px] font-semibold text-cream/70">{label}</span>}
   </span>
 );
-
-/** A small keycap for strips and hints. */
-export const SmallKey = ({ k }: { k: string }) => (
-  <kbd className="inline-flex min-w-5 items-center justify-center rounded-sm border border-b-2 border-cream/30 bg-cream/10 px-1 text-[10px] font-bold leading-4 text-cream">
-    {k}
-  </kbd>
-);
-
-/**
- * The key strip text for one player (spec 8): `A D move · W jump · F shoot · G push · H dash`, in layout labels.
- */
-export const stripParts = (
-  b: Bindings2P,
-  p: Player,
-  label: (c: string) => string,
-): { keys: string[]; text: string }[] => {
-  const k = (a: Action2P) => label(b[p][a]);
-  return [
-    { keys: [k('left'), k('right')], text: 'move' },
-    { keys: [k('up')], text: 'jump' },
-    { keys: [k('fire')], text: 'shoot' },
-    { keys: [k('push')], text: 'push' },
-    { keys: [k('dash')], text: 'dash' },
-    { keys: [k('crouch')], text: 'sit' },
-  ];
-};
-
-export const KeyStrip = ({
-  bindings,
-  player,
-  align,
-  dim,
-}: {
-  bindings: Bindings2P;
-  player: Player;
-  align: 'left' | 'right';
-  dim: boolean;
-}) => {
-  const label = useKeyLabel();
-  const [c1, c2] = usePlayerColours();
-  const i = playerIndex(player);
-  return (
-    <div
-      data-testid={`strip-${player}`}
-      className={`hud-scale pointer-events-none absolute bottom-3 flex max-w-[48%] flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-cream/75 transition-opacity duration-500 ${align === 'left' ? 'left-3 origin-bottom-left' : 'right-3 origin-bottom-right justify-end'} ${dim ? 'opacity-40' : 'opacity-100'}`}
-    >
-      {align === 'left' && <PlayerChip index={i} colour={i === 0 ? c1 : c2} />}
-      {stripParts(bindings, player, label).map((part) => (
-        <span key={part.text} className="flex items-center gap-1">
-          {part.keys.map((k, n) => (
-            <SmallKey key={n} k={k} />
-          ))}{' '}
-          {part.text}
-        </span>
-      ))}
-      {align === 'right' && <PlayerChip index={i} colour={i === 0 ? c1 : c2} />}
-    </div>
-  );
-};
 
 /**
  * Both players press Shoot (keys or pads) -> `onBoth`, once. Returns the ready ticks. A Shoot already held when this

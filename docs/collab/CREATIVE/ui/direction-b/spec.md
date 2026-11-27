@@ -161,3 +161,73 @@ Toy-like, short, never harsh: the menu is a toy box, not a computer. Focus move 
 ## 10. What was checked (CD, 2026-11-28)
 Rendered all 19 frames with headless Chromium 1255 at 1280x720 and 1920x1080 (the same layout at UI scale 1.5) and looked at every PNG after the fixes. In each, I checked: overlaps, clipped text, alignment of rows and centring, contrast, focus visibility, crop of fighter faces, and leftover annotations. Automated (`layout-check.txt`): fonts loaded; text and icons inside each button, chip, keycap, pill, strip and ribbon, with at least 12 px of clear space each side in buttons; no text clipped by an overflow ancestor; every UI box and focus ring inside a 12 px safe area; no partial overlap between unrelated UI boxes. Result: **0 issues on all 19 frames.** Two rounds of fixes were needed. Round 1 raised 58 automated flags (most of them were the checker counting buttons placed on a panel as overlaps, so I taught it that full containment is intended; the real ones were 2 titles and 1 key strip outside the safe area and 2 titles colliding with BACK) and I found 14 more by eye (uneven home row widths, wrong portrait crops, invisible arrow glyphs, gloss over tab labels, a stray VS-card sliver, a gap under the podium, confetti over titles, a token sheet label colliding with a header, the wordmark stress test wrapping).
 **Not verified:** the motion timings in a real build (only `home-idle.webm` shows idle motion, and the result timeline exists as 3 frames plus the table above); other aspect ratios and phones; sounds (none exist yet); screen-reader labels.
+
+---
+
+## 11. Signature traits on screen + phase 2a/2b decisions (R-026, CD 2026-11-28)
+
+Visual reference: `traits/traits-sheet.png` (from `traits/sheet.html`, re-render with `node traits/render.mjs`). Icons: `traits/icons/*.svg` (24 px grid, the §2.5 sticker style; add them to `Icon.tsx` as `leapfrog`, `teaBreak`, `sugarRush`, `packedExtra`, `bomb`, `pennant`). Traits are offline-only today (`GameState.traits`): **every trait element below is hidden when traits are off** (online), and HP is then 100 for all.
+
+**Problems first.** (1) Two of the four traits are invisible without help: Leapfrog's only effect is a dash that is ready again, Tea Break's is a heal that starts 1 s earlier. If the screen does not say so, players will never learn they exist. (2) Sugar Rush fires *on a hit*, the same frame as the hit flash and damage number, so its cue must not stack on them. (3) Traits fire 1-6 times per match: a big word every time becomes noise. Hence one rule for all four: **teach with a word the first 3 times, then a small disc only.**
+
+### 11.1 Shared pieces
+- **Trait colour = the fighter's accent** (`ROSTER[i].accent`: BRIX `#E5392F`, ORMO `#14A37F`, ZUZU `#F25CB8`, TAVO `#2456D6`). No gold, no stars, no coins.
+- **World callout** (a pooled sprite per fighter, drawn like the pickup callouts, but with Titan One on the canvas, not `sans-serif`): a paper pill, 4 px grape border, 4 px grape drop; a 40 px accent disc with the white trait icon; the word `<TRAIT>!` in Titan One 22 px grape (on-screen size at s = 1, scale with s). Anchor: fighter head top + 0.9 m (above where damage numbers spawn). Motion: scale 0 → 1.15 → 1 over 180 ms (spring), hold 0.7 s, rise 0.3 m and fade over 0.25 s (total 1.13 s). **Fires 1-3 of a fighter in a match: full pill. Fire 4+: disc only (no word), 0.6 s total.** Reduced motion: no scale or rise, 120 ms fade in and out. Low tier: same (one sprite, cheap). Never two callouts on one fighter at once: a new one replaces the old.
+- **HUD trait badge**: a 24 px disc at the end of the chips row (left plate: after PUSH; right plate: before PUSH, mirrored), accent fill, 3 px grape ring, white icon 16 px. States: *ready* = as drawn. *Firing* = pop 1 → 1.4 → 1 (spring 220 ms) plus a white 4 px ring that grows from 24 to 44 px and fades in 300 ms. *Cooldown* (Leapfrog 2.5 s, Sugar Rush 4.0 s) = grey `#B9B3C9` disc with the accent refilling clockwise as a conic wedge; at ready a small pop 1 → 1.15 → 1, no sound. Reduced motion: no pops, the ring still flashes for 300 ms.
+- **Sound**: SFX bus, peak at least 8 dB under a gunshot, each cue 300 ms or shorter unless noted. Synth stand-ins are fine until real CC0/original sounds exist (credit them in Credits).
+
+### 11.2 Per trait
+
+| | LEAPFROG (BRIX) | TEA BREAK (ORMO) | SUGAR RUSH (ZUZU) | PACKED EXTRA (TAVO) |
+|---|---|---|---|---|
+| Event | `trait/leapfrog` at the crossing | `trait/teaBreak` when healing starts | `trait/sugarRush` on the hit | `trait/packedExtra` on pickup |
+| World VFX | At her feet: one pooled ring, colour `#FFC83D`, flat to the camera, 0.3 → 1.1 m in 250 ms, fading. 8 `spark` particles in a downward-back fan (wheel sparks), life 0.3 s (4 on low tier). | 3 steam puffs (`foam` colour) rise 0.8 m from his hip thermos over 0.9 s with a ±0.08 m sideways wobble; then **one puff every 0.6 s while he keeps healing**, stopping at full HP or a hit. Low tier (puffs off): 3 `foam` particles instead. | For the 1.0 s burst: 3 speed lines behind her (thin boxes 0.6 x 0.04 m at head, chest and knee height, `#FFC4E6` (her rim) with a grape `#3B1F6B` 0.015 m underline so they read on sand), stretching with speed, merged into **one** mesh (1 draw call). On trigger: 6 `foam` particles ("sugar") pop up and out from her head, gravity on, life 0.5 s. Low tier: lines yes, sugar 3. | 5 `spark` particles fly from his pack to the gun hand over 0.2 s. The existing gun callout ("SMG") shows as now; the trait callout sits above it, **150 ms later**. |
+| HUD | Badge *firing*; the DASH chip snaps from grey to sun with the same pop. Then badge cooldown 2.5 s. | Badge: when he takes damage it turns grey and refills over **3.0 s** (his wait), then *firing* when healing starts, and stays lit while he heals. At full HP: lit, static. The health bar's healing shimmer uses his 3.0 s (`regenDelay`). | Badge *firing*, lit for 1.0 s, then cooldown 4.0 s. | Badge *firing*. The weapon chip of a packed gun shows a 14 px pack icon after the numbers (`SMG 25 +50 [pack]`) as long as he holds it. |
+| Sound | Rubber "boing" up (pitch slide 300 → 900 Hz, 120 ms) + skate-wheel rattle 100 ms | Porcelain "clink" (sines 2.1 kHz + 3.2 kHz, 250 ms decay), then a soft kettle sigh (filtered noise, 400 ms, -6 dB) | Her whistle: two-tone chirp (2.4 → 2.9 kHz, 2 x 60 ms) | Zipper "zzip" (bandpassed noise, 150 ms) + a magazine clack |
+| Callout timing | At the event | At the event | **120 ms after the event** (after the damage number spawns) | 150 ms after the event |
+
+### 11.3 How the menus explain them
+Copy (replaces `traitLine` in `roster.ts`; the old lines were written before the numbers and are now wrong for ORMO and TAVO):
+
+| Fighter | Long line (home, select) | Short line (how to play, 2 lines max at 12 px) |
+|---|---|---|
+| BRIX | Jump over your rival's head and your dash is ready again. | Jump over your rival: dash is back. |
+| ORMO | Starts healing 1 second sooner than anyone else. | Heals after 3 s, not 4. |
+| ZUZU | Every hit she survives gives her 1 second of extra speed. | Hit and still up? 1 s of speed. |
+| TAVO | Every SMG, Uzi or shotgun he grabs holds 25% more ammo. | SMG, Uzi, shotgun: 25% more ammo. |
+
+- **Home card (b02):** chips become speed · jumps · **trait** (accent 22 px disc + `LEAPFROG` etc.). Weight moves to select only. The speech bubble gets the long line as one of its lines, the first one shown per session.
+- **Select 1P (b03) and 2P (b04):** a trait sticker on the seam between photo and body, right-aligned 10 px from the card edge, tilted -3°: paper pill 26 high, 3 px grape border, a 22 px accent disc + name in Baloo 800 12 caps (sheet §5). Add a **HEALTH** pip row as the first row: 85 → 2, 100 → 3, 110 → 4, 115 → 5. Under the card row, centred, 16 px gap: one grape pill (Baloo 700 15, cream) with disc + **NAME** in sun + the long line for the focused fighter, changing with focus (no animation beyond a 120 ms crossfade). 2P: the same pill inside each player panel under the pips. This is content only: the engineer polishing the cards owns their exact layout, but sticker, pip row and pill must all be there and pass the layout check.
+- **How to play (b11):** a **SIGNATURE MOVES** strip of 4 tiles under the three cards: 256 x 64, 16 apart (1072 wide, same left edge as the cards), white, 3 px grape border, radius 16, a 40 px accent disc, name Titan 16, then `FIGHTER · short line` in Baloo 700 12 grape-2. Make room by cutting the card headers from 150 to 130 (cards 282 high): cards y 152-434, strip 450-514, 2P pill 528-562, GOT IT 584-652. No online caveat on this screen: the lines stay true when traits reach online. Online (traits off): hide the strip and keep today's layout.
+- **Copy fix** `copy.ts:57` ("Everyone has 100 health"): `Most fighters have 100 health: Ormo 115, Brix 110, Zuzu 85. A point-blank pistol shot takes about half, a rocket takes it all. First to ${K} KOs wins.` Online (traits off) keep today's line.
+- **Loading tips** (offline only), add: `Ormo starts healing a second early: keep him busy.` and `Brix gets her dash back when she jumps over your head.`
+
+### 11.4 Health bar
+Bar length shows max HP: **2.52 px per HP** (290 px = 115), 20 HP per segment, the last segment partial (85 → 4 full + a quarter; 110 → 5 + a half). Fixed per-segment size means the same damage takes the same width off everyone. The plate keeps 372 px; the bar is left-aligned (right-aligned on the right plate). Traits off: everyone 100 → 252 px.
+
+### 11.5 Decisions on the open phase 2a/2b items
+1. **Respawn "come back as": design it (1P vs bot only).** The respawn card widens to 620 px; right of a dashed mist divider: label `COME BACK AS` (Baloo 800 12, 1.2 px tracking) over 4 head discs 32 px (the §3.6 portraits, 8 apart) with keycaps 1-4 under them; the current pick has a sun 3 px + grape 2 px ring. A key press moves the ring with a 1 → 1.15 → 1 pop and the focus "tok". Pad: LB/RB cycle. 2P and online: the row is hidden (keys keep today's behaviour). Four keys cover the four fighters; if the roster grows, this becomes ‹ › cycling.
+2. **DRAW**: accepted as built (two sun podiums of equal height, no number, title `DRAW!`). Subtitle rotates `Dead even.` / `Nobody blinked.` / `Decider?`. Draw beats: drumroll, then a neutral cymbal "ting" instead of the party horn; no confetti cannon; rays at opacity .8.
+3. **IRON SPONGE "soaked up N damage"**: accepted. Format `You soaked up 212 damage` / `Ormo soaked up 212 damage`.
+4. **Online CANCEL leaves the room**: then the button must say so: `LEAVE` [ESC] (white, back icon). Info pill: `If either of you leaves, the match ends.`
+5. **Rival timer**: a count-up reads like a deadline. Drop the number: chip `DECIDING…` (the three dots fill one by one, 400 ms each) with the clock hand turning once per 2 s; after 20 s the chip text becomes `STILL DECIDING…`. Nothing else changes.
+6. **Online NEXT ARENA hidden**: accepted; REMATCH + CHANGE FIGHTER stay a centred row.
+7. **Weapon chips mag + reserve**: accepted: `SMG 12 +40`, reserve in grape-2 at 11 px; pistol `PISTOL ∞`. Uzi and rail keep the SMG / shotgun silhouettes for now; bombs use `bomb.svg`.
+8. **Credits without "Support us" and studio mark**: accepted for the portal build (a donation link has no place inside a portal game [Assumption: portal rules on outbound links not re-checked here]). The text `NALBAKI GAMES` is the studio credit; no logo needed. Keep Bungee and Chakra Petch listed for as long as any screen still ships them, and remove them the build after they are gone.
+9. **2P key strips**: new look (sheet §8): one grape-deep 86 % pill per player, bottom-left and bottom-right, 24 px from the edges, max 540 px wide; a `P1`/`P2` tag in Titan 13 on the player colour with a grape border; keycaps 20 high (Baloo 800 12), verbs Baloo 700 12 cream; order move · jump · shoot · dash · push · grab (drop "sit" from the strip: it stays in Settings). While the strips show, the centre SHAKE pill hides. Same fade rule as 1P (gone after 2 KOs, Key hints toggle).
+10. **Health segments** (phase 2a deviation 2): replaced by §11.4.
+
+### 11.6 Star / coin audit (ip-guard follow-up)
+ip-guard advised avoiding gold star and coin motifs. Every star in the Field Day UI, and its replacement:
+
+| Where | Today | Replace with |
+|---|---|---|
+| Select "YOUR PICK" chip (`FighterSelect.tsx`, sun chip) | white star | `check` icon (existing). Chip stays sun. |
+| Home arena ribbon (`HomeScreen.tsx`, `★ OFFSITE FIELD DAY ★`; spec b02) | two star icons | `pennant` icon (two bunting flags, `traits/icons/ui-pennant.svg`) each side |
+| Credits ribbon (`Credits.tsx`) | star icon | `pennant` |
+| Settings › Credits button (`SettingsPanel.tsx`) | star icon | `pennant` |
+| Icon set (`Icon.tsx` `star`; mockup `i-star`, b19 icon sheet) | `star` symbol | delete it once the four uses above are gone, so it cannot come back |
+| Result impact burst (`fd-res-star`, 16-point white polygon) | white comic burst behind the winner card | **keep**: white, 16 points, reads as a "pow" burst, not a gold star; rename the class to `fd-res-burst` |
+| TAVO dizzy spirals (`#FFC83D`) | spirals | keep, F-047's thicker line so they never read as coins |
+
+Not stars and kept: the PIÑATA medallion burst (white on orange), rosettes (petals), rays. No coin shapes exist in the UI.

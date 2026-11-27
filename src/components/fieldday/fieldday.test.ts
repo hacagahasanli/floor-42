@@ -3,8 +3,10 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { COPY } from '~/game/copy';
+import { COPY, healthLine } from '~/game/copy';
 import { ROSTER } from '~/game/roster';
+import { RULES } from '~/game/sim/constants';
+import { TRAIT_HP } from '~/game/sim/traits';
 
 import { GAME_NAME, wordmarkParts } from './brand';
 import { CONFETTI, confettiAllowed, confettiPlan, seeded } from './confettiRules';
@@ -12,7 +14,8 @@ import { cardCrop, fighterView, FIGHTER_IDS, HEAD_ANCHOR, portraitCrop } from '.
 import { fitScale, MIN_FIT } from './fit';
 import { buntingPennants, stageMetrics } from './geometry';
 import { pickNext } from './nav';
-import { jumpPips, speedPips, statsOf, traitsOf, weightPips } from './stats';
+import { ICON_NAMES } from './Icon';
+import { healthPips, jumpPips, speedPips, statsOf, traitsOf, weightPips } from './stats';
 
 import type { Box } from './nav';
 
@@ -75,9 +78,39 @@ describe('pips map the four current fighters to the CD table (spec 3, b03)', () 
     expect(jumpPips(99, 5)).toBe(5);
     expect(weightPips(9)).toBe(5);
   });
-  it('trait chips are speed, jumps, weight', () => {
-    expect(traitsOf('hotfix').map((t) => t.text)).toEqual(['FAST', '2× JUMP', 'MID WEIGHT']);
+  it('trait chips are speed and jumps (the trait is the third chip)', () => {
+    expect(traitsOf('hotfix').map((t) => t.text)).toEqual(['FAST', '2× JUMP']);
     expect(traitsOf('standup')[1].text).toBe('3× JUMP');
+  });
+});
+
+describe('traits on the menus come from the data (R-026 11.3)', () => {
+  it('health pips: 85 -> 2, 100 -> 3, 110 -> 4, 115 -> 5, from TRAIT_HP', () => {
+    expect(Object.fromEntries(FIGHTER_IDS.map((id) => [id, statsOf(id).health]))).toEqual({ hotfix: 4, legacy: 5, standup: 2, intern: 3 });
+    expect([healthPips(85), healthPips(100), healthPips(110), healthPips(115)]).toEqual([2, 3, 4, 5]);
+  });
+  it('every fighter view carries its roster trait, icon id and the sim health', () => {
+    for (const r of ROSTER) {
+      const v = fighterView(r.id);
+      expect(v.trait).toEqual({ id: r.traitId, label: r.trait, line: r.traitLine, short: r.traitShort });
+      expect(v.hp).toBe(TRAIT_HP[r.id]);
+      expect(ICON_NAMES, r.id).toContain(r.traitId);
+    }
+  });
+  it('the star icon is gone and the pennant exists', () => {
+    expect(ICON_NAMES).not.toContain('star');
+    expect(ICON_NAMES).toContain('pennant');
+  });
+  it('the CD copy (11.3): long lines, short lines, health line', () => {
+    expect(ROSTER.map((r) => r.traitLine)).toEqual([
+      "Jump over your rival's head and your dash is ready again.",
+      'Starts healing 1 second sooner than anyone else.',
+      'Every hit she survives gives her 1 second of extra speed.',
+      'Every SMG, Uzi or shotgun he grabs holds 25% more ammo.',
+    ]);
+    expect(ROSTER.map((r) => r.traitShort)).toEqual(['Jump over your rival: dash is back.', 'Heals after 3 s, not 4.', 'Hit and still up? 1 s of speed.', 'SMG, Uzi, shotgun: 25% more ammo.']);
+    expect(healthLine(true)).toBe(`Most fighters have 100 health: Ormo 115, Brix 110, Zuzu 85. A pistol shot point blank takes about half, a rocket takes it all. First to ${RULES.kosToWin} KOs wins.`);
+    expect(healthLine(false)).toMatch(/^Everyone has 100 health\./);
   });
 });
 

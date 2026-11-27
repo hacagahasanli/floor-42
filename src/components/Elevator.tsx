@@ -72,14 +72,15 @@ export interface LoadStep {
  * the office built, the first frame drawn); the floor counter races toward that share of 42, never past it.
  * When every step is done the doors open on the office and `onDone` fires.
  */
-export const LiftLoading = ({ steps, onDone }: { steps: LoadStep[]; onDone: () => void }) => {
+export const LiftLoading = ({ steps, onDone, traits = false }: { steps: LoadStep[]; onDone: () => void; traits?: boolean }) => {
   const doneCount = steps.filter((s) => s.done).length;
   const target = Math.round((42 * doneCount) / steps.length);
   const [floor, setFloor] = useState(1);
   const [opening, setOpening] = useState(false);
   const [tip, setTip] = useState(0);
   /** True tips from How to play (copy.ts), one every few seconds while the match loads. */
-  const tips = useCopy().tips;
+  const copy = useCopy();
+  const tips = traits ? [...copy.tips, ...copy.traitTips] : copy.tips;
   const tipCount = tips.length;
   const floorRef = useRef(1);
 

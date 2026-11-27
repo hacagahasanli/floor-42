@@ -7,7 +7,7 @@ import { FdButton } from '../Button';
 import { FD_COPY } from '../copy';
 import { fighterView, FIGHTER_IDS } from '../fighters';
 import { Icon } from '../Icon';
-import { Chip, Keycap, Panel, Pill, StatRow } from '../parts';
+import { Chip, Keycap, Panel, Pill, StatRow, TraitLine, TraitSticker } from '../parts';
 import { Portrait } from '../Portrait';
 import { fdSound } from '../sound';
 import { Frame, useStage } from '../Stage';
@@ -71,7 +71,10 @@ const PlayerPanel = ({ player, index, ready, keys, pad, onPick, onReady, popKey 
         </span>
       </div>
       <div style={{ display: 'flex', gap: 20, padding: '18px 20px 0' }}>
-        <Portrait id={id} w={200} h={280} head={0.26} card style={{ flex: 'none', border: '4px solid var(--grape)', borderRadius: 18 }} />
+        <div style={{ position: 'relative', flex: 'none' }}>
+          <Portrait id={id} w={200} h={248} head={0.26} card style={{ border: '4px solid var(--grape)', borderRadius: 18 }} />
+          <TraitSticker id={v.trait.id} accent={v.accent} label={v.trait.label} style={{ position: 'absolute', right: 10, bottom: -13, zIndex: 2 }} />
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6 }}>
           <div className="fd-titan" style={{ fontSize: 32 }} data-testid={`name-p${player + 1}`}>
             {v.name}
@@ -81,6 +84,7 @@ const PlayerPanel = ({ player, index, ready, keys, pad, onPick, onReady, popKey 
             {'×'} JUMP
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 6 }}>
+            <StatRow label={FD_COPY.select.stats.health} n={v.stats.health} color={v.accent} />
             <StatRow label={FD_COPY.select.stats.speed} n={v.stats.speed} color={v.accent} />
             <StatRow label={FD_COPY.select.stats.jump} n={v.stats.jump} color={v.accent} />
             <StatRow label={FD_COPY.select.stats.weight} n={v.stats.weight} color={v.accent} />
@@ -118,6 +122,9 @@ const PlayerPanel = ({ player, index, ready, keys, pad, onPick, onReady, popKey 
             })}
           </div>
         </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '22px 20px 0' }}>
+        <TraitLine id={v.trait.id} accent={v.accent} label={v.trait.label} line={v.trait.line} fontSize={13} />
       </div>
       <button
         type="button"

@@ -1,6 +1,6 @@
 import { CHARACTERS } from './sim/constants';
 
-import type { CharacterId } from './sim/types';
+import type { CharacterId, TraitId } from './sim/types';
 
 export interface RosterEntry {
   id: CharacterId;
@@ -14,8 +14,12 @@ export interface RosterEntry {
   personality: string;
   /** The signature trait's label, upper case (a chip on the select card). Gameplay for it is not built yet. */
   trait: string;
-  /** The CD's one-sentence description of the trait. NOT live: show it only when the trait ships. */
+  /** The trait's id in the sim (`GameState.traits`); also the name of its UI icon. */
+  traitId: TraitId;
+  /** The CD's one-sentence description of the trait (home, select; R-026 section 11.3). Offline play only. */
   traitLine: string;
+  /** The short version (how to play, two lines at 12 px). */
+  traitShort: string;
   /**
    * Where the head sits in the 360x440 portrait render (`renderPortraits`, pose `ready`): centre x, y and width as fractions of the image.
    * Measured from the projected head vertices (helmet, quiff, hair puffs and headlamp count; braids, tie and moustache tips do not).
@@ -40,7 +44,9 @@ export const ROSTER: RosterEntry[] = [
     rim: '#FFB3A8',
     personality: 'Runs the mailroom on roller skates and plays roller derby every weekend.',
     trait: 'LEAPFROG',
-    traitLine: "Jump clean over the rival's head and her dash is ready again, instantly.",
+    traitId: 'leapfrog',
+    traitLine: "Jump over your rival's head and your dash is ready again.",
+    traitShort: 'Jump over your rival: dash is back.',
     headAnchor: { x: 0.44, y: 0.19, w: 0.23, top: 0.065, h: 0.213 },
   },
   {
@@ -51,7 +57,9 @@ export const ROSTER: RosterEntry[] = [
     rim: '#9FF0D8',
     personality: 'Thirty years at the company, never ran once.',
     trait: 'TEA BREAK',
-    traitLine: 'His health starts coming back sooner after he stops fighting.',
+    traitId: 'teaBreak',
+    traitLine: 'Starts healing 1 second sooner than anyone else.',
+    traitShort: 'Heals after 3 s, not 4.',
     headAnchor: { x: 0.52, y: 0.25, w: 0.31, top: 0.13, h: 0.258 },
   },
   {
@@ -62,7 +70,9 @@ export const ROSTER: RosterEntry[] = [
     rim: '#FFC4E6',
     personality: 'Shortest person in the company, self-appointed coach.',
     trait: 'SUGAR RUSH',
-    traitLine: 'Every time she gets hit she runs faster for a moment.',
+    traitId: 'sugarRush',
+    traitLine: 'Every hit she survives gives her 1 second of extra speed.',
+    traitShort: 'Hit and still up? 1 s of speed.',
     headAnchor: { x: 0.51, y: 0.41, w: 0.44, top: 0.262, h: 0.305 },
   },
   {
@@ -73,7 +83,9 @@ export const ROSTER: RosterEntry[] = [
     rim: '#A9C2FF',
     personality: 'Still packed for a week on a day trip, but now he is the guy who leads the hike.',
     trait: 'PACKED EXTRA',
-    traitLine: 'Every regular gun he picks up has a bit more ammo.',
+    traitId: 'packedExtra',
+    traitLine: 'Every SMG, Uzi or shotgun he grabs holds 25% more ammo.',
+    traitShort: 'SMG, Uzi, shotgun: 25% more ammo.',
     headAnchor: { x: 0.52, y: 0.32, w: 0.23, top: 0.07, h: 0.3 },
   },
 ];

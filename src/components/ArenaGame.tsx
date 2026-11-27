@@ -17,7 +17,7 @@ import { PauseScreen } from '~/components/fieldday/screens/PauseScreen';
 import { SettingsPanel } from '~/components/menu/SettingsPanel';
 import { useCopy } from '~/components/menu/useCopy';
 import { KeyCard } from '~/components/twoPlayer/KeyCard';
-import { KeyStrip, useBothPress, usePlayerColours } from '~/components/twoPlayer/shared';
+import { useBothPress, usePlayerColours } from '~/components/twoPlayer/shared';
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useSettings } from '~/components/menu/useSettings';
 import { LiftLoading } from '~/components/Elevator';
@@ -376,6 +376,26 @@ export const ArenaGame = ({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Pad: LB / RB cycle who you come back as while you wait (the same pick as keys 1-4; vs a bot only, like the card's row).
+  useEffect(() => {
+    if (tp || online || demo) return;
+    const held = [false, false];
+    const id = window.setInterval(() => {
+      const h = hudRef.current;
+      const pads = h && h.respawnIn !== null ? (navigator.getGamepads?.() ?? []) : [];
+      const pad = pads.find((g) => g && g.connected !== false);
+      const now = [!!pad?.buttons[4]?.pressed, !!pad?.buttons[5]?.pressed];
+      if (h) {
+        const cur = ROSTER.findIndex((r) => r.id === (h.nextCharacter ?? h.character));
+        const step = now[1] && !held[1] ? 1 : now[0] && !held[0] ? -1 : 0;
+        if (step) gameRef.current?.pickCharacter(ROSTER[(cur + step + 4) % 4].id);
+      }
+      held[0] = now[0];
+      held[1] = now[1];
+    }, 50);
+    return () => window.clearInterval(id);
+  }, [tp, online, demo]);
+
   /** The touch pause button: the same as Esc. A pad's Start in 2-player says who paused. */
   const openMenu = (who: 0 | 1 | 'pad' | null = null) => {
     const h = hudRef.current;
@@ -495,6 +515,8 @@ export const ArenaGame = ({
   const bandWinner: 0 | 1 | null = hud && (hud.finale || bandHold) && (hud.winner === 0 || hud.winner === 1) ? hud.winner : null;
   const stripOn = !demo && !online && !tp && !touch && firstMatch;
   const keyStrip = useKeyStrip(stripOn, hud?.phase, settings.bindings);
+  // The 2-player key strips (FdHud draws them) replace the centre Shake pill while they show.
+  const tp2Strips = tp && !!hud && !demo && settings.showKeyHints && hud.phase !== 'over' && !keyCard && !hud.paused && !menuOpen && hud.fighters[0].kos + hud.fighters[1].kos < 2;
   // FIGHT! stays 140 ms into the fight to play its exit.
   const [goOut, setGoOut] = useState(false);
   const prevPhase = useRef<string | undefined>(undefined);
@@ -541,6 +563,7 @@ export const ArenaGame = ({
             tips={copy.tips}
             keyHints={settings.showKeyHints || keyStrip.shown}
             bindings={settings.bindings}
+            bindings2p={settings.bindings2p}
             lit={keyStrip.lit}
             large={settings.largeHud}
             menuOpen={menuOpen}
@@ -633,7 +656,7 @@ export const ArenaGame = ({
               {...(tp ? { onControls: () => setKeyCard('view'), pausedBy } : {})}
             />
           )}
-          {howOpen && (hud.paused || menuOpen) && <HowToScreen onClose={() => setHowOpen(false)} touch={touch} kos={hud.kosToWin} />}
+          {howOpen && (hud.paused || menuOpen) && <HowToScreen onClose={() => setHowOpen(false)} touch={touch} kos={hud.kosToWin} traits={!online} />}
           {settingsOpen && (hud.paused || menuOpen) && (
             <SettingsPanel onClose={() => setSettingsOpen(false)} />
           )}
@@ -749,13 +772,6 @@ export const ArenaGame = ({
             </>
           )}
 
-          {tp && settings.showKeyHints && hud.phase !== 'over' && !keyCard && (
-            <>
-              {/* Full strength until the first KO, then they step back. */}
-              <KeyStrip bindings={settings.bindings2p} player="p1" align="left" dim={hud.fighters[0].kos + hud.fighters[1].kos > 0} />
-              <KeyStrip bindings={settings.bindings2p} player="p2" align="right" dim={hud.fighters[0].kos + hud.fighters[1].kos > 0} />
-            </>
-          )}
           {!demo && !tp && touch && hud.phase !== 'over' && !rivalLeft && !menuOpen && !hud.paused && (
             <TouchControls
               press={(b, on) => gameRef.current?.touch(b, on)}
@@ -781,6 +797,7 @@ export const ArenaGame = ({
                 Aim: {hud.aimMode} <span className="opacity-60">(T)</span>
               </button>
             )}
+            {!tp2Strips && (
             <button
               type="button"
               onClick={() => gameRef.current?.toggleMotion()}
@@ -789,6 +806,7 @@ export const ArenaGame = ({
             >
               Shake: {hud.motion ? 'on' : 'off'}
             </button>
+            )}
             {hud.net && <NetBadge net={hud.net} />}
             {hud.muted && <span className="rounded-full bg-[rgba(38,18,74,.86)] px-3 py-1">muted (M)</span>}
             {settings.showFps && <span className="rounded-full bg-[rgba(38,18,74,.86)] px-3 py-1 tabular-nums">{hud.fps} fps</span>}
@@ -815,6 +833,7 @@ export const ArenaGame = ({
             { label: 'First frame', done: hud !== null },
           ]}
           onDone={endLift}
+          traits={!online}
         />
       )}
       {lift && !online && !demo && (

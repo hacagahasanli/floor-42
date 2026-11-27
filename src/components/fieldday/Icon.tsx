@@ -107,7 +107,54 @@ const ICONS = {
       </g>
     </>
   ),
-  star: <path d="M12 2.8l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.7l-5.6 3.1 1.3-6.2L3 9.3l6.3-.7z" fill="#fff" stroke={G} strokeWidth="2.3" strokeLinejoin="round" />,
+  /** Signature-trait icons and the bomb (R-026 section 11, traits/icons/*.svg). The icon name is the sim's `TraitId`. */
+  leapfrog: (
+    <g {...sticker} strokeWidth="2.4" strokeLinecap="round">
+      <circle cx="12" cy="15.2" r="2.6" />
+      <path d="M7.6 22v-.8a4.4 4.4 0 0 1 8.8 0v.8z" />
+      <path d="M3.2 17.5Q11.5 -0.5 20.4 14.2" fill="none" />
+      <path d="M20.3 10.2l.1 4-3.6-1.9" fill="none" />
+    </g>
+  ),
+  teaBreak: (
+    <g {...sticker} strokeWidth="2.4" strokeLinecap="round">
+      <path d="M16 11.2h1.4a2.6 2.6 0 0 1 0 5.2H15.6" fill="none" />
+      <path d="M4.6 9.8h11.6v4.6a5.2 5.2 0 0 1-5.2 5.2h-1.2a5.2 5.2 0 0 1-5.2-5.2z" />
+      <path d="M3 21.6h15" fill="none" />
+      <path d="M9 2.6c-1.6 1.4 1.6 2.6 0 4.4M12.8 3.4c-1.3 1.2 1.3 2.1 0 3.6" fill="none" />
+    </g>
+  ),
+  sugarRush: (
+    <g {...sticker} strokeWidth="2.4" strokeLinecap="round">
+      <path d="M15 3.6l6 3-6 3-6-3z" />
+      <path d="M9 6.6v7.4l6 3.2V9.6z" />
+      <path d="M21 6.6v7.4l-6 3.2V9.6z" />
+      <path d="M1.8 9.4h4.2M1.2 13.4h5M2.6 17.4h5.4" fill="none" />
+    </g>
+  ),
+  packedExtra: (
+    <g {...sticker} strokeWidth="2.4" strokeLinecap="round">
+      <path d="M9.6 5V2.8h4.8V5" fill="none" />
+      <path d="M5.4 9.2a4.2 4.2 0 0 1 4.2-4.2h4.8a4.2 4.2 0 0 1 4.2 4.2v12.4H5.4z" />
+      <path d="M8.4 13.2h7.2v8.4H8.4z" />
+      <path d="M12 15v4.4M9.8 17.2h4.4" fill="none" />
+    </g>
+  ),
+  bomb: (
+    <g {...sticker} strokeWidth="2.4" strokeLinecap="round">
+      <circle cx="10.5" cy="14" r="7" />
+      <path d="M14.2 8.4l1.6-1.6 2 2-1.6 1.6" />
+      <path d="M17 7.6c.6-1.6 1.8-2.6 3.4-2.8M20.6 2.4v1M22.4 4.6h-1" fill="none" />
+    </g>
+  ),
+  /** Two bunting flags on a string: the ribbon and Credits mark (replaces the star, R-026 section 11.6). */
+  pennant: (
+    <g {...sticker} strokeWidth="2.4" strokeLinecap="round">
+      <path d="M1.8 5.2Q12 9.4 22.2 5.2" fill="none" />
+      <path d="M3.8 6.4l7 1.6-4.6 9.6z" />
+      <path d="M13.2 8l7-1.6-2.4 11.2z" />
+    </g>
+  ),
   /** The award burst (sun fill) and the jump arrow. */
   burst: <path d="M12 1.8l2.2 5 5.2-1.7-1.8 5.1 4.8 2.5-5 2 1.4 5.3-5-1.9L12 23l-1.8-4.9-5 1.9 1.4-5.3-5-2 4.8-2.5L4.6 5.1l5.2 1.7z" fill="#FFC83D" stroke={G} strokeWidth="2" strokeLinejoin="round" />,
   jump: (

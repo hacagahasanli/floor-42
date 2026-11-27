@@ -6,7 +6,7 @@ import { FdButton } from '../Button';
 import { FD_COPY } from '../copy';
 import { fighterView, FIGHTER_IDS } from '../fighters';
 import { useSpatialNav } from '../nav';
-import { Chip, HintStrip, Keycap, StatRow } from '../parts';
+import { Chip, HintStrip, Keycap, StatRow, TraitLine, TraitSticker } from '../parts';
 import { Portrait } from '../Portrait';
 import { fdSound } from '../sound';
 import { Frame } from '../Stage';
@@ -48,6 +48,7 @@ export const FighterSelect = (p: FighterSelectProps) => {
   useSpatialNav(root, { active: p.active ?? true, onBack: p.busy ? undefined : p.onBack });
   const t = FD_COPY.select;
   const index = FIGHTER_IDS.indexOf(p.fighter);
+  const focused = fighterView(p.fighter);
   /** Whether a pointer press landed on an already-picked card (then the click fights; otherwise it only picks). */
   const wasPicked = useRef(false);
   const total = FIGHTER_IDS.length * CARD_W + (FIGHTER_IDS.length - 1) * GAP;
@@ -121,7 +122,9 @@ export const FighterSelect = (p: FighterSelectProps) => {
                   }}
                 >
                   <span className="fd-card" style={{ display: 'block', position: 'relative', width: '100%', height: '100%' }}>
-                    <Portrait id={id} w={218} h={196} head={0.3} card style={{ width: '100%', borderBottom: '4px solid var(--grape)' }} />
+                    <Portrait id={id} w={218} h={180} head={0.3} card style={{ width: '100%', borderBottom: '4px solid var(--grape)' }} />
+                    {/* The trait sticker sits on the seam between photo and body (R-026 11.3). */}
+                    <TraitSticker id={v.trait.id} accent={v.accent} label={v.trait.label} style={{ position: 'absolute', right: 10, top: 184 - 13, zIndex: 2 }} />
                     <span style={{ display: 'block', padding: '10px 14px 0' }}>
                       <span className="fd-titan" style={{ display: 'block', fontSize: 25 }}>
                         {v.name}
@@ -131,6 +134,7 @@ export const FighterSelect = (p: FighterSelectProps) => {
                         {'×'} JUMP
                       </span>
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <StatRow label={t.stats.health} n={v.stats.health} color={v.accent} />
                         <StatRow label={t.stats.speed} n={v.stats.speed} color={v.accent} />
                         <StatRow label={t.stats.jump} n={v.stats.jump} color={v.accent} />
                         <StatRow label={t.stats.weight} n={v.stats.weight} color={v.accent} />
@@ -138,13 +142,18 @@ export const FighterSelect = (p: FighterSelectProps) => {
                     </span>
                   </span>
                   {on && (
-                    <Chip color="var(--sun)" icon="star" style={{ position: 'absolute', left: '50%', top: -26, transform: 'translateX(-50%)', zIndex: 4 }}>
+                    <Chip color="var(--sun)" icon="check" style={{ position: 'absolute', left: '50%', top: -26, transform: 'translateX(-50%)', zIndex: 4 }}>
                       {t.yourPick}
                     </Chip>
                   )}
                 </button>
               );
             })}
+          </div>
+
+          {/* The focused fighter's trait, one line, changing with focus (120 ms crossfade). */}
+          <div className="fd-abs" style={{ left: 0, right: 0, top: 524, display: 'flex', justifyContent: 'center', minHeight: 38 }} aria-live="polite">
+            <TraitLine id={focused.trait.id} accent={focused.accent} label={focused.trait.label} line={focused.trait.line} />
           </div>
 
           <div className="fd-abs" style={{ left: 0, right: 0, top: 572, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 22 }}>

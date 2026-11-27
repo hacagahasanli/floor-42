@@ -68,6 +68,7 @@ export const Chip = ({
   children,
   color,
   icon,
+  iconClassName,
   height,
   fontSize,
   className = '',
@@ -77,6 +78,7 @@ export const Chip = ({
   children: ReactNode;
   color?: string;
   icon?: IconName;
+  iconClassName?: string;
   height?: number;
   fontSize?: number;
   className?: string;
@@ -92,7 +94,7 @@ export const Chip = ({
       ...style,
     }}
   >
-    {icon && <Icon name={icon} />}
+    {icon && <Icon name={icon} className={iconClassName} />}
     {children}
   </span>
 );
@@ -278,3 +280,29 @@ export const Wordmark = ({ name = GAME_NAME, scale = 1, className = '', style }:
     </div>
   );
 };
+
+/** The trait disc (R-026 11.1): the fighter's accent with the white trait icon. `size` is the disc, the icon is about 73 % of it. */
+export const TraitDisc = ({ id, accent, size = 22 }: { id: IconName; accent: string; size?: number }) => (
+  <span className="fd-tdisc" style={{ width: size, height: size, ['--c' as string]: accent }} aria-hidden="true">
+    <Icon name={id} size={Math.round(size * 0.73)} />
+  </span>
+);
+
+/** The trait sticker (select, R-026 11.3): a paper pill with the disc and the trait name, tilted -3 degrees. Position it from outside. */
+export const TraitSticker = ({ id, accent, label, className = '', style }: { id: IconName; accent: string; label: string; className?: string; style?: CSSProperties }) => (
+  <span className={`fd-tsticker ${className}`} style={style} data-testid="trait-sticker">
+    <TraitDisc id={id} accent={accent} size={22} />
+    {label}
+  </span>
+);
+
+/** The focused fighter's trait line (select, R-026 11.3): a grape pill with disc, NAME in sun and the one-line description. */
+export const TraitLine = ({ id, accent, label, line, wrap = false, fontSize = 15, style }: { id: IconName; accent: string; label: string; line: string; wrap?: boolean; fontSize?: number; style?: CSSProperties }) => (
+  <span className="fd-pill fd-tline" key={id} data-testid="trait-line" style={{ fontSize, ...(wrap ? { whiteSpace: 'normal' } : null), ...style }}>
+    <TraitDisc id={id} accent={accent} size={24} />
+    <span>
+      <b style={{ color: 'var(--sun)', font: "800 1em 'Baloo 2', sans-serif", letterSpacing: 0.6, marginRight: 8 }}>{label}</b>
+      {line}
+    </span>
+  </span>
+);

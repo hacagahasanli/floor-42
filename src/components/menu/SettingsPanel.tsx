@@ -459,7 +459,7 @@ const AccessTab = ({ onCredits, onDone }: { onCredits: () => void; onDone: () =>
         <Toggle label="Larger HUD text" checked={s.largeHud} onChange={(v) => store.set({ largeHud: v })} data-nav />
       </Card>
       <Card title="Credits">
-        <FdButton tone="white" height={44} fontSize={16} icon="star" data-nav data-testid="settings-credits" onClick={onCredits}>
+        <FdButton tone="white" height={44} fontSize={16} icon="pennant" data-nav data-testid="settings-credits" onClick={onCredits}>
           CREDITS
         </FdButton>
       </Card>

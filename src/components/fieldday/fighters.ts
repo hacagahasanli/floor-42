@@ -1,10 +1,11 @@
 import { COPY } from '~/game/copy';
 import { ROSTER } from '~/game/roster';
+import { TRAIT_HP } from '~/game/sim/traits';
 
 import { statsOf, traitsOf } from './stats';
 
 import type { FighterStats } from './stats';
-import type { CharacterId } from '~/game/sim/types';
+import type { CharacterId, TraitId } from '~/game/sim/types';
 
 /**
  * Everything a Field Day screen shows about a fighter, from ONE place: name and accent (roster.ts), role (copy.ts, the plain
@@ -18,7 +19,12 @@ export interface FighterView {
   accent: string;
   role: string;
   stats: FighterStats;
+  /** The speed and jumps chips of the home card. */
   traits: ReturnType<typeof traitsOf>;
+  /** The signature trait (roster.ts): label, icon name (= the sim's trait id), long and short line. Offline play only. */
+  trait: { id: TraitId; label: string; line: string; short: string };
+  /** Max health with traits on (sim/traits.ts). */
+  hp: number;
 }
 
 export const fighterView = (id: CharacterId): FighterView => {
@@ -30,6 +36,8 @@ export const fighterView = (id: CharacterId): FighterView => {
     role: COPY.fighters[id].role.toUpperCase(),
     stats: statsOf(id),
     traits: traitsOf(id),
+    trait: { id: r.traitId, label: r.trait, line: r.traitLine, short: r.traitShort },
+    hp: TRAIT_HP[id],
   };
 };
 

@@ -21,17 +21,22 @@ import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 import { createGovernor, MAX_STEPS_PER_FRAME, stepDown } from './governor';
 import { createVfx } from './vfx';
+import { ROSTER } from '../roster';
+import { buildCalloutArt, whenFontReady } from './traitCallout';
+import { badgeFor, CALLOUT_DELAY, calloutLife, calloutPose, WORD_FIRES } from './traitFx';
+import { createTraitVfx } from './traitVfx';
 import { headedTracerGeometry } from './projectileGeometry';
 import { DESKTOP_CAM, finaleHolding, finaleScale, followTarget, followWeight, koBeatWeight, nextFollowTime, PHONE_CAM } from './cameraMath';
 
 import type { PlayerTally } from '../awards';
 import type { Rig } from './characters';
+import type { CalloutPose, TraitHud } from './traitFx';
 import type { NetStatus, OnlineSession, Presentation } from '../net/client';
 import type { StartMessage } from '../net/protocol';
 import type { GunView } from './guns';
 import type { ArenaId } from '../sim/constants';
 import type { BotLevel } from '../sim/bot';
-import type { CharacterId, EndReason, GameEvent, GameState, GunKind, Phase } from '../sim/types';
+import type { CharacterId, EndReason, GameEvent, GameState, GunKind, Phase, TraitId } from '../sim/types';
 
 export interface HudFighter {
   name: string;
@@ -55,6 +60,12 @@ export interface HudFighter {
   out: boolean;
   /** The gun kind in hand (the HUD picks its icon from it). */
   kind: GunKind;
+  /** Signature trait badge state (offline only: null when traits are off, e.g. online). */
+  trait: TraitHud | null;
+  /** How many times this fighter's trait has fired this match (the badge pops when it grows; also the callout's word rule). */
+  traitFires: number;
+  /** Holding a gun Packed Extra topped up (the weapon chip shows the pack icon). */
+  packed: boolean;
 }
 
 export interface HudState {
@@ -190,6 +201,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   CHARACTER_FX.lite = false;
   setRimStrength(0.8); // arena strength (menu, showcase and lobby close-ups use 0.35)
   vfx.setPuffs(profile0.tier !== 'low');
+  let lowFx = profile0.tier === 'low';
   const rigs: Rig[] = state.fighters.map((f) => {
     const rig = buildRig(f.character, { rimBoost: rimBoostFor(f.character, arenaId) });
     scene.add(rig.root);
@@ -610,6 +622,74 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     c.life = CALLOUT_LIFE;
     c.sprite.visible = true;
   };
+  // Signature traits (R-026 spec 11): a pooled callout sprite per fighter (a new one replaces the old), the in-arena effects and the
+  // per-fighter fire count that decides word or disc. The sim only says `trait`; nothing here touches it.
+  const accentHex = (id: CharacterId) => new THREE.Color(ROSTER.find((r) => r.id === id)?.accent ?? '#ffffff').getHex();
+  const traitVfx = createTraitVfx(scene, vfx, state.fighters.map((f) => accentHex(f.character)), () => settings.reducedMotion);
+  traitVfx.setLow(lowFx);
+  const traitFires: number[] = state.fighters.map(() => 0);
+  const steamT: number[] = state.fighters.map(() => 0.6);
+  let calloutArt: ReturnType<typeof buildCalloutArt> | null = null;
+  let artDisposed = false;
+  void whenFontReady().then(() => {
+    if (!artDisposed) calloutArt = buildCalloutArt();
+  });
+  const traitCalls = state.fighters.map(() => {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }));
+    sprite.renderOrder = 13;
+    sprite.visible = false;
+    scene.add(sprite);
+    return { sprite, life: 0, max: 1, w: 1, h: 1, stack: 0, wait: -1, trait: 'leapfrog' as TraitId };
+  });
+  const showTraitCallout = (fighter: number, trait: TraitId) => {
+    const c = traitCalls[fighter];
+    const art = calloutArt?.get(trait, traitFires[fighter] <= WORD_FIRES);
+    if (!c || !art) return;
+    const m = c.sprite.material as THREE.SpriteMaterial;
+    m.map = art.tex;
+    m.needsUpdate = true;
+    c.w = art.w;
+    c.h = art.h;
+    // A pickup callout still up (Packed Extra's gun name) keeps its place and this sits over it; fixed at show time so it never jumps.
+    c.stack = callouts[fighter].sprite.visible ? 50 : 0;
+    c.life = c.max = calloutLife(traitFires[fighter]);
+    c.sprite.visible = true;
+  };
+  const pose: CalloutPose = { scale: 1, rise: 0, alpha: 1 };
+  const onTrait = (e: Extract<GameEvent, { type: 'trait' }>) => {
+    const f = state.fighters[e.fighter];
+    const c = traitCalls[e.fighter];
+    if (!f || !c) return;
+    traitFires[e.fighter]++;
+    const delay = CALLOUT_DELAY[e.trait];
+    if (delay <= 0) showTraitCallout(e.fighter, e.trait);
+    else {
+      c.wait = delay;
+      c.trait = e.trait;
+    }
+    const h = CHARACTERS[f.character].height;
+    switch (e.trait) {
+      case 'leapfrog':
+        traitVfx.leapfrog(e.fighter, e.x, e.y, f.facing);
+        sfx.leapfrog(e.x);
+        break;
+      case 'teaBreak':
+        traitVfx.steam(e.x, e.y, f.facing);
+        steamT[e.fighter] = 0.6;
+        sfx.teaBreak(e.x);
+        break;
+      case 'sugarRush':
+        traitVfx.sugar(e.x, e.y, h);
+        sfx.sugarRush(e.x);
+        break;
+      case 'packedExtra':
+        traitVfx.pack(e.fighter, e.x, e.y, f.facing, h);
+        sfx.packedExtra(e.x);
+        break;
+    }
+    // The badge pops now, not at the next 10 Hz HUD tick.
+    hudTimer = 0;
+  };
   let lastKo: HudState['lastKo'] = null;
   let time = 0;
   // Final-KO slow-motion (offline only): pending until the hit-stop is over, then `finaleT0` is the real time it began.
@@ -745,6 +825,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         // The office's bombs fall out of a ceiling vent; OFFSITE has open sky (the parachute appears by itself).
         if (arena.wall === 'glass') vfx.burst(e.x, A.ceiling - 0.3, 12, 'dust', { speed: 2, up: -1, gravity: 3, life: 0.6, size: 1.5 });
         sfx.drop(e.x);
+        break;
+      case 'trait':
+        onTrait(e);
         break;
       case 'rail':
         break;
@@ -1140,6 +1223,46 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       c.sprite.scale.set((img.width / 2) * wpp, (img.height / 2) * wpp, 1);
       (c.sprite.material as THREE.SpriteMaterial).opacity = Math.min(1, c.life / 0.3);
     });
+    // Trait callouts: a pill with its word for a fighter's first three fires, then a disc; the delayed ones (Sugar Rush, Packed Extra) wait here.
+    {
+      const s = Math.max(0.5, Math.min(1.6, Math.min((canvas.clientWidth || 1280) / 1280, (canvas.clientHeight || 720) / 720)));
+      traitCalls.forEach((c, i) => {
+        if (c.wait >= 0) {
+          c.wait -= dt;
+          if (c.wait < 0) showTraitCallout(i, c.trait);
+        }
+        if (!c.sprite.visible) return;
+        c.life -= dt;
+        if (c.life <= 0) {
+          c.sprite.visible = false;
+          return;
+        }
+        calloutPose(c.max - c.life, c.max, settings.reducedMotion, pose);
+        const p = rigs[i].root.position;
+        // Head top + 0.9 m: above where the damage numbers spawn.
+        c.sprite.position.set(p.x, p.y + CHARACTERS[state.fighters[i].character].height + 0.9 + c.stack * wpp * s + pose.rise, 0.9);
+        c.sprite.scale.set(c.w * wpp * s * pose.scale, c.h * wpp * s * pose.scale, 1);
+        (c.sprite.material as THREE.SpriteMaterial).opacity = pose.alpha;
+      });
+      // Sugar Rush speed lines and Tea Break's repeating steam follow the sim's own timers.
+      if (state.traits) {
+        state.fighters.forEach((f, i) => {
+          const p = rigs[i].root.position;
+          const alive = f.respawn <= 0;
+          const rush = alive && f.character === 'standup' && !!f.trait && f.trait.rush > 0;
+          traitVfx.speedLines(i, rush, p.x, p.y, f.facing, f.vx, f.trait?.rush ?? 0);
+          const healing = alive && f.character === 'legacy' && f.hp > 0 && f.hp < maxHp(state, f) && (f.sinceHit ?? 0) >= regenDelay(state, f);
+          if (healing && !lowFx) {
+            steamT[i] -= dt;
+            if (steamT[i] <= 0) {
+              steamT[i] = 0.6;
+              traitVfx.steam(p.x, p.y, f.facing, 1);
+            }
+          } else steamT[i] = 0.6;
+        });
+      }
+      traitVfx.update(dt);
+    }
     arena.update(dt, time);
     vfx.update(dt);
     updateCamera(dt);
@@ -1211,6 +1334,17 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
           reloading: f.weapon.reload > 0 ? 1 - f.weapon.reload / g.reloadTime : 0,
           bombs: f.bombs ?? 0,
           out: f.respawn > 0,
+          trait:
+            state.traits && f.trait
+              ? badgeFor(ROSTER.find((r) => r.id === f.character)!.traitId, f.trait, {
+                  hp: f.hp,
+                  max: maxHp(state, f),
+                  sinceHit: f.sinceHit ?? 0,
+                  delay: regenDelay(state, f),
+                })
+              : null,
+          traitFires: traitFires[f.id] ?? 0,
+          packed: !!state.traits && f.weapon.cap !== undefined,
         };
       }),
     });
@@ -1254,6 +1388,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     // The weight pass's extras go first: no dust, no hanging parts, no rim (no recompile, a uniform).
     CHARACTER_FX.lite = true;
     vfx.setPuffs(false);
+    lowFx = true;
+    traitVfx.setLow(true);
     setRimStrength(0);
     arena.lighten?.();
   };
@@ -1426,6 +1562,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     finaleT0 = -1;
     koAt = -99;
     callouts.forEach((c) => (c.sprite.visible = false));
+    traitCalls.forEach((c) => {
+      c.sprite.visible = false;
+      c.wait = -1;
+    });
+    traitFires.fill(0);
+    traitVfx.clear();
     emitHud();
   };
 
@@ -1493,6 +1635,9 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       canvas.removeEventListener('webglcontextlost', onLost);
       canvas.removeEventListener('webglcontextrestored', onRestored);
       offSettings();
+      artDisposed = true;
+      calloutArt?.dispose();
+      traitVfx.dispose();
       controls.dispose();
       controls2?.dispose();
       window.removeEventListener('keydown', onKey);

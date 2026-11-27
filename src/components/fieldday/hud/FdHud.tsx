@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { ROSTER } from '~/game/roster';
 import { useKeyLabel } from '~/components/twoPlayer/shared';
 import { nameCardVisible, OFFSITE_HUD_SCRIM } from '~/game/offsiteHud';
 import { RULES } from '~/game/sim/constants';
@@ -10,15 +11,22 @@ import { Confetti } from '../Confetti';
 import { fighterView } from '../fighters';
 import { Icon, WeaponIcon } from '../Icon';
 import { Chip, HintStrip, Keycap } from '../parts';
-import { Portrait } from '../Portrait';
+import { Portrait, useFighterPortraits } from '../Portrait';
 import { capLabel } from '../screens/howToKeys';
 import { Stage } from '../Stage';
 
-import { ammoText, clock, dashLeft, GUN_ICON, GUN_NOUN, healthSegments, pushLeft, respawnFraction } from './hudMath';
+import { TpKeyStrip } from './TpKeyStrips';
+import { TraitBadge, useFired } from './TraitBadge';
+
+import { ammoText, barWidth, clock, dashLeft, GUN_ICON, GUN_NOUN, healthSegments, pushLeft, respawnFraction, segmentSizes } from './hudMath';
+
+import './hudTraits.css';
 
 import type { HudFighter, HudState } from '~/game/render/game';
 import type { Bindings } from '~/game/settings';
+import type { Bindings2P } from '~/game/twoPlayer';
 import type { ArenaId } from '~/game/sim/constants';
+import type { CharacterId } from '~/game/sim/types';
 import type { CSSProperties } from 'react';
 
 /**
@@ -49,6 +57,8 @@ export interface FdHudProps {
   /** Settings > Key hints. */
   keyHints: boolean;
   bindings: Bindings;
+  /** Local 2-player key maps (the new bottom-corner strips). */
+  bindings2p: Bindings2P;
   /** The first-match strip's key flashes (useKeyStrip): the keys light up as you press them. */
   lit: Record<string, boolean>;
   menuOpen: boolean;
@@ -77,6 +87,8 @@ const Plate = ({
   const right = side === 'r';
   const v = nameOf(f);
   const segs = healthSegments(f.hp, f.maxHp);
+  const sizes = segmentSizes(f.maxHp);
+  const fired = useFired(f.traitFires);
   const ready = (n: number) => n >= 1;
   const dash = ready(f.dash);
   const push = ready(f.push);
@@ -116,10 +128,10 @@ const Plate = ({
         className={`fd-segbar ${right ? 'fd-rtl' : ''} ${f.healing ? 'fd-heal' : ''}`}
         role="img"
         aria-label={`${v.name} health ${Math.round(f.hp)} of ${f.maxHp}`}
-        style={{ position: 'absolute', top: 34, [edge]: 76, width: 290, ['--c' as string]: color, ...dir }}
+        style={{ position: 'absolute', top: 34, [edge]: 76, width: barWidth(f.maxHp), ['--c' as string]: color, ...dir }}
       >
         {segs.map((fill, i) => (
-          <i key={i}>
+          <i key={i} style={{ flex: `${sizes[i]} 1 0` }}>
             <b style={{ ['--cut' as string]: `${(1 - fill) * 100}%` }} />
           </i>
         ))}
@@ -132,6 +144,7 @@ const Plate = ({
             <>
               {GUN_NOUN[f.kind]} {ammo.main}
               {ammo.reserve && <span style={{ opacity: 0.6, marginLeft: -3 }}>{ammo.reserve}</span>}
+              {f.packed && <Icon name="packedExtra" className="fd-pack" data-testid="pack-mark" />}
             </>
           )}
         </Chip>
@@ -140,12 +153,13 @@ const Plate = ({
             BOMB {bombKey && <Keycap k={bombKey} style={{ minWidth: 18, height: 18, fontSize: 11, padding: '0 4px', boxShadow: '0 2px 0 var(--grape)', borderWidth: 2 }} />}
           </Chip>
         )}
-        <Chip height={24} fontSize={12} color={dash ? 'var(--sun)' : 'var(--gray)'} data-testid={`dash-${side}`} data-ready={dash}>
+        <Chip key={f.trait?.id === 'leapfrog' ? fired : 0} className={f.trait?.id === 'leapfrog' && fired ? 'fd-tb-pop' : ''} height={24} fontSize={12} color={dash ? 'var(--sun)' : 'var(--gray)'} data-testid={`dash-${side}`} data-ready={dash}>
           DASH{dash ? '' : ` ${dashLeft(f.dash)}s`}
         </Chip>
         <Chip height={24} fontSize={12} color={push ? 'var(--sun)' : 'var(--gray)'} data-testid={`push-${side}`} data-ready={push}>
           PUSH{push ? '' : ` ${pushLeft(f.push)}s`}
         </Chip>
+        {f.trait && <TraitBadge t={f.trait} fires={f.traitFires} color={color} />}
       </div>
     </div>
   );
@@ -226,8 +240,40 @@ const Feed = ({ hud, colours, tp }: { hud: HudState; colours: [string, string]; 
   );
 };
 
-/** The respawn card (b07): a draining ring, "BACK IN n…", who got you and with what, and a tip. */
-const RespawnCard = ({ hud, tips }: { hud: HudState; tips: readonly string[] }) => {
+/** COME BACK AS (spec 11.5.1): four head discs with their number keys, the current pick ringed; a pick pops. 1P vs bot only. */
+const ComeBackAs = ({ now }: { now: CharacterId }) => {
+  // The other fighters' pictures render in idle time while you wait (the two in the match are already there).
+  useFighterPortraits(now);
+  const prevPick = useRef(now);
+  const [pop, setPop] = useState<{ id: CharacterId; n: number } | null>(null);
+  useEffect(() => {
+    if (now !== prevPick.current) setPop((p) => ({ id: now, n: (p?.n ?? 0) + 1 }));
+    prevPick.current = now;
+  }, [now]);
+  return (
+    <div className="fd-cb" data-testid="come-back-as" style={{ marginLeft: 'auto' }}>
+      <span className="fd-cb-label">COME BACK AS</span>
+      <div className="fd-cb-row">
+        {ROSTER.slice(0, 4).map((r, i) => (
+          <span
+            key={r.id === pop?.id ? `${r.id}-${pop.n}` : r.id}
+            className={`fd-cb-opt ${pop?.id === r.id ? 'fd-cb-pop' : ''}`}
+            aria-current={now === r.id}
+            data-testid={`come-back-${i + 1}`}
+            role="img"
+            aria-label={r.name}
+          >
+            <Portrait id={r.id} w={27} h={27} circle head={0.8} ty={0.5} className="fd-cb-disc" style={{ width: 32, height: 32 }} />
+            <Keycap k={String(i + 1)} />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** The respawn card (b07): a draining ring, "BACK IN n…", who got you and with what, a tip and, vs a bot, the pick row. */
+const RespawnCard = ({ hud, tips, pick }: { hud: HudState; tips: readonly string[]; pick: boolean }) => {
   const left = hud.respawnIn ?? 0;
   const ko = hud.lastKo;
   const killer = ko && ko.fighter === 0 ? hud.fighters[ko.by] : null;
@@ -238,7 +284,7 @@ const RespawnCard = ({ hud, tips }: { hud: HudState; tips: readonly string[] }) 
       <div
         data-testid="respawn-card"
         role="status"
-        style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 24px 8px 12px', background: 'var(--paper)', border: '4px solid var(--grape)', borderRadius: 26, boxShadow: '0 7px 0 var(--grape)' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '8px 24px 8px 12px', minWidth: pick ? 620 : undefined, boxSizing: 'border-box', background: 'var(--paper)', border: '4px solid var(--grape)', borderRadius: 26, boxShadow: '0 7px 0 var(--grape)' }}
       >
         <div style={{ position: 'relative', width: 64, height: 64, flex: 'none' }}>
           <svg width="64" height="64" viewBox="0 0 76 76" style={{ position: 'absolute', inset: 0 }} aria-hidden="true">
@@ -260,6 +306,7 @@ const RespawnCard = ({ hud, tips }: { hud: HudState; tips: readonly string[] }) 
           )}
           {tip && <span style={{ font: "600 13px/1.1 'Baloo 2', sans-serif", color: 'var(--grape-2)' }}>Tip: {tip}</span>}
         </div>
+        {pick && <ComeBackAs now={hud.nextCharacter ?? hud.character} />}
       </div>
     </div>
   );
@@ -279,6 +326,8 @@ export const FdHud = (p: FdHudProps) => {
   const matchPoint = Math.max(a.kos, b.kos) === hud.kosToWin - 1;
   const stripOn = !p.demo && !p.touch && !p.tp && p.keyHints && hud.phase !== 'over' && !p.covered;
   const stripShown = stripOn && !down && kos < 2;
+  const [c1, c2] = p.colours;
+  const tpStrips = p.tp && !p.demo && p.keyHints && hud.phase !== 'over' && !p.covered && kos < 2;
   const timer = clock(hud.phase === 'countdown' ? RULES.roundSeconds : hud.time);
   // The arena card is the title card: once somebody has been KO'd the feed takes its place under the score.
   const cardOn = !p.touch && nameCardVisible(hud.phase, hud.time, RULES.roundSeconds, hud.paused, p.menuOpen) && !(hud.lastKo && hud.phase === 'fight' && !hud.paused);
@@ -318,7 +367,7 @@ export const FdHud = (p: FdHudProps) => {
           <span style={{ fontSize: 13 }}>{p.card.line}</span>
         </span>
       </div>
-      {down && <RespawnCard hud={hud} tips={p.tips} />}
+      {down && <RespawnCard hud={hud} tips={p.tips} pick={!p.online} />}
       <div
         className="fd-abs fd-keystrip"
         data-testid="key-strip"
@@ -350,6 +399,12 @@ export const FdHud = (p: FdHudProps) => {
           </span>
         </div>
       </div>
+      {p.tp && !p.demo && (
+        <>
+          <TpKeyStrip player="p1" bindings={p.bindings2p} colour={c1} label={label} shown={tpStrips} align="left" />
+          <TpKeyStrip player="p2" bindings={p.bindings2p} colour={c2} label={label} shown={tpStrips} align="right" />
+        </>
+      )}
       {hint && (
         <div className="fd-abs" data-testid="hud-hint" style={{ left: '50%', ...(p.touch ? { top: 150 } : { bottom: 14 }), transform: 'translateX(-50%)' }}>
           <HintStrip items={hud.hint.map((h) => ({ keys: [p.touch && h.key === 'Space' ? 'FIRE' : h.key.toUpperCase()], label: h.text }))} />

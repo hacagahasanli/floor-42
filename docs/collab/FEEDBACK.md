@@ -482,3 +482,33 @@ Decisions on the R-025 asks:
 - What should change: the cream pinstripes on the helmet from 0.02 m to **0.035 m** wide; nothing else.
 - Expected result: the helmet outline reads in a 1x office crop.
 - Status: implemented (2026-11-28, engineering; shots in `shots/roster-v3-polish/`, see LOG.md)
+
+# Review R-026 (CD, 2026-11-28): traits on screen + phase 2a/2b open items
+Spec: `CREATIVE/ui/direction-b/spec.md` §11; sheet `CREATIVE/ui/direction-b/traits/traits-sheet.png`; icons `traits/icons/`. Looked at fieldday-p1/p2a/p2b shots and a 5 fps contact sheet of `result-reveal-win-1280.webm`. Did not play the build this turn.
+
+## F-051 — Traits fire with nothing on screen (P0)
+- What is wrong: the `trait` events have no VFX, sound, callout or HUD cue; Leapfrog and Tea Break are invisible to a player.
+- What should change: §11.1-11.2: world callout (word for fires 1-3, disc after), HUD trait badge with ready/firing/cooldown, the per-trait VFX and sounds, Sugar Rush callout +120 ms, Packed Extra +150 ms and pack icon on the weapon chip. All hidden when traits are off.
+- Expected result: in a 1280x720 capture, each trait fire shows its callout above the fighter and its badge pop; Sugar Rush's callout never overlaps the damage number; low tier adds at most 1 draw call per fighter (speed lines).
+- Related spec: §11.1, §11.2. Status: done (in-match part) (in-match half done 2026-11-28 (engineering): callouts, VFX, sounds, badge, pack icon; see LOG R-026 in-match)
+
+## F-052 — Menus do not explain traits or HP (P0)
+- What should change: §11.3: home trait chip (replaces weight), select trait sticker + HEALTH pip row + focused-fighter line pill, how-to SIGNATURE MOVES strip, new `traitLine` copy, `copy.ts:57` health line, two tips.
+- Expected result: a new player can name each fighter's trait from select alone; layout check 0 issues at 1280 and 1920.
+- Related spec: §11.3. Status: implemented (2026-11-28, engineering; shots in `shots/traits-menus/`, see LOG.md)
+
+## F-053 — Health bar length must show max HP (P1)
+- What is wrong: segments = round(maxHp/20) at a fixed bar width, so ZUZU's 85 looks like 4 full segments and a segment is not the same damage for everyone.
+- What should change: 2.52 px per HP, 20 HP per segment, partial last segment (§11.4).
+- Expected result: ZUZU's full bar is 214 px, ORMO's 290 px; a 20 HP hit removes the same width on everyone.
+- Status: done (done 2026-11-28: 2.52 px per HP, 20 HP segments (ZUZU 214, ORMO 290 measured))
+
+## F-054 — Phase 2a/2b decisions (P1)
+- What should change: (1) respawn COME BACK AS row, 1P only (§11.5.1); (2) draw subtitles, sound, rays (§11.5.2); (3) online `CANCEL` → `LEAVE`, pill `If either of you leaves, the match ends.`; (4) rival chip `DECIDING…` without a number, `STILL DECIDING…` after 20 s; (5) 2P key strips per §11.5.9. Accepted as built: draw layout, IRON SPONGE wording, NEXT ARENA hidden online, mag+reserve chips, credits without Support us / studio mark.
+- Related spec: §11.5. Status: done (in-match part) (in-match items done 2026-11-28: respawn COME BACK AS (1P) and 2P key strips; draw, LEAVE and DECIDING items belong to the menu engineer / not done here); MENU part done (item 3: LEAVE + info pill, item 4: DECIDING… / STILL DECIDING…, see LOG.md), the in-match items (1, 2, 5) are with the other engineer
+
+## F-055 — Star icons in the UI (P1, ip-guard follow-up)
+- What is wrong: star icons on YOUR PICK (sun chip), the home arena ribbon, the credits ribbon and the Settings Credits button; ip-guard flagged gold star/coin motifs.
+- What should change: §11.6: YOUR PICK → `check`; ribbon, credits ribbon and Credits button → `pennant`; delete `star` from `Icon.tsx`; the result white 16-point burst stays (rename class `fd-res-burst`).
+- Expected result: `grep -ri "name=\"star\"\|icon=\"star\"\|★" src` returns nothing.
+- Related spec: §11.6. Status: implemented (2026-11-28, engineering; shots in `shots/traits-menus/`, see LOG.md); `grep` for star icons and ★ in `src` is empty

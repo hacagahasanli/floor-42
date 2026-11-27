@@ -466,6 +466,29 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
     },
     jump: (x?: number) => may('jump') && tone('sine', 300, 520, 0.08, 0.1, { room: 0, pan: panOf(x) }),
     dash: (x?: number) => may('dash') && noise('bandpass', 700, 2800, 0.13, 0.22, 1.2, { room: 0.2, pan: panOf(x) }),
+    // Signature traits (R-026 spec 11.2): synth stand-ins on the SFX bus, each at least 8 dB under a gunshot, 300 ms or shorter
+    // (Tea Break's sigh is the one written exception). Pan follows the fighter.
+    leapfrog: (x?: number) => {
+      if (!may('leapfrog')) return;
+      tone('sine', 300, 900, 0.12, 0.07, { room: 0.25, pan: panOf(x) }); // rubber boing up
+      noise('bandpass', 2200, 1400, 0.1, 0.05, 3, { delay: 0.04, room: 0.2, pan: panOf(x) }); // skate-wheel rattle
+    },
+    teaBreak: (x?: number) => {
+      if (!may('teaBreak')) return;
+      tone('sine', 2100, 2100, 0.25, 0.05, { room: 0.4, pan: panOf(x) }); // porcelain clink
+      tone('sine', 3200, 3200, 0.25, 0.035, { room: 0.4, pan: panOf(x) });
+      noise('lowpass', 1800, 500, 0.4, 0.025, 0.8, { delay: 0.18, room: 0.35, pan: panOf(x) }); // kettle sigh, -6 dB
+    },
+    sugarRush: (x?: number) => {
+      if (!may('sugarRush')) return;
+      tone('sine', 2400, 2900, 0.06, 0.06, { room: 0.3, pan: panOf(x) }); // her whistle: two chirps
+      tone('sine', 2400, 2900, 0.06, 0.06, { delay: 0.1, room: 0.3, pan: panOf(x) });
+    },
+    packedExtra: (x?: number) => {
+      if (!may('packedExtra')) return;
+      noise('bandpass', 1200, 3200, 0.15, 0.07, 2, { room: 0.15, pan: panOf(x) }); // zipper
+      click(0.17, 3000, 0.07, panOf(x)); // magazine clack
+    },
     pickup: () => {
       click(0, 2600, 0.3);
       tone('triangle', 520, 780, 0.08, 0.12, { delay: 0.05, room: 0.2, bus: 'ui' });

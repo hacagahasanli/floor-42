@@ -51,6 +51,11 @@ export const BUDGET = {
   slideWhistle: { cooldownMs: 200, maxVoices: 1, lengthMs: 400 },
   ding: { cooldownMs: 100, maxVoices: 2, lengthMs: 500 },
   softPop: { cooldownMs: 40, maxVoices: 2, lengthMs: 100 },
+  // Signature traits (R-026): rare, one at a time. Tea Break's kettle sigh runs past 300 ms on purpose.
+  leapfrog: { cooldownMs: 300, maxVoices: 1, lengthMs: 160 },
+  teaBreak: { cooldownMs: 300, maxVoices: 1, lengthMs: 580 },
+  sugarRush: { cooldownMs: 300, maxVoices: 1, lengthMs: 160 },
+  packedExtra: { cooldownMs: 300, maxVoices: 1, lengthMs: 220 },
   crowd: { cooldownMs: 1000, maxVoices: 2, lengthMs: 2400 },
 } as const satisfies Record<string, Budget>;
 

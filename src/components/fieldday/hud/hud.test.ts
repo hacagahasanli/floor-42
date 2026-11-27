@@ -4,7 +4,7 @@ import { PHYS, PUSH, RULES } from '~/game/sim/constants';
 
 import { arrowNote, moveGroup } from '../screens/howToKeys';
 
-import { ammoText, clock, dashLeft, GUN_ICON, GUN_NOUN, healthSegments, pushLeft, respawnFraction } from './hudMath';
+import { ammoText, clock, dashLeft, GUN_ICON, GUN_NOUN, barWidth, healthSegments, pushLeft, respawnFraction, segmentSizes } from './hudMath';
 
 import { DEFAULT_BINDINGS } from '~/game/settings';
 import { DEFAULT_BINDINGS_2P } from '~/game/twoPlayer';
@@ -20,10 +20,19 @@ describe('health segments (b06)', () => {
     expect(s[3]).toBeCloseTo(0.55);
     expect(s[4]).toBe(0);
   });
-  it('a character with other HP gets other segments, each still 20 HP-ish', () => {
-    expect(healthSegments(120, 120)).toHaveLength(6);
-    expect(healthSegments(10, 60)).toHaveLength(3);
-    expect(healthSegments(500, 500)).toHaveLength(8);
+  it('every segment is 20 HP and the last one is partial (spec 11.4)', () => {
+    expect(segmentSizes(85)).toEqual([20, 20, 20, 20, 5]);
+    expect(segmentSizes(110)).toEqual([20, 20, 20, 20, 20, 10]);
+    expect(segmentSizes(115)).toEqual([20, 20, 20, 20, 20, 15]);
+    expect(segmentSizes(100)).toEqual([20, 20, 20, 20, 20]);
+    expect(healthSegments(85, 85)).toEqual([1, 1, 1, 1, 1]);
+    expect(healthSegments(110, 110)).toHaveLength(6);
+  });
+  it('bar length is 2.52 px per HP: ZUZU 214, TAVO 252, BRIX 277, ORMO 290', () => {
+    expect([85, 100, 110, 115].map(barWidth)).toEqual([214, 252, 277, 290]);
+  });
+  it('20 HP of damage is the same share of a segment for everyone', () => {
+    for (const max of [85, 100, 110, 115]) expect(healthSegments(max - 20, max).filter((f) => f < 1).length).toBeLessThanOrEqual(2);
   });
   it('never below zero or above one', () => {
     for (const v of healthSegments(-5, 100).concat(healthSegments(999, 100))) expect(v >= 0 && v <= 1).toBe(true);

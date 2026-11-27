@@ -282,7 +282,7 @@ const ResultBody = (p: ResultScreenProps) => {
       {outcome === 'win' && step >= 6 && <Confetti kind="rain" burst={1} outcome="win" width={stageW} height={720} seed={11} />}
 
       <div ref={rootRef} className="fd-res-col fd-res-main" style={{ left: colLeft }} {...(asked ? { inert: true } : {})}>
-        <svg className="fd-res-star" viewBox="-110 -110 220 220" aria-hidden="true">
+        <svg className="fd-res-burst" viewBox="-110 -110 220 220" aria-hidden="true">
           <polygon
             fill="#fff"
             stroke="#3B1F6B"
@@ -577,9 +577,10 @@ const ResultBody = (p: ResultScreenProps) => {
   );
 };
 
-const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-
-/** b16: online, after REMATCH. The rival's decision is not reported to us, so the right slot counts the time waited. */
+/**
+ * b16: online, after REMATCH. The rival's decision is not reported to us, so the right slot says DECIDING… (no number: a count-up reads
+ * like a deadline; R-026 11.5.5): the dots fill one by one, 400 ms each, and after 20 s it says STILL DECIDING…. LEAVE leaves the room.
+ */
 const RematchPanel = ({
   colLeft,
   me,
@@ -594,11 +595,14 @@ const RematchPanel = ({
   onCancel: () => void;
 }) => {
   const C = FD_COPY.result.rematchOnline;
-  const [secs, setSecs] = useState(0);
+  const [ticks, setTicks] = useState(0);
   useEffect(() => {
-    const id = window.setInterval(() => setSecs((s) => s + 1), 1000);
+    const id = window.setInterval(() => setTicks((n) => n + 1), 400);
     return () => window.clearInterval(id);
   }, []);
+  const still = ticks >= 50;
+  const dots = ticks % 4;
+  const word = (still ? C.stillDeciding : C.deciding).replace('…', '');
   return (
     <div className="fd-res-col" style={{ left: colLeft, zIndex: 6 }} data-testid="rematch-panel" role="dialog" aria-label={C.title}>
       <div className="fd-panel fd-res-modal-enter" style={{ left: 340, top: 150, width: 600, height: 400 }}>
@@ -624,13 +628,17 @@ const RematchPanel = ({
           <span className="fd-titan" style={{ fontSize: 22 }}>
             {C.rival}
           </span>
-          <Chip color="var(--sun)" icon="clock" data-testid="rival-status">
-            {C.deciding(clock(secs))}
+          <Chip color="var(--sun)" icon="clock" iconClassName="fd-clock-turn" data-testid="rival-status" aria-label={still ? C.stillDeciding : C.deciding}>
+            <span aria-hidden="true">
+              {word}
+              {'.'.repeat(dots)}
+              <span style={{ visibility: 'hidden' }}>{'.'.repeat(3 - dots)}</span>
+            </span>
           </Chip>
         </div>
         <div style={{ position: 'absolute', left: 0, right: 0, top: 302, display: 'flex', justifyContent: 'center' }}>
-          <FdButton ref={cancelRef} tone="white" size="md" fontSize={22} data-nav data-testid="rematch-cancel" sound="back" onClick={onCancel} after={<Keycap k={FD_COPY.result.esc} />}>
-            {C.cancel}
+          <FdButton ref={cancelRef} tone="white" size="md" fontSize={22} data-nav icon="back" iconSize={22} data-testid="rematch-cancel" sound="back" onClick={onCancel} after={<Keycap k={FD_COPY.result.esc} />}>
+            {C.leave}
           </FdButton>
         </div>
       </div>
