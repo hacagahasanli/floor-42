@@ -1,7 +1,9 @@
 import { Room } from '@colyseus/core';
 
 import { createAuthority } from '../src/game/net/authority';
-import { encodeSnapshot, PROTOCOL_VERSION, SNAPSHOT_EVERY_TICKS } from '../src/game/net/protocol';
+import { createFixedStep, createTickStats } from '../src/game/net/fixedStep';
+import { PROTOCOL_VERSION, SNAPSHOT_EVERY_TICKS } from '../src/game/net/protocol';
+import { snapshotMessage } from '../src/game/net/serverSnapshot';
 import { CHARACTERS } from '../src/game/sim/constants';
 import { chooseCharacter, createGame } from '../src/game/sim/step';
 
@@ -112,7 +114,15 @@ export class DuelRoom extends Room {
       this.auth.mutate((s) => chooseCharacter(s, slot, character));
     });
 
-    this.setSimulationInterval(() => this.tick(), 1000 / 60);
+    // Colyseus' clock needs the simulation interval; the game ticks are paced by real time on top of it
+    // (see fixedStep.ts: a plain 1000/60 interval ran at 58.5 Hz).
+    const stats = process.env.TICK_STATS ? createTickStats(1000 / 60, (l) => console.log(l)) : null;
+    const step = createFixedStep(1000 / 60, () => {
+      const t0 = performance.now();
+      this.tick();
+      stats?.record(t0);
+    });
+    this.setSimulationInterval(() => step.poll(), 2);
   }
 
   onJoin(client: Client, options: JoinOptions) {
@@ -219,17 +229,8 @@ export class DuelRoom extends Room {
     }
     this.serverTick += 1;
     if (this.serverTick % SNAPSHOT_EVERY_TICKS === 0) {
-      const snap = auth.snapshot();
-      const [a, b] = snap.seats;
       this.seq += 1;
-      const raw = encodeSnapshot({
-        seq: this.seq,
-        ack: [a.ack, b.ack],
-        inputs: [a.wire, b.wire],
-        next: [a.next, b.next],
-        state: { ...snap.state, events: [] },
-        ev: auth.takeEvents() ?? undefined,
-      });
+      const raw = snapshotMessage(auth, this.seq);
       this.broadcast('snap', raw);
     }
   }
