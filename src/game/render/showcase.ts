@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 
+import { ROSTER } from '../roster';
 import { getSettings } from '../settings';
 import { arenaOf, GUNS, menuSpotX } from '../sim/constants';
 
@@ -91,7 +92,7 @@ export const startShowcase = (
   let dropV = 0;
   const squash = { s: 0, v: 0 };
   const squashSpring = { x: 0, v: 0 };
-  const accentOf: Record<CharacterId, number> = { hotfix: 0xff6a3d, legacy: 0x3ddc84, standup: 0x3ec5ff, intern: 0xffd23f };
+  const accentOf = Object.fromEntries(ROSTER.map((r) => [r.id, parseInt(r.accent.slice(1), 16)])) as Record<CharacterId, number>;
 
   const place = (id: CharacterId, animate: boolean) => {
     if (rig) {

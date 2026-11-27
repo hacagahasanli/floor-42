@@ -18,7 +18,6 @@ export interface LobbyInput {
   elapsed?: number;
   /** navigator.onLine: only the browser's own network, never the game server. */
   online: boolean;
-  developer: boolean;
   kos: number;
 }
 
@@ -60,9 +59,7 @@ export const lobbyView = (i: LobbyInput): LobbyView => {
             ...base,
             dot: 'green',
             pulse: false,
-            centre: i.developer
-              ? `1v1 · first to ${i.kos} takes the merge`
-              : `1v1 · first to ${i.kos}`,
+            centre: `1v1 · first to ${i.kos} wins`,
             rival: 'Not here yet',
             panel: 'menu',
             spot: 'idle',

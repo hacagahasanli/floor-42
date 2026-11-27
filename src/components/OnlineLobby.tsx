@@ -32,9 +32,7 @@ import {
   readForcedState,
 } from '~/components/lobby/lobbyView';
 import { accentOf, readCharacter, saveCharacter, usePortraits } from '~/components/MenuShell';
-import { AudiencePrompt } from '~/components/menu/AudiencePrompt';
 import { menuSound } from '~/components/menu/menuSound';
-import { useCopyVariant } from '~/components/menu/useCopy';
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useMenuTelemetry } from '~/components/useTelemetry';
 import { createOnlineSession, joinRoom } from '~/game/net/client';
@@ -182,7 +180,6 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   const [infoFits, setInfoFits] = useState(true);
   const portraits = usePortraits();
   useMenuTelemetry(!!portraits);
-  const developer = useCopyVariant() === 'developer';
   const lift = useLiftTo();
   useGamepadNav();
   const browserOnline = useOnline();
@@ -326,7 +323,6 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
     joinFailed: view_stage.kind === 'error' ? view_stage.joinFailed : undefined,
     elapsed,
     online,
-    developer,
     kos: RULES.kosToWin,
   });
   const inMenu = view_stage.kind === 'menu';
@@ -587,7 +583,6 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
         </div>
       </div>
       {lift.doors}
-      <AudiencePrompt />
     </main>
   );
 };

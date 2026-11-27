@@ -58,6 +58,18 @@ export const menuSound = {
   doorSlam: () => play((s) => s.doorSlam()),
   liftDing: () => play((s) => s.liftDing()),
   floorTick: (n: number) => play((s) => s.floorTick(n)),
+  /** Field Day result reveal voices (through fdSound). */
+  result: {
+    whoosh: () => play((s) => s.resultWhoosh()),
+    drumroll: () => play((s) => s.drumroll()),
+    horn: () => play((s) => s.partyHorn()),
+    wah: () => play((s) => s.wahwah()),
+    thud: () => play((s) => s.thud()),
+    whistle: () => play((s) => s.slideWhistle()),
+    ding: (n: number) => play((s) => s.ding(n)),
+    pop: () => play((s) => s.softPop()),
+    crowd: () => play((s) => s.crowd()),
+  },
   winSting: () => play((s) => s.winSting()),
   lossSting: () => play((s) => s.lossSting()),
 };

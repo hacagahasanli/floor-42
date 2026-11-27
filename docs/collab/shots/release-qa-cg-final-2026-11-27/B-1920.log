@@ -1,0 +1,60 @@
+{
+ "mode": "B",
+ "size": "1920x1080",
+ "posterBg": "url(\"http://127.0.0.1:8601/menu-poster.webp\")",
+ "loadingStop": 1083,
+ "gl": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+ "wallToLoadingStopMs": 3356,
+ "selectFocus": "true BUTTON",
+ "enterAt": 6614,
+ "gameplayStart1": 11015,
+ "introSeen": {
+  "FIGHT!": 6615,
+  "READY": 9202
+ },
+ "hudBot": "BOT · easy",
+ "focus": {
+  "hasFocus": true,
+  "active": "INPUT#pointer-events-none absolute l"
+ },
+ "hostScrollY": 0,
+ "fps": 54,
+ "match1": {
+  "resultAt": 59008,
+  "wallS": 45
+ },
+ "result1Text": "Legacy YOU Pistol DASH PUSH 8/∞ 105 0 : 5 FIRST TO 5 FLOOR 42 open office Intern BOT · easy Shotgun 1/6 INTERN WINS They took the floor. First to 5 KOs. Legacy YOU Intern BOT 0 KOS 5 0 DAMAGE DEALT 475 0% ACCURACY 100% 0 BEST STREAK 5 5 TIMES DOWN 0 REMATCH (E",
+ "heapMB1": 40,
+ "cgLog": [
+  [
+   "init",
+   882
+  ],
+  [
+   "loadingStart",
+   933
+  ],
+  [
+   "loadingStop",
+   1083
+  ],
+  [
+   "gameplayStart",
+   11015
+  ],
+  [
+   "gameplayStop",
+   58769
+  ]
+ ],
+ "marks": [
+  [
+   "select-enter",
+   6614
+  ]
+ ]
+}
+EXTERNAL: [ 'https://sdk.crazygames.com/crazygames-sdk-v3.js' ]
+FAILED: []
+ERRORS: []
+WARNINGS: []

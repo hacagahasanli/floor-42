@@ -1,0 +1,65 @@
+// Owner requests 2026-11-23: /characters is the menu's fighter select; V / M sit in 2P and M does not mute there.
+import { chromium } from 'playwright';
+const [base, out] = process.argv.slice(2);
+const b = await chromium.launch({ args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const ctx = await b.newContext({ viewport: { width: 1280, height: 720 } });
+const p = await ctx.newPage();
+p.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
+await p.addInitScript(() => {
+  if (!localStorage.getItem('floor42:settings')) localStorage.setItem('floor42:settings', JSON.stringify({ audience: 'regular' }));
+});
+const path = () => new URL(p.url()).pathname;
+const onSelect = () => p.locator('section[aria-label="Choose your fighter"]').count();
+const onMain = () => p.locator('nav[aria-label="Main menu"]').count();
+
+await p.goto(`${base}/characters`);
+await p.waitForSelector('section[aria-label="Choose your fighter"]');
+await p.waitForTimeout(2000);
+console.log('direct /characters -> fighter select:', await onSelect(), 'path', path());
+await p.screenshot({ path: `${out}/owner-d1280x720-01-characters-direct.png` });
+await p.keyboard.press('Escape');
+await p.waitForTimeout(400);
+console.log('Esc -> path', path(), 'main menu:', await onMain());
+await p.getByRole('button', { name: /FIGHTER/ }).click();
+await p.waitForTimeout(400);
+console.log('menu FIGHTER -> path', path(), 'select:', await onSelect());
+await p.screenshot({ path: `${out}/owner-d1280x720-02-fighter-from-menu.png` });
+await p.keyboard.press('Escape');
+await p.waitForTimeout(400);
+console.log('Esc -> path', path(), 'main menu:', await onMain());
+await p.getByRole('button', { name: /FIGHTER/ }).click();
+await p.waitForTimeout(300);
+await p.goBack();
+await p.waitForTimeout(500);
+console.log('browser Back -> path', path(), 'main menu:', await onMain(), 'select:', await onSelect());
+await p.goForward();
+await p.waitForTimeout(500);
+console.log('browser Forward -> path', path(), 'select:', await onSelect());
+
+// 2P: V and M sit both fighters at once; M does not mute.
+await p.goto(`${base}/arena?mode=2p&p1=hotfix&p2=legacy&n=5`);
+await p.waitForSelector('[data-testid="key-card"]', { timeout: 30000 });
+await p.waitForTimeout(800);
+await p.keyboard.down('KeyV');
+await p.keyboard.down('KeyM');
+await p.waitForTimeout(200);
+await p.screenshot({ path: `${out}/owner-d1280x720-03-keycard-sit-lit.png` });
+await p.keyboard.up('KeyV');
+await p.keyboard.up('KeyM');
+await p.keyboard.press('KeyF');
+await p.keyboard.press('Semicolon');
+await p.waitForFunction(() => window.__mc?.state().phase === 'fight', null, { timeout: 15000 });
+await p.waitForTimeout(800);
+const muted0 = await p.evaluate(() => JSON.parse(localStorage.getItem('floor42:settings')).audio?.muted ?? false);
+await p.keyboard.down('KeyV');
+await p.keyboard.down('KeyM');
+await p.waitForTimeout(500);
+const crouch = await p.evaluate(() => window.__mc.state().fighters.map((f) => +f.crouch.toFixed(2)));
+await p.screenshot({ path: `${out}/owner-d1280x720-04-match-both-sit.png` });
+await p.keyboard.up('KeyV');
+await p.keyboard.up('KeyM');
+await p.waitForTimeout(400);
+const after = await p.evaluate(() => window.__mc.state().fighters.map((f) => +f.crouch.toFixed(2)));
+const muted1 = await p.evaluate(() => JSON.parse(localStorage.getItem('floor42:settings')).audio?.muted ?? false);
+console.log('crouch while V+M held:', JSON.stringify(crouch), 'after release:', JSON.stringify(after), 'muted before/after M:', muted0, muted1, 'muted label:', await p.locator('text=muted (M)').count());
+await b.close();

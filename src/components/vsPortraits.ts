@@ -12,6 +12,15 @@ let chain: Promise<void> = Promise.resolve();
 
 export const doorPortrait = (id: CharacterId) => cache[id];
 
+/** Tell listeners when a portrait has landed in the cache (the Field Day screens re-render on it). */
+const listeners = new Set<() => void>();
+export const onDoorPortraits = (cb: () => void) => {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
+};
+
 export const ensureDoorPortraits = (ids: CharacterId[]): Promise<void> => {
   if (ids.every((id) => cache[id])) return Promise.resolve();
   chain = chain.then(async () => {
@@ -21,6 +30,7 @@ export const ensureDoorPortraits = (ids: CharacterId[]): Promise<void> => {
       const { renderPortraits } = await import('~/game/render/portraits');
       const accents = Object.fromEntries(ROSTER.map((r) => [r.id, r.accent])) as Record<CharacterId, string>;
       Object.assign(cache, renderPortraits(accents, { scale: 2, only: need }));
+      listeners.forEach((l) => l());
     } catch {
       /* no WebGL: the doors show the slabs and names without a face */
     }

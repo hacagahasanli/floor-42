@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roster v3 Sheets</title>
+<!-- R-022b concept sheets. Every figure is a live three.js build from boxes, cylinders, icosahedrons and a few
+     extruded shapes, on the same joint layout as src/game/render/characters.ts (root > hips > torso > head,
+     shoulder > elbow > hand, hip > knee), so every pose angle here is a joint angle engineering can copy.
+     Render to PNG: node render.mjs (this folder). -->
+<link href="https://fonts.googleapis.com/css2?family=Titan+One&family=Baloo+2:wght@500;600;700;800&display=block" rel="stylesheet">
+<style>
+  :root { --ink:#22163f; --grape:#3B1F6B; --paper:#fff8ec; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #2a2140; font-family: 'Baloo 2', sans-serif; color: var(--ink); }
+  .sheet { width: 1920px; height: 1080px; position: relative; overflow: hidden; margin-bottom: 40px;
+    background: radial-gradient(ellipse at 22% 58%, var(--tint) 0%, #fff3df 46%, #f6dfb6 100%); }
+  .sheet::before { content:''; position:absolute; left:-360px; top:-330px; width:1500px; height:1500px; opacity:.22;
+    background: repeating-conic-gradient(from 0deg at 50% 50%, var(--acc) 0 6deg, transparent 6deg 18deg); border-radius:50%;
+    -webkit-mask: radial-gradient(circle, #000 25%, transparent 70%); mask: radial-gradient(circle, #000 25%, transparent 70%); }
+  .hero { position:absolute; left:10px; top:170px; width:760px; height:860px; }
+  .hero img { width:100%; height:100%; object-fit:contain; }
+  .nameblock { position:absolute; left:52px; top:28px; z-index:2; }
+  .opt { display:inline-block; font-family:'Titan One'; font-size:26px; color:#fff; background:var(--grape); border-radius:12px; padding:2px 14px; margin-bottom:6px; letter-spacing:1px; }
+  .name { font-family:'Titan One'; font-size:112px; line-height:1; color:var(--acc); letter-spacing:2px;
+    -webkit-text-stroke: 7px var(--grape); paint-order: stroke fill; text-shadow: 0 8px 0 var(--grape); }
+  .role { font-weight:800; font-size:29px; color:var(--grape); margin-top:8px; letter-spacing:1px; text-transform:uppercase; }
+  .backups { font-size:19px; font-weight:600; color:#6b5a86; margin-top:0; }
+  .why { position:absolute; left:52px; bottom:58px; width:700px; z-index:2; background:var(--grape); color:#fff; border-radius:18px; padding:10px 18px;
+    font-size:19px; font-weight:700; line-height:1.25; box-shadow:0 6px 0 rgba(59,31,107,.35); }
+  .why b { color:#FFC83D; }
+  .slot { position:absolute; left:56px; bottom:24px; font-size:16px; font-weight:600; color:#7d6c93; }
+  .card { background: var(--paper); border: 5px solid var(--grape); border-radius: 24px; box-shadow: 0 7px 0 var(--grape); padding: 12px 20px; }
+  .kicker { font-family:'Titan One'; font-size:21px; color:var(--acc2); letter-spacing:1px; text-transform:uppercase; }
+  .big { font-size:22px; font-weight:800; line-height:1.15; color:var(--grape); }
+  .txt { font-size:18px; font-weight:600; line-height:1.27; color:#3d2d5c; }
+  .quotes { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .quote { background:var(--acc); color:#fff; font-weight:800; font-size:17px; padding:1px 13px; border-radius:999px; border:3px solid var(--grape); }
+  .poses { position:absolute; left:780px; top:30px; width:620px; display:grid; grid-template-columns: 1fr 1fr; gap:18px 18px; }
+  .pose .pic { height:262px; border-radius:20px; border:5px solid var(--grape); box-shadow:0 6px 0 var(--grape); overflow:hidden; position:relative;
+    background: linear-gradient(#bfe6f7 0%, #9fd3ee 60%, #f1d39d 60%, #e9c487 100%); }
+  .pose .pic img { width:100%; height:100%; object-fit:contain; display:block; }
+  .pose .tag { position:absolute; left:10px; top:6px; font-family:'Titan One'; font-size:25px; color:var(--acc); -webkit-text-stroke:4px var(--grape); paint-order:stroke fill; }
+  .pose p { font-size:15.5px; font-weight:600; line-height:1.24; color:#3d2d5c; margin-top:9px; height:156px; overflow:hidden; }
+  .right { position:absolute; left:1420px; top:30px; width:474px; display:flex; flex-direction:column; gap:15px; }
+  .trait { background: var(--acc); }
+  .trait .kicker { color:#fff; opacity:.92; }
+  .trait .big { color:#fff; font-size:32px; font-family:'Titan One'; font-weight:400; -webkit-text-stroke:5px var(--grape); paint-order:stroke fill; }
+  .trait .txt { color:#fff; }
+  .sil { display:flex; align-items:flex-end; gap:10px; margin-top:6px; }
+  .sil figure { text-align:center; font-size:14px; font-weight:700; color:#6b5a86; }
+  .sil img { display:block; height:108px; }
+  .sil .bgs { display:flex; gap:7px; }
+  .sil .bgs div { width:68px; height:108px; border-radius:12px; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+  .swatches { display:flex; gap:7px; margin-top:8px; }
+  .sw { flex:1; height:50px; border-radius:11px; border:3px solid var(--grape); position:relative; }
+  .swl { flex:1; text-align:center; font-size:12px; font-weight:800; color:#3d2d5c; line-height:1.1; }
+  /* overview */
+  .ov { background: radial-gradient(ellipse at 50% 30%, #fff6e4 0%, #f7e2bb 55%, #eec78a 100%); }
+  .ov::before { display:none; }
+  .ov .title { position:absolute; left:0; right:0; top:14px; text-align:center; font-family:'Titan One'; font-size:58px; color:#FFC83D;
+    -webkit-text-stroke:7px var(--grape); paint-order:stroke fill; text-shadow:0 6px 0 var(--grape); }
+  .ov .sub { position:absolute; left:0; right:0; top:90px; text-align:center; font-size:21px; font-weight:700; color:#6b5a86; }
+  .ov .lineup { position:absolute; left:0; top:118px; width:1920px; height:470px; }
+  .ov .lineup img { width:100%; height:100%; }
+  .ov .groups { position:absolute; left:0; top:614px; width:1920px; height:70px; }
+  .ov .grp { position:absolute; top:0; text-align:center; }
+  .ov .grp .br { height:12px; border:4px solid var(--grape); border-top:none; border-radius:0 0 12px 12px; margin:0 20px; }
+  .ov .grp .lab { font-family:'Titan One'; font-size:19px; color:var(--grape); margin-top:2px; }
+  .ov .nm { position:absolute; top:566px; width:300px; text-align:center; font-family:'Titan One'; font-size:34px; color:var(--c); -webkit-text-stroke:5px var(--grape); paint-order:stroke fill; }
+  .ov .nm small { display:block; font-family:'Baloo 2'; font-weight:800; font-size:16px; color:var(--grape); -webkit-text-stroke:0; margin-top:-8px; }
+  .ov .dstrip { position:absolute; left:34px; right:34px; top:680px; height:386px; background:#fff8ec; border:5px solid var(--grape); border-radius:26px; box-shadow:0 7px 0 var(--grape); }
+  .ov .dhead { position:absolute; left:26px; top:6px; font-family:'Titan One'; font-size:28px; color:#E5392F; -webkit-text-stroke:4px var(--grape); paint-order:stroke fill; }
+  .ov .dsub { position:absolute; left:250px; top:14px; font-size:18px; font-weight:700; color:#6b5a86; }
+  .ov .dcards { position:absolute; left:16px; right:16px; top:52px; display:flex; gap:12px; }
+  .ov .dc { flex:1; }
+  .ov .dc .pic { height:232px; border-radius:16px; border:4px solid var(--grape); overflow:hidden; background: linear-gradient(#bfe6f7 0%, #9fd3ee 58%, #f1d39d 58%, #e9c487 100%); }
+  .ov .dc .pic img { width:100%; height:100%; object-fit:contain; display:block; }
+  .ov .dc .t { font-family:'Titan One'; font-size:20px; color:var(--c); -webkit-text-stroke:3px var(--grape); paint-order:stroke fill; margin-top:4px; }
+  .ov .dc .d { font-size:14.5px; font-weight:700; color:#3d2d5c; line-height:1.18; }
+  .ov .silrow { position:absolute; right:40px; top:14px; display:flex; gap:4px; align-items:flex-end; background:#fff8ec; border:4px solid var(--grape); border-radius:14px; padding:6px 10px 2px; }
+  .ov .silrow img { height:74px; display:block; }
+  .ov .silrow figcaption { font-size:10px; font-weight:800; color:#6b5a86; text-align:center; }
+</style>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.170.0/build/three.module.js" } }</script>
+</head>
+<body>
+<div id="sheets"></div>
+<script type="module">
+import * as THREE from 'three';
+const D = Math.PI / 180;
+
+// ================================================================= content
+const FIGHTERS = [
+  { id: 'brix', slotName: 'KESSA SLOT', opt: 'OPTION A', slot: 'hotfix', name: 'BRIX', backups: 'Dottie · Kessa', role: 'The Jammer',
+    acc: '#E5392F', acc2: '#B8261F', tint: '#ffd9cf',
+    personality: 'Runs the mailroom on roller skates and plays roller derby every weekend. Talks trash, skates circles round you, laughs with her mouthguard in.',
+    quotes: ['Catch me.', 'Too slow. Lap\'s mine.', 'Lap two!'],
+    trait: ['LEAPFROG', 'Jump clean over the rival\'s head and her dash is ready again, instantly. The jammer passes the blocker: the boldest play in the game, and only for her.'],
+    hook: 'Matte black helmet with one scarlet racing stripe front to back, chunky black knee and elbow pads, cream skates on red wheels. The only fighter on wheels and the only one in armour.',
+    why: 'She is <b>dressed for contact</b>: helmet, pads and a mouthguard grin, leaning forward on skates like the whistle just went.',
+    stats: 'Tallest · light · highest jumps · fast', short: 'roller-derby jammer',
+    palette: [['#E5392F','jersey, stripe, wheels'],['#FFF1DC','skates, trims'],['#1B1F2E','helmet, pads'],['#FFC83D','mouthguard'],['#7A4A2E','skin'],['#FFB3A8','rim tint']],
+    poses: {
+      idle: 'Skater crouch: knees deep (hips -40 / +12, knees 55 / 40), chest over the toes (torso 24), right fist forward, left arm swung back. Rolls 0.15 m left and right at 1 Hz, never still.',
+      victory: 'Spins on one skate (root y rotation 2 turns in 0.6 s), stops facing camera: right arm points straight up (shoulder -176), left leg kicked out sideways (hip z 34), mouthguard grin.',
+      defeat: 'Flat on her back, legs in the air, X eyes. One skate has come off and lies upside down beside her, wheels to the sky; her striped sock shows. Mouthguard on the floor. Lost a skate: race over.',
+      taunt: 'Knocks twice on her helmet stripe with two knuckles, then points them at the rival (left shoulder -90). Rolls back 0.3 m on the point.',
+    } },
+  { id: 'margo', slotName: 'KESSA SLOT', opt: 'OPTION B', slot: 'hotfix', name: 'MARGO', backups: 'Irma · Dagny', role: 'The Black Belt',
+    acc: '#E5392F', acc2: '#B8261F', tint: '#ffd9cf',
+    personality: 'Runs the boss\'s diary to the minute. Black belt since she was nine. Wears the belt over the power suit, kicks barefoot, never smudges her lipstick.',
+    quotes: ['You\'re not in my diary.', 'Hai!', 'Next.'],
+    trait: ['AXE DROP', 'Press down in the air and she drops like a stone (a fast fall). The tall flyer can also stop flying: her jumps become hard to read.'],
+    hook: 'A power suit with huge square shoulder pads (an upside-down triangle), a black belt with two tails tied over it, a top-knot. Bare feet.',
+    why: 'An <b>upside-down triangle</b> is the most aggressive shape on a body, and her idle is a real side-on guard: front foot light, hands up.',
+    stats: 'Tallest · light · highest jumps · fast', short: 'black belt in a power suit',
+    palette: [['#E5392F','power suit'],['#14121A','belt, hair'],['#2B2433','trousers'],['#FFF1DC','blouse'],['#E2A27A','skin'],['#FFB3A8','rim tint']],
+    poses: {
+      idle: 'Side-on guard: torso turned 28, front leg light (hip -24, knee 30), back leg loaded (hip 22, knee 22), lead hand open at chin height, rear fist at the jaw. Switch-step bounce every 1.2 s.',
+      victory: 'Holds a high side kick: left leg up and out at head height (hip z 128, knee 4), torso leaning away (z -24), right arm out for balance, smug. Belt tails flick.',
+      defeat: 'Kneels, holding her untied belt across both hands, staring at it in shock. The top-knot has come down and flopped over one ear.',
+      taunt: 'Brushes dust off her shoulder pad with two fingers (right hand on left shoulder), nose up, looks away. Then a tiny bow, never taking her eyes off you.',
+    } },
+  { id: 'ormo', slotName: 'ORMO', opt: 'PUSHED', slot: 'legacy', name: 'ORMO', backups: 'Hollis · Barlo', role: 'The Office Dad',
+    acc: '#14A37F', acc2: '#0B7A5E', tint: '#cff3e6',
+    personality: 'Thirty years at the company, never ran once. Silver quiff, argyle vest, forearms like hams, a thermos of tea on his hip. Fights like he is moving a sofa.',
+    quotes: ['Easy now.', 'Tea\'s still warm.', 'I\'ve seen worse.'],
+    trait: ['TEA BREAK', 'His health starts coming back sooner after he stops fighting (others wait 4 s, he waits less). Same regen rate as everyone.'],
+    hook: 'Silver mutton chops that run into a droopy walrus moustache (a horseshoe round his face), a silver quiff, an argyle vest on the widest, squarest body, ham fists.',
+    why: 'He went from hands-behind-back to a <b>sumo-wide stance with ham fists</b>, and he sips tea mid-fight: calm is his attitude.',
+    stats: 'Widest · heaviest · hardest to shove · slow', short: 'office dad',
+    palette: [['#14A37F','argyle vest'],['#0B6B52','argyle'],['#CFC9BF','hair, whiskers'],['#6B6F78','slacks'],['#E9B48F','skin'],['#9FF0D8','rim tint']],
+    poses: {
+      idle: 'Sumo-wide (hips z 13, knees 18, root -0.06), ham fists low and forward (shoulders -38 z 22, elbows -62), bushy brows down. Rolls his shoulders every 3 s; whiskers twitch.',
+      victory: 'Raises the thermos cup in a toast (right shoulder -150), left fist thumps his chest; eyes shut, walrus ends lift into a smile. Chest puffs twice.',
+      defeat: 'Sits down hard. The thermos has tipped over and spilled a tea puddle; he holds the empty cup upside down and peers into it. Walrus ends droop to his chin.',
+      taunt: 'Mid-fight, pours and sips a cup of tea (right elbow -130, cup at the lip), eyes closed, left hand behind his back. Ultimate disrespect.',
+    } },
+  { id: 'zuzu', slotName: 'ZUZU', opt: 'IMPROVED', slot: 'standup', name: 'ZUZU', backups: 'Nuni · Tizi', role: 'The Tiny Coach',
+    acc: '#F25CB8', acc2: '#C2358C', tint: '#ffd6ee',
+    personality: 'Shortest person in the company, self-appointed coach. Wears punch mitts so she can hit you while she coaches you. Blows the whistle at everything.',
+    quotes: ['Too slow!', 'Hands up!', '*TWEEEET*'],
+    trait: ['SUGAR RUSH', 'Every time she gets hit she runs faster for a moment. No damage bonus, no stacking, with a cooldown.'],
+    hook: 'Two big round hair puffs, and now two big gold punch mitts: a small body with huge round hands.',
+    why: '<b>Big hands on a small body</b> read as a boxer at any size, and she bounces on her toes smacking the mitts together.',
+    stats: 'Smallest · lightest · fastest · two air jumps', short: 'tiny coach',
+    palette: [['#F25CB8','track top'],['#2B2230','hair'],['#FFC83D','mitts, shoes'],['#1B1F2E','shorts'],['#8D5A3B','skin'],['#FFC4E6','rim tint']],
+    poses: {
+      idle: 'Low ready crouch, mitts up at the chin (shoulders -58, elbows -112), bouncing 0.05 m at 3 Hz; smacks the mitts together every 2 s (sound: a dull pap).',
+      victory: 'Star jump 0.35 m, mitts out (shoulders z 150), then the whistle: TWEEEET (head back 10).',
+      defeat: 'Sits on the floor, legs out, and holds a RED CARD high at the camera, mouth wide open: she is protesting the call. Other mitt on her hip.',
+      taunt: 'Points a mitt at the rival and blows the whistle: foul! Then taps her wrist: you are late.',
+    } },
+  { id: 'tavoA', slotName: 'TAVO', opt: 'OPTION A', slot: 'intern', name: 'TAVO', backups: 'Benno · Fenn', role: 'The Trailblazer',
+    acc: '#2456D6', acc2: '#163A94', tint: '#d8e3ff',
+    personality: 'Still packed for a week on a day trip, but now he is the guy who leads the hike: headlamp on, sleeves rolled, frying pan at the ready. Fearless about everything except his snacks.',
+    quotes: ['I brought a spare.', 'Trail\'s this way.', 'Pan\'s hot.'],
+    trait: ['PACKED EXTRA', 'Every regular gun he picks up (SMG, Uzi, shotgun) has a bit more ammo. Power guns and the pistol excluded.'],
+    hook: 'The towering orange pack with a mat on top stays, plus a frying pan hanging off it (a round shield shape) and a headlamp on a bandana.',
+    why: 'Glasses and bucket hat out, <b>headlamp, rolled sleeves and a brawler\'s crouch</b> in: same pack, but he carries it like armour.',
+    stats: 'Balanced · medium build · all-rounder', short: 'trailblazer',
+    palette: [['#2456D6','flannel'],['#F08A24','pack'],['#3F7A4A','bandana, mat'],['#8C7A55','cargo'],['#F1C7A0','skin'],['#A9C2FF','rim tint']],
+    poses: {
+      idle: 'Brawler crouch: front fist up (right shoulder -72, elbow -112), left thumb hooked in the strap, knees bent; grin. Glances back to check the pack every 4 s.',
+      victory: 'Plants a tiny yellow flag high (right shoulder -165, ±15 wave at 3 Hz), left fist pump. Headlamp blinks twice.',
+      defeat: 'Sits, legs out. The pack has slid off and spilled his mug and sandwich, and the frying pan has landed on his head: X eyes, pan wobbling.',
+      taunt: 'Pulls a sandwich from his pocket and takes a slow bite, staring the rival down.',
+    } },
+  { id: 'tavoB', slotName: 'TAVO', opt: 'OPTION B', slot: 'intern', name: 'TAVO', backups: 'Benno · Fenn', role: 'The Snack Guard',
+    acc: '#2456D6', acc2: '#163A94', tint: '#d8e3ff',
+    personality: 'Volunteered to carry the team cooler and has not let anyone near it since. Cap backwards, shades on the cap, fists up. Nobody touches the snacks.',
+    quotes: ['Hands off the cooler.', 'Earn it.', 'One juice. ONE.'],
+    trait: ['PACKED EXTRA', 'Every regular gun he picks up (SMG, Uzi, shotgun) has a bit more ammo. Power guns and the pistol excluded.'],
+    hook: 'A big white-and-cobalt cooler strapped on his back (a box behind the head), an orange cap worn backwards with the shades on it.',
+    why: 'He is <b>guarding something</b>: a boxer\'s guard in front, the cooler behind. A protector reads as a fighter instantly.',
+    stats: 'Balanced · medium build · all-rounder', short: 'snack guard',
+    palette: [['#2456D6','shirt, lid'],['#F4F2EC','cooler'],['#F08A24','cap'],['#8C7A55','shorts'],['#F1C7A0','skin'],['#A9C2FF','rim tint']],
+    poses: {
+      idle: 'Boxer\'s guard (shoulders -60 / -42, elbows -112 / -122), chin tucked, side-to-side shuffle; looks over his shoulder at the cooler every 4 s.',
+      victory: 'Swings the cooler down, sits on it, fists on his knees, chin up. The lid is his throne.',
+      defeat: 'Face down. The cooler has burst open: ice cubes and juice boxes everywhere. One arm stretches for the last juice box, just out of reach.',
+      taunt: 'Takes out a juice box and sips it through the straw, loudly, eyebrows up. Squeezes it flat.',
+    } },
+];
+
+// ================================================================= rig
+const hex = (h) => new THREE.Color(h);
+const matCache = new Map();
+const M = (c) => { const k = String(c); if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: hex(c), flatShading: true, roughness: 0.85, metalness: 0.04, side: THREE.DoubleSide })); return matCache.get(k); };
+const box = (w, h, d, c) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(c));
+const ico = (r, c, det = 1) => new THREE.Mesh(new THREE.IcosahedronGeometry(r, det), M(c));
+const cyl = (r, h, c, seg = 8, r2 = r) => new THREE.Mesh(new THREE.CylinderGeometry(r2, r, h, seg), M(c));
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const rot = (o, x = 0, y = 0, z = 0) => { o.rotation.set(x * D, y * D, z * D); return o; };
+const G = () => new THREE.Group();
+function star(r, c, depth = 0.015) {
+  const s = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; const x = Math.cos(a) * rr, y = Math.sin(a) * rr; i ? s.lineTo(x, y) : s.moveTo(x, y); }
+  s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false }); g.translate(0, 0, -depth / 2);
+  return new THREE.Mesh(g, M(c));
+}
+
+const SPEC = {
+  brix:  { legLen: 0.78, legR: 0.085, torsoW: 0.48, torsoH: 0.62, torsoD: 0.31, headR: 0.18, armLen: 0.76, armR: 0.068, fist: 1.45,
+    skin: '#7A4A2E', top: '#E5392F', pants: '#1B1F2E', shoes: '#FFF1DC' },
+  margo: { legLen: 0.9, legR: 0.1, torsoW: 0.46, torsoH: 0.64, torsoD: 0.3, headR: 0.18, armLen: 0.76, armR: 0.068, fist: 1.4,
+    skin: '#E2A27A', top: '#E5392F', pants: '#2B2433', shoes: '#E2A27A' },
+  ormo:  { legLen: 0.55, legR: 0.15, torsoW: 0.95, torsoH: 0.75, torsoD: 0.55, headR: 0.23, armLen: 0.66, armR: 0.125, fist: 1.6,
+    skin: '#E9B48F', top: '#14A37F', pants: '#6B6F78', shoes: '#4A3426', sleeve: '#F3EBDD', rolled: true },
+  zuzu:  { legLen: 0.45, legR: 0.085, torsoW: 0.48, torsoH: 0.45, torsoD: 0.3, headR: 0.21, armLen: 0.48, armR: 0.065, fist: 1.2,
+    skin: '#8D5A3B', top: '#F25CB8', pants: '#1B1F2E', shoes: '#FFC83D', sock: '#FFFAF0' },
+  tavoA: { legLen: 0.7, legR: 0.1, torsoW: 0.56, torsoH: 0.55, torsoD: 0.33, headR: 0.19, armLen: 0.62, armR: 0.08, fist: 1.5,
+    skin: '#F1C7A0', top: '#2456D6', pants: '#8C7A55', shoes: '#5A4130', rolled: true, fistC: '#3A2E2A' },
+  tavoB: { legLen: 0.7, legR: 0.1, torsoW: 0.56, torsoH: 0.55, torsoD: 0.33, headR: 0.19, armLen: 0.62, armR: 0.08, fist: 1.5,
+    skin: '#F1C7A0', top: '#2456D6', pants: '#8C7A55', shoes: '#FFF1DC', shortSleeve: true, sock: '#FFF1DC' },
+};
+
+function buildRig(id) {
+  const s = SPEC[id];
+  const root = G(), hips = G(), torso = G(), head = G();
+  root.add(hips); hips.position.y = s.legLen; hips.add(torso);
+  torso.add(at(box(s.torsoW, s.torsoH, s.torsoD, s.top), 0, s.torsoH / 2, 0));
+  torso.add(at(box(s.torsoW * 0.96, 0.12, s.torsoD * 0.96, s.pants), 0, 0.02, 0));
+  torso.add(head); head.position.y = s.torsoH + s.headR * 0.95;
+  head.add(at(cyl(s.headR * 0.42, 0.14, s.skin, 6), 0, -s.headR * 0.85, 0));
+  head.add(ico(s.headR, s.skin, 1));
+  const limbs = {};
+  for (const [side, sx] of [['L', 1], ['R', -1]]) {
+    const sh = G(); sh.position.set(sx * (s.torsoW / 2 + s.armR * 0.9), s.torsoH - s.armR * 1.2, 0); torso.add(sh);
+    const u = s.armLen * 0.5;
+    const upperC = s.sleeve || s.top;
+    sh.add(at(cyl(s.armR, u, upperC, 7), 0, -u / 2, 0));
+    if (s.shortSleeve) sh.add(at(cyl(s.armR * 0.92, u * 0.5, s.skin, 7), 0, -u * 0.78, 0));
+    if (s.rolled) sh.add(at(cyl(s.armR * 1.12, 0.07, upperC === s.top ? s.top : s.sleeve, 7), 0, -u + 0.02, 0));
+    const el = G(); el.position.y = -u; sh.add(el);
+    const foreC = s.rolled || s.shortSleeve || s.sleeve ? s.skin : s.top;
+    el.add(at(cyl(s.armR * (s.rolled ? 1.08 : 0.9), u, foreC, 7, s.armR * (s.rolled ? 0.95 : 0.9)), 0, -u / 2, 0));
+    const fist = ico(s.armR * s.fist, s.fistC || s.skin, 0); fist.scale.set(1, 1.05, 1.1); el.add(at(fist, 0, -u - 0.02, 0));
+    const hand = G(); hand.position.y = -u - 0.03; el.add(hand);
+    const hip = G(); hip.position.set(sx * s.torsoW * 0.24, 0, 0); hips.add(hip);
+    const t = s.legLen * 0.5;
+    hip.add(at(cyl(s.legR, t, s.pants, 7), 0, -t / 2, 0));
+    const kn = G(); kn.position.y = -t; hip.add(kn);
+    kn.add(at(cyl(s.legR * 0.92, t, s.sock ? s.skin : s.pants, 7), 0, -t / 2, 0));
+    if (s.sock) kn.add(at(cyl(s.legR * 0.98, t * 0.5, s.sock, 7), 0, -t * 0.66, 0));
+    const foot = G(); foot.position.y = -t; kn.add(foot);
+    limbs['arm' + side] = sh; limbs['fore' + side] = el; limbs['hand' + side] = hand; limbs['leg' + side] = hip; limbs['shin' + side] = kn; limbs['foot' + side] = foot; limbs['fist' + side] = fist;
+  }
+  const rig = { id, s, root, hips, torso, head, ...limbs, extra: {} };
+  // default feet (shoes); Brix replaces them with skates, Margo is barefoot
+  if (id !== 'brix') for (const k of ['footL', 'footR']) rig[k].add(at(box(s.legR * (id === 'margo' ? 1.7 : 2.3), id === 'margo' ? 0.07 : 0.1, s.legR * (id === 'margo' ? 3.2 : 3.6), s.shoes), 0, 0, s.legR * 0.7));
+  EXTRAS[id](rig);
+  return rig;
+}
+
+// face: eyes, brows, mouth per expression. Ormo has no mouth (the moustache is his mouth).
+function face(rig, expr = 'angry') {
+  const { s, head, id } = rig; const r = s.headR;
+  const f = G(); f.position.z = r * 0.9; head.add(f);
+  const ink = '#1B1F2E';
+  const ex = r * 0.37, ey = 0.025;
+  for (const sx of [-1, 1]) {
+    if (expr === 'ko') { for (const a of [45, -45]) f.add(rot(at(box(0.075, 0.018, 0.02, ink), sx * ex, ey, 0.03), 0, 0, a)); }
+    else if (expr === 'closed') f.add(rot(at(box(0.06, 0.016, 0.02, ink), sx * ex, ey - 0.005, 0.03), 0, 0, sx * -8));
+    else f.add(at(box(0.042, expr === 'shock' ? 0.075 : 0.06, 0.02, ink), sx * ex, ey, 0.03));
+    // brows: +angle on the +x brow lowers its inner end = angry; negative = worried
+    const bang = { angry: 20, grin: 14, smug: sx > 0 ? -12 : 16, sad: -20, shock: -6, ko: -10, closed: -4, shout: 26 }[expr];
+    const by = { shock: 0.11, sad: 0.095, smug: sx > 0 ? 0.11 : 0.085 }[expr] ?? 0.085;
+    f.add(rot(at(box(id === 'ormo' ? 0.11 : 0.085, id === 'ormo' ? 0.032 : 0.026, 0.03, id === 'ormo' ? '#C9C3B8' : (s.brow || '#2A1A14')), sx * ex * 1.02, by + (id === 'ormo' ? 0.01 : 0), 0.035), 0, 0, sx * bang * (id === 'ormo' ? 0.55 : 1)));
+  }
+  if (id === 'ormo') return f;
+  const my = -0.075;
+  if (expr === 'grin' || expr === 'smug') {
+    f.add(at(box(0.12, 0.05, 0.02, ink), 0, my, 0.025));
+    f.add(rot(at(box(0.1, 0.03, 0.02, id === 'brix' ? '#FFC83D' : '#FFFFFF'), 0, my + 0.004, 0.032), 0, 0, expr === 'smug' ? 6 : 0));
+  } else if (expr === 'shout' || expr === 'shock') {
+    f.add(at(box(expr === 'shout' ? 0.09 : 0.05, expr === 'shout' ? 0.07 : 0.06, 0.02, '#5A1E2A'), 0, my - 0.005, 0.03));
+  } else if (expr === 'sad' || expr === 'ko') {
+    f.add(rot(at(box(0.05, 0.016, 0.02, ink), -0.022, my, 0.03), 0, 0, 18)); f.add(rot(at(box(0.05, 0.016, 0.02, ink), 0.022, my, 0.03), 0, 0, -18));
+  } else if (expr === 'closed') {
+    f.add(at(box(0.05, 0.016, 0.02, ink), 0, my, 0.03));
+  } else { // angry: a flat hard line
+    f.add(at(box(0.085, 0.018, 0.02, ink), 0, my, 0.03));
+  }
+  return f;
+}
+
+const EXTRAS = {
+  brix(r) {
+    const { s, head, torso } = r;
+    // R-024: matte black helmet with ONE scarlet racing stripe (front to back) and cream pinstripes. No cover, no stars.
+    const helm = G(); helm.position.set(0, 0.05, -0.01); head.add(helm);
+    const shell = ico(s.headR * 1.14, '#1B1F2E', 1); shell.scale.set(1, 0.82, 1.04); helm.add(shell);
+    const arc = (rad, tube, c, x) => { const t = new THREE.Mesh(new THREE.TorusGeometry(rad, tube, 4, 12, Math.PI * 1.08), M(c)); t.rotation.set(0, Math.PI / 2, -0.04 * Math.PI); t.scale.set(1, 0.82, 1.04); t.position.x = x; return t; };
+    helm.add(arc(s.headR * 1.15, 0.042, '#E5392F', 0));
+    for (const sx of [-1, 1]) helm.add(arc(s.headR * 1.13, 0.012, '#FFF1DC', sx * 0.052));
+    // cut the helmet off above the brow: a skin face plate in front
+    const plate = box(s.headR * 1.5, s.headR * 0.9, 0.05, s.skin); plate.position.set(0, -0.06, s.headR * 0.78); head.add(plate);
+    for (const sx of [-1, 1]) head.add(at(box(0.02, 0.18, 0.02, '#1B1F2E'), sx * s.headR * 0.92, -0.08, 0.02));
+    r.extra.helm = helm;
+    // braids: two short dark tails out of the back of the helmet
+    for (const sx of [-1, 1]) { const b = G(); b.position.set(sx * 0.08, -0.02, -s.headR * 0.95); head.add(b); b.rotation.x = 35 * D; b.rotation.z = sx * 12 * D;
+      b.add(at(box(0.06, 0.2, 0.06, '#1A0F0B'), 0, -0.1, 0)); b.add(at(box(0.07, 0.04, 0.07, '#FFC83D'), 0, -0.2, 0)); }
+    // jersey: cream band + black shorts
+    torso.add(at(box(s.torsoW + 0.01, 0.07, s.torsoD + 0.01, '#FFF1DC'), 0, s.torsoH * 0.58, 0));
+    torso.add(at(box(s.torsoW * 1.02, 0.16, s.torsoD * 1.02, '#1B1F2E'), 0, 0.05, 0));
+    // elbow pads, wrist guards, knee pads (big: armour reads at game scale)
+    for (const k of ['foreL', 'foreR']) { r[k].add(at(box(s.armR * 2.9, 0.15, s.armR * 2.9, '#1B1F2E'), 0, -0.03, 0)); r[k].add(at(box(s.armR * 2.3, 0.08, s.armR * 2.3, '#2C2F3E'), 0, -s.armLen * 0.43, 0)); }
+    for (const k of ['shinL', 'shinR']) { r[k].add(at(box(s.legR * 3.0, 0.19, s.legR * 3.1, '#1B1F2E'), 0, -0.04, 0.03)); r[k].add(at(box(s.legR * 2.4, 0.05, 0.03, '#FFC83D'), 0, -0.04, s.legR * 1.6)); }
+    // skates: boot, plate, two wheels front and back, red toe stop
+    r.extra.skates = {};
+    for (const k of ['footL', 'footR']) {
+      const f = G(); r[k].add(f); r.extra.skates[k] = f;
+      f.add(at(box(0.17, 0.14, 0.27, '#FFF1DC'), 0, -0.01, 0.05));
+      f.add(at(box(0.175, 0.03, 0.275, '#E5392F'), 0, 0.055, 0.05));
+      f.add(at(box(0.12, 0.025, 0.3, '#9AA0AA'), 0, -0.09, 0.05));
+      for (const z of [-0.06, 0.16]) for (const x of [-0.07, 0.07]) { const w = cyl(0.045, 0.045, '#E5392F', 10); w.rotation.z = Math.PI / 2; w.position.set(x, -0.12, z); f.add(w); }
+      f.add(at(box(0.07, 0.06, 0.05, '#1B1F2E'), 0, -0.1, 0.23));
+    }
+  },
+  margo(r) {
+    const { s, head, torso } = r;
+    // sleek hair cap + top-knot
+    const hair = ico(s.headR * 1.07, '#14121A', 1); hair.scale.set(1.02, 0.9, 1.04); hair.position.set(0, 0.04, -0.03); head.add(hair);
+    const knot = G(); knot.position.set(0, s.headR * 1.05, -0.03); head.add(knot);
+    knot.add(at(cyl(0.035, 0.05, '#E5392F', 8), 0, 0.01, 0)); knot.add(at(ico(0.1, '#14121A', 1), 0, 0.1, 0));
+    r.extra.knot = knot;
+    // lipstick
+    s.brow = '#14121A';
+    // blouse V + lapels
+    torso.add(at(box(0.15, s.torsoH * 0.5, 0.03, '#FFF1DC'), 0, s.torsoH * 0.72, s.torsoD / 2));
+    for (const sx of [-1, 1]) torso.add(rot(at(box(0.07, s.torsoH * 0.5, 0.035, '#C42A22'), sx * 0.1, s.torsoH * 0.7, s.torsoD / 2 + 0.01), 0, 0, sx * -14));
+    // the shoulder pads: wide, square, sloping up and out
+    for (const sx of [-1, 1]) { const p = box(0.3, 0.15, s.torsoD * 1.12, '#E5392F'); p.position.set(sx * (s.torsoW / 2 + 0.09), s.torsoH + 0.02, 0); p.rotation.z = sx * 14 * D; torso.add(p); }
+    // blazer skirt below the belt
+    torso.add(at(box(s.torsoW * 1.04, 0.16, s.torsoD * 1.04, '#E5392F'), 0, 0.0, 0));
+    // black belt + knot + two tails
+    const belt = G(); belt.position.set(0, 0.1, 0); torso.add(belt);
+    belt.add(box(s.torsoW * 1.07, 0.075, s.torsoD * 1.08, '#14121A'));
+    belt.add(at(box(0.11, 0.09, 0.05, '#14121A'), 0.03, 0, s.torsoD / 2 + 0.03));
+    const tails = [];
+    for (const [sx, len] of [[1, 0.36], [-1, 0.3]]) { const t = G(); t.position.set(0.03 + sx * 0.03, -0.02, s.torsoD / 2 + 0.04); t.rotation.z = sx * 14 * D; t.add(at(box(0.06, len, 0.025, '#14121A'), 0, -len / 2, 0)); belt.add(t); tails.push(t); }
+    r.extra.belt = belt; r.extra.tails = tails;
+    // wide trousers: flare over the bare feet
+    for (const k of ['shinL', 'shinR']) r[k].add(at(cyl(s.legR * 1.35, 0.2, s.pants, 8, s.legR * 1.0), 0, -s.legLen * 0.5 + 0.12, 0));
+  },
+  ormo(r) {
+    const { s, head, torso } = r;
+    // R-024: no round belly (a broad square chest instead), full silver hair with a quiff, silver mutton chops into a
+    // droopy walrus moustache, argyle sweater vest over a cream shirt and a wide brick tie, grey slacks.
+    const SIL = '#CFC9BF', SIL2 = '#A9A297';
+    // shirt V + collar + tie
+    torso.add(at(box(0.26, 0.2, 0.03, s.sleeve), 0, s.torsoH - 0.1, s.torsoD / 2));
+    for (const sx of [-1, 1]) torso.add(rot(at(box(0.12, 0.06, 0.04, s.sleeve), sx * 0.07, s.torsoH - 0.015, s.torsoD / 2 + 0.01), 0, 0, sx * -24));
+    torso.add(at(box(0.07, 0.05, 0.035, '#8C3A2B'), 0, s.torsoH - 0.035, s.torsoD / 2 + 0.025)); torso.add(at(box(0.1, 0.2, 0.03, '#A8483A'), 0, s.torsoH - 0.15, s.torsoD / 2 + 0.02));
+    for (const sx of [-1, 1]) torso.add(rot(at(box(0.05, s.torsoH * 0.32, 0.035, '#0B7A5E'), sx * 0.13, s.torsoH - 0.12, s.torsoD / 2 + 0.005), 0, 0, sx * 22));
+    // argyle: dark diamonds on front and sides, small cream diamonds between them
+    const dia = (c, sz) => rot(box(sz, sz, 0.02, c), 0, 0, 45);
+    for (const [x, y] of [[-0.3, 0.2], [0, 0.2], [0.3, 0.2], [-0.3, 0.45], [0.3, 0.45]]) torso.add(at(dia('#0B6B52', 0.13), x, y, s.torsoD / 2 + 0.008));
+    for (const [x, y] of [[-0.15, 0.325], [0.15, 0.325], [-0.15, 0.075], [0.15, 0.075]]) torso.add(at(dia('#F3EBDD', 0.045), x, y, s.torsoD / 2 + 0.01));
+    for (const sx of [-1, 1]) for (const [z, y] of [[-0.12, 0.2], [0.12, 0.45], [-0.12, 0.6]]) { const d = dia('#0B6B52', 0.12); d.rotation.y = Math.PI / 2; d.position.set(sx * (s.torsoW / 2 + 0.008), y, z); torso.add(d); }
+    // hair: silver cap set back from the face, a swept quiff on top-front, mutton chops down the cheeks
+    const hair = ico(s.headR * 1.06, SIL, 1); hair.scale.set(1.03, 0.78, 1.0); hair.position.set(0, 0.07, -0.045); head.add(hair);
+    head.add(rot(at(box(0.3, 0.1, 0.17, SIL), 0.03, s.headR * 0.92, s.headR * 0.42), -18, 0, -8));
+    head.add(rot(at(box(0.18, 0.07, 0.12, SIL2), -0.09, s.headR * 0.84, s.headR * 0.5), -22, 0, 12));
+    for (const sx of [-1, 1]) head.add(at(box(0.075, 0.22, 0.15, SIL), sx * s.headR * 0.93, -0.04, 0.06));
+    // walrus moustache: wide, bushy, droops over the mouth; the ends hang down towards the chops
+    const tache = G(); tache.position.set(0, -0.075, s.headR * 0.93); head.add(tache);
+    tache.add(box(0.24, 0.1, 0.1, SIL));
+    tache.add(at(box(0.2, 0.03, 0.09, SIL2), 0, -0.05, 0.005));
+    const arms = [];
+    for (const sx of [-1, 1]) { const a = G(); a.position.set(sx * 0.1, 0, -0.01); tache.add(a);
+      const arm = box(0.12, 0.1, 0.09, SIL); arm.position.set(sx * 0.06, -0.035, 0); arm.rotation.z = sx * -0.5; a.add(arm);
+      a.add(at(box(0.07, 0.06, 0.08, SIL2), sx * 0.1, -0.09, -0.01)); a.userData.sx = sx; arms.push(a); }
+    r.extra.tache = arms;
+    head.add(at(ico(0.045, '#E2A585', 0), 0, -0.005, s.headR * 1.0));
+    const th = G(); th.position.set(-s.torsoW / 2 - 0.02, 0.12, 0.05); torso.add(th);
+    th.add(cyl(0.07, 0.3, '#C9CED8', 8)); th.add(at(cyl(0.075, 0.07, '#E5392F', 8), 0, 0.18, 0));
+    r.extra.thermos = th;
+  },
+  zuzu(r) {
+    const { s, head, torso } = r;
+    const cap = ico(s.headR * 1.05, '#2B2230', 1); cap.scale.set(1, 0.7, 1); cap.position.set(0, 0.07, -0.02); head.add(cap);
+    for (const sx of [-1, 1]) { const p = ico(0.19, '#2B2230', 1); p.position.set(sx * 0.2, 0.25, -0.02); head.add(p); }
+    head.add(at(cyl(s.headR * 1.03, 0.05, '#F25CB8', 10), 0, 0.09, 0));
+    for (const sx of [-1, 1]) torso.add(at(box(0.025, 0.24, 0.02, '#FFC83D'), sx * 0.08, s.torsoH - 0.12, s.torsoD / 2 + 0.01));
+    const wh = G(); wh.position.set(0, s.torsoH - 0.26, s.torsoD / 2 + 0.04); torso.add(wh);
+    wh.add(box(0.1, 0.06, 0.06, '#FFC83D')); wh.add(at(box(0.04, 0.04, 0.08, '#FFC83D'), 0.06, 0.0, 0.03));
+    r.extra.whistle = wh;
+    torso.add(at(box(s.torsoW + 0.01, 0.06, s.torsoD + 0.01, '#FFFAF0'), 0, s.torsoH * 0.55, 0));
+    // punch mitts: big gold pads with a white target ring, on both hands
+    for (const k of ['handL', 'handR']) { const m = G(); r[k].add(m); m.position.y = -0.02;
+      m.add(at(box(0.2, 0.22, 0.13, '#FFC83D'), 0, -0.04, 0));
+      const ring = cyl(0.06, 0.02, '#FFFAF0', 10); ring.rotation.x = Math.PI / 2; ring.position.set(0, -0.04, 0.07); m.add(ring);
+      const dot = cyl(0.03, 0.025, '#E5392F', 8); dot.rotation.x = Math.PI / 2; dot.position.set(0, -0.04, 0.075); m.add(dot); }
+    r.fistL.visible = r.fistR.visible = false;
+  },
+  tavoA(r) {
+    const { s, head, torso } = r;
+    // short hair, bandana + headlamp
+    const hair = ico(s.headR * 1.04, '#5A3A22', 1); hair.scale.set(1, 0.75, 1); hair.position.set(0, 0.06, -0.03); head.add(hair);
+    head.add(at(cyl(s.headR * 1.06, 0.07, '#3F7A4A', 10), 0, 0.08, 0));
+    const knot = G(); knot.position.set(0, 0.08, -s.headR * 1.02); head.add(knot);
+    knot.add(rot(at(box(0.05, 0.14, 0.03, '#3F7A4A'), 0.03, -0.06, 0), 0, 0, 18)); knot.add(rot(at(box(0.05, 0.12, 0.03, '#3F7A4A'), -0.03, -0.05, 0), 0, 0, -22));
+    const lamp = G(); lamp.position.set(0, 0.085, s.headR * 1.02); head.add(lamp);
+    lamp.add(box(0.1, 0.07, 0.06, '#2C2C2C')); const lens = cyl(0.03, 0.02, '#FFE58A', 10); lens.rotation.x = Math.PI / 2; lens.position.z = 0.035; lamp.add(lens);
+    s.brow = '#5A3A22';
+    // flannel check lines + straps + chest clip
+    for (const y of [0.15, 0.32]) torso.add(at(box(s.torsoW + 0.01, 0.03, s.torsoD + 0.01, '#163A94'), 0, y, 0));
+    for (const sx of [-1, 1]) torso.add(at(box(0.065, s.torsoH * 0.95, 0.04, '#B85F12'), sx * 0.16, s.torsoH / 2, s.torsoD / 2 + 0.01));
+    torso.add(at(box(0.36, 0.05, 0.03, '#B85F12'), 0, s.torsoH * 0.62, s.torsoD / 2 + 0.03));
+    for (const k of ['legL', 'legR']) r[k].add(at(box(0.05, 0.12, 0.12, '#7A6A47'), (k === 'legL' ? 1 : -1) * (s.legR + 0.01), -0.22, 0));
+    // pack (as v2) + frying pan on the left side + carabiner
+    const pack = G(); pack.position.set(0, 0.0, -s.torsoD / 2 - 0.22); torso.add(pack);
+    pack.add(at(box(0.62, 0.98, 0.42, '#F08A24'), 0, 0.5, 0));
+    pack.add(at(box(0.5, 0.3, 0.08, '#C96E16'), 0, 0.82, 0.2));
+    pack.add(at(box(0.44, 0.3, 0.1, '#C96E16'), 0, 0.28, -0.22));
+    const mat = cyl(0.13, 0.78, '#3F7A4A', 9); mat.rotation.z = Math.PI / 2; mat.position.set(0, 1.11, 0); pack.add(mat);
+    for (const sx of [-1, 1]) { const b = cyl(0.135, 0.05, '#2C2C2C', 9); b.rotation.z = Math.PI / 2; b.position.set(sx * 0.22, 1.11, 0); pack.add(b); }
+    const pan = G(); pan.position.set(0.34, 0.5, 0.02); pack.add(pan);
+    const disc = cyl(0.19, 0.04, '#3A3A44', 12); disc.rotation.z = Math.PI / 2; pan.add(disc);
+    pan.add(at(box(0.03, 0.26, 0.04, '#5A4130'), 0, 0.3, 0));
+    r.extra.pack = pack; r.extra.pan = pan;
+    const mug = cyl(0.06, 0.1, '#FFFAF0', 8); mug.position.set(-0.41, 0.1, 0.05); pack.add(mug);
+  },
+  tavoB(r) {
+    const { s, head, torso } = r;
+    const hair = ico(s.headR * 1.03, '#2A1A14', 1); hair.scale.set(1, 0.7, 1); hair.position.set(0, 0.05, -0.04); head.add(hair);
+    // backwards cap: crown + brim sticking out behind, shades on the crown front
+    { const crown = ico(s.headR * 1.07, '#F08A24', 1); crown.scale.set(1, 0.62, 1); head.add(at(crown, 0, 0.07, -0.01)); }
+    const brim = box(0.24, 0.03, 0.18, '#C96E16'); brim.position.set(0, 0.07, -s.headR - 0.06); brim.rotation.x = -8 * D; head.add(brim);
+    for (const sx of [-1, 1]) head.add(rot(at(box(0.1, 0.05, 0.02, '#1B1F2E'), sx * 0.06, 0.2, s.headR * 0.62), -45, 0, 0));
+    head.add(rot(at(box(0.05, 0.016, 0.02, '#1B1F2E'), 0, 0.21, s.headR * 0.64), -45, 0, 0));
+    // camp shirt collar + cream stripe
+    torso.add(at(box(s.torsoW + 0.01, 0.06, s.torsoD + 0.01, '#FFF1DC'), 0, s.torsoH * 0.5, 0));
+    for (const sx of [-1, 1]) torso.add(at(box(0.065, s.torsoH * 0.95, 0.04, '#1B1F2E'), sx * 0.16, s.torsoH / 2, s.torsoD / 2 + 0.01));
+    // the cooler: white body, cobalt lid and stripe, handle
+    const cool = G(); cool.position.set(0, 0.12, -s.torsoD / 2 - 0.25); torso.add(cool);
+    cool.add(at(box(0.66, 0.5, 0.44, '#F4F2EC'), 0, 0.25, 0));
+    cool.add(at(box(0.7, 0.1, 0.48, '#2456D6'), 0, 0.54, 0));
+    cool.add(at(box(0.67, 0.07, 0.45, '#2456D6'), 0, 0.15, 0));
+    cool.add(at(box(0.4, 0.05, 0.05, '#1B1F2E'), 0, 0.64, 0));
+    for (const sx of [-1, 1]) cool.add(at(box(0.05, 0.12, 0.05, '#1B1F2E'), sx * 0.2, 0.6, 0));
+    r.extra.cooler = cool;
+  },
+};
+
+// ================================================================= poses
+// Angles in degrees. Shoulder/hip x<0 swings the limb forward and up; z>0 lifts the LEFT limb (+x) sideways (mirrored R).
+// Elbow x<0 folds the forearm forward; knee x>0 folds the shin back.
+const POSES = {
+  brix: {
+    idle: { expr: 'grin', root: { y: -0.1 }, torso: { x: 24 }, head: { x: -20 }, armL: { x: 40, z: 18 }, foreL: { x: -30 }, armR: { x: -62, z: -12 }, foreR: { x: -96 },
+      legL: { x: -40, z: 7 }, shinL: { x: 55 }, footL: { x: -15 }, legR: { x: 12, z: -7 }, shinR: { x: 40 }, footR: { x: -12 } },
+    victory: { expr: 'grin', root: { y: 0.0 }, torso: { x: -6, z: 4 }, head: { x: -14 }, armR: { x: -176, z: -6 }, foreR: { x: -4 }, armL: { x: -10, z: 70 }, foreL: { x: -20 },
+      legL: { x: 0, z: 34 }, shinL: { x: 6 }, legR: { x: 0, z: -2 } },
+    defeat: { expr: 'ko', root: { y: 0.2, x: -90, pz: -0.85 }, head: { x: -10, z: 12 }, armL: { x: 0, z: 80 }, foreL: { x: -10 }, armR: { x: -10, z: -95 }, foreR: { x: -20 },
+      legL: { x: -70, z: 10 }, shinL: { x: 20 }, legR: { x: -95, z: -8 }, shinR: { x: 45 }, skateOff: true },
+    taunt: { expr: 'smug', root: { y: -0.04 }, torso: { x: -6, y: 10 }, head: { x: -6, z: 6 }, armR: { x: -150, z: -38 }, foreR: { x: -70 }, armL: { x: -90, z: 8 }, foreL: { x: -4 },
+      legL: { x: -12, z: 6 }, shinL: { x: 14 }, legR: { x: 14, z: -6 }, shinR: { x: 10 } },
+  },
+  margo: {
+    idle: { expr: 'angry', root: { y: -0.06 }, torso: { y: -28, x: 4 }, head: { y: 24 }, armL: { x: -78, z: 8 }, foreL: { x: -78 }, armR: { x: -46, z: -14 }, foreR: { x: -128 },
+      legL: { x: -24, z: 5 }, shinL: { x: 30 }, legR: { x: 22, z: -6 }, shinR: { x: 22 }, tails: 12 },
+    victory: { expr: 'smug', root: { y: 0.0 }, torso: { z: -24, x: 2 }, head: { z: 18, x: -6 }, armL: { x: -60, z: 20 }, foreL: { x: -100 }, armR: { x: -10, z: -110 }, foreR: { x: -6 },
+      legL: { x: -12, z: 128 }, shinL: { x: 4 }, legR: { x: 0, z: 6 }, shinR: { x: 0 }, tails: 30 },
+    defeat: { expr: 'shock', root: { y: -0.43 }, torso: { x: 8 }, head: { x: 12 }, armL: { x: -40, z: 14 }, foreL: { x: -48 }, armR: { x: -40, z: -14 }, foreR: { x: -48 },
+      legL: { x: -4, z: 4 }, shinL: { x: 96 }, legR: { x: -4, z: -4 }, shinR: { x: 96 }, beltOff: true, knotDown: true },
+    taunt: { expr: 'smug', root: { y: 0 }, torso: { x: -4, y: -10 }, head: { x: -14, y: -30 }, armR: { x: -58, z: 32, y: 0 }, foreR: { x: -118, z: 0 }, armL: { x: 10, z: 14 }, foreL: { x: -20 },
+      legL: { x: -4, z: 4 }, legR: { x: 6, z: -4 }, tails: 8 },
+  },
+  ormo: {
+    idle: { expr: 'angry', root: { y: -0.06 }, torso: { x: 8 }, head: { x: -6 }, armL: { x: -38, z: 22 }, foreL: { x: -62 }, armR: { x: -38, z: -22 }, foreR: { x: -62 },
+      legL: { x: -8, z: 13 }, shinL: { x: 18 }, legR: { x: -8, z: -13 }, shinR: { x: 18 } },
+    victory: { expr: 'closed', torso: { x: -6 }, head: { x: -14 }, armR: { x: -150, z: -14 }, foreR: { x: -30 }, armL: { x: -36, z: 18 }, foreL: { x: -90 },
+      legL: { z: 6 }, legR: { z: -6 }, cupInHand: 'up', tache: 18 },
+    defeat: { expr: 'sad', root: { y: -0.5 }, torso: { x: 10 }, head: { x: 10 }, armL: { x: -40, z: 16 }, foreL: { x: -20 }, armR: { x: -62, z: -4 }, foreR: { x: -70 },
+      legL: { x: -86, z: 22 }, shinL: { x: 5 }, legR: { x: -86, z: -22 }, shinR: { x: 5 }, cupInHand: 'down', thermosSpill: true, tache: -32 },
+    taunt: { expr: 'closed', torso: { x: -4 }, head: { x: -8 }, armR: { x: -64, z: -18 }, foreR: { x: -128 }, armL: { x: 38, z: 8 }, foreL: { x: -72 },
+      legL: { z: 6 }, legR: { z: -6 }, cupInHand: 'sip', tache: 6 },
+  },
+  zuzu: {
+    idle: { expr: 'shout', root: { y: -0.05 }, torso: { x: 10 }, head: { x: -10 }, armL: { x: -58, z: 14 }, foreL: { x: -112 }, armR: { x: -64, z: -14 }, foreR: { x: -110 },
+      legL: { x: -28, z: 6 }, shinL: { x: 40 }, legR: { x: -10, z: -6 }, shinR: { x: 32 } },
+    victory: { expr: 'grin', root: { y: 0.34 }, head: { x: -12 }, armL: { x: -5, z: 150 }, foreL: { x: -10 }, armR: { x: -5, z: -150 }, foreR: { x: -10 },
+      legL: { z: 24 }, shinL: { x: 6 }, legR: { z: -24 }, shinR: { x: 6 } },
+    defeat: { expr: 'shout', root: { y: -0.36 }, torso: { x: -10 }, head: { x: -14, z: 6 }, armR: { x: -168, z: -10 }, foreR: { x: -6 }, armL: { x: 10, z: 32 }, foreL: { x: -110, z: 0 },
+      legL: { x: -84, z: 24 }, shinL: { x: 6 }, legR: { x: -80, z: -20 }, shinR: { x: 20 }, redCard: true },
+    taunt: { expr: 'shout', root: { y: -0.02 }, torso: { x: 4 }, head: { x: -6 }, armR: { x: -90, z: -4 }, foreR: { x: -2 }, armL: { x: -30, z: 14 }, foreL: { x: -100 },
+      legL: { x: -16, z: 6 }, shinL: { x: 18 }, legR: { x: 8, z: -6 }, shinR: { x: 10 }, whistleMouth: true },
+  },
+  tavoA: {
+    idle: { expr: 'grin', root: { y: -0.06 }, torso: { x: 10, y: -10 }, head: { x: -6, y: 8 }, armR: { x: -72, z: -10 }, foreR: { x: -112 }, armL: { x: -16, z: 6 }, foreL: { x: -118 },
+      legL: { x: -24, z: 6 }, shinL: { x: 30 }, legR: { x: 16, z: -6 }, shinR: { x: 18 } },
+    victory: { expr: 'grin', root: { y: 0.05 }, head: { x: -10 }, armR: { x: -165, z: -15 }, foreR: { x: -10 }, armL: { x: -70, z: 30 }, foreL: { x: -120 },
+      legL: { z: 5 }, legR: { z: -5 }, flag: true },
+    defeat: { expr: 'ko', root: { y: -0.6 }, torso: { x: 4 }, head: { x: 6, z: -10 }, armL: { x: 20, z: 24 }, foreL: { x: -10 }, armR: { x: 20, z: -24 }, foreR: { x: -10 },
+      legL: { x: -88, z: 6 }, legR: { x: -88, z: -6 }, packOff: true, panOnHead: true },
+    taunt: { expr: 'angry', root: { y: -0.02 }, torso: { x: 2 }, head: { x: -4 }, armR: { x: -64, z: -18 }, foreR: { x: -128 }, armL: { x: -16, z: 6 }, foreL: { x: -118 },
+      legL: { x: -10, z: 5 }, legR: { x: 8, z: -5 }, sandwich: true },
+  },
+  tavoB: {
+    idle: { expr: 'angry', root: { y: -0.06 }, torso: { x: 12, y: -14 }, head: { x: -12, y: 12 }, armL: { x: -60, z: 10 }, foreL: { x: -112 }, armR: { x: -42, z: -12 }, foreR: { x: -122 },
+      legL: { x: -24, z: 6 }, shinL: { x: 30 }, legR: { x: 16, z: -6 }, shinR: { x: 20 } },
+    victory: { expr: 'smug', root: { y: -0.12 }, torso: { x: -8 }, head: { x: -16 }, armL: { x: -48, z: 12 }, foreL: { x: -30 }, armR: { x: -48, z: -12 }, foreR: { x: -30 },
+      legL: { x: -80, z: 14 }, shinL: { x: 80 }, legR: { x: -80, z: -14 }, shinR: { x: 80 }, coolerSeat: true },
+    defeat: { expr: 'sad', root: { y: 0.18, x: 90, pz: 0.9 }, head: { x: -40 }, armR: { x: -172, z: -14 }, foreR: { x: 0 }, armL: { x: 10, z: 50 }, foreL: { x: -30 },
+      legL: { x: 6, z: 10 }, shinL: { x: 30 }, legR: { x: 0, z: -6 }, shinR: { x: 50 }, coolerSpill: true },
+    taunt: { expr: 'smug', torso: { x: -4 }, head: { x: -6 }, armR: { x: -64, z: -18 }, foreR: { x: -128 }, armL: { x: -30, z: 10 }, foreL: { x: -100 },
+      legL: { z: 5 }, legR: { z: -5 }, juice: true },
+  },
+};
+
+function juiceBox(c = '#5FC8FF') { const g = G(); g.add(at(box(0.09, 0.13, 0.06, c), 0, 0.065, 0)); g.add(at(box(0.092, 0.04, 0.062, '#FFF1DC'), 0, 0.08, 0)); g.add(rot(at(cyl(0.008, 0.08, '#FFFFFF', 5), 0.02, 0.15, 0), 0, 0, -15)); return g; }
+
+function applyPose(rig, p) {
+  const set = (o, a = {}) => { if (!o) return; o.rotation.set((a.x || 0) * D, (a.y || 0) * D, (a.z || 0) * D); };
+  rig.root.rotation.order = 'YXZ';
+  rig.root.position.y = p.root?.y || 0;
+  if (p.root?.pz) rig.root.userData.pz = p.root.pz;
+  rig.root.rotation.x = (p.root?.x || 0) * D;
+  for (const k of ['torso', 'head', 'armL', 'foreL', 'armR', 'foreR', 'legL', 'shinL', 'legR', 'shinR', 'footL', 'footR']) set(rig[k], p[k]);
+  face(rig, p.expr);
+  const { s, root, extra } = rig;
+  rig.groundItems = rig.groundItems || [];
+  // --- Brix
+  if (rig.id === 'brix' && p.skateOff) {
+    // the right skate came off: it lies upside down beside her, wheels to the sky; a striped sock where it was
+    const sk = extra.skates.footR; sk.parent.remove(sk);
+    const lay = G(); lay.add(sk); sk.rotation.x = Math.PI; lay.position.set(0.82, 0.13, 0.3); lay.rotation.y = 0.9; rig.groundItems.push(lay);
+    rig.footR.add(at(box(0.14, 0.11, 0.24, '#FFF1DC'), 0, -0.01, 0.05)); rig.footR.add(at(box(0.145, 0.035, 0.245, '#E5392F'), 0, 0.03, 0.05));
+    rig.groundItems.push(rot(at(box(0.1, 0.035, 0.05, '#FFC83D'), 0.5, 0.02, 0.7), 0, 40, 0));
+  }
+  // --- Margo
+  if (rig.id === 'margo') {
+    if (extra.tails) extra.tails.forEach((t, i) => { t.rotation.x = -(p.tails || 0) * D * (i ? 0.7 : 1); });
+    if (p.beltOff) {
+      extra.belt.visible = false;
+      const b = G(); b.add(box(0.72, 0.065, 0.06, '#14121A')); b.add(rot(at(box(0.06, 0.32, 0.025, '#14121A'), -0.36, -0.15, 0), 0, 0, 8)); b.add(rot(at(box(0.06, 0.28, 0.025, '#14121A'), 0.36, -0.13, 0), 0, 0, -8));
+      b.position.set(0, s.torsoH * 0.22, s.torsoD / 2 + 0.36); rig.torso.add(b);
+    }
+    if (p.knotDown) { extra.knot.position.set(s.headR * 0.95, -0.02, 0.02); extra.knot.rotation.z = -100 * D; }
+  }
+  // --- Ormo
+  if (rig.id === 'ormo') {
+    if (p.tache != null) extra.tache.forEach((a) => { a.rotation.z = a.userData.sx * p.tache * D; });
+    if (p.cupInHand) {
+      const cup = G(); const c = cyl(0.1, 0.17, '#E5392F', 9); cup.add(c);
+      if (p.cupInHand === 'up') { cup.position.set(0, -0.26, 0.0); cup.rotation.x = Math.PI; cup.add(at(cyl(0.09, 0.01, '#8A5A2B', 8), 0, 0.08, 0)); }
+      if (p.cupInHand === 'down') { cup.position.set(0, -0.24, 0.06); }
+      if (p.cupInHand === 'sip') { cup.position.set(0, -0.22, 0.05); cup.rotation.x = Math.PI - 0.5; cup.add(at(cyl(0.09, 0.01, '#8A5A2B', 8), 0, 0.08, 0)); }
+      rig.handR.add(cup);
+    }
+    if (p.thermosSpill) {
+      extra.thermos.visible = false;
+      const t = G(); t.add(cyl(0.07, 0.3, '#C9CED8', 8)); t.rotation.z = Math.PI / 2; t.position.set(-0.85, 0.07, 0.25); t.rotation.y = 0.4; rig.groundItems.push(t);
+      const pud = new THREE.Mesh(new THREE.CircleGeometry(0.32, 14), M('#8A5A2B')); pud.rotation.x = -Math.PI / 2; pud.scale.set(1.3, 0.8, 1); pud.position.set(-0.9, 0.006, 0.55); rig.groundItems.push(pud);
+      rig.groundItems.push(rot(at(cyl(0.075, 0.07, '#E5392F', 8), -0.5, 0.04, 0.85), 70, 0, 20));
+    }
+  }
+  // --- Zuzu
+  if (rig.id === 'zuzu') {
+    if (p.redCard) { rig.handR.children[0].visible = false; rig.fistR.visible = true; const c = box(0.26, 0.36, 0.02, '#E5392F'); c.position.set(0, -0.2, 0.04); rig.handR.add(c); }
+    if (p.whistleMouth) { extra.whistle.parent.remove(extra.whistle); extra.whistle.position.set(0, -0.08, s.headR * 1.05); extra.whistle.rotation.y = -Math.PI / 2; rig.head.add(extra.whistle); }
+  }
+  // --- Tavo A
+  if (rig.id === 'tavoA') {
+    if (p.flag) { const f = G(); f.add(at(cyl(0.012, 0.55, '#5A4130', 5), 0, -0.1, 0)); const tri = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 3), M('#FFC83D')); tri.rotation.z = Math.PI / 2; tri.position.set(-0.15, -0.3, 0); f.add(tri); f.rotation.x = Math.PI; rig.handR.add(f); }
+    if (p.sandwich) { const sw = G(); sw.add(box(0.2, 0.08, 0.15, '#E9C98F')); sw.add(at(box(0.21, 0.025, 0.16, '#5FB04A'), 0, 0.0, 0)); sw.position.set(0, -0.05, 0.06); sw.rotation.set(0.2, 0, 1.3); rig.handR.add(sw); }
+    if (p.packOff) {
+      const pack = extra.pack; rig.torso.remove(pack); pack.position.set(0.62, 0.22, -0.55); pack.rotation.set(0, 0.3, -1.4); rig.groundItems.push(pack);
+      pack.remove(extra.pan);
+      rig.groundItems.push(at(cyl(0.06, 0.1, '#FFFAF0', 8), 0.85, 0.05, 0.25));
+      const sw = box(0.18, 0.07, 0.15, '#E9C98F'); sw.position.set(0.68, 0.04, 0.6); sw.rotation.y = 0.6; rig.groundItems.push(sw);
+      rig.groundItems.push(at(box(0.16, 0.025, 0.13, '#5FB04A'), 0.68, 0.085, 0.6));
+    }
+    if (p.panOnHead) { const pan = extra.pan; pan.rotation.set(0, 0, 0); const disc = pan.children[0]; disc.rotation.set(0, 0, 0.12); pan.children[1].position.set(0.32, 0.02, 0); pan.children[1].rotation.z = Math.PI / 2;
+      pan.position.set(0.02, s.headR + 0.05, 0); pan.rotation.set(0.25, 0.4, -0.3); rig.head.add(pan);
+      for (let i = 0; i < 3; i++) { const a = i * 2.1; const st = star(0.065, '#FFC83D', 0.03); st.position.set(Math.cos(a) * 0.32, s.headR + 0.24 + (i % 2) * 0.05, Math.sin(a) * 0.32); st.rotation.y = -a; rig.head.add(st); } }
+  }
+  // --- Tavo B
+  if (rig.id === 'tavoB') {
+    if (p.juice) { const j = juiceBox(); j.position.set(0, -0.1, 0.05); j.rotation.x = Math.PI; rig.handR.add(j); }
+    if (p.coolerSeat) { const c = extra.cooler; rig.torso.remove(c); c.position.set(0, 0, -0.12); c.rotation.set(0, 0.0, 0); rig.groundItems.push(c); }
+    if (p.coolerSpill) {
+      const c = extra.cooler; rig.torso.remove(c); c.position.set(0.85, 0.0, -0.1); c.rotation.set(0, -0.5, 0); rig.groundItems.push(c);
+      const lid = c.children[1]; c.remove(lid); lid.position.set(1.3, 0.05, 0.35); lid.rotation.set(0.2, 0.5, 0.35); rig.groundItems.push(lid);
+      const seeds = [[0.2, 0.55], [0.45, 0.3], [0.6, 0.75], [-0.2, 0.7], [1.05, 0.55], [0.85, 0.85], [-0.45, 0.4], [0.4, 1.0]];
+      seeds.forEach(([x, z], i) => rig.groundItems.push(rot(at(box(0.1, 0.1, 0.1, '#CDEFFF'), x, 0.04, z), 0, i * 37, 0)));
+      rig.groundItems.push(rot(at(juiceBox('#FF8A3D'), 1.15, 0.0, 0.15), 90, 30, 0));
+      rig.groundItems.push(rot(at(juiceBox('#5FC8FF'), 0.5, 0.0, -0.5), 0, 20, 0));
+      { const j = juiceBox('#7BD45A'); j.scale.setScalar(1.4); rig.groundItems.push(at(j, -0.55, 0.0, 1.45)); } // the last one, just out of reach
+    }
+  }
+}
+
+// ================================================================= rendering
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setPixelRatio(1);
+function lights(scene, rim) {
+  scene.add(new THREE.HemisphereLight('#dff1ff', '#e3bf86', 1.5));
+  const sun = new THREE.DirectionalLight('#fff2dc', 2.3); sun.position.set(-3, 6, 5); scene.add(sun);
+  const r = new THREE.DirectionalLight(rim, 2.2); r.position.set(4, 3, -5); scene.add(r);
+  const fill = new THREE.DirectionalLight('#ffffff', 0.5); fill.position.set(3, 1, 4); scene.add(fill);
+}
+function blob(parent, x = 0, rx = 0.6, z = 0) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(rx, 28), new THREE.MeshBasicMaterial({ color: '#3b2a10', transparent: true, opacity: 0.2, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, 0.002, z); m.scale.y = 0.6; parent.add(m);
+}
+function shot(scene, cam, w, h) { renderer.setSize(w, h, false); renderer.setClearColor(0x000000, 0); renderer.render(scene, cam); return renderer.domElement.toDataURL('image/png'); }
+// one fighter in a pose, with its ground props, as a group turned by yaw
+function posed(f, pose, yaw) {
+  const g = G(); const rig = buildRig(f.id); applyPose(rig, POSES[f.id][pose]);
+  const inner = G(); inner.add(rig.root); for (const o of rig.groundItems) inner.add(o);
+  if (rig.root.userData.pz) rig.root.position.z -= rig.root.userData.pz;
+  blob(inner, 0, f.id === 'ormo' ? 0.78 : 0.58);
+  inner.rotation.y = yaw * D; g.add(inner); return g;
+}
+// frame any group: perspective camera fitted to its bounding box
+function framed(group, w, h, { fov = 26, pad = 1.12, elev = 9, minH = 0 } = {}) {
+  const scene = new THREE.Scene(); lights(scene, '#ffffff'); scene.add(group);
+  group.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(group); const size = bb.getSize(new THREE.Vector3()); const c = bb.getCenter(new THREE.Vector3());
+  const hh = Math.max(size.y, minH);
+  const t = Math.tan(fov * D / 2); const asp = w / h;
+  const dist = Math.max(hh / 2 / t, size.x / 2 / (t * asp)) * pad + size.z / 2;
+  const cam = new THREE.PerspectiveCamera(fov, asp, 0.05, 80);
+  cam.position.set(c.x, c.y + Math.sin(elev * D) * dist, c.z + Math.cos(elev * D) * dist); cam.lookAt(c);
+  return shot(scene, cam, w, h);
+}
+function silhouette(f, yaw, pxPerM, colour = '#000000', hM = 2.4, wM = 1.6) {
+  const scene = new THREE.Scene(); const rig = buildRig(f.id); applyPose(rig, POSES[f.id].idle);
+  rig.root.rotation.y = yaw * D; scene.add(rig.root);
+  scene.overrideMaterial = new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide });
+  const w = Math.round(wM * pxPerM), h = Math.round(hM * pxPerM);
+  const cam = new THREE.OrthographicCamera(-wM / 2, wM / 2, hM, 0, 0.1, 50); cam.position.set(0, 0, 10); cam.lookAt(0, 0, 0);
+  return shot(scene, cam, w, h);
+}
+
+// ================================================================= DOM
+const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
+const root = document.getElementById('sheets');
+const PXM = 50;
+const YAW = { brix: { hero: -40, idle: -40, victory: -20, defeat: -75, taunt: -30 }, margo: { hero: -30, idle: -20, victory: -8, defeat: -12, taunt: -25 },
+  ormo: { hero: -26, idle: -24, victory: -24, defeat: -12, taunt: -30 }, zuzu: { hero: -26, idle: -26, victory: -20, defeat: -20, taunt: -40 },
+  tavoA: { hero: -34, idle: -30, victory: -25, defeat: -55, taunt: -30 }, tavoB: { hero: -38, idle: -30, victory: -35, defeat: -35, taunt: -30 } };
+
+for (const f of FIGHTERS) {
+  const sec = el(`<section class="sheet" id="sheet-${f.id}" style="--acc:${f.acc};--acc2:${f.acc2};--tint:${f.tint}">
+    <div class="hero"><img alt=""></div>
+    <div class="nameblock"><div class="opt">${f.slotName} · ${f.opt}</div><div class="name">${f.name}</div><div class="role">${f.role}</div><div class="backups">backup names: ${f.backups}</div></div>
+    <div class="why">Why a fighter now: ${f.why}</div>
+    <div class="slot">replaces ${f.slot} · ${f.stats} · stats unchanged · R-022b</div>
+    <div class="poses">${['idle', 'victory', 'defeat', 'taunt'].map((p) => `<div class="pose"><div class="pic"><img data-pose="${p}" alt=""><div class="tag">${p.toUpperCase()}</div></div><p>${f.poses[p]}</p></div>`).join('')}</div>
+    <div class="right">
+      <div class="card"><div class="kicker">Personality</div><div class="big">${f.personality}</div><div class="quotes">${f.quotes.map((q) => `<span class="quote">${q}</span>`).join('')}</div></div>
+      <div class="card trait"><div class="kicker">Signature trait idea</div><div class="big">${f.trait[0]}</div><div class="txt">${f.trait[1]}</div></div>
+      <div class="card"><div class="kicker">Hook · silhouette test</div><div class="txt">${f.hook}</div>
+        <div class="sil"><figure><img data-sil="front" alt="">front</figure><figure><img data-sil="side" alt="">side</figure>
+          <div class="bgs"><div style="background:#efcf98"><img data-sil="c1" alt=""></div><div style="background:#6fbbe3"><img data-sil="c2" alt=""></div><div style="background:#1b1f2e"><img data-sil="c3" alt=""></div></div></div>
+        <div class="txt" style="font-size:13px;color:#6b5a86;margin-top:2px">50 px/m ≈ the 1280×720 follow camera. Last three: flat accent on Offsite sand, sky, office.</div></div>
+      <div class="card"><div class="kicker">Palette</div>
+        <div class="swatches">${f.palette.map(([c]) => `<div class="sw" style="background:${c}"></div>`).join('')}</div>
+        <div class="swatches" style="margin-top:4px">${f.palette.map(([c, n]) => `<div class="swl">${n}<br>${c}</div>`).join('')}</div></div>
+    </div></section>`);
+  root.appendChild(sec);
+  sec.querySelector('.hero img').src = framed(posed(f, 'idle', YAW[f.id].hero), 760, 860, { fov: 13, pad: 1.1, elev: 7, minH: 2.1 });
+  for (const img of sec.querySelectorAll('[data-pose]')) { const p = img.dataset.pose; img.src = framed(posed(f, p, YAW[f.id][p]), 300, 262, { fov: 28, pad: 1.1, elev: p === 'defeat' ? 22 : 8 }); }
+  const s = (k) => sec.querySelector(`[data-sil="${k}"]`);
+  s('front').src = silhouette(f, 0, PXM); s('side').src = silhouette(f, 90, PXM);
+  for (const k of ['c1', 'c2', 'c3']) s(k).src = silhouette(f, -30, PXM, f.acc, 2.4, 1.52);
+}
+
+// overview
+{
+  const order = ['brix', 'margo', 'ormo', 'zuzu', 'tavoA', 'tavoB'];
+  const F = Object.fromEntries(FIGHTERS.map((f) => [f.id, f]));
+  const cx = [175, 480, 820, 1130, 1450, 1755];
+  const sec = el(`<section class="sheet ov" id="sheet-overview">
+    <div class="title">THE FOUR · v3</div>
+    <div class="sub">R-022b · every one a fighter · R-024 IP pass: Ormo (silver quiff, walrus, argyle) and Brix (striped helmet, no stars) revised</div>
+    <div class="lineup"><img alt=""></div>
+    ${order.map((id, i) => `<div class="nm" style="left:${cx[i] - 150}px;--c:${F[id].acc}">${F[id].name}<small>${F[id].opt === 'OPTION A' || F[id].opt === 'OPTION B' ? F[id].opt.replace('OPTION ', '') + ' · ' : ''}${F[id].role}</small></div>`).join('')}
+    <div class="groups">
+      <div class="grp" style="left:${cx[0] - 150}px;width:${cx[1] - cx[0] + 300}px"><div class="br"></div><div class="lab">KESSA SLOT: PICK A OR B</div></div>
+      <div class="grp" style="left:${cx[4] - 150}px;width:${cx[5] - cx[4] + 300}px"><div class="br"></div><div class="lab">TAVO: PICK A OR B</div></div>
+    </div>
+    <div class="dstrip"><div class="dhead">DEFEAT POSES</div><div class="dsub">each one tells a little story with a prop: read it at game scale, no text needed</div>
+      <div class="dcards">${order.map((id) => `<div class="dc" style="--c:${F[id].acc}"><div class="pic"><img data-def="${id}" alt=""></div><div class="t">${F[id].name}${F[id].opt.startsWith('OPTION') ? ' ' + F[id].opt.slice(-1) : ''}</div><div class="d">${DEF_SHORT[id]}</div></div>`).join('')}</div></div>
+    <div class="silrow">${order.map((id) => `<figure><img data-ovsil="${id}" alt=""><figcaption>${F[id].name}${F[id].opt.startsWith('OPTION') ? ' ' + F[id].opt.slice(-1) : ''}</figcaption></figure>`).join('')}</div>
+  </section>`);
+  root.appendChild(sec);
+  // lineup: one ground, by slot, at true relative height
+  const scene = new THREE.Scene(); lights(scene, '#ffffff');
+  const W = 1920, H = 470, fov = 18, cam = new THREE.PerspectiveCamera(fov, W / H, 0.1, 80);
+  const dist = 9.6; cam.position.set(0, 1.45, dist); cam.lookAt(0, 1.12, 0);
+  const halfW = Math.tan(fov * D / 2) * (W / H) * dist;
+  const yaws = { brix: 40, margo: 26, ormo: 12, zuzu: -6, tavoA: -26, tavoB: -36 };
+  order.forEach((id, i) => { const x = (cx[i] / W * 2 - 1) * halfW; const g = posed(F[id], 'idle', yaws[id]); g.position.x = x; scene.add(g); });
+  sec.querySelector('.lineup img').src = shot(scene, cam, W, H);
+  for (const id of order) sec.querySelector(`[data-def="${id}"]`).src = framed(posed(F[id], 'defeat', YAW[id].defeat), 290, 232, { fov: 28, pad: 1.08, elev: 22 });
+  for (const id of order) sec.querySelector(`[data-ovsil="${id}"]`).src = silhouette(F[id], -30, 32, '#000', 2.36, 1.5);
+}
+document.body.dataset.ready = '1';
+</script>
+<script>
+  // short defeat lines for the overview strip (kept outside the module so the module can read it as a global)
+  window.DEF_SHORT = {
+    brix: 'Legs in the air, X eyes. One skate came off, wheels to the sky: race over.',
+    margo: 'Kneels holding her untied black belt, in shock. Top-knot flopped over one ear.',
+    ormo: 'Sits hard. Thermos tipped, tea puddle, peers into the empty cup. Whiskers droop.',
+    zuzu: 'Sits and holds up a RED CARD at the camera, mouth wide open. Protesting the call.',
+    tavoA: 'Pack spilled (mug, sandwich) and the frying pan landed on his head. X eyes.',
+    tavoB: 'Face down, cooler burst open, ice everywhere, reaching for the last juice box.',
+  };
+</script>
+</body>
+</html>

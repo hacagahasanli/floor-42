@@ -322,34 +322,6 @@
 }
 :root[data-motion='reduced'] .f42-door-open { opacity: 0; }
 
-/* ---------- Result screen: winner slab (spec aliveness-audit T5) ---------- */
-.f42-slab, .f42-loser { display: none; }
-.f42-winbar { display: block; height: 6px; margin: -24px -24px 12px; }
-@media (max-height: 600px) { .f42-winbar { margin: -12px -12px 8px; } }
-@media (min-width: 1024px) and (min-height: 640px) {
-  .f42-winbar { display: none; }
-  .f42-slab {
-    display: block; position: relative; flex: none; width: 260px; height: 300px; align-self: center;
-    background: #0a0d18; clip-path: polygon(14% 0, 100% 0, 86% 100%, 0 100%);
-    animation: f42SlabIn 260ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
-  }
-  .f42-slab-in {
-    position: absolute; inset: 4px; opacity: 0.85; clip-path: polygon(14% 0, 100% 0, 86% 100%, 0 100%);
-  }
-  .f42-slab-img {
-    position: absolute; left: 50%; bottom: 8px; height: 280px; width: auto;
-    transform: translateX(-50%) rotate(-4deg);
-  }
-  .f42-loser { display: inline-block; width: 59px; height: 72px; vertical-align: middle; margin: 0 12px; }
-  .f42-loser img { display: block; height: 72px; width: auto; filter: grayscale(1); opacity: 0.55; }
-}
-@keyframes f42SlabIn {
-  from { opacity: 0; transform: translateX(-40px) scale(0.92); }
-  to { opacity: 1; transform: none; }
-}
-@media (prefers-reduced-motion: reduce) { .f42-slab { animation: none !important; } }
-:root[data-motion='reduced'] .f42-slab { animation: none !important; }
-
 /* ---------- Stamp (src/components/Stamp.tsx, spec fight-feel-pages 3.2) ---------- */
 @keyframes f42StampIn {
   0% { opacity: 0; transform: scale(1.7) rotate(calc(var(--stamp-rot, -6deg) - 8deg)); }

@@ -17,6 +17,7 @@ import {
   WALL_SPLAT_DAMAGE,
   WALL_SPLAT_SPEED,
 } from './constants';
+import { afterMoveTraits, fullLoad, gunDamage, magSize, maxHp, newTraitState, onTraitHit, packWeapon, regenDelay, speedMul, tickTraits } from './traits';
 import { EMPTY_INPUT } from './types';
 
 import type { ArenaData, ArenaId } from './constants';
@@ -113,7 +114,7 @@ export const createGame = (
   seed = 1,
   net = false,
   local?: { kosToWin: number; assist: boolean },
-  extra?: { gunGrace?: { fighter: number; ticks: number }; countdownSeconds?: number; arena?: ArenaId },
+  extra?: { gunGrace?: { fighter: number; ticks: number }; countdownSeconds?: number; arena?: ArenaId; traits?: boolean },
 ): GameState => {
   const A = arenaOf({ arena: extra?.arena });
   const fighters = characters.map((c, i) => createFighter(i, c, A));
@@ -153,6 +154,7 @@ export const createGame = (
     ...(extra?.gunGrace ? { gunGrace: { ...extra.gunGrace } } : {}),
     // The office is the absence of the field, so online states and snapshots stay as they were.
     ...(A.id !== 'office' ? { arena: A.id } : {}),
+    ...(extra?.traits ? { traits: true as const } : {}),
     seed,
     dropTimer: A.dropEvery,
     nextId: 1,
@@ -163,6 +165,11 @@ export const createGame = (
   };
   // Random starting spots (far apart) and random guns on each floor.
   for (const f of state.fighters) placeAtSpawn(state, f);
+  if (state.traits)
+    for (const f of state.fighters) {
+      f.hp = maxHp(state, f);
+      f.trait = newTraitState(f);
+    }
   // Local 2-player: P1 starts on the left, under the P1 plate, P2 on the right (same two spots, swapped if needed).
   // Respawns after a KO keep the normal rule.
   if (local && fighters[0].x > fighters[1].x) {
@@ -232,7 +239,7 @@ const respawnFighter = (state: GameState, f: Fighter) => {
     y: f.y + 1.5,
     vx: 0,
     vy: 0,
-    hp: CHARACTERS[f.character].hp,
+    hp: maxHp(state, f),
     stun: 0,
     pushed: 0,
     pushTime: 0,
@@ -292,6 +299,7 @@ export const applyHit = (state: GameState, target: Fighter, hit: HitSpec): boole
   target.stun = Math.max(target.stun, k > 6 ? 0.06 + k * 0.012 : 0);
   target.hp -= hit.damage;
   if (hit.damage > 0) target.sinceHit = 0;
+  onTraitHit(state, target, hit);
   if (hit.attacker !== target.id) {
     target.lastHitBy = hit.attacker;
     const a = state.fighters[hit.attacker];
@@ -374,7 +382,7 @@ const fire = (state: GameState, f: Fighter, kind: GunKind = f.weapon.kind) => {
       oy: m.y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      damage: g.damage,
+      damage: gunDamage(state, kind),
       knockback: g.knockback,
       life: g.life,
       hit: [],
@@ -408,7 +416,7 @@ export const pickupCandidate = (state: GameState, f: Fighter): Pickup | null => 
 const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
   // A bomb goes in its own one-bomb slot: your gun stays in hand.
   if (p.kind === 'bomb') f.bombs = 1;
-  else f.weapon = newWeapon(p.kind);
+  else f.weapon = packWeapon(state, f, newWeapon(p.kind));
   p.active = false;
   p.respawn = p.spawn !== null ? (arenaOf(state).gunSpawns[p.spawn].respawn ?? RULES.gunRespawn) : Infinity;
   state.events.push({ type: 'pickup', fighter: f.id, gun: p.kind });
@@ -418,7 +426,7 @@ const takePickup = (state: GameState, f: Fighter, p: Pickup) => {
 export const lowAmmo = (w: Weapon) => {
   const g = GUNS[w.kind];
   if (w.kind === 'pistol' || !Number.isFinite(g.reserve)) return false;
-  return w.mag + w.reserve < ASSIST.lowAmmo * (g.mag + g.reserve);
+  return w.mag + w.reserve < ASSIST.lowAmmo * fullLoad(w);
 };
 
 /**
@@ -461,14 +469,14 @@ const updateWeapon = (state: GameState, f: Fighter, input: InputState, canAct: b
   if (w.reload > 0) {
     w.reload -= DT;
     if (w.reload <= 0) {
-      const take = Math.min(g.mag - w.mag, w.reserve);
+      const take = Math.min(magSize(w) - w.mag, w.reserve);
       w.mag += take;
       w.reserve -= take;
     }
     return;
   }
   const startReload = () => {
-    if (w.mag >= g.mag || w.reserve <= 0) return;
+    if (w.mag >= magSize(w) || w.reserve <= 0) return;
     w.reload = g.reloadTime;
     state.events.push({ type: 'reload', fighter: f.id });
   };
@@ -551,9 +559,10 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   f.pushed = Math.max(0, f.pushed - DT);
   f.invulnerable = Math.max(0, f.invulnerable - DT);
   // Out of the fight for a while, you heal: an old wound no longer makes the next hit a KO.
+  tickTraits(state, f);
   f.sinceHit += DT;
-  if (f.respawn <= 0 && f.hp > 0 && f.sinceHit >= RULES.regenAfter)
-    f.hp = Math.min(CHARACTERS[f.character].hp, f.hp + RULES.regenPerSecond * DT);
+  if (f.respawn <= 0 && f.hp > 0 && f.sinceHit >= regenDelay(state, f))
+    f.hp = Math.min(maxHp(state, f), f.hp + RULES.regenPerSecond * DT);
 
   if (f.respawn > 0) {
     f.respawn -= DT;
@@ -586,7 +595,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
   // Horizontal movement.
   const dir = canAct ? (input.right ? 1 : 0) - (input.left ? 1 : 0) : 0;
   if (f.dashTime <= 0) {
-    const maxSpeed = c.speed * GUNS[f.weapon.kind].carry * (1 - (1 - CROUCH.speed) * f.crouch);
+    const maxSpeed = c.speed * speedMul(state, f) * GUNS[f.weapon.kind].carry * (1 - (1 - CROUCH.speed) * f.crouch);
     if (dir !== 0) {
       f.vx = approach(f.vx, dir * maxSpeed, (f.onGround ? PHYS.groundAccel : PHYS.airAccel) * DT);
     } else {
@@ -1020,6 +1029,7 @@ export const step = (state: GameState, inputs: InputState[]): GameState => {
   }
 
   for (const f of state.fighters) updateFighter(state, f, inputs[f.id] ?? EMPTY_INPUT);
+  afterMoveTraits(state);
   updateProjectiles(state);
   updatePickups(state);
   return state;

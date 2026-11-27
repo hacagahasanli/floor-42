@@ -1,0 +1,210 @@
+{
+ "mode": "offsite",
+ "size": "1280x720",
+ "gl": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+ "load1": {
+  "tag": "fresh",
+  "loadingStop": 181,
+  "wallMs": 1571,
+  "sdk": [
+   [
+    "init",
+    96
+   ],
+   [
+    "loadingStart",
+    147
+   ],
+   [
+    "loadingStop",
+    181
+   ]
+  ],
+  "menu": {
+   "checked": "",
+   "stored": null
+  }
+ },
+ "playAt": 2047,
+ "gameplayStart1": 4467,
+ "frameUrl": "#/arena?p1=hotfix&p2=standup&bot=easy&arena=offsite",
+ "hudArena": "OFFSITE",
+ "hudBot": "BOT · easy",
+ "focus": {
+  "hasFocus": true,
+  "active": "INPUT"
+ },
+ "hostScrollY": 0,
+ "frameIdle": {
+  "n": 301,
+  "fps": 60,
+  "p50": 16.7,
+  "p95": 16.7,
+  "p99": 16.8,
+  "max": 16.8,
+  "over33": 0
+ },
+ "escStop": 11121,
+ "escStart": 12079,
+ "blurCalls": [],
+ "refocus": true,
+ "frameFight": {
+  "n": 361,
+  "fps": 60,
+  "p50": 16.7,
+  "p95": 16.7,
+  "p99": 16.8,
+  "max": 16.8,
+  "over33": 0
+ },
+ "match1": {
+  "resultAt": 50066,
+  "wallS": 30
+ },
+ "result1Text": "Hotfix YOU Sniper rail Bomb G DASH PUSH 3/3 108 0 : 5 FIRST TO 5 OFFSITE Mandatory team-building. 41°C in the shade. Standup BOT · easy Shotgun 2/8 STANDUP WINS They took the floor. First to 5 KOs. Ho",
+ "heapMB1": 25,
+ "rematchEnterAt": 51716,
+ "rematchStart": 53998,
+ "rematchFrameUrl": "#/arena?p1=hotfix&p2=standup&bot=easy&arena=offsite",
+ "rematchHudArena": "OFFSITE",
+ "match2": {
+  "resultAt": 86592,
+  "wallS": 32
+ },
+ "heapMB2": 31,
+ "cgLog": [
+  [
+   "init",
+   96
+  ],
+  [
+   "loadingStart",
+   147
+  ],
+  [
+   "loadingStop",
+   181
+  ],
+  [
+   "gameplayStart",
+   4467
+  ],
+  [
+   "gameplayStop",
+   11121
+  ],
+  [
+   "gameplayStart",
+   12079
+  ],
+  [
+   "gameplayStop",
+   49912
+  ],
+  [
+   "gameplayStart",
+   53998
+  ],
+  [
+   "gameplayStop",
+   86232
+  ]
+ ],
+ "p1": {
+  "tag": "reload-after-matches",
+  "loadingStop": 139,
+  "wallMs": 1460,
+  "sdk": [
+   [
+    "init",
+    59
+   ],
+   [
+    "loadingStart",
+    110
+   ],
+   [
+    "loadingStop",
+    139
+   ]
+  ],
+  "menu": {
+   "checked": "",
+   "stored": null
+  }
+ },
+ "p1pick": {
+  "before": {
+   "checked": "offsite:true office:false",
+   "line": "Mandatory team-building. 41°C in the shade.",
+   "stored": null
+  },
+  "after": {
+   "checked": "offsite:false office:true",
+   "line": "The office, after hours.",
+   "stored": "office"
+  }
+ },
+ "p2": {
+  "tag": "reload-after-office",
+  "loadingStop": 124,
+  "wallMs": 1419,
+  "sdk": [
+   [
+    "init",
+    48
+   ],
+   [
+    "loadingStart",
+    100
+   ],
+   [
+    "loadingStop",
+    124
+   ]
+  ],
+  "menu": {
+   "checked": "",
+   "stored": "office"
+  }
+ },
+ "p2pick": {
+  "before": {
+   "checked": "offsite:false office:true",
+   "line": "The office, after hours.",
+   "stored": "office"
+  },
+  "after": {
+   "checked": "offsite:true office:false",
+   "line": "Mandatory team-building. 41°C in the shade.",
+   "stored": "offsite"
+  }
+ },
+ "p3": {
+  "tag": "reload-after-offsite",
+  "loadingStop": 127,
+  "wallMs": 1418,
+  "sdk": [
+   [
+    "init",
+    47
+   ],
+   [
+    "loadingStart",
+    99
+   ],
+   [
+    "loadingStop",
+    127
+   ]
+  ],
+  "menu": {
+   "checked": "",
+   "stored": "offsite"
+  }
+ }
+}
+EXTERNAL: [ 'https://sdk.crazygames.com/crazygames-sdk-v3.js' ]
+FAILED: []
+ERRORS: []
+WARNINGS: []

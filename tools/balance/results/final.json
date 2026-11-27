@@ -1,0 +1,2948 @@
+{
+ "seeds": 400,
+ "levels": [
+  "easy",
+  "normal",
+  "hard"
+ ],
+ "arenas": [
+  "offsite",
+  "office"
+ ],
+ "leapBot": false,
+ "traits": {
+  "enabled": true,
+  "leapfrog": {
+   "maxClearance": 2.5,
+   "restoreAirDash": true,
+   "cooldown": 2.5
+  },
+  "teaBreak": {
+   "regenAfter": 3
+  },
+  "sugarRush": {
+   "speedMul": 1.2,
+   "duration": 1,
+   "cooldown": 4,
+   "minDamage": 1
+  },
+  "packedExtra": {
+   "magMul": 1.25,
+   "reserveMul": 1.25,
+   "guns": [
+    "smg",
+    "uzi",
+    "shotgun"
+   ]
+  }
+ },
+ "stats": {
+  "hotfix": {
+   "hp": 110
+  },
+  "legacy": {
+   "hp": 115
+  },
+  "standup": {
+   "hp": 85
+  },
+  "intern": {
+   "hp": 100
+  }
+ },
+ "guns": {
+  "railgun": {
+   "damage": 120
+  },
+  "launcher": {
+   "damage": 120
+  },
+  "bomb": {
+   "damage": 120
+  }
+ },
+ "grid": {
+  "before|easy|offsite": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2392564,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 392,
+     "sumSq": 392,
+     "draws": 0,
+     "ticks": 2383741,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 359,
+     "sumSq": 359,
+     "draws": 0,
+     "ticks": 2447317,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 389,
+     "sumSq": 389,
+     "draws": 0,
+     "ticks": 2391723,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 408,
+     "sumSq": 408,
+     "draws": 0,
+     "ticks": 2383741,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2368122,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 360,
+     "sumSq": 360,
+     "draws": 0,
+     "ticks": 2456495,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 373,
+     "sumSq": 373,
+     "draws": 0,
+     "ticks": 2391282,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 441,
+     "sumSq": 441,
+     "draws": 0,
+     "ticks": 2447317,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 440,
+     "sumSq": 440,
+     "draws": 0,
+     "ticks": 2456495,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2476602,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 440,
+     "sumSq": 440,
+     "draws": 0,
+     "ticks": 2423748,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 411,
+     "sumSq": 411,
+     "draws": 0,
+     "ticks": 2391723,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 427,
+     "sumSq": 427,
+     "draws": 0,
+     "ticks": 2391282,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 360,
+     "sumSq": 360,
+     "draws": 0,
+     "ticks": 2423748,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2394232,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   }
+  },
+  "before|easy|office": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2593380,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 359,
+     "sumSq": 359,
+     "draws": 0,
+     "ticks": 2570325,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 365,
+     "sumSq": 365,
+     "draws": 0,
+     "ticks": 2639472,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 409.5,
+     "sumSq": 409.25,
+     "draws": 1,
+     "ticks": 2619534,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 441,
+     "sumSq": 441,
+     "draws": 0,
+     "ticks": 2570325,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2512036,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 439,
+     "sumSq": 439,
+     "draws": 0,
+     "ticks": 2588663,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 429,
+     "sumSq": 429,
+     "draws": 0,
+     "ticks": 2579355,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 435,
+     "sumSq": 435,
+     "draws": 0,
+     "ticks": 2639472,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 361,
+     "sumSq": 361,
+     "draws": 0,
+     "ticks": 2588663,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2588504,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 433,
+     "sumSq": 433,
+     "draws": 0,
+     "ticks": 2642444,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 390.5,
+     "sumSq": 390.25,
+     "draws": 1,
+     "ticks": 2619534,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 371,
+     "sumSq": 371,
+     "draws": 0,
+     "ticks": 2579355,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 367,
+     "sumSq": 367,
+     "draws": 0,
+     "ticks": 2642444,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 399.5,
+     "draws": 2,
+     "ticks": 2652810,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   }
+  },
+  "before|normal|offsite": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2043806,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 419,
+     "sumSq": 419,
+     "draws": 0,
+     "ticks": 2025792,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 389,
+     "sumSq": 389,
+     "draws": 0,
+     "ticks": 2055959,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 404,
+     "sumSq": 404,
+     "draws": 0,
+     "ticks": 2045426,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 381,
+     "sumSq": 381,
+     "draws": 0,
+     "ticks": 2025792,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2012792,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 364,
+     "sumSq": 364,
+     "draws": 0,
+     "ticks": 2042369,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 363,
+     "sumSq": 363,
+     "draws": 0,
+     "ticks": 1993670,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 411,
+     "sumSq": 411,
+     "draws": 0,
+     "ticks": 2055959,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 436,
+     "sumSq": 436,
+     "draws": 0,
+     "ticks": 2042369,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2056694,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 402,
+     "sumSq": 402,
+     "draws": 0,
+     "ticks": 2049130,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 396,
+     "sumSq": 396,
+     "draws": 0,
+     "ticks": 2045426,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 437,
+     "sumSq": 437,
+     "draws": 0,
+     "ticks": 1993670,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 398,
+     "sumSq": 398,
+     "draws": 0,
+     "ticks": 2049130,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2030404,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   }
+  },
+  "before|normal|office": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2063224,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 413,
+     "sumSq": 413,
+     "draws": 0,
+     "ticks": 2077040,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 366,
+     "sumSq": 366,
+     "draws": 0,
+     "ticks": 2118918,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 388,
+     "sumSq": 388,
+     "draws": 0,
+     "ticks": 2095210,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 387,
+     "sumSq": 387,
+     "draws": 0,
+     "ticks": 2077040,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2055904,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 354,
+     "sumSq": 354,
+     "draws": 0,
+     "ticks": 2121620,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 386,
+     "sumSq": 386,
+     "draws": 0,
+     "ticks": 2089243,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 434,
+     "sumSq": 434,
+     "draws": 0,
+     "ticks": 2118918,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 446,
+     "sumSq": 446,
+     "draws": 0,
+     "ticks": 2121620,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2116808,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 443,
+     "sumSq": 443,
+     "draws": 0,
+     "ticks": 2139599,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 412,
+     "sumSq": 412,
+     "draws": 0,
+     "ticks": 2095210,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 414,
+     "sumSq": 414,
+     "draws": 0,
+     "ticks": 2089243,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 357,
+     "sumSq": 357,
+     "draws": 0,
+     "ticks": 2139599,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2110238,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   }
+  },
+  "before|hard|offsite": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1991412,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 422,
+     "sumSq": 422,
+     "draws": 0,
+     "ticks": 1959968,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 388,
+     "sumSq": 388,
+     "draws": 0,
+     "ticks": 1989267,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 407,
+     "sumSq": 407,
+     "draws": 0,
+     "ticks": 1960861,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 378,
+     "sumSq": 378,
+     "draws": 0,
+     "ticks": 1959968,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1929326,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 346,
+     "sumSq": 346,
+     "draws": 0,
+     "ticks": 1958945,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 370,
+     "sumSq": 370,
+     "draws": 0,
+     "ticks": 1933345,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 412,
+     "sumSq": 412,
+     "draws": 0,
+     "ticks": 1989267,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 454,
+     "sumSq": 454,
+     "draws": 0,
+     "ticks": 1958945,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2012594,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 424,
+     "sumSq": 424,
+     "draws": 0,
+     "ticks": 1969951,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 393,
+     "sumSq": 393,
+     "draws": 0,
+     "ticks": 1960861,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 430,
+     "sumSq": 430,
+     "draws": 0,
+     "ticks": 1933345,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 376,
+     "sumSq": 376,
+     "draws": 0,
+     "ticks": 1969951,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1952180,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   }
+  },
+  "before|hard|office": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1974830,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 415,
+     "sumSq": 414.5,
+     "draws": 2,
+     "ticks": 2002834,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 379,
+     "sumSq": 379,
+     "draws": 0,
+     "ticks": 1988391,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 376,
+     "sumSq": 376,
+     "draws": 0,
+     "ticks": 1985358,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 385,
+     "sumSq": 384.5,
+     "draws": 2,
+     "ticks": 2002834,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 399,
+     "draws": 4,
+     "ticks": 2020938,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 367,
+     "sumSq": 367,
+     "draws": 0,
+     "ticks": 2020616,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 387,
+     "sumSq": 387,
+     "draws": 0,
+     "ticks": 1977532,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 421,
+     "sumSq": 421,
+     "draws": 0,
+     "ticks": 1988391,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 433,
+     "sumSq": 433,
+     "draws": 0,
+     "ticks": 2020616,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2001854,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 443,
+     "sumSq": 443,
+     "draws": 0,
+     "ticks": 2031392,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 424,
+     "sumSq": 424,
+     "draws": 0,
+     "ticks": 1985358,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 413,
+     "sumSq": 413,
+     "draws": 0,
+     "ticks": 1977532,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 357,
+     "sumSq": 357,
+     "draws": 0,
+     "ticks": 2031392,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1994658,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   }
+  },
+  "after|easy|offsite": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2394268,
+     "leaps": 169,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 385,
+     "sumSq": 385,
+     "draws": 0,
+     "ticks": 2394318,
+     "leaps": 168,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 360,
+     "sumSq": 360,
+     "draws": 0,
+     "ticks": 2423371,
+     "leaps": 261,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 376,
+     "sumSq": 376,
+     "draws": 0,
+     "ticks": 2371979,
+     "leaps": 191,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 415,
+     "sumSq": 415,
+     "draws": 0,
+     "ticks": 2394318,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 28340.98183316248,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2374736,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 29139.046461600363,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 399,
+     "sumSq": 399,
+     "draws": 0,
+     "ticks": 2471085,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 29271.71811081148,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2395343,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 28785.768502898554,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 440,
+     "sumSq": 440,
+     "draws": 0,
+     "ticks": 2423371,
+     "leaps": 0,
+     "rushes": 4980,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 401,
+     "sumSq": 401,
+     "draws": 0,
+     "ticks": 2471085,
+     "leaps": 0,
+     "rushes": 5199,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2459266,
+     "leaps": 0,
+     "rushes": 4992,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 388,
+     "sumSq": 388,
+     "draws": 0,
+     "ticks": 2434252,
+     "leaps": 0,
+     "rushes": 5056,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 424,
+     "sumSq": 424,
+     "draws": 0,
+     "ticks": 2371979,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 106
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2395343,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 52
+    },
+    "standup": {
+     "n": 800,
+     "sum": 412,
+     "sumSq": 412,
+     "draws": 0,
+     "ticks": 2434252,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 48
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2369534,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 41
+    }
+   }
+  },
+  "after|easy|office": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2583824,
+     "leaps": 624,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 334,
+     "sumSq": 334,
+     "draws": 0,
+     "ticks": 2559463,
+     "leaps": 813,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 402,
+     "sumSq": 402,
+     "draws": 0,
+     "ticks": 2605961,
+     "leaps": 573,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 406.5,
+     "sumSq": 406.25,
+     "draws": 1,
+     "ticks": 2597437,
+     "leaps": 703,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 466,
+     "sumSq": 466,
+     "draws": 0,
+     "ticks": 2559463,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 32857.242201614295,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2490058,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 30484.154123668624,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 472,
+     "sumSq": 472,
+     "draws": 0,
+     "ticks": 2625511,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 33832.362841726346,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 465,
+     "sumSq": 465,
+     "draws": 0,
+     "ticks": 2548024,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 30811.31281666463,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 398,
+     "sumSq": 398,
+     "draws": 0,
+     "ticks": 2605961,
+     "leaps": 0,
+     "rushes": 4988,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 328,
+     "sumSq": 328,
+     "draws": 0,
+     "ticks": 2625511,
+     "leaps": 0,
+     "rushes": 4836,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2629310,
+     "leaps": 0,
+     "rushes": 5047,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 437,
+     "sumSq": 437,
+     "draws": 0,
+     "ticks": 2632147,
+     "leaps": 0,
+     "rushes": 5029,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 393.5,
+     "sumSq": 393.25,
+     "draws": 1,
+     "ticks": 2597437,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 79
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 335,
+     "sumSq": 335,
+     "draws": 0,
+     "ticks": 2548024,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 69
+    },
+    "standup": {
+     "n": 800,
+     "sum": 363,
+     "sumSq": 363,
+     "draws": 0,
+     "ticks": 2632147,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 95
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2588328,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 79
+    }
+   }
+  },
+  "after|normal|offsite": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2046086,
+     "leaps": 121,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 398,
+     "sumSq": 398,
+     "draws": 0,
+     "ticks": 2027780,
+     "leaps": 141,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 368,
+     "sumSq": 368,
+     "draws": 0,
+     "ticks": 2045418,
+     "leaps": 158,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 378,
+     "sumSq": 378,
+     "draws": 0,
+     "ticks": 2032933,
+     "leaps": 165,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 402,
+     "sumSq": 402,
+     "draws": 0,
+     "ticks": 2027780,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 20041.1687233854,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2018720,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 21043.640209196197,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 370,
+     "sumSq": 370,
+     "draws": 0,
+     "ticks": 2046722,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 20782.06557527962,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 377,
+     "sumSq": 377,
+     "draws": 0,
+     "ticks": 1984839,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 19324.245355821113,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 432,
+     "sumSq": 432,
+     "draws": 0,
+     "ticks": 2045418,
+     "leaps": 0,
+     "rushes": 4527,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 430,
+     "sumSq": 430,
+     "draws": 0,
+     "ticks": 2046722,
+     "leaps": 0,
+     "rushes": 4652,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2083528,
+     "leaps": 0,
+     "rushes": 4599,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 408,
+     "sumSq": 408,
+     "draws": 0,
+     "ticks": 2039581,
+     "leaps": 0,
+     "rushes": 4540,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 422,
+     "sumSq": 422,
+     "draws": 0,
+     "ticks": 2032933,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 19
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 423,
+     "sumSq": 423,
+     "draws": 0,
+     "ticks": 1984839,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 19
+    },
+    "standup": {
+     "n": 800,
+     "sum": 392,
+     "sumSq": 392,
+     "draws": 0,
+     "ticks": 2039581,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 57
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1990774,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 30
+    }
+   }
+  },
+  "after|normal|office": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2057952,
+     "leaps": 312,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 383,
+     "sumSq": 383,
+     "draws": 0,
+     "ticks": 2085939,
+     "leaps": 510,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 345,
+     "sumSq": 345,
+     "draws": 0,
+     "ticks": 2102259,
+     "leaps": 324,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 388,
+     "sumSq": 388,
+     "draws": 0,
+     "ticks": 2079376,
+     "leaps": 405,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 417,
+     "sumSq": 417,
+     "draws": 0,
+     "ticks": 2085939,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 23891.25707626217,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2073686,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 23959.51628726328,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 354,
+     "sumSq": 354,
+     "draws": 0,
+     "ticks": 2103145,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 22343.56738194622,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 376,
+     "sumSq": 376,
+     "draws": 0,
+     "ticks": 2080650,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 22182.937817350157,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 455,
+     "sumSq": 455,
+     "draws": 0,
+     "ticks": 2102259,
+     "leaps": 0,
+     "rushes": 3779,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 446,
+     "sumSq": 446,
+     "draws": 0,
+     "ticks": 2103145,
+     "leaps": 0,
+     "rushes": 3901,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2154956,
+     "leaps": 0,
+     "rushes": 3951,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 441,
+     "sumSq": 441,
+     "draws": 0,
+     "ticks": 2130141,
+     "leaps": 0,
+     "rushes": 3868,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 412,
+     "sumSq": 412,
+     "draws": 0,
+     "ticks": 2079376,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 40
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 424,
+     "sumSq": 424,
+     "draws": 0,
+     "ticks": 2080650,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 3
+    },
+    "standup": {
+     "n": 800,
+     "sum": 359,
+     "sumSq": 359,
+     "draws": 0,
+     "ticks": 2130141,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 13
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2090270,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 33
+    }
+   }
+  },
+  "after|hard|offsite": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1992108,
+     "leaps": 144,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 420,
+     "sumSq": 420,
+     "draws": 0,
+     "ticks": 1960558,
+     "leaps": 187,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 384,
+     "sumSq": 384,
+     "draws": 0,
+     "ticks": 1991957,
+     "leaps": 166,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 389,
+     "sumSq": 389,
+     "draws": 0,
+     "ticks": 1955114,
+     "leaps": 192,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 380,
+     "sumSq": 380,
+     "draws": 0,
+     "ticks": 1960558,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 18577.48370738029,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1939470,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 19069.773200831092,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 366,
+     "sumSq": 366,
+     "draws": 0,
+     "ticks": 1985874,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 18313.296102318185,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 368,
+     "sumSq": 368,
+     "draws": 0,
+     "ticks": 1929021,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 17628.319928421115,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 416,
+     "sumSq": 416,
+     "draws": 0,
+     "ticks": 1991957,
+     "leaps": 0,
+     "rushes": 4499,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 434,
+     "sumSq": 434,
+     "draws": 0,
+     "ticks": 1985874,
+     "leaps": 0,
+     "rushes": 4482,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 2022012,
+     "leaps": 0,
+     "rushes": 4542,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 390,
+     "sumSq": 390,
+     "draws": 0,
+     "ticks": 1968198,
+     "leaps": 0,
+     "rushes": 4456,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 411,
+     "sumSq": 411,
+     "draws": 0,
+     "ticks": 1955114,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 95
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 432,
+     "sumSq": 432,
+     "draws": 0,
+     "ticks": 1929021,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 83
+    },
+    "standup": {
+     "n": 800,
+     "sum": 410,
+     "sumSq": 410,
+     "draws": 0,
+     "ticks": 1968198,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 76
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1911894,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 67
+    }
+   }
+  },
+  "after|hard|office": {
+   "hotfix": {
+    "hotfix": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1967702,
+     "leaps": 368,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 396.5,
+     "sumSq": 396.25,
+     "draws": 1,
+     "ticks": 2002427,
+     "leaps": 563,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 365,
+     "sumSq": 365,
+     "draws": 0,
+     "ticks": 1980077,
+     "leaps": 314,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 361,
+     "sumSq": 361,
+     "draws": 0,
+     "ticks": 1968873,
+     "leaps": 422,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "legacy": {
+    "hotfix": {
+     "n": 800,
+     "sum": 403.5,
+     "sumSq": 403.25,
+     "draws": 1,
+     "ticks": 2002427,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 22019.7702827094,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 399.5,
+     "draws": 2,
+     "ticks": 2007122,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 22311.86623491679,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 378,
+     "sumSq": 378,
+     "draws": 0,
+     "ticks": 2016595,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 21170.277564236527,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 383,
+     "sumSq": 383,
+     "draws": 0,
+     "ticks": 1971617,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 20171.38163021903,
+     "extraFired": 0
+    }
+   },
+   "standup": {
+    "hotfix": {
+     "n": 800,
+     "sum": 435,
+     "sumSq": 435,
+     "draws": 0,
+     "ticks": 1980077,
+     "leaps": 0,
+     "rushes": 3654,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 422,
+     "sumSq": 422,
+     "draws": 0,
+     "ticks": 2016595,
+     "leaps": 0,
+     "rushes": 3771,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "standup": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1983050,
+     "leaps": 0,
+     "rushes": 3632,
+     "teaHeal": 0,
+     "extraFired": 0
+    },
+    "intern": {
+     "n": 800,
+     "sum": 412,
+     "sumSq": 412,
+     "draws": 0,
+     "ticks": 2005414,
+     "leaps": 0,
+     "rushes": 3726,
+     "teaHeal": 0,
+     "extraFired": 0
+    }
+   },
+   "intern": {
+    "hotfix": {
+     "n": 800,
+     "sum": 439,
+     "sumSq": 439,
+     "draws": 0,
+     "ticks": 1968873,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 91
+    },
+    "legacy": {
+     "n": 800,
+     "sum": 417,
+     "sumSq": 417,
+     "draws": 0,
+     "ticks": 1971617,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 76
+    },
+    "standup": {
+     "n": 800,
+     "sum": 388,
+     "sumSq": 388,
+     "draws": 0,
+     "ticks": 2005414,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 41
+    },
+    "intern": {
+     "n": 800,
+     "sum": 400,
+     "sumSq": 400,
+     "draws": 0,
+     "ticks": 1987176,
+     "leaps": 0,
+     "rushes": 0,
+     "teaHeal": 0,
+     "extraFired": 88
+    }
+   }
+  }
+ },
+ "summary": {
+  "before|easy|offsite": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.475,
+     "ci": 0.01997914537711761,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.47541666666666665,
+     "ci": 0.019979972956155462,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5504166666666667,
+     "ci": 0.019902211627405558,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.49916666666666665,
+     "ci": 0.02000413844914578,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    }
+   ],
+   "worst": 0.05125000000000002,
+   "side": {
+    "p": 0.499125,
+    "half": 0.010956716312238579
+   },
+   "draws": 0
+  },
+  "before|easy|office": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.47229166666666667,
+     "ci": 0.019969251762229027,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.5454166666666667,
+     "ci": 0.019921471174919488,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5120833333333333,
+     "ci": 0.019998323885205796,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.47020833333333334,
+     "ci": 0.019964450140575102,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    }
+   ],
+   "worst": 0.05125000000000002,
+   "side": {
+    "p": 0.4963125,
+    "half": 0.010954380477939805
+   },
+   "draws": 4
+  },
+  "before|normal|offsite": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.505,
+     "ci": 0.020003165999411193,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.46166666666666667,
+     "ci": 0.019945289567362162,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5204166666666666,
+     "ci": 0.019987482190828933,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.5129166666666667,
+     "ci": 0.01999749011739649,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    }
+   ],
+   "worst": 0.04625000000000001,
+   "side": {
+    "p": 0.500875,
+    "half": 0.010956716312238579
+   },
+   "draws": 0
+  },
+  "before|normal|office": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.48625,
+     "ci": 0.019996600726748536,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.46958333333333335,
+     "ci": 0.01996711727081507,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.55125,
+     "ci": 0.019898804376770985,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.49291666666666667,
+     "ci": 0.020002158769488226,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    }
+   ],
+   "worst": 0.057499999999999996,
+   "side": {
+    "p": 0.48675,
+    "half": 0.01095288523118452
+   },
+   "draws": 0
+  },
+  "before|hard|offsite": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.5070833333333333,
+     "ci": 0.02000215876948823,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.4558333333333333,
+     "ci": 0.019925969363937923,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5375,
+     "ci": 0.019947825173854586,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.4995833333333333,
+     "ci": 0.02000415928683703,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    }
+   ],
+   "worst": 0.0675,
+   "side": {
+    "p": 0.504125,
+    "half": 0.010956360212081153
+   },
+   "draws": 0
+  },
+  "before|hard|office": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.4875,
+     "ci": 0.019989574539688876,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.47458333333333336,
+     "ci": 0.019969956250879394,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5404166666666667,
+     "ci": 0.019938705237575634,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.4975,
+     "ci": 0.020003916179088532,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    }
+   ],
+   "worst": 0.05375000000000002,
+   "side": {
+    "p": 0.4895,
+    "half": 0.010950206411296546
+   },
+   "draws": 8
+  },
+  "after|easy|offsite": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.46708333333333335,
+     "ci": 0.01996076985533355,
+     "perMatch": {
+      "leaps": 0.25833333333333336,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.5058333333333334,
+     "ci": 0.020002804791754508,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 35.99936185286355,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5120833333333333,
+     "ci": 0.019998323885205796,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 6.347916666666666,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.515,
+     "ci": 0.019995162331590776,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0.08583333333333333
+     }
+    }
+   ],
+   "worst": 0.050000000000000044,
+   "side": {
+    "p": 0.4975,
+    "half": 0.01095659612972934
+   },
+   "draws": 0
+  },
+  "after|easy|office": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.47604166666666664,
+     "ci": 0.019977015420476446,
+     "perMatch": {
+      "leaps": 0.8704166666666666,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.5845833333333333,
+     "ci": 0.01971585536217075,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 40.62538244166887,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.4845833333333333,
+     "ci": 0.01999465504678225,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 6.18875,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.45479166666666665,
+     "ci": 0.019918044547148097,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0.10125
+     }
+    }
+   ],
+   "worst": 0.09000000000000002,
+   "side": {
+    "p": 0.4929375,
+    "half": 0.010954955129950043
+   },
+   "draws": 2
+  },
+  "after|normal|offsite": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.4766666666666667,
+     "ci": 0.019982372046195934,
+     "perMatch": {
+      "leaps": 0.19333333333333333,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.47875,
+     "ci": 0.019986091804677572,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 25.06144985603589,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5291666666666667,
+     "ci": 0.019970102363932086,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 5.71625,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.5154166666666666,
+     "ci": 0.01999465504678225,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0.03958333333333333
+     }
+    }
+   ],
+   "worst": 0.040000000000000036,
+   "side": {
+    "p": 0.511125,
+    "half": 0.010954020620159294
+   },
+   "draws": 0
+  },
+  "after|normal|office": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.465,
+     "ci": 0.01995509584041129,
+     "perMatch": {
+      "leaps": 0.51625,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.47791666666666666,
+     "ci": 0.01998464570046585,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 28.507400948149396,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5591666666666667,
+     "ci": 0.01986361552586183,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 4.8116666666666665,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.4979166666666667,
+     "ci": 0.02000399258469928,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0.023333333333333334
+     }
+    }
+   ],
+   "worst": 0.06874999999999998,
+   "side": {
+    "p": 0.475125,
+    "half": 0.010943165389724995
+   },
+   "draws": 0
+  },
+  "after|hard|offsite": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.4970833333333333,
+     "ci": 0.02000382588117231,
+     "perMatch": {
+      "leaps": 0.22708333333333333,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.46416666666666667,
+     "ci": 0.01995272828972779,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 22.71629155754983,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.5166666666666667,
+     "ci": 0.019993049718265522,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 5.59875,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.5220833333333333,
+     "ci": 0.01998464570046585,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0.10583333333333333
+     }
+    }
+   ],
+   "worst": 0.04249999999999998,
+   "side": {
+    "p": 0.502375,
+    "half": 0.01095660948340658
+   },
+   "draws": 0
+  },
+  "after|hard|office": {
+   "overall": [
+    {
+     "char": "BRIX",
+     "win": 0.46770833333333334,
+     "ci": 0.019958227191059674,
+     "perMatch": {
+      "leaps": 0.54125,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ORMO",
+     "win": 0.48520833333333335,
+     "ci": 0.019991240963202924,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 26.4005956154854,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "ZUZU",
+     "win": 0.52875,
+     "ci": 0.019971069466230396,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 4.64625,
+      "teaHeal": 0,
+      "extraFired": 0
+     }
+    },
+    {
+     "char": "TAVO",
+     "win": 0.5183333333333333,
+     "ci": 0.01999071446484129,
+     "perMatch": {
+      "leaps": 0,
+      "rushes": 0,
+      "teaHeal": 0,
+      "extraFired": 0.08666666666666667
+     }
+    }
+   ],
+   "worst": 0.048750000000000016,
+   "side": {
+    "p": 0.4861875,
+    "half": 0.010950496163095475
+   },
+   "draws": 4
+  }
+ }
+}

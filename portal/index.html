@@ -9,27 +9,92 @@
     <link rel="icon" href="./favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="icon" href="./favicon-16.png" type="image/png" sizes="16x16" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" sizes="180x180" />
-    <title>Floor 42</title>
+    <title>%GAME_TITLE%</title>
     <link rel="preload" href="./menu-poster.webp" as="image" type="image/webp" />
     <meta name="description" content="A two-player office shootout: settle it on floor 42, first to five KOs." />
     <!-- CrazyGames SDK v3. If it cannot load (offline, another portal), the game runs without it. -->
     <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="../src/components/fieldday/fonts/TitanOne-Regular.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="../src/components/fieldday/fonts/Baloo2-800.woff2" />
     <style>
-      html,body{margin:0;height:100%;background:#0a0d18}
-      /* The boot screen: the logo and a bar, up from the first paint until the first screen has drawn. Only transform and opacity animate. */
-      #boot{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;background:#0a0d18 url(./menu-poster.webp) center/cover}
-      /* The menu's backdrop as a still from the first paint; a scrim keeps the logo readable. */
-      #boot::before{content:'';position:absolute;inset:0;background:rgba(10,13,24,.62)}
-      #boot>*{position:relative}
-      #boot img{width:min(420px,70vw);height:auto}
-      #boot .bar{position:relative;width:min(280px,60vw);height:6px;overflow:hidden;background:rgba(230,235,245,.14)}
-      #boot .bar i{position:absolute;inset:0;background:#ffd23f;transform-origin:0 50%;animation:bootBar 1.4s ease-in-out infinite}
-      @keyframes bootBar{0%{transform:translateX(-100%) scaleX(.4)}100%{transform:translateX(100%) scaleX(.4)}}
-      @media (prefers-reduced-motion:reduce){#boot .bar i{animation:none;transform:scaleX(.5)}}
+      @font-face{font-family:'Titan One';font-weight:400;font-display:block;src:url(../src/components/fieldday/fonts/TitanOne-Regular.woff2) format('woff2')}
+      @font-face{font-family:'Baloo 2';font-weight:700;font-display:block;src:url(../src/components/fieldday/fonts/Baloo2-700.woff2) format('woff2')}
+      @font-face{font-family:'Baloo 2';font-weight:800;font-display:block;src:url(../src/components/fieldday/fonts/Baloo2-800.woff2) format('woff2')}
+      html,body{margin:0;height:100%;background:#26124a}
+      /* The boot screen (Field Day b01): up from the first paint until the first screen has drawn. A 1280x720 design frame scaled
+         to the window by the script below, like the Stage of the app (src/components/fieldday/Stage.tsx). Only transform and opacity animate. */
+      #boot{position:fixed;inset:0;z-index:1000;overflow:hidden;background:#6FC3F2;color:#3B1F6B;font-family:'Baloo 2',sans-serif;transition:opacity .16s ease-out}
+      #boot.done{opacity:0}
+      #boot .stage{position:absolute;left:0;top:0;transform-origin:0 0}
+      #boot .frame{position:absolute;left:0;right:0;height:720px}
+      #boot .sky{position:absolute;left:0;right:0;top:-2000px;height:2417px;background:linear-gradient(180deg,#6FC3F2 0,#A9DDF7 100%) bottom/100% 417px no-repeat,#6FC3F2}
+      #boot .ground{position:absolute;left:0;right:0;top:417px;bottom:-2000px;background:linear-gradient(180deg,#F6D9A2 0,#F2C98A 100%) top/100% 303px no-repeat,#F2C98A}
+      #boot .cloud{position:absolute;height:34px;border-radius:999px;background:rgba(255,255,255,.85);animation:cd 40s linear infinite alternate}
+      #boot .cloud::before,#boot .cloud::after{content:'';position:absolute;background:inherit;border-radius:50%}
+      #boot .cloud::before{width:44%;height:150%;left:16%;top:-60%}
+      #boot .cloud::after{width:32%;height:120%;left:50%;top:-40%}
+      @keyframes cd{from{translate:0 0}to{translate:120px 0}}
+      #boot svg{position:absolute;display:block}
+      #boot .pen{transform-box:fill-box;transform-origin:50% 0;animation:sw 2.6s ease-in-out infinite alternate}
+      @keyframes sw{from{rotate:-5deg}to{rotate:5deg}}
+      #boot *{box-sizing:border-box}
+      #boot .wmw{position:absolute;left:50%;top:196px;transform:translateX(-50%)}
+      #boot .wm{display:flex;align-items:flex-end;gap:12.5px;white-space:nowrap;transform:rotate(-3deg);transform-origin:left bottom;font-family:'Titan One',sans-serif;line-height:1;letter-spacing:.5px;color:#fff}
+      #boot .wm span{--o:5px;--d:7.5px;text-shadow:var(--o) 0 0 #3B1F6B,calc(-1*var(--o)) 0 0 #3B1F6B,0 var(--o) 0 #3B1F6B,0 calc(-1*var(--o)) 0 #3B1F6B,calc(.72*var(--o)) calc(.72*var(--o)) 0 #3B1F6B,calc(-.72*var(--o)) calc(-.72*var(--o)) 0 #3B1F6B,calc(.72*var(--o)) calc(-.72*var(--o)) 0 #3B1F6B,calc(-.72*var(--o)) calc(.72*var(--o)) 0 #3B1F6B,0 calc(var(--o) + var(--d)) 0 #3B1F6B,calc(.72*var(--o)) calc(.72*var(--o) + var(--d)) 0 #3B1F6B,calc(-.72*var(--o)) calc(.72*var(--o) + var(--d)) 0 #3B1F6B}
+      #boot .wm .a{font-size:75px;padding-bottom:10px}
+      #boot .wm .b{font-size:130px;color:#FFC83D;--o:6.25px;--d:11.25px;display:inline-block;transform:rotate(-4deg)}
+      #boot .bar{position:absolute;left:380px;top:452px;width:520px}
+      #boot .track{height:36px;border:4px solid #3B1F6B;border-radius:999px;background:#fff;box-shadow:0 5px 0 #3B1F6B;padding:4px;overflow:hidden}
+      #boot .fill{position:relative;width:0;height:100%;border-radius:999px;background:repeating-linear-gradient(-45deg,#FFC83D 0 14px,#FFD86B 14px 28px);box-shadow:inset 0 -4px 0 #E08A00;overflow:hidden;transition:width .3s ease-out}
+      #boot .fill::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 14px,rgba(255,255,255,.35) 14px 28px);background-size:40px 100%;animation:st .8s linear infinite}
+      @keyframes st{to{background-position:40px 0}}
+      #boot .lbl{display:flex;justify-content:space-between;margin-top:14px;font:800 17px/1 'Baloo 2',sans-serif}
+      #boot .tip{position:absolute;left:50%;top:560px;transform:translateX(-50%);display:inline-flex;align-items:center;padding:8px 18px 7px;border-radius:999px;background:rgba(38,18,74,.86);color:#FFF3D6;font:700 16px/1.2 'Baloo 2',sans-serif;white-space:nowrap}
+      #boot .studio{position:absolute;left:24px;bottom:22px;padding:4px 14px 3px;border-radius:999px;background:rgba(38,18,74,.86);color:#FFF3D6;font:700 13px/1.2 'Baloo 2',sans-serif}
+      @media (prefers-reduced-motion:reduce){#boot .cloud,#boot .pen,#boot .fill::after{animation:none}}
     </style>
   </head>
   <body class="font-sans">
-    <div id="boot" role="status" aria-label="Loading"><img src="./brand/logo.svg" alt="Floor 42" width="1078" height="270" /><div class="bar"><i></i></div></div>
+    <div id="boot" role="status" aria-label="Loading">
+      <div class="stage" id="boot-stage">
+        <div class="frame" id="boot-frame">
+          <div class="sky"></div>
+          <div class="ground"></div>
+          <div class="cloud" style="left:120px;top:120px;width:150px"></div>
+          <div class="cloud" style="left:930px;top:90px;width:190px;animation-duration:55s"></div>
+          <div class="cloud" style="left:1010px;top:250px;width:110px;animation-duration:48s"></div>
+          <svg style="left:0;top:330px;width:100%" height="120" viewBox="0 0 1280 120" preserveAspectRatio="none"><path d="M0 120V70l90-30 70 22 120-46 90 40 100-24 60 26 140-50 120 44 80-20 110 34 130-40 170 52V120z" fill="#E7A27C"/><path d="M0 120V96l160-20 200 18 220-24 240 22 200-16 260 20V120z" fill="#EFBF8E"/></svg>
+          <!--FD_WORDMARK-->
+          <div class="bar"><div class="track"><div class="fill" id="boot-fill"></div></div><div class="lbl"><span>Setting up the field&hellip;</span><span id="boot-pct">0%</span></div></div>
+          <div class="tip" id="boot-tip"></div>
+          <div class="studio"><!--FD_STUDIO--></div>
+        </div>
+        <svg id="boot-bunting" style="left:-10px;top:0" height="80" aria-hidden="true"></svg>
+      </div>
+    </div>
+    <script>
+      /* Boot screen script: scale the frame, hang the bunting, rotate the tips, and report REAL progress. Milestones: the page is up
+         (12), fonts ready (40), the game's code has loaded and the platform is chosen (70), the first screen is rendering (90),
+         the first screen has painted (100, then the boot screen fades). window.__boot(pct) is called by portal/main.tsx and App.tsx. */
+      (function(){
+        var boot=document.getElementById('boot'),stage=document.getElementById('boot-stage'),frame=document.getElementById('boot-frame');
+        function fit(){var vw=window.innerWidth,vh=window.innerHeight,s=Math.min(vw/1280,vh/720)||1,w=vw/s,h=vh/s;
+          stage.style.width=w+'px';stage.style.height=h+'px';stage.style.transform='scale('+s+')';frame.style.top=((h-720)/2)+'px';
+          var n=Math.max(1,Math.round((w+20-40)/54.5)+1),W=w+20,c=['#FFC83D','#FF7A2F','#22C3A6','#4CB8FF','#FFF3D6','#FF5D8F'],g='<path d="M0 4 Q'+(W/2)+' 54 '+W+' 4" fill="none" stroke="#3B1F6B" stroke-width="3"/>';
+          for(var i=0;i<n;i++){var x=20+i*54.5,t=x/W,y=4+(1-Math.pow(2*t-1,2))*25;
+            g+='<g class="pen" style="animation-delay:'+(-((i*0.37)%2.6))+'s"><path d="M'+(x-15)+' '+y+' L'+(x+15)+' '+(y+1.5)+' L'+x+' '+(y+34)+'Z" fill="'+c[(i+2)%6]+'" stroke="#3B1F6B" stroke-width="3" stroke-linejoin="round"/></g>';}
+          var b=document.getElementById('boot-bunting');b.setAttribute('width',W);b.setAttribute('viewBox','0 0 '+W+' 80');b.innerHTML=g;}
+        fit();window.addEventListener('resize',fit);
+        var fill=document.getElementById('boot-fill'),pct=document.getElementById('boot-pct'),shown=0;
+        window.__boot=function(p){if(p<=shown)return;shown=p;fill.style.width=p+'%';pct.textContent=p+'%';boot.setAttribute('aria-valuenow',p);};
+        window.__boot(12);
+        if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){window.__boot(40);});
+        /* Tips are copies of lines in src/game/copy.ts (tips.regular); src/components/fieldday/boot.test.ts keeps them in step. */
+        var tips=['Force Push sends incoming bullets back at the shooter.','Dash makes you untouchable to bullets for a moment (every 5 s).','Stay out of the fight for a few seconds and your health comes back.'],ti=Math.floor(Math.random()*tips.length),tip=document.getElementById('boot-tip');
+        tip.textContent=tips[ti];
+        setInterval(function(){ti=(ti+1)%tips.length;tip.textContent=tips[ti];},4000);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
   </body>

@@ -1,0 +1,49 @@
+{
+ "mode": "phone",
+ "loadingStop": 397,
+ "gl": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+ "gameplayStart": 7578,
+ "hudBotLabel": "BOT · easy",
+ "fps": 60,
+ "resultScreenAt": 158910,
+ "matchWallS": 148,
+ "cgLog": [
+  [
+   "init",
+   117
+  ],
+  [
+   "loadingStart",
+   168
+  ],
+  [
+   "loadingStop",
+   397
+  ],
+  [
+   "gameplayStart",
+   7578
+  ],
+  [
+   "gameplayStop",
+   158675
+  ]
+ ],
+ "stopAfterLastStart": 158675,
+ "stopMinusResultMs": -235,
+ "resultText": "Hotfix YOU Pistol Bomb DASH PUSH 8/∞ 0 0 : 4 MATCH POINT Intern BOT · easy Uzi 15/1 Intern wins They took the floor. More KOs when time ran out. Hotfix YOU Intern BOT 0 KOS 4 0 DAMAGE DEALT 370 0% ACCURACY 61% 0 BEST STREAK 4 4 TIMES DOWN 0 REMATCH → CHANGE FIGHTER SHAKE: ON",
+ "heapMB": 20,
+ "rematchStart": 7578,
+ "cgAfterRematch": [
+  [
+   "gameplayStart",
+   164336
+  ]
+ ]
+}
+EXTERNAL: [ 'https://sdk.crazygames.com/crazygames-sdk-v3.js' ]
+ERRORS: []
+WARNINGS: [
+  'THREE.WebGLShadowMap: PCFSoftShadowMap has been removed. Using PCFShadowMap instead.',
+  'THREE.WebGLShadowMap: PCFSoftShadowMap has been removed. Using PCFShadowMap instead.'
+]

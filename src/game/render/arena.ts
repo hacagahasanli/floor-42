@@ -176,23 +176,27 @@ const books = (g: THREE.Group, x0: number, x1: number, y: number, z: number, see
   }
 };
 
-/** A screen of code, a different slice of it on every monitor. */
+/** A spreadsheet, a different slice of it on every monitor: white cells in a grid, one gold row and one teal row. */
 const codeScreen = (seed: number) =>
   canvasTexture(256, 150, (g) => {
     g.fillStyle = '#0f1420';
     g.fillRect(0, 0, 256, 150);
     const r = rng(seed * 31 + 7);
-    const cols = ['#3ddc84', '#3ec5ff', '#ffd23f', '#ff6a8a', '#c7cede', '#8b93ad'];
-    for (let y = 10; y < 146; y += 11) {
-      let x = 8 + Math.floor(r() * 3) * 12;
-      const n = 1 + Math.floor(r() * 4);
-      for (let i = 0; i < n && x < 240; i++) {
-        const w = 14 + r() * 50;
-        g.fillStyle = cols[Math.floor(r() * cols.length)];
-        g.fillRect(x, y, w, 5);
-        x += w + 6;
+    const goldRow = 2 + Math.floor(r() * 3);
+    const tealRow = 6 + Math.floor(r() * 3);
+    const colW = [34, 62, 40, 48, 40];
+    for (let row = 0; row < 11; row++) {
+      let x = 8;
+      const y = 8 + row * 12.5;
+      g.fillStyle = row === goldRow ? '#ffc93c' : row === tealRow ? '#3ec5c0' : '#e8ecf4';
+      for (let c = 0; c < colW.length; c++) {
+        const w = colW[c];
+        g.globalAlpha = row === goldRow || row === tealRow ? 0.95 : 0.55 + r() * 0.25;
+        g.fillRect(x, y, w - 3, 9);
+        x += w;
       }
     }
+    g.globalAlpha = 1;
   });
 
 /** A rolling office chair: five-star base, seat, back. */
@@ -225,7 +229,7 @@ export const FURNITURE: Record<Platform['style'], (p: Platform) => THREE.Group> 
     for (const ex of [p.x0 + 0.04, p.x1 - 0.04]) g.add(put(mesh(box(0.08, legH, 1.36), mat(PALETTE.inkSoft)), ex, legH / 2, -0.3));
     g.add(put(mesh(box(w - 0.16, legH * 0.62, 0.04), mat(PALETTE.inkSoft)), cx, legH - (legH * 0.62) / 2, -0.96));
     g.add(lamp(p.x0 + 0.4, p.y, -0.85));
-    // Two monitors with code on them, a keyboard, a mug, and an office chair pushed back.
+    // Two monitors with spreadsheets on them, a keyboard, a mug, and an office chair pushed back.
     for (const [k, off] of [[0, -0.55], [1, 0.25]] as const) {
       const mx = cx + off;
       g.add(put(mesh(box(0.06, 0.32, 0.06), mat(PALETTE.ink), false), mx, p.y + 0.16, -0.95));
@@ -536,25 +540,26 @@ const crackTexture = () =>
     }
   });
 
-/** A status dashboard for the wall monitors: build graphs and a burndown in the office's own colours. */
+/** A status dashboard for the wall monitors: a bar chart and a line in the four fighter accents (reads as a generic office chart). */
 const dashboardScreen = () =>
   canvasTexture(256, 160, (g) => {
     g.fillStyle = '#0f1420';
     g.fillRect(0, 0, 256, 160);
     g.fillStyle = '#1b2234';
     g.fillRect(8, 8, 240, 22);
-    g.fillStyle = '#3ddc84';
+    g.fillStyle = '#14A37F';
     g.fillRect(14, 15, 60, 8);
-    g.fillStyle = '#e23d5c';
+    g.fillStyle = '#E5392F';
     g.fillRect(80, 15, 34, 8);
     const r = rng(4242);
-    // Bars: green builds, the odd red one.
+    // Bars in the four fighter accents.
+    const accents = ['#E5392F', '#14A37F', '#F25CB8', '#2456D6'];
     for (let i = 0; i < 12; i++) {
       const h = 18 + r() * 52;
-      g.fillStyle = r() > 0.8 ? '#e23d5c' : '#3ddc84';
+      g.fillStyle = accents[Math.floor(r() * 4)];
       g.fillRect(14 + i * 10, 112 - h, 7, h);
     }
-    // A burndown line.
+    // A line chart.
     g.strokeStyle = '#ffc93c';
     g.lineWidth = 3;
     g.beginPath();
@@ -763,23 +768,34 @@ export const buildArena = (scene: THREE.Scene, itemCount: number): ArenaView => 
   );
   scene.add(put(windowGlass, 0, 0.6 + (H - 0.6) / 2, BACK_Z - 0.1));
 
-  // The whiteboard with the conflict that started all this.
+  // The whiteboard: whose lunch is it? (R-022 copy pass: the same board, no code on it.)
   const board = canvasTexture(512, 300, (g) => {
     g.fillStyle = '#fdfbf4';
     g.fillRect(0, 0, 512, 300);
     g.font = 'bold 34px ui-monospace, Menlo, monospace';
     g.fillStyle = '#2f8f5b';
-    g.fillText('<<<<<<< HEAD', 24, 60);
+    g.fillText('WHO TOOK MY', 24, 60);
     g.fillStyle = '#2a2733';
     g.font = '28px ui-monospace, Menlo, monospace';
-    g.fillText('  return "tabs";', 24, 104);
+    g.fillText('  LUNCH?!', 24, 104);
     g.fillStyle = '#8a8478';
-    g.fillText('=======', 24, 148);
+    g.fillText('not me', 24, 148);
     g.fillStyle = '#2a2733';
-    g.fillText('  return "spaces";', 24, 192);
-    g.fillStyle = '#cf3b3b';
-    g.font = 'bold 34px ui-monospace, Menlo, monospace';
-    g.fillText('>>>>>>> their-branch', 24, 240);
+    g.fillText('not me either', 24, 192);
+    // Red tally marks: four strokes and the strike through them, twice.
+    g.strokeStyle = '#cf3b3b';
+    g.lineWidth = 5;
+    g.lineCap = 'round';
+    g.beginPath();
+    for (const x0 of [24, 124]) {
+      for (let i = 0; i < 4; i++) {
+        g.moveTo(x0 + i * 16, 218);
+        g.lineTo(x0 + i * 16, 254);
+      }
+      g.moveTo(x0 - 6, 250);
+      g.lineTo(x0 + 58, 222);
+    }
+    g.stroke();
     g.strokeStyle = '#d4552f';
     g.lineWidth = 6;
     g.beginPath();

@@ -378,6 +378,47 @@ export const createSfx = (initial?: { volumes?: Partial<Volumes>; muted?: boolea
     },
     lossSting: () => may('lossSting') && tone('sine', 392, 311, 0.45, 0.14, { room: 0.4, bus: 'ui' }),
     back: () => may('back') && tone('triangle', 700, 420, 0.1, 0.12, { room: 0.2, bus: 'ui' }),
+    /** Field Day result reveal (spec 4). Synth stand-ins for the recorded toy sounds; quiet, never harsh (peak well under a gunshot). */
+    resultWhoosh: () => may('resultWhoosh') && noise('lowpass', 2400, 220, 0.22, 0.14, 0.8, { room: 0.2, bus: 'ui' }),
+    /** Snare drumroll: about 12 fast bursts rising over 0.3 s. */
+    drumroll: () => {
+      if (!may('drumroll')) return;
+      for (let i = 0; i < 12; i++) noise('bandpass', 1900, 1500, 0.03, 0.05 + i * 0.008, 2.5, { delay: i * 0.025, room: 0.15, bus: 'ui' });
+    },
+    /** Party horn: a bright two-note blast with a little slide. */
+    partyHorn: () => {
+      if (!may('partyHorn')) return;
+      tone('sawtooth', 392, 440, 0.16, 0.08, { room: 0.3, bus: 'ui' });
+      tone('sawtooth', 523, 587, 0.4, 0.09, { delay: 0.14, room: 0.35, bus: 'ui' });
+      tone('square', 1046, 1174, 0.4, 0.025, { delay: 0.14, room: 0.35, bus: 'ui' });
+    },
+    /** Kazoo "wah-wah" (a loss): two sagging notes. */
+    wahwah: () => {
+      if (!may('wahwah')) return;
+      tone('sawtooth', 311, 294, 0.22, 0.07, { room: 0.3, bus: 'ui' });
+      tone('sawtooth', 262, 196, 0.45, 0.07, { delay: 0.26, room: 0.3, bus: 'ui' });
+    },
+    thud: () => {
+      if (!may('thud')) return;
+      tone('sine', 120, 52, 0.14, 0.22, { room: 0.15, bus: 'ui' });
+      noise('lowpass', 700, 180, 0.07, 0.12, 1, { room: 0.1, bus: 'ui' });
+    },
+    slideWhistle: () => may('slideWhistle') && tone('sine', 1700, 520, 0.34, 0.1, { room: 0.35, bus: 'ui' }),
+    /** The award "ding": n = 0, 1, 2 rises a major third each time. */
+    ding: (n = 0) => {
+      if (!may('ding')) return;
+      const f = 880 * Math.pow(2, (n * 4) / 12);
+      tone('sine', f, f, 0.45, 0.13, { room: 0.5, bus: 'ui' });
+      tone('sine', f * 2, f * 2, 0.25, 0.04, { room: 0.5, bus: 'ui' });
+    },
+    softPop: () => may('softPop') && tone('triangle', 480, 820, 0.06, 0.1, { room: 0.15, bus: 'ui' }),
+    /** A murmur of a crowd: filtered noise swells, about -24 dB under the stings. */
+    crowd: () => {
+      if (!may('crowd')) return;
+      noise('bandpass', 620, 760, 0.9, 0.035, 0.7, { room: 0.5, bus: 'ui' });
+      noise('bandpass', 900, 700, 0.9, 0.025, 0.7, { delay: 0.7, room: 0.5, bus: 'ui' });
+      noise('bandpass', 500, 640, 0.9, 0.03, 0.7, { delay: 1.4, room: 0.5, bus: 'ui' });
+    },
     hit: (power: number, x?: number) => {
       if (!may('hit')) return;
       const p = Math.min(1, power / 20);

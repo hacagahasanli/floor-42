@@ -1,0 +1,2019 @@
+/*
+ * Direction B "Field Day": the design system's CSS (spec: docs/collab/CREATIVE/ui/direction-b/spec.md, values copied from
+ * its index.html). Everything is scoped to `.fd` (the Stage root) and prefixed `fd-`, so nothing here touches the old
+ * screens. Every px value is in design units (a 1280x720 frame); <Stage> scales the frame to the window.
+ */
+@font-face {
+  font-family: 'Titan One';
+  font-weight: 400;
+  font-display: block;
+  src: url('./fonts/TitanOne-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-weight: 500;
+  font-display: block;
+  src: url('./fonts/Baloo2-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-weight: 600;
+  font-display: block;
+  src: url('./fonts/Baloo2-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-weight: 700;
+  font-display: block;
+  src: url('./fonts/Baloo2-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-weight: 800;
+  font-display: block;
+  src: url('./fonts/Baloo2-800.woff2') format('woff2');
+}
+
+.fd {
+  --grape: #3b1f6b;
+  --grape-2: #5a3596;
+  --grape-deep: #26124a;
+  --sun: #ffc83d;
+  --sun-hi: #ffe38a;
+  --sun-lo: #e08a00;
+  --tang: #ff7a2f;
+  --tang-lo: #c2410c;
+  --teal: #22c3a6;
+  --teal-lo: #0e8a74;
+  --sky: #4cb8ff;
+  --sky-lo: #1f7bc8;
+  --tomato: #f0533a;
+  --track: #e0603f;
+  --cream: #fff3d6;
+  --paper: #fffbf0;
+  --mist: #e6def5;
+  --gray: #b9b3c9;
+  --gray-lo: #8c84a3;
+  /* Fighter accents are NOT tokens here: screens read them from roster.ts (fighterView().accent). */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: 'Baloo 2', ui-sans-serif, system-ui, sans-serif;
+  color: var(--grape);
+  -webkit-font-smoothing: antialiased;
+}
+.fd *,
+.fd *::before,
+.fd *::after {
+  box-sizing: border-box;
+}
+:where(.fd) button {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ---------- stage ---------- */
+.fd-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.fd-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+/* The 720-high design frame, full stage width, centred vertically when the window is taller than 16:9. */
+.fd-frame {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 720px;
+}
+.fd-abs {
+  position: absolute;
+}
+.fd-titan {
+  font-family: 'Titan One', ui-sans-serif, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+/* Outlined display text: --o outline, --d drop, both grape. White text always gets this (spec 2.3). */
+.fd-ol {
+  --o: 3px;
+  --d: 4px;
+  color: #fff;
+  text-shadow:
+    var(--o) 0 0 var(--grape),
+    calc(-1 * var(--o)) 0 0 var(--grape),
+    0 var(--o) 0 var(--grape),
+    0 calc(-1 * var(--o)) 0 var(--grape),
+    calc(0.72 * var(--o)) calc(0.72 * var(--o)) 0 var(--grape),
+    calc(-0.72 * var(--o)) calc(-0.72 * var(--o)) 0 var(--grape),
+    calc(0.72 * var(--o)) calc(-0.72 * var(--o)) 0 var(--grape),
+    calc(-0.72 * var(--o)) calc(0.72 * var(--o)) 0 var(--grape),
+    0 calc(var(--o) + var(--d)) 0 var(--grape),
+    calc(0.72 * var(--o)) calc(0.72 * var(--o) + var(--d)) 0 var(--grape),
+    calc(-0.72 * var(--o)) calc(0.72 * var(--o) + var(--d)) 0 var(--grape);
+}
+.fd-ol.fd-sun {
+  color: var(--sun);
+}
+
+/* ---------- icons ---------- */
+.fd-ic {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  overflow: visible;
+  vertical-align: -0.12em;
+}
+
+/* ---------- button ---------- */
+.fd-btn {
+  --h: 64px;
+  --fs: 26px;
+  --c: var(--sun);
+  --lo: var(--sun-lo);
+  --rr: calc(var(--h) * 0.34);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: var(--h);
+  padding: 0 calc(var(--h) * 0.42);
+  border: 4px solid var(--grape);
+  border-radius: var(--rr);
+  background: var(--c);
+  box-shadow:
+    inset 0 -7px 0 var(--lo),
+    0 7px 0 var(--grape);
+  font: 400 var(--fs) / 1 'Titan One', ui-sans-serif, sans-serif;
+  letter-spacing: 0.5px;
+  color: #fff;
+  white-space: nowrap;
+  outline: none;
+  --o: 2.5px;
+  --d: 3px;
+  text-shadow:
+    var(--o) 0 0 var(--grape),
+    calc(-1 * var(--o)) 0 0 var(--grape),
+    0 var(--o) 0 var(--grape),
+    0 calc(-1 * var(--o)) 0 var(--grape),
+    calc(0.72 * var(--o)) calc(0.72 * var(--o)) 0 var(--grape),
+    calc(-0.72 * var(--o)) calc(-0.72 * var(--o)) 0 var(--grape),
+    calc(0.72 * var(--o)) calc(-0.72 * var(--o)) 0 var(--grape),
+    calc(-0.72 * var(--o)) calc(0.72 * var(--o)) 0 var(--grape),
+    0 calc(var(--o) + var(--d)) 0 var(--grape);
+  transition:
+    transform 180ms var(--ease-spring),
+    filter 180ms,
+    box-shadow 60ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.fd-btn > * {
+  position: relative;
+  z-index: 1;
+}
+/* The gloss: a rounded highlight drawn BEHIND the label (labels always sit in their own element). */
+.fd-btn::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 5px;
+  height: 36%;
+  border-radius: calc(var(--h) * 0.22) calc(var(--h) * 0.22) 8px 8px;
+  background: rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+}
+.fd-btn .fd-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.fd-btn .fd-shine::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 26%;
+  left: -40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-18deg);
+  animation: fd-shine 4s var(--ease-out) infinite;
+}
+@keyframes fd-shine {
+  0%,
+  70% {
+    left: -40%;
+  }
+  100% {
+    left: 130%;
+  }
+}
+.fd-btn.fd-t-sun {
+  --c: var(--sun);
+  --lo: var(--sun-lo);
+}
+.fd-btn.fd-t-tang {
+  --c: var(--tang);
+  --lo: var(--tang-lo);
+}
+.fd-btn.fd-t-teal {
+  --c: var(--teal);
+  --lo: var(--teal-lo);
+}
+.fd-btn.fd-t-sky {
+  --c: var(--sky);
+  --lo: var(--sky-lo);
+}
+.fd-btn.fd-t-white {
+  --c: #fff;
+  --lo: #d9cfee;
+  color: var(--grape);
+  text-shadow: none;
+}
+.fd-btn.fd-t-white::before {
+  background: rgba(255, 255, 255, 0);
+}
+.fd-btn.fd-lg {
+  --h: 96px;
+  --fs: 56px;
+  --o: 3.5px;
+  --d: 5px;
+}
+.fd-btn.fd-md {
+  --h: 68px;
+  --fs: 26px;
+}
+.fd-btn.fd-sm {
+  --h: 52px;
+  --fs: 20px;
+  --o: 2px;
+  --d: 2px;
+  padding: 0 18px;
+}
+.fd-btn.fd-icon {
+  padding: 0;
+  width: var(--h);
+}
+.fd-btn .fd-ic {
+  width: calc(var(--fs) * 1.12);
+  height: calc(var(--fs) * 1.12);
+}
+.fd-btn .fd-label {
+  display: inline-block;
+}
+/* States: hover, pressed, disabled (spec 2.4). Hover never moves keyboard focus. */
+.fd-btn:hover:not([aria-disabled='true']) {
+  transform: translateY(-3px) scale(1.05) rotate(-1.5deg);
+  filter: brightness(1.06);
+}
+.fd-btn:active:not([aria-disabled='true']) {
+  transform: translateY(5px) scale(1.03, 0.94);
+  box-shadow:
+    inset 0 -2px 0 var(--lo),
+    0 2px 0 var(--grape);
+  transition-duration: 60ms;
+}
+.fd-btn[aria-disabled='true'] {
+  --c: var(--gray);
+  --lo: var(--gray-lo);
+  color: var(--grape);
+  text-shadow: none;
+  cursor: not-allowed;
+}
+.fd-btn.fd-wobble {
+  animation: fd-wobble 300ms linear;
+}
+@keyframes fd-wobble {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  16% {
+    rotate: -4deg;
+  }
+  50% {
+    rotate: 4deg;
+  }
+  83% {
+    rotate: -4deg;
+  }
+}
+/* Only the one primary button of a screen bobs and shines. */
+.fd-btn.fd-primary {
+  animation: fd-bob 2.4s ease-in-out infinite;
+}
+@keyframes fd-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -4px;
+  }
+}
+/* Focus (keyboard or pad): the double ring, white inside and grape outside, pulsing. Shown when the last input was a key
+   or a pad (the Stage sets data-kbd), so a mouse click never leaves a ring behind. */
+.fd[data-kbd='1'] :is(.fd-btn, .fd-ring):focus::after,
+.fd-ring-on::after {
+  content: '';
+  position: absolute;
+  inset: var(--ring-inset, -12px -12px -17px);
+  border-radius: calc(var(--rr, 24px) + 12px);
+  border: 4px solid #fff;
+  box-shadow:
+    0 0 0 4px var(--grape),
+    inset 0 0 0 3px var(--grape);
+  pointer-events: none;
+  animation: fd-ring 1.2s ease-in-out infinite;
+  z-index: 3;
+}
+@keyframes fd-ring {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.025);
+  }
+}
+.fd-ring {
+  outline: none;
+}
+/* The pointer: a sun triangle that nudges 6 px every 0.8 s, only on the focused item of a vertical menu. */
+.fd-ptr {
+  display: none;
+  position: absolute;
+  left: -46px;
+  top: 50%;
+  width: 24px;
+  height: 28px;
+  margin-top: -14px;
+  animation: fd-nudge 0.8s ease-in-out infinite;
+}
+.fd[data-kbd='1'] .fd-btn:focus > .fd-ptr {
+  display: block;
+}
+@keyframes fd-nudge {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 6px 0;
+  }
+}
+
+/* ---------- small parts ---------- */
+.fd-kc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding: 1px 7px 0;
+  border: 2.5px solid var(--grape);
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 3px 0 var(--grape);
+  font: 800 13px/1 'Baloo 2', sans-serif;
+  color: var(--grape);
+  letter-spacing: 0.3px;
+  text-shadow: none;
+  white-space: nowrap;
+}
+.fd-btn .fd-kc {
+  font-size: 14px;
+}
+.fd-kc svg {
+  width: 14px;
+  height: 14px;
+}
+.fd-kc.fd-listening {
+  background: var(--sun);
+  animation: fd-ring 0.6s ease-in-out infinite;
+}
+.fd-kc.fd-empty {
+  color: var(--gray-lo);
+  border-style: dashed;
+  box-shadow: none;
+}
+.fd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 1px 11px 0;
+  border: 3px solid var(--grape);
+  border-radius: 999px;
+  background: var(--c, #fff);
+  font: 800 13px/1 'Baloo 2', sans-serif;
+  color: var(--grape);
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+.fd-chip .fd-ic {
+  width: 15px;
+  height: 15px;
+}
+.fd-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 3px;
+  border-radius: 999px;
+  background: rgba(38, 18, 74, 0.86);
+  color: var(--cream);
+  font: 700 14px/1.2 'Baloo 2', sans-serif;
+  white-space: nowrap;
+}
+.fd-hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 16px 6px;
+  border-radius: 999px;
+  background: rgba(38, 18, 74, 0.86);
+  color: var(--cream);
+  font: 700 13px/1 'Baloo 2', sans-serif;
+  white-space: nowrap;
+}
+.fd-hints > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.fd-panel {
+  position: absolute;
+  background: var(--paper);
+  border: 4px solid var(--grape);
+  border-radius: 28px;
+  box-shadow: 0 8px 0 var(--grape);
+}
+.fd-ribbon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 62px;
+  padding: 0 40px;
+  background: var(--c, var(--sun));
+  border: 4px solid var(--grape);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 -6px 0 var(--lo, var(--sun-lo)),
+    0 6px 0 var(--grape);
+  white-space: nowrap;
+}
+.fd-ribbon .fd-tail {
+  position: absolute;
+  top: 18px;
+  width: 46px;
+  height: 52px;
+  z-index: -1;
+}
+.fd-ribbon .fd-tail.fd-l {
+  left: -30px;
+}
+.fd-ribbon .fd-tail.fd-r {
+  right: -30px;
+  transform: scaleX(-1);
+}
+.fd-card {
+  background: #fff;
+  border: 4px solid var(--grape);
+  border-radius: 22px;
+  box-shadow: 0 8px 0 var(--grape);
+  overflow: hidden;
+}
+.fd-pips {
+  display: flex;
+  gap: 3px;
+}
+.fd-pips i {
+  width: 15px;
+  height: 11px;
+  border-radius: 3px;
+  border: 2px solid var(--grape);
+  background: #fff;
+}
+.fd-pips i.fd-on {
+  background: var(--c, var(--sun));
+}
+.fd-stat {
+  display: grid;
+  grid-template-columns: 62px auto;
+  align-items: center;
+  gap: 6px;
+  font: 800 12px/1 'Baloo 2', sans-serif;
+  letter-spacing: 0.8px;
+  color: var(--grape-2);
+}
+.fd-photo {
+  background-size: cover;
+  background-position: 50% 0;
+  background-repeat: no-repeat;
+}
+
+/* ---------- toggle, slider, segmented ---------- */
+.fd-toggle {
+  display: inline-flex;
+  align-items: center;
+  width: 64px;
+  height: 34px;
+  border: 3px solid var(--grape);
+  border-radius: 999px;
+  background: var(--gray);
+  padding: 3px;
+  box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.12);
+  justify-content: flex-start;
+  position: relative;
+  outline: none;
+  transition: background 120ms;
+}
+.fd-toggle i {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--grape);
+  transition: transform 180ms var(--ease-spring);
+}
+.fd-toggle[aria-checked='true'] {
+  background: var(--teal);
+}
+.fd-toggle[aria-checked='true'] i {
+  transform: translateX(28px);
+}
+.fd-slider {
+  position: relative;
+  height: 22px;
+  border: 3px solid var(--grape);
+  border-radius: 999px;
+  background: #fff;
+  outline: none;
+  touch-action: none;
+  cursor: pointer;
+}
+.fd-slider b {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 999px;
+  background: var(--sun);
+  pointer-events: none;
+}
+.fd-slider i {
+  position: absolute;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 50%;
+  background: #fff;
+  border: 4px solid var(--grape);
+  box-shadow: 0 3px 0 var(--grape);
+  pointer-events: none;
+}
+.fd-seg {
+  display: inline-flex;
+  border: 3px solid var(--grape);
+  border-radius: 999px;
+  background: #fff;
+  padding: 3px;
+  gap: 3px;
+}
+.fd-seg button {
+  padding: 5px 14px 3px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  font: 800 14px/1 'Baloo 2', sans-serif;
+  outline: none;
+}
+.fd-seg button[aria-checked='true'] {
+  background: var(--sun);
+  box-shadow: inset 0 -3px 0 var(--sun-lo);
+}
+
+/* ---------- sunburst, bunting, clouds, confetti ---------- */
+.fd-rays {
+  position: absolute;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, var(--r1, #ffe38a) 0 9deg, var(--r2, #ffc83d) 9deg 18deg);
+  -webkit-mask-image: radial-gradient(circle, #000 30%, transparent 70%);
+  mask-image: radial-gradient(circle, #000 30%, transparent 70%);
+  animation: fd-spin var(--spin, 60s) linear infinite;
+}
+.fd-rays.fd-solid {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+@keyframes fd-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+.fd-bunting {
+  position: absolute;
+  left: -10px;
+  top: 0;
+  pointer-events: none;
+}
+.fd-bunting .fd-pen {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: fd-sway 2.6s ease-in-out infinite alternate;
+}
+@keyframes fd-sway {
+  from {
+    rotate: -5deg;
+  }
+  to {
+    rotate: 5deg;
+  }
+}
+.fd-sway {
+  animation: fd-sway2 3.2s ease-in-out infinite alternate;
+}
+@keyframes fd-sway2 {
+  from {
+    rotate: -1.5deg;
+  }
+  to {
+    rotate: 1.5deg;
+  }
+}
+.fd-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* A piece is <i> (moves sideways, linear) around <b> (rises to --pk with ease-out, then falls to --end with ease-in, spinning).
+   Only translate, rotate and opacity animate. */
+.fd-confetti i {
+  position: absolute;
+  opacity: 0;
+  animation: fd-cx var(--dur, 3s) linear var(--del, 0s) both;
+}
+.fd-confetti b {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 2.5px solid var(--grape);
+  border-radius: 3px;
+  animation: fd-cy var(--dur, 3s) linear var(--del, 0s) both;
+}
+@keyframes fd-cx {
+  0% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: var(--dx, 30px) 0;
+  }
+}
+@keyframes fd-cy {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  35% {
+    translate: 0 var(--pk, 0px);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  }
+  100% {
+    translate: 0 var(--end, 700px);
+    rotate: var(--rot, 540deg);
+  }
+}
+.fd-cloud {
+  position: absolute;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  animation: fd-drift 40s linear infinite alternate;
+}
+.fd-cloud::before,
+.fd-cloud::after {
+  content: '';
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+.fd-cloud::before {
+  width: 44%;
+  height: 150%;
+  left: 16%;
+  top: -60%;
+}
+.fd-cloud::after {
+  width: 32%;
+  height: 120%;
+  left: 50%;
+  top: -40%;
+}
+@keyframes fd-drift {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 120px 0;
+  }
+}
+
+/* ---------- speech bubble, portrait, misc ---------- */
+.fd-bubble {
+  position: absolute;
+  background: #fff;
+  border: 4px solid var(--grape);
+  border-radius: 20px;
+  padding: 9px 16px 7px;
+  box-shadow: 0 6px 0 var(--grape);
+  font: 800 17px/1.15 'Baloo 2', sans-serif;
+}
+.fd-pop {
+  animation: fd-pop 0.4s var(--ease-spring) both;
+}
+@keyframes fd-pop {
+  from {
+    scale: 0;
+  }
+  to {
+    scale: 1;
+  }
+}
+/* A screen springs in from 40 px to the right (spec 5, screen transitions). */
+.fd-enter {
+  animation: fd-enter 220ms var(--ease-spring) both;
+}
+@keyframes fd-enter {
+  from {
+    opacity: 0;
+    translate: 40px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes fd-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fd-ready-pop {
+  0% {
+    scale: 0.8;
+  }
+  60% {
+    scale: 1.08;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+/* ---------- reduced motion: no bob, shine, spin, sway, confetti; static focus ring; 120 ms fades (spec 5) ---------- */
+.fd[data-reduced='1'] *,
+.fd[data-reduced='1'] *::before,
+.fd[data-reduced='1'] *::after {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
+.fd[data-reduced='1'] .fd-enter {
+  animation: fd-fade 120ms linear both !important;
+}
+.fd[data-reduced='1'] .fd-confetti {
+  display: none;
+}
+.fd[data-reduced='1'] .fd-btn:hover:not([aria-disabled='true']) {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fd[data-reduced='1'] *,
+  .fd[data-reduced='1'] *::before,
+  .fd[data-reduced='1'] *::after {
+    animation: none !important;
+  }
+}
+
+/* Visually hidden text for screen readers. */
+.fd-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- phase 2a: HUD, VS doors, pause, settings, how to play, credits ---------- */
+/* The HUD overlay sits on top of the canvas and never takes the pointer. */
+.fd-hud {
+  pointer-events: none;
+}
+.fd-portrait {
+  border-radius: 50%;
+  border: 4px solid var(--grape);
+  box-shadow: 0 4px 0 var(--grape);
+  background-repeat: no-repeat;
+}
+/* Health: a pill of segments (each is 20 HP); a partial segment is clipped from the empty side. */
+.fd-segbar {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 3px solid var(--grape);
+  border-radius: 999px;
+  background: var(--grape-2);
+  box-shadow: 0 4px 0 var(--grape);
+  position: relative;
+}
+.fd-segbar i {
+  position: relative;
+  flex: 1;
+  height: 14px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.fd-segbar i b {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0 40%, transparent 41%),
+    var(--c);
+  clip-path: inset(0 var(--cut, 0%) 0 0 round 5px);
+  transition: clip-path 150ms linear;
+}
+.fd-segbar.fd-rtl i b {
+  clip-path: inset(0 0 0 var(--cut, 0%) round 5px);
+}
+.fd-segbar.fd-heal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(34, 195, 166, 0.35);
+  animation: fd-heal 0.9s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes fd-heal {
+  from {
+    opacity: 0.1;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+/* Score tile (fighter accent, a split-flap line and a top gloss). */
+.fd-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 4px solid var(--grape);
+  border-radius: 18px;
+  background: var(--c);
+  box-shadow:
+    inset 0 -6px 0 rgba(0, 0, 0, 0.16),
+    0 6px 0 var(--grape);
+}
+.fd-tile::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 46%;
+  background: rgba(255, 255, 255, 0.28);
+}
+.fd-tile::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  background: rgba(59, 31, 107, 0.35);
+}
+.fd-tile > span {
+  position: relative;
+  z-index: 1;
+}
+.fd-tile.fd-squash {
+  animation: fd-squash 360ms var(--ease-spring) both;
+}
+@keyframes fd-squash {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.12, 0.9) translateY(4px);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.fd-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+  border: 4px solid var(--grape);
+  box-shadow: 0 5px 0 var(--grape);
+}
+/* The KO feed toast. */
+.fd-kfeed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 2px 16px 0;
+  background: #fff;
+  border: 3px solid var(--grape);
+  border-radius: 999px;
+  box-shadow: 0 4px 0 var(--grape);
+  font: 800 15px/1 'Baloo 2', sans-serif;
+  white-space: nowrap;
+  animation: fd-feed-in 260ms var(--ease-spring) both;
+}
+.fd-kfeed.fd-out {
+  animation: fd-feed-out 200ms ease-in both;
+}
+@keyframes fd-feed-in {
+  from {
+    opacity: 0;
+    translate: 0 -14px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes fd-feed-out {
+  to {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+}
+.fd-kfeed .fd-ic {
+  width: 30px;
+  height: 16px;
+  vertical-align: 0;
+}
+.fd-nm {
+  color: color-mix(in srgb, var(--c) 58%, #3b1f6b);
+}
+/* Respawn card: a ring that drains. */
+.fd-respawn {
+  animation: fd-rise 260ms var(--ease-spring) both;
+}
+@keyframes fd-rise {
+  from {
+    opacity: 0;
+    translate: 0 24px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.fd-ring-arc {
+  transition: stroke-dashoffset 200ms linear;
+}
+/* Key strip: fades out after the first two KOs. */
+.fd-keystrip {
+  transition: opacity 300ms linear;
+}
+.fd-keystrip .fd-kc.fd-lit {
+  background: var(--sun);
+}
+
+/* Full-screen veil behind a modal screen: the match or the menu behind it blurred, with a grape tint. */
+.fd-veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(38, 18, 74, var(--a, 0.5));
+  -webkit-backdrop-filter: blur(8px) brightness(0.9);
+  backdrop-filter: blur(8px) brightness(0.9);
+  animation: fd-fade 120ms linear both;
+}
+
+/* Modal drop-in: the panel falls from -30 px with a spring (spec 5, screen to pause). */
+.fd-drop {
+  animation: fd-drop 260ms var(--ease-spring) both;
+}
+@keyframes fd-drop {
+  from {
+    opacity: 0;
+    translate: 0 -30px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.fd[data-reduced='1'] .fd-drop,
+.fd[data-reduced='1'] .fd-respawn,
+.fd[data-reduced='1'] .fd-kfeed {
+  animation: fd-fade 120ms linear both !important;
+}
+
+/* Settings tabs, rows and key cells. */
+.fd-tabs {
+  display: flex;
+  gap: 12px;
+}
+.fd-tab {
+  --h: 48px;
+  --fs: 18px;
+  height: var(--h);
+}
+.fd-tab.fd-btn:not(.fd-t-sun) {
+  box-shadow:
+    inset 0 -5px 0 #d9cfee,
+    0 4px 0 var(--grape);
+}
+.fd-well {
+  background: var(--mist);
+  border-radius: 18px;
+}
+.fd-setcard {
+  position: relative;
+  background: var(--mist);
+  border: 3px solid transparent;
+  border-radius: 18px;
+  padding: 14px 18px;
+}
+.fd-setcard.fd-white {
+  background: #fff;
+  border-color: var(--grape);
+}
+.fd[data-kbd='1'] .fd-setcard:focus-within {
+  background: #fff;
+  border-color: var(--grape);
+  box-shadow:
+    0 0 0 4px #fff,
+    0 0 0 8px var(--grape);
+}
+.fd-setcard .fd-ring:focus::after {
+  display: none;
+}
+.fd-note {
+  font: 700 13px/1.25 'Baloo 2', sans-serif;
+  color: var(--grape-2);
+}
+.fd-sec {
+  font: 800 13px/1 'Baloo 2', sans-serif;
+  letter-spacing: 2px;
+  color: var(--grape-2);
+}
+.fd-bind {
+  display: grid;
+  grid-template-columns: 1fr 150px 150px;
+  align-items: center;
+  border-bottom: 2px solid rgba(59, 31, 107, 0.12);
+}
+.fd-bind:last-child {
+  border-bottom: 0;
+}
+.fd-keybtn {
+  position: relative;
+  min-width: 92px;
+  height: 28px;
+  font-size: 14px;
+  cursor: pointer;
+  margin: 0 auto;
+}
+.fd-keybtn.fd-kc {
+  /* A key cell is a button: same face as a keycap. */
+  display: inline-flex;
+}
+.fd-keybtn:hover {
+  filter: brightness(1.04);
+}
+.fd[data-kbd='1'] .fd-keybtn:focus::after {
+  content: '';
+  position: absolute;
+  inset: -7px -8px -10px;
+  border-radius: 14px;
+  border: 4px solid #fff;
+  box-shadow:
+    0 0 0 4px var(--grape),
+    inset 0 0 0 3px var(--grape);
+  pointer-events: none;
+  animation: fd-ring 1.2s ease-in-out infinite;
+}
+
+/* How to play cards. */
+.fd-howhead {
+  position: relative;
+  height: 150px;
+  border-bottom: 4px solid var(--grape);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.fd-howhead::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(-30deg, rgba(255, 255, 255, 0.12) 0 14px, transparent 14px 28px);
+}
+.fd-howhead > * {
+  position: relative;
+}
+.fd-kc.fd-big {
+  height: 34px;
+  min-width: 36px;
+  font-size: 15px;
+}
+
+/* VS doors: each half is a full-screen layer clipped to its side of the seam, so the two close into one picture. */
+.fd-vs-door {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.fd-vs-door.fd-l {
+  clip-path: polygon(0 0, calc(50% + 8.8vh) -2%, calc(50% - 8.8vh) 102%, 0 102%);
+}
+.fd-vs-door.fd-r {
+  clip-path: polygon(calc(50% + 8.8vh) -2%, 100% -2%, 100% 102%, calc(50% - 8.8vh) 102%);
+}
+.fd-vs-door.fd-close.fd-l {
+  animation: fd-vs-l 220ms cubic-bezier(0.7, 0, 0.9, 0.4) both;
+  animation-duration: var(--vs-close, 220ms);
+}
+.fd-vs-door.fd-close.fd-r {
+  animation: fd-vs-r 220ms cubic-bezier(0.7, 0, 0.9, 0.4) both;
+  animation-duration: var(--vs-close, 220ms);
+}
+.fd-vs-door.fd-open.fd-l {
+  animation: fd-vs-l 300ms ease-in reverse both;
+}
+.fd-vs-door.fd-open.fd-r {
+  animation: fd-vs-r 300ms ease-in reverse both;
+}
+@keyframes fd-vs-l {
+  from {
+    transform: translateX(-62%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes fd-vs-r {
+  from {
+    transform: translateX(62%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.fd-vs-fighter {
+  transform-origin: 50% 100%;
+  animation: fd-vs-push 1200ms linear both;
+}
+@keyframes fd-vs-push {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.04);
+  }
+}
+.fd-vs-seam {
+  position: absolute;
+  left: 50%;
+  top: -10%;
+  height: 120%;
+  width: calc(14px * var(--s, 1));
+  margin-left: calc(-7px * var(--s, 1));
+  transform: rotate(-10deg);
+  background: linear-gradient(90deg, transparent calc(50% - 2px * var(--s, 1)), #fff calc(50% - 2px * var(--s, 1)) calc(50% + 2px * var(--s, 1)), transparent 0), var(--grape);
+  pointer-events: none;
+}
+.fd-vs-pop {
+  animation: fd-vs-pop 360ms var(--ease-spring) both;
+}
+@keyframes fd-vs-pop {
+  from {
+    scale: 0;
+  }
+  to {
+    scale: 1;
+  }
+}
+.fd[data-reduced='1'] .fd-vs-door.fd-open {
+  opacity: 0;
+  transition: opacity 120ms linear;
+}
+.fd[data-reduced='1'] .fd-vs-pop {
+  animation: none !important;
+}
+
+/* ---------- result screen (b12-b16, spec 4) ----------
+   Poses are classes on the root, added cumulatively as the reveal reaches each beat: r-impact (0.30 s), r-land (0.75), r-loser
+   (1.05), r-final (1.40), r-choice (2.20), r-idle (2.60). Elements are drawn in their FINAL state; a pose rule overrides it
+   before r-final. Hidden-until-their-beat uses visibility (so a Reduced-motion or skipped reveal, which has every class at
+   once, shows the final frame), and entrances are animations. Entrance only animates transform and opacity; the one-off pose
+   changes of the podiums and the track (left/top/size) happen once, on a screen that has no other content moving. */
+.fd-res-root {
+  position: absolute;
+  inset: 0;
+  --card: #fff;
+}
+.fd-res-bd {
+  position: absolute;
+  inset: 0;
+  background: rgba(38, 18, 74, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition:
+    background-color 200ms linear,
+    backdrop-filter 200ms linear,
+    -webkit-backdrop-filter 200ms linear;
+}
+.fd-res-bd.fd-on {
+  background: rgba(38, 18, 74, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.fd-res-bd.fd-modal {
+  background: rgba(38, 18, 74, 0.5);
+}
+.fd-res-col {
+  position: absolute;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+}
+/* rays: a 1200 disc that sits centred at y 360 on impact, and at y 180, 0.83 big, in the final frame */
+.fd-res-rays {
+  position: absolute;
+  left: 40px;
+  top: -240px;
+  width: 1200px;
+  height: 1200px;
+  transform: scale(0);
+  transition: transform 300ms var(--ease-out);
+  pointer-events: none;
+}
+.fd-res-root.r-impact .fd-res-rays {
+  transform: scale(1);
+  transition-duration: 220ms;
+  transition-timing-function: var(--ease-spring);
+}
+.fd-res-root.r-final .fd-res-rays {
+  transform: translateY(-180px) scale(0.833);
+  transition-duration: 300ms;
+  transition-timing-function: var(--ease-out);
+}
+.fd-res-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 556px;
+  bottom: -400px;
+  border-top: 4px solid var(--grape);
+  background: repeating-linear-gradient(180deg, var(--track) 0 30px, #ffe8c9 30px 34px);
+  transition:
+    top 300ms var(--ease-out),
+    transform 250ms var(--ease-out);
+}
+.fd-res-root:not(.r-final) .fd-res-track {
+  top: 600px;
+}
+.fd-res-root:not(.r-land) .fd-res-track {
+  transform: translateY(240px);
+}
+.fd-res-star {
+  position: absolute;
+  left: 420px;
+  top: 150px;
+  width: 440px;
+  height: 440px;
+  opacity: 0;
+  transform: scale(0.2);
+  transition:
+    transform 220ms var(--ease-spring),
+    opacity 120ms linear;
+}
+.fd-res-root.r-impact .fd-res-star {
+  opacity: 1;
+  transform: scale(1);
+}
+.fd-res-root.r-land .fd-res-star {
+  opacity: 0;
+  transform: scale(1.1);
+}
+.fd-res-ribbon {
+  position: absolute;
+  left: 50%;
+  top: 40px;
+  margin-left: 0;
+  translate: -50% 0;
+  rotate: -2deg;
+  z-index: 2;
+  height: 62px;
+  padding: 0 40px;
+  transition:
+    opacity 120ms linear,
+    scale 120ms linear;
+}
+.fd-res-root:not(.r-cut) .fd-res-ribbon {
+  visibility: hidden;
+}
+.fd-res-root.r-cut .fd-res-ribbon {
+  animation: fd-res-drop 300ms var(--ease-spring) both;
+}
+.fd-res-root.r-land .fd-res-ribbon {
+  opacity: 0;
+  scale: 0.9;
+  visibility: hidden;
+  transition:
+    opacity 120ms linear,
+    scale 120ms linear,
+    visibility 0s 120ms;
+}
+@keyframes fd-res-drop {
+  from {
+    transform: translateY(-120px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+/* the title: 78 px in the reaction frame, 62 px (scaled .795) in the final one */
+.fd-res-title {
+  position: absolute;
+  left: 50%;
+  top: 22px;
+  translate: -50% 0;
+  display: flex;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 78px;
+  --o: 5px;
+  --d: 7px;
+  transform-origin: 50% 0;
+  transform: scale(0.795);
+  transition: transform 300ms var(--ease-out);
+  margin: 0;
+  font-weight: 400;
+  z-index: 2;
+}
+.fd-res-root:not(.r-final) .fd-res-title {
+  transform: translateY(4px) scale(1);
+}
+.fd-res-root:not(.r-land) .fd-res-title {
+  visibility: hidden;
+}
+.fd-res-ltr {
+  display: inline-block;
+  white-space: pre;
+}
+.fd-res-root.r-land .fd-res-ltr {
+  animation: fd-res-ltr 200ms var(--ease-spring) calc(var(--i) * 25ms) both;
+}
+@keyframes fd-res-ltr {
+  from {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.fd-res-pill {
+  position: absolute;
+  left: 50%;
+  top: 102px;
+  translate: -50% 0;
+  font-size: 16px;
+  padding: 6px 18px 5px;
+  transition: opacity 200ms linear;
+  z-index: 2;
+}
+.fd-res-pill.fd-tally {
+  top: 138px;
+  font-size: 14px;
+}
+.fd-res-root:not(.r-final) .fd-res-pill {
+  opacity: 0;
+}
+.fd-res-corner {
+  position: absolute;
+  top: 22px;
+  font-size: 13px;
+  z-index: 3;
+  border: 0;
+  cursor: pointer;
+  transition: opacity 200ms linear;
+}
+.fd-res-corner.fd-l {
+  left: 24px;
+}
+.fd-res-corner.fd-r {
+  right: 24px;
+}
+.fd-res-root:not(.r-final) .fd-res-corner {
+  opacity: 0;
+  pointer-events: none;
+}
+.fd-res-corner:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+/* podiums stand in the track */
+.fd-res-pod {
+  position: absolute;
+  border: 4px solid var(--grape);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--sun);
+  box-shadow: inset 0 -10px 0 rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 10px;
+  left: 560px;
+  top: 408px;
+  width: 160px;
+  height: 164px;
+  transition:
+    left 300ms var(--ease-out),
+    top 300ms var(--ease-out),
+    width 300ms var(--ease-out),
+    height 300ms var(--ease-out),
+    transform 250ms var(--ease-out);
+}
+.fd-res-pod::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.fd-res-pod > span {
+  position: relative;
+  font-size: 48px;
+  --o: 3.5px;
+  --d: 5px;
+  transition: font-size 300ms var(--ease-out);
+}
+.fd-res-root:not(.r-final) .fd-res-pod {
+  left: 530px;
+  top: 462px;
+  width: 220px;
+  height: 170px;
+}
+.fd-res-root:not(.r-final) .fd-res-pod > span {
+  font-size: 64px;
+}
+.fd-res-root:not(.r-land) .fd-res-pod {
+  transform: translateY(260px);
+}
+.fd-res-pod.fd-small {
+  background: var(--mist);
+  align-items: center;
+  padding-top: 0;
+  left: 736px;
+  top: 516px;
+  width: 116px;
+  height: 56px;
+}
+.fd-res-pod.fd-small::before {
+  height: 10px;
+}
+.fd-res-pod.fd-small > span {
+  font: 800 12px/1 'Baloo 2', sans-serif;
+  letter-spacing: 1px;
+  color: var(--grape);
+  --o: 0px;
+}
+.fd-res-root:not(.r-final) .fd-res-pod.fd-small {
+  left: 850px;
+  top: 578px;
+  width: 150px;
+  height: 54px;
+}
+.fd-res-root:not(.r-final) .fd-res-pod.fd-small > span {
+  font-size: 14px;
+}
+.fd-res-root:not(.r-loser) .fd-res-pod.fd-small {
+  transform: translateX(320px);
+  visibility: hidden;
+}
+/* a draw: two sun podiums side by side (not in the spec) */
+.fd-res-pod.fd-draw-l {
+  left: 470px;
+}
+.fd-res-pod.fd-draw-r {
+  left: 650px;
+}
+.fd-res-root:not(.r-final) .fd-res-pod.fd-draw-l {
+  left: 440px;
+}
+.fd-res-root:not(.r-final) .fd-res-pod.fd-draw-r {
+  left: 650px;
+}
+/* cards: drawn at the final box, posed with transforms */
+.fd-res-card {
+  position: absolute;
+  background: var(--card);
+  border: 3px solid var(--grape);
+  border-radius: 22px;
+  box-shadow: 0 8px 0 var(--grape);
+  overflow: hidden;
+  left: 569px;
+  top: 196px;
+  width: 142px;
+  height: 206px;
+  transform: translate(0, 56px) scale(1.8) rotate(-5deg);
+}
+.fd-res-card.fd-win {
+  transform: translate(0, 0) scale(1) rotate(var(--rot, -2deg));
+  transition: transform 300ms var(--ease-out);
+}
+.fd-res-root:not(.r-final) .fd-res-card.fd-win {
+  transform: translate(0, 28px) scale(1.338) rotate(var(--rot, -2deg));
+  transition: transform 350ms var(--ease-out);
+}
+.fd-res-root:not(.r-land) .fd-res-card.fd-win {
+  transform: translate(0, 56px) scale(1.8) rotate(-5deg);
+}
+.fd-res-root:not(.r-impact) .fd-res-card.fd-win {
+  transform: translate(0, 56px) scale(0) rotate(-5deg);
+  visibility: hidden;
+}
+.fd-res-root.r-impact:not(.r-land) .fd-res-card.fd-win {
+  animation: fd-res-cardpop 240ms var(--ease-spring) both;
+}
+@keyframes fd-res-cardpop {
+  from {
+    transform: translate(0, 56px) scale(0) rotate(-5deg);
+  }
+  65% {
+    transform: translate(0, 56px) scale(2.1) rotate(-5deg);
+  }
+  to {
+    transform: translate(0, 56px) scale(1.8) rotate(-5deg);
+  }
+}
+.fd-res-card.fd-lose {
+  left: 754px;
+  top: 390px;
+  width: 80px;
+  height: 118px;
+  border-radius: 16px;
+  box-shadow: 0 4px 0 var(--grape);
+  transform: rotate(var(--rot, 9deg));
+  transition: transform 300ms var(--ease-out);
+}
+.fd-res-card.fd-lose .fd-res-face {
+  filter: saturate(0.55);
+}
+.fd-res-root:not(.r-final) .fd-res-card.fd-lose {
+  transform: translate(132px, 46px) scale(1.3) rotate(var(--rot, 9deg));
+  transition: transform 300ms var(--ease-out);
+}
+.fd-res-root:not(.r-loser) .fd-res-card.fd-lose {
+  transform: translate(330px, -150px) scale(1.3) rotate(40deg);
+  visibility: hidden;
+}
+/* draw: both cards at the same size, no spin-in */
+.fd-res-card.fd-draw {
+  transform: rotate(var(--rot, 0deg));
+  width: 142px;
+  height: 206px;
+  border-radius: 22px;
+  box-shadow: 0 8px 0 var(--grape);
+  transition: opacity 250ms linear;
+}
+.fd-res-root:not(.r-land) .fd-res-card.fd-draw {
+  opacity: 0;
+}
+.fd-res-card .fd-res-face {
+  display: block;
+}
+.fd-res-you {
+  position: absolute;
+  left: 732px;
+  top: 372px;
+  rotate: -8deg;
+  z-index: 2;
+  transition: opacity 200ms linear;
+}
+.fd-res-root:not(.r-final) .fd-res-you {
+  opacity: 0;
+}
+.fd-res-chip {
+  position: absolute;
+  z-index: 2;
+  rotate: -8deg;
+  height: 24px;
+  font-size: 12px;
+  transition: opacity 200ms linear;
+}
+.fd-res-root:not(.r-final) .fd-res-chip {
+  opacity: 0;
+}
+/* the balloon, tied to the PARTICIPATION box */
+.fd-res-balloon {
+  position: absolute;
+  left: 846px;
+  top: 346px;
+  width: 56px;
+  height: 176px;
+  overflow: visible;
+  transition:
+    left 300ms var(--ease-out),
+    top 300ms var(--ease-out),
+    width 300ms var(--ease-out),
+    height 300ms var(--ease-out);
+}
+.fd-res-balloon g {
+  transform-origin: 14px 206px;
+  animation: fd-res-balloon 3s ease-in-out infinite alternate;
+}
+@keyframes fd-res-balloon {
+  from {
+    rotate: -4deg;
+  }
+  to {
+    rotate: 4deg;
+  }
+}
+.fd-res-root:not(.r-final) .fd-res-balloon {
+  left: 990px;
+  top: 380px;
+  width: 70px;
+  height: 210px;
+}
+.fd-res-root:not(.r-loser) .fd-res-balloon {
+  visibility: hidden;
+}
+.fd-res-root.r-loser:not(.r-final) .fd-res-balloon {
+  animation: fd-res-float 500ms var(--ease-out) 150ms both;
+}
+@keyframes fd-res-float {
+  from {
+    transform: translateY(90px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+/* the 5 - 2 tiles of the reaction frame */
+.fd-res-tiles {
+  position: absolute;
+  left: 200px;
+  top: 300px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  rotate: -4deg;
+  transition: opacity 200ms linear;
+}
+.fd-res-root:not(.r-loser) .fd-res-tiles,
+.fd-res-root.r-final .fd-res-tiles {
+  opacity: 0;
+  visibility: hidden;
+}
+.fd-res-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 4px solid var(--grape);
+  border-radius: 18px;
+  background: var(--c);
+  box-shadow:
+    inset 0 -6px 0 rgba(0, 0, 0, 0.16),
+    0 6px 0 var(--grape);
+  overflow: hidden;
+}
+.fd-res-tile::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 46%;
+  background: rgba(255, 255, 255, 0.28);
+}
+.fd-res-tile::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  background: rgba(59, 31, 107, 0.35);
+}
+.fd-res-tile > span {
+  position: relative;
+  z-index: 1;
+}
+.fd-res-root.r-loser .fd-res-tile {
+  animation: fd-res-stamp 180ms var(--ease-spring) both;
+}
+.fd-res-root.r-loser .fd-res-tile.fd-small {
+  animation:
+    fd-res-stamp 180ms var(--ease-spring) 110ms both,
+    fd-res-shrink 250ms var(--ease-out) 330ms both;
+}
+@keyframes fd-res-stamp {
+  from {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes fd-res-shrink {
+  from {
+    scale: 1.35;
+  }
+  to {
+    scale: 1;
+  }
+}
+/* award medallions */
+.fd-res-medal {
+  position: absolute;
+  width: 224px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+.fd-res-root:not(.r-final) .fd-res-medal {
+  visibility: hidden;
+}
+.fd-res-root.r-final .fd-res-medal > .fd-res-drop {
+  animation: fd-res-medal 560ms var(--ease-spring) calc(var(--i) * 200ms) both;
+}
+@keyframes fd-res-medal {
+  0% {
+    transform: translateY(-60px);
+    opacity: 0;
+  }
+  45% {
+    transform: translateY(0) scale(1.08, 0.92) rotate(6deg);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(0.97, 1.03) rotate(-3deg);
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+.fd-res-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: 50% 100%;
+}
+.fd-res-disc {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: var(--c);
+  border: 4px solid var(--grape);
+  box-shadow:
+    inset 0 -7px 0 rgba(0, 0, 0, 0.18),
+    0 6px 0 var(--grape);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transform-origin: 50% 0;
+  animation: fd-sway2 2.8s ease-in-out infinite alternate;
+}
+.fd-res-disc > i {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 6px;
+  height: 30%;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.4);
+}
+.fd-res-disc .fd-ic {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+.fd-res-disc .fd-ic.fd-wide {
+  width: 56px;
+  height: 28px;
+}
+.fd-res-label {
+  position: relative;
+  width: 224px;
+  height: 70px;
+  margin-top: 10px;
+  padding: 9px 12px 0;
+  border-radius: 18px;
+  box-shadow: 0 5px 0 var(--grape);
+  text-align: center;
+  overflow: visible;
+}
+.fd-res-label > b {
+  display: block;
+  font: 400 18px/1 'Titan One', ui-sans-serif, sans-serif;
+  letter-spacing: 0.5px;
+}
+.fd-res-label > span {
+  display: block;
+  margin-top: 5px;
+  font: 700 13px/1.2 'Baloo 2', sans-serif;
+  color: var(--grape-2);
+}
+/* the three buttons */
+.fd-res-btns {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 584px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 26px;
+  z-index: 3;
+}
+.fd-res-b {
+  display: inline-flex;
+}
+.fd-res-root:not(.r-choice) .fd-res-b {
+  visibility: hidden;
+}
+.fd-res-root.r-choice .fd-res-b {
+  animation: fd-res-up 260ms var(--ease-spring) calc(var(--i) * 60ms) both;
+}
+@keyframes fd-res-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+/* a skipped reveal plays no entrances: poses still ease for 300 ms */
+.fd-res-root.r-skip .fd-res-ltr,
+.fd-res-root.r-skip .fd-res-medal > .fd-res-drop,
+.fd-res-root.r-skip .fd-res-b,
+.fd-res-root.r-skip .fd-res-tile,
+.fd-res-root.r-skip .fd-res-balloon,
+.fd-res-root.r-skip .fd-res-card,
+.fd-res-root.r-skip .fd-res-ribbon {
+  animation-duration: 1ms !important;
+  animation-delay: 0s !important;
+}
+/* while the stats card is held, the medallions step back so the card sits on a quiet background */
+.fd-res-root.r-held .fd-res-medal {
+  opacity: 0.25;
+  transition: opacity 120ms linear;
+}
+/* stats card, held with TAB */
+.fd-res-stats {
+  position: absolute;
+  left: 892px;
+  top: 176px;
+  width: 364px;
+  z-index: 4;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition:
+    opacity 120ms linear,
+    transform 120ms var(--ease-out),
+    visibility 0s 120ms;
+}
+.fd-res-stats.fd-open {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s;
+}
+.fd-res-stats .fd-row {
+  display: grid;
+  grid-template-columns: 1fr 64px 64px;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+}
+.fd-res-stats .fd-row:nth-child(odd) {
+  background: #fbf6ea;
+}
+.fd-res-stats .fd-head {
+  height: auto;
+  padding: 12px 16px 8px;
+  border-bottom: 3px solid var(--grape);
+  background: var(--mist) !important;
+}
+.fd-res-stats .fd-head > span:first-child {
+  font: 800 13px/1 'Baloo 2', sans-serif;
+  letter-spacing: 2px;
+}
+.fd-res-stats .fd-row > span:not(:first-child) {
+  text-align: center;
+  font: 400 19px/1 'Titan One', ui-sans-serif, sans-serif;
+}
+.fd-res-stats .fd-row > span:nth-child(3) {
+  color: var(--grape-2);
+}
+.fd-res-stats .fd-row > span:first-child {
+  font: 700 15px/1 'Baloo 2', sans-serif;
+}
+.fd-res-stats .fd-head > span:not(:first-child) {
+  display: flex;
+  justify-content: center;
+}
+/* online rematch panel (b16) */
+.fd-rm-slot {
+  position: absolute;
+  top: 60px;
+  width: 240px;
+  height: 206px;
+  border-radius: 22px;
+  background: var(--mist);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.fd-rm-head {
+  position: absolute;
+  left: 50%;
+  top: -32px;
+  translate: -50% 0;
+  rotate: -2deg;
+}
+.fd-res-modal-enter {
+  animation: fd-pop 0.3s var(--ease-spring) both;
+}
+.fd-res-focusable {
+  outline: none;
+}
+.fd-res-btns .fd-chip {
+  text-shadow: none;
+  color: var(--grape);
+}
+/* online rematch panel up: the result steps back, only faint rays stay behind the panel (b16) */
+.fd-res-main,
+.fd-res-track {
+  transition: opacity 150ms linear;
+}
+.fd-res-root.r-modal .fd-res-main,
+.fd-res-root.r-modal .fd-res-track,
+.fd-res-root.r-modal .fd-confetti {
+  opacity: 0;
+}
+.fd-res-root.r-modal .fd-res-rays {
+  opacity: 0.35 !important;
+}

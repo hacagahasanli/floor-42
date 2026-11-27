@@ -2,203 +2,147 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { PORTAL_BUILD, resolveVariant } from '~/game/copy';
+import { FdButton } from '~/components/fieldday/Button';
+import { Segmented, Slider, Toggle } from '~/components/fieldday/Controls';
+import { fdSound } from '~/components/fieldday/sound';
+import { Frame } from '~/components/fieldday/Stage';
+import { Chip, HintStrip, KeyLabel } from '~/components/fieldday/parts';
+import { Icon } from '~/components/fieldday/Icon';
+import { Modal, TitleRibbon } from '~/components/fieldday/screens/Modal';
 import { isTouchDevice } from '~/game/input';
 import { deviceFacts, resolveTier } from '~/game/render/quality';
 import { ACTIONS, getSettings, keyLabel, unboundActions } from '~/game/settings';
 
-import { useKeyLabel, usePlayerColours, PlayerChip } from '~/components/twoPlayer/shared';
+import { useKeyLabel, usePlayerColours } from '~/components/twoPlayer/shared';
 import { ACTIONS_2P, unbound2P } from '~/game/twoPlayer';
 
 import { CreditsPanel } from './Credits';
-import { menuSound } from './menuSound';
 import { useSettings } from './useSettings';
 
-import type { CopyVariant } from '~/game/copy';
 import type { Button } from '~/game/input';
 import type { Quality } from '~/game/settings';
 import type { Action2P, Player } from '~/game/twoPlayer';
 import type { ReactNode } from 'react';
 
 /**
- * Settings, as one panel that slides in from the left: the main menu and the in-game pause menu both open it.
- * Five tabs; every change is saved and applied at once. Keyboard: ↑/↓ move, ←/→ change, [ / ] or Q / E switch tabs,
- * Esc goes back. Gamepads drive the same keys (see useGamepadNav).
+ * Settings in Field Day (b09 Controls, b10 Audio, and Camera, Graphics and Accessibility in the same style): one 1152x568 panel
+ * with a SETTINGS ribbon, five tabs (the active one is sun), then the tab's rows. The main menu and the in-match pause menu both
+ * open it. Every change is saved and applied at once. Keyboard: arrows move (by geometry), left / right change a value, [ ] (or
+ * Q E, PageUp PageDown, a pad's bumpers) switch tabs, Esc goes back; a gamepad drives the same keys (useGamepadNav).
+ * While a key cell is listening, the panel's own Esc and tab keys stand aside.
  */
 
 export type SettingsTab = 'controls' | 'camera' | 'graphics' | 'audio' | 'access';
 const TABS: { id: SettingsTab; label: string }[] = [
-  { id: 'controls', label: 'Controls' },
-  { id: 'camera', label: 'Camera' },
-  { id: 'graphics', label: 'Graphics' },
-  { id: 'audio', label: 'Audio' },
-  { id: 'access', label: 'Accessibility' },
+  { id: 'controls', label: 'CONTROLS' },
+  { id: 'camera', label: 'CAMERA' },
+  { id: 'graphics', label: 'GRAPHICS' },
+  { id: 'audio', label: 'AUDIO' },
+  { id: 'access', label: 'ACCESSIBILITY' },
 ];
+
+/** True while a gamepad is connected (the hint strip then shows pad glyphs). */
+const useHasPad = () => {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const read = () => setOn(typeof navigator !== 'undefined' && !!navigator.getGamepads && navigator.getGamepads().some(Boolean));
+    read();
+    window.addEventListener('gamepadconnected', read);
+    window.addEventListener('gamepaddisconnected', read);
+    return () => {
+      window.removeEventListener('gamepadconnected', read);
+      window.removeEventListener('gamepaddisconnected', read);
+    };
+  }, []);
+  return on;
+};
 
 /** True while a key cell waits for a key: the panel's own shortcuts stand aside. */
 let rebinding = false;
 
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), [tabindex="0"]';
-
-const Row = ({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) => (
-  <div className="group flex flex-col gap-2 border-b border-cream/5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-    <div className="flex min-w-0 flex-col">
-      <span className="text-sm font-bold uppercase tracking-wider text-cream">{label}</span>
-      {hint && <span className="text-xs text-cream/50">{hint}</span>}
+/** A settings row card: title and note on the left, the control on the right (or underneath, for a slider). */
+const Card = ({
+  title,
+  note,
+  children,
+  stack,
+  value,
+  height,
+  style,
+  testId,
+}: {
+  title: string;
+  note?: ReactNode;
+  children: ReactNode;
+  /** Slider card: title and value on one line, the note under it, the control below. */
+  stack?: boolean;
+  value?: string;
+  height?: number;
+  style?: React.CSSProperties;
+  testId?: string;
+}) =>
+  stack ? (
+    <div className="fd-setcard" style={{ height, ...style }} data-testid={testId}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ font: "800 17px/1 'Baloo 2', sans-serif" }}>{title}</span>
+        {value !== undefined && (
+          <span className="fd-titan" style={{ fontSize: 20 }}>
+            {value}
+          </span>
+        )}
+      </div>
+      <div className="fd-note" style={{ margin: '5px 0 12px', minHeight: 16 }}>
+        {note}
+      </div>
+      {children}
     </div>
-    <div className="flex shrink-0 items-center gap-2">{children}</div>
-  </div>
-);
+  ) : (
+    <div className="fd-setcard" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, height, ...style }} data-testid={testId}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ font: "800 17px/1 'Baloo 2', sans-serif" }}>{title}</div>
+        {note && (
+          <div className="fd-note" style={{ marginTop: 6 }}>
+            {note}
+          </div>
+        )}
+      </div>
+      <div style={{ flex: 'none' }}>{children}</div>
+    </div>
+  );
 
-const Section = ({ title }: { title: string }) => (
-  <div className="mt-5 flex items-center gap-3 first:mt-0">
-    <span className="h-3 w-1 -skew-x-12 bg-gold" />
-    <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-gold/90">{title}</span>
-    <span className="h-px flex-1 bg-cream/10" />
-  </div>
-);
+const pct = (v: number) => Math.round(v * 100);
 
-/** A short row of choices; ←/→ step through them. */
-const Segmented = <T extends string>({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: T;
-  options: { id: T; label: string }[];
-  onChange: (v: T) => void;
-  label: string;
-}) => (
-  <div
-    role="radiogroup"
-    aria-label={label}
-    className="flex"
-    onKeyDown={(e) => {
-      if (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight') return;
-      e.preventDefault();
-      const i = options.findIndex((o) => o.id === value);
-      const next =
-        options[Math.max(0, Math.min(options.length - 1, i + (e.code === 'ArrowRight' ? 1 : -1)))];
-      if (next.id !== value) {
-        onChange(next.id);
-        menuSound.tick();
-        (e.currentTarget.querySelector(`[data-id="${next.id}"]`) as HTMLElement | null)?.focus();
-      }
-    }}
+/** The 2-player action table: both players' keys, one per action. */
+const KEY_ROW = 35;
+
+const KeyBtn = ({ code, listening, label, onPress, name }: { code: string; listening: boolean; label: (c: string) => string; onPress: () => void; name: string }) => (
+  <button
+    type="button"
+    data-nav
+    aria-label={`${name}: ${listening ? 'press a key' : code ? label(code) : 'none'}. Press Enter to change.`}
+    onClick={onPress}
+    className={`fd-kc fd-keybtn ${listening ? 'fd-listening' : ''} ${!code && !listening ? 'fd-empty' : ''}`}
   >
-    {options.map((o) => {
-      const on = o.id === value;
-      return (
-        <button
-          key={o.id}
-          type="button"
-          role="radio"
-          aria-checked={on}
-          data-id={o.id}
-          tabIndex={on ? 0 : -1}
-          onClick={() => {
-            onChange(o.id);
-            menuSound.confirm();
-          }}
-          className={`focus-ring -ml-px min-w-[3.5rem] -skew-x-12 border px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
-            on
-              ? 'border-gold bg-gold text-ink-deep'
-              : 'border-cream/15 bg-cream/5 text-cream/70 hover:border-cream/40 hover:text-cream'
-          }`}
-        >
-          <span className="inline-block skew-x-12">{o.label}</span>
-        </button>
-      );
-    })}
-  </div>
+    {listening ? 'PRESS A KEY' : code ? <KeyLabel k={label(code).toUpperCase()} /> : '+ ADD'}
+  </button>
 );
-
-const Toggle = ({
-  value,
-  onChange,
-  label,
-}: {
-  value: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) => (
-  <Segmented
-    label={label}
-    value={value ? 'on' : 'off'}
-    options={[
-      { id: 'off', label: 'Off' },
-      { id: 'on', label: 'On' },
-    ]}
-    onChange={(v) => onChange(v === 'on')}
-  />
-);
-
-const Slider = ({
-  value,
-  min,
-  max,
-  step,
-  onChange,
-  label,
-  format,
-}: {
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-  label: string;
-  format: (v: number) => string;
-}) => (
-  <div className="flex w-full items-center gap-3 sm:w-60">
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      aria-label={label}
-      aria-valuetext={format(value)}
-      onChange={(e) => onChange(Number(e.target.value))}
-      onKeyDown={(e) => {
-        // Gamepad arrows arrive as synthetic key events, which a native slider ignores: step it here.
-        if (e.nativeEvent.isTrusted || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight')) return;
-        onChange(
-          Math.max(
-            min,
-            Math.min(max, +(value + (e.code === 'ArrowRight' ? step : -step)).toFixed(3)),
-          ),
-        );
-      }}
-      className="mc-range flex-1"
-      style={{ ['--fill' as string]: `${((value - min) / (max - min)) * 100}%` }}
-    />
-    <span className="w-11 text-right font-display text-sm tabular-nums text-cream">
-      {format(value)}
-    </span>
-  </div>
-);
-
-const pct = (v: number) => `${Math.round(v * 100)}`;
 
 /**
- * Settings > Controls > 2 Player (spec local-2p.md 1.5): both players' keys, one per action. A key may be on only one
- * action across both players (taking one swaps), reserved and browser keys are refused, and "Reset 2 player keys" puts
- * back WASD + F G H and the arrows + ; L K. Click a key cell, then press the new key; Esc cancels.
+ * Click (or Enter) a key cell, then press the new key. Esc cancels, Backspace clears. Spec local-2p.md 1.5 for the 2-player table:
+ * a key may be on only one action across both players (taking one swaps), reserved and browser keys are refused.
  */
-const TwoPlayerKeys = () => {
+const KeyTable = ({ two, note, setNote }: { two: boolean; note: { text: string; tone: 'ok' | 'warn' } | null; setNote: (n: { text: string; tone: 'ok' | 'warn' } | null) => void }) => {
   const s = useSettings();
   const store = getSettings();
-  const label = useKeyLabel();
+  const label2 = useKeyLabel();
   const colours = usePlayerColours();
-  const [capture, setCapture] = useState<{ player: Player; action: Action2P } | null>(null);
-  const [note, setNote] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
-  const name = (a: Action2P) => ACTIONS_2P.find((x) => x.id === a)!.label;
+  const [capture, setCapture] = useState<{ action: string; slot: number } | null>(null);
+  useEffect(() => setCapture(null), [two]);
 
   useEffect(() => {
     if (!capture) return;
     rebinding = true;
+    const who = (p: Player) => (p === 'p1' ? 'P1' : 'P2');
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -207,166 +151,42 @@ const TwoPlayerKeys = () => {
         setNote(null);
         return;
       }
-      const r = store.rebind2P(capture.player, capture.action, e.code);
-      if (!r.ok) {
-        setNote({
-          text: `${keyLabel(e.code)} can't be a 2 player key (Space, Shift, Enter, Tab, Ctrl, Alt, Esc, T, 1-4, ' / and the numpad are kept out; M only for P2 Sit). Pick another key.`,
-          tone: 'warn',
-        });
-        return;
+      if (two) {
+        const p: Player = capture.slot === 0 ? 'p1' : 'p2';
+        const action = capture.action as Action2P;
+        const name = (a: Action2P) => ACTIONS_2P.find((x) => x.id === a)!.label;
+        const r = store.rebind2P(p, action, e.code);
+        if (!r.ok) {
+          setNote({ text: `${keyLabel(e.code)} can't be a 2 player key (Space, Shift, Enter, Tab, Ctrl, Alt, Esc, T, 1-4, ' / and the numpad are kept out; M only for P2 Sit). Pick another key.`, tone: 'warn' });
+          return;
+        }
+        setNote(
+          r.swapped
+            ? { text: `${label2(e.code)} was ${who(r.swapped.player)} ${name(r.swapped.action)}: swapped, that is now ${r.swapped.code ? label2(r.swapped.code) : 'unbound'}.`, tone: 'warn' }
+            : { text: `${who(p)} ${name(action)} → ${label2(e.code)}`, tone: 'ok' },
+        );
+      } else {
+        const action = capture.action as Button;
+        const slot = capture.slot as 0 | 1;
+        const name = (id: Button) => ACTIONS.find((a) => a.id === id)!.label;
+        if (e.code === 'Backspace' || e.code === 'Delete') {
+          store.clearBinding(action, slot);
+          setNote({ text: `${name(action)}: key cleared`, tone: 'ok' });
+          setCapture(null);
+          return;
+        }
+        const r = store.rebind(action, slot, e.code);
+        if (!r.ok) {
+          setNote({ text: `${keyLabel(e.code)} is kept by the game (Esc, M, T, 1-4, Enter). Pick another key.`, tone: 'warn' });
+          return;
+        }
+        setNote(
+          r.swapped
+            ? { text: `${keyLabel(e.code)} was on ${name(r.swapped.action)}: swapped, ${name(r.swapped.action)} is now ${r.swapped.code ? keyLabel(r.swapped.code) : 'unbound'}.`, tone: 'warn' }
+            : { text: `${name(action)} → ${keyLabel(e.code)}`, tone: 'ok' },
+        );
       }
-      const who = (p: Player) => (p === 'p1' ? 'P1' : 'P2');
-      setNote(
-        r.swapped
-          ? {
-              text: `${label(e.code)} was ${who(r.swapped.player)} ${name(r.swapped.action)}: swapped, that is now ${r.swapped.code ? label(r.swapped.code) : 'unbound'}.`,
-              tone: 'warn',
-            }
-          : { text: `${who(capture.player)} ${name(capture.action)} → ${label(e.code)}`, tone: 'ok' },
-      );
-      menuSound.confirm();
-      setCapture(null);
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => {
-      rebinding = false;
-      window.removeEventListener('keydown', onKey, true);
-    };
-  }, [capture, store]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const unbound = unbound2P(s.bindings2p);
-  return (
-    <>
-      <div className="mt-2 grid grid-cols-[1fr_auto_auto] items-center gap-x-2 gap-y-1" data-testid="settings-2p">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-cream/40">Action</span>
-        {(['p1', 'p2'] as Player[]).map((p, i) => (
-          <span key={p} className="flex w-24 justify-center">
-            <PlayerChip index={i as 0 | 1} colour={colours[i]} />
-          </span>
-        ))}
-        {ACTIONS_2P.map(({ id, label: actionLabel }) => (
-          <div key={id} className="contents">
-            <span className="text-sm font-semibold text-cream/85">{actionLabel}</span>
-            {(['p1', 'p2'] as Player[]).map((p) => {
-              const listening = capture?.player === p && capture.action === id;
-              const code = s.bindings2p[p][id];
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  aria-label={`${p === 'p1' ? 'P1' : 'P2'} ${actionLabel}: ${code ? label(code) : 'none'}. Press Enter to change.`}
-                  onClick={() => {
-                    setNote(null);
-                    setCapture({ player: p, action: id });
-                    menuSound.confirm();
-                  }}
-                  className={`focus-ring h-9 w-24 -skew-x-12 border text-sm font-bold transition ${
-                    listening
-                      ? 'animate-pulse border-gold bg-gold/20 text-gold'
-                      : code
-                        ? 'border-cream/20 bg-ink text-cream hover:border-gold/60'
-                        : 'border-dashed border-orange/50 bg-transparent text-cream/30 hover:border-gold/60'
-                  }`}
-                >
-                  <span className="inline-block skew-x-12">{listening ? 'Press key' : label(code)}</span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 flex min-h-6 flex-wrap items-center justify-between gap-2" aria-live="polite">
-        <span className={`text-xs ${note?.tone === 'warn' ? 'text-gold' : 'text-cream/60'}`}>
-          {capture
-            ? 'Press a key · Esc cancels'
-            : (note?.text ??
-              (unbound.length
-                ? `No key for: ${unbound.map((u) => `${u.player.toUpperCase()} ${name(u.action)}`).join(', ')}`
-                : 'Click a key to change it'))}
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            store.resetBindings2P();
-            setNote({ text: '2 player keys back to default', tone: 'ok' });
-            menuSound.back();
-          }}
-          className="focus-ring border border-cream/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-cream/70 hover:border-cream/40 hover:text-cream"
-        >
-          Reset 2 player keys
-        </button>
-      </div>
-    </>
-  );
-};
-
-/** Click (or Enter) a key cell, then press the new key. Esc cancels, Backspace clears. */
-const ControlsTab = ({ touch }: { touch: boolean }) => {
-  const [players, setPlayers] = useState<'1' | '2'>('1');
-  return (
-    <>
-      {!touch && (
-        <div className="mb-3">
-          <Segmented<'1' | '2'>
-            label="Controls for"
-            value={players}
-            options={[
-              { id: '1', label: '1 Player' },
-              { id: '2', label: '2 Player' },
-            ]}
-            onChange={setPlayers}
-          />
-        </div>
-      )}
-      {players === '2' && !touch ? <TwoPlayerKeys /> : <OnePlayerControls touch={touch} />}
-    </>
-  );
-};
-
-const OnePlayerControls = ({ touch }: { touch: boolean }) => {
-  const s = useSettings();
-  const store = getSettings();
-  const [capture, setCapture] = useState<{ action: Button; slot: 0 | 1 } | null>(null);
-  const [note, setNote] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
-
-  useEffect(() => {
-    if (!capture) return;
-    rebinding = true;
-    const onKey = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      if (e.code === 'Escape') {
-        setCapture(null);
-        setNote(null);
-        return;
-      }
-      if (e.code === 'Backspace' || e.code === 'Delete') {
-        store.clearBinding(capture.action, capture.slot);
-        setNote({
-          text: `${ACTIONS.find((a) => a.id === capture.action)!.label}: key cleared`,
-          tone: 'ok',
-        });
-        setCapture(null);
-        return;
-      }
-      const r = store.rebind(capture.action, capture.slot, e.code);
-      if (!r.ok) {
-        setNote({
-          text: `${keyLabel(e.code)} is kept by the game (Esc, M, T, 1-4, Enter). Pick another key.`,
-          tone: 'warn',
-        });
-        return;
-      }
-      const name = (id: Button) => ACTIONS.find((a) => a.id === id)!.label;
-      setNote(
-        r.swapped
-          ? {
-              text: `${keyLabel(e.code)} was on ${name(r.swapped.action)}: swapped, ${name(r.swapped.action)} is now ${r.swapped.code ? keyLabel(r.swapped.code) : 'unbound'}.`,
-              tone: 'warn',
-            }
-          : { text: `${name(capture.action)} → ${keyLabel(e.code)}`, tone: 'ok' },
-      );
-      menuSound.confirm();
+      fdSound.confirm();
       setCapture(null);
     };
     // Capture phase on window: no other handler (the panel's Esc, the game) sees the key being bound.
@@ -375,555 +195,410 @@ const OnePlayerControls = ({ touch }: { touch: boolean }) => {
       rebinding = false;
       window.removeEventListener('keydown', onKey, true);
     };
-  }, [capture, store]);
+  }, [capture, store, two, label2, setNote]);
 
-  const unbound = unboundActions(s.bindings);
+  const unbound = two ? unbound2P(s.bindings2p) : unboundActions(s.bindings);
+  void unbound;
+  const rows = two ? ACTIONS_2P : ACTIONS;
+  return (
+    <div className="fd-well" style={{ padding: '8px 16px' }} data-testid={two ? 'settings-2p' : 'settings-keys'}>
+      {two && (
+        <div className="fd-bind" style={{ height: 30 }}>
+          <span className="fd-sec">ACTION</span>
+          {(['p1', 'p2'] as Player[]).map((p, i) => (
+            <span key={p} style={{ display: 'flex', justifyContent: 'center' }}>
+              <Chip color={colours[i]} height={22} fontSize={12}>
+                P{i + 1}
+              </Chip>
+            </span>
+          ))}
+        </div>
+      )}
+      {rows.map(({ id, label }) => (
+        <div key={id} className="fd-bind" style={{ height: KEY_ROW }}>
+          <span style={{ font: "800 16px/1 'Baloo 2', sans-serif", color: !two && unboundActions(s.bindings).includes(id as Button) ? 'var(--tomato)' : undefined }}>{label}</span>
+          {([0, 1] as const).map((slot) => {
+            const code = two ? s.bindings2p[slot === 0 ? 'p1' : 'p2'][id as Action2P] : s.bindings[id as Button][slot];
+            const k = two ? label2 : keyLabel;
+            return (
+              <span key={slot} style={{ display: 'flex', justifyContent: 'center' }}>
+                <KeyBtn
+                  code={code}
+                  label={k}
+                  name={`${label}, ${two ? (slot ? 'P2' : 'P1') : slot ? 'secondary' : 'primary'} key`}
+                  listening={capture?.action === id && capture.slot === slot}
+                  onPress={() => {
+                    setNote({ text: two ? 'Press a key · Esc cancels' : 'Press a key · Esc cancels · Backspace clears', tone: 'ok' });
+                    setCapture({ action: id, slot });
+                    fdSound.confirm();
+                  }}
+                />
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
 
+const ControlsTab = ({ touch, onDone }: { touch: boolean; onDone: () => void }) => {
+  const s = useSettings();
+  const store = getSettings();
+  const [two, setTwo] = useState(false);
+  const [note, setNote] = useState<{ text: string; tone: 'ok' | 'warn' } | null>(null);
+  const unbound = two ? unbound2P(s.bindings2p).map((u) => `${u.player.toUpperCase()} ${ACTIONS_2P.find((a) => a.id === u.action)!.label}`) : unboundActions(s.bindings).map((u) => ACTIONS.find((a) => a.id === u)!.label);
+  const hintsCard = (
+    <Card title="Key hints in matches" note="The strip along the bottom" testId="row-hints">
+      <Toggle label="Key hints in matches" checked={s.showKeyHints} onChange={(v) => store.set({ showKeyHints: v })} data-nav />
+    </Card>
+  );
+  if (touch) {
+    return (
+      <>
+        <div className="fd-abs" style={{ left: 36, top: 202, width: 1080, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 22px' }}>
+          <Card stack title="Button size" value={`${pct(s.touch.size)}`} height={100}>
+            <Slider label="Button size" value={Math.round(s.touch.size * 100)} min={75} max={135} step={5} onChange={(v) => store.setTouch({ size: v / 100 })} data-nav />
+          </Card>
+          <Card stack title="Opacity" value={`${pct(s.touch.opacity)}`} height={100}>
+            <Slider label="Touch opacity" value={Math.round(s.touch.opacity * 100)} min={30} max={100} step={5} onChange={(v) => store.setTouch({ opacity: v / 100 })} data-nav />
+          </Card>
+          <Card title="Left-handed" note="Stick on the right, buttons on the left">
+            <Toggle label="Left-handed" checked={s.touch.leftHanded} onChange={(v) => store.setTouch({ leftHanded: v })} data-nav />
+          </Card>
+          {hintsCard}
+        </div>
+        <div className="fd-abs" style={{ left: 36, top: 512, width: 1080, display: 'flex', justifyContent: 'flex-end' }}>
+          <FdButton tone="sun" size="md" fontSize={24} icon="check" primary data-nav data-testid="settings-done" onClick={onDone}>
+            DONE
+          </FdButton>
+        </div>
+      </>
+    );
+  }
   return (
     <>
-      {!touch && (
-        <>
-          <Section title="Keyboard" />
-          <div className="mt-2 grid grid-cols-[1fr_auto_auto] items-center gap-x-2 gap-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-cream/40">
-              Action
-            </span>
-            <span className="w-24 text-center text-[10px] font-bold uppercase tracking-widest text-cream/40">
-              Primary
-            </span>
-            <span className="w-24 text-center text-[10px] font-bold uppercase tracking-widest text-cream/40">
-              Secondary
-            </span>
-            {ACTIONS.map(({ id, label }) => (
-              <div key={id} className="contents">
-                <span
-                  className={`text-sm font-semibold ${unbound.includes(id) ? 'text-orange' : 'text-cream/85'}`}
-                >
-                  {label}
-                </span>
-                {([0, 1] as const).map((slot) => {
-                  const listening = capture?.action === id && capture.slot === slot;
-                  const code = s.bindings[id][slot];
-                  return (
-                    <button
-                      key={slot}
-                      type="button"
-                      aria-label={`${label}, ${slot ? 'secondary' : 'primary'} key: ${code ? keyLabel(code) : 'none'}. Press Enter to change.`}
-                      onClick={() => {
-                        setNote(null);
-                        setCapture({ action: id, slot });
-                        menuSound.confirm();
-                      }}
-                      className={`focus-ring h-9 w-24 -skew-x-12 border text-sm font-bold transition ${
-                        listening
-                          ? 'animate-pulse border-gold bg-gold/20 text-gold'
-                          : code
-                            ? 'border-cream/20 bg-ink text-cream hover:border-gold/60'
-                            : 'border-dashed border-cream/15 bg-transparent text-cream/30 hover:border-gold/60'
-                      }`}
-                    >
-                      <span className="inline-block skew-x-12">
-                        {listening ? 'Press key' : keyLabel(code)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          <div
-            className="mt-3 flex min-h-6 flex-wrap items-center justify-between gap-2"
-            aria-live="polite"
-          >
-            <span className={`text-xs ${note?.tone === 'warn' ? 'text-gold' : 'text-cream/60'}`}>
-              {capture
-                ? 'Press a key · Esc cancels · Backspace clears'
-                : (note?.text ??
-                  (unbound.length
-                    ? `No key for: ${unbound.map((u) => ACTIONS.find((a) => a.id === u)!.label).join(', ')}`
-                    : 'Click a key to change it'))}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                store.resetBindings();
-                setNote({ text: 'Keys back to default', tone: 'ok' });
-                menuSound.back();
-              }}
-              className="focus-ring border border-cream/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-cream/70 hover:border-cream/40 hover:text-cream"
-            >
-              Reset to default
-            </button>
-          </div>
-
-          <Section title="Aim" />
-          <Row
+      <div className="fd-abs" style={{ left: 36, top: 202, width: 640, height: two ? 30 + 8 * KEY_ROW + 16 : 11 * KEY_ROW + 16 }}>
+        <KeyTable two={two} note={note} setNote={setNote} />
+      </div>
+      <div className="fd-abs" aria-live="polite" data-testid="settings-note" style={{ left: 36, top: 610, width: 640 }}>
+        <span className="fd-note" style={{ color: note?.tone === 'warn' ? '#C2410C' : undefined, fontSize: 14 }}>
+          {note?.text ?? (unbound.length ? `No key for: ${unbound.join(', ')}` : 'Click a key to change it')}
+        </span>
+      </div>
+      <div className="fd-abs" style={{ left: 704, top: 202, width: 412, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="fd-setcard fd-white" data-testid="row-aim" style={{ padding: '12px 16px' }}>
+          <div style={{ font: "800 16px/1 'Baloo 2', sans-serif", marginBottom: 10 }}>Aim</div>
+          <Segmented
             label="Aim mode"
-            hint={
-              s.aimMode === 'auto'
-                ? 'Shoot aims at your rival when you can see them'
-                : 'The mouse aims; left click also shoots. Aim follows the cursor, so there is no sensitivity to set.'
-            }
-          >
-            <Segmented
-              label="Aim mode"
-              value={s.aimMode}
-              options={[
-                { id: 'auto', label: 'Auto' },
-                { id: 'mouse', label: 'Mouse' },
-              ]}
-              onChange={(v) => store.set({ aimMode: v })}
-            />
-          </Row>
-        </>
-      )}
-
-      <Section title="Hints" />
-      <Row label="Show key hints" hint="The key list along the bottom and the key beside a gun or bomb">
-        <Toggle label="Show key hints" value={s.showKeyHints} onChange={(v) => store.set({ showKeyHints: v })} />
-      </Row>
-
-      <Section title="Touch controls" />
-      {!touch && <p className="mt-2 text-xs text-cream/45">Used on phones and tablets.</p>}
-      <Row label="Button size">
-        <Slider
-          label="Button size"
-          value={s.touch.size}
-          min={0.75}
-          max={1.35}
-          step={0.05}
-          format={pct}
-          onChange={(v) => store.setTouch({ size: v })}
-        />
-      </Row>
-      <Row label="Opacity">
-        <Slider
-          label="Touch opacity"
-          value={s.touch.opacity}
-          min={0.3}
-          max={1}
-          step={0.05}
-          format={pct}
-          onChange={(v) => store.setTouch({ opacity: v })}
-        />
-      </Row>
-      <Row label="Left-handed" hint="Stick on the right, buttons on the left">
-        <Toggle
-          label="Left-handed"
-          value={s.touch.leftHanded}
-          onChange={(v) => store.setTouch({ leftHanded: v })}
-        />
-      </Row>
+            value={s.aimMode}
+            options={[
+              { id: 'auto', label: 'AUTO' },
+              { id: 'mouse', label: 'MOUSE' },
+            ]}
+            onChange={(v) => store.set({ aimMode: v })}
+            style={{ display: 'inline-flex' }}
+          />
+          <div className="fd-note" style={{ marginTop: 8 }}>
+            {s.aimMode === 'auto' ? 'Shoot aims at your rival when you can see them.' : 'The mouse aims; left click also shoots.'}
+          </div>
+        </div>
+        {hintsCard}
+        <Card title="2 Player keys" note="P1 left side, P2 right side" testId="row-2p">
+          <FdButton tone="white" height={44} fontSize={16} data-nav aria-pressed={two} data-testid="edit-2p" onClick={() => { setTwo((v) => !v); setNote(null); }}>
+            {two ? '1 PLAYER' : 'EDIT'}
+          </FdButton>
+        </Card>
+      </div>
+      <div className="fd-abs" style={{ left: 704, top: 512, width: 412, display: 'flex', gap: 14, justifyContent: 'flex-end' }}>
+        <FdButton
+          tone="white"
+          size="md"
+          fontSize={19}
+          icon="again"
+          data-nav
+          data-testid="reset-keys"
+          onClick={() => {
+            if (two) store.resetBindings2P();
+            else store.resetBindings();
+            setNote({ text: two ? '2 player keys back to default' : 'Keys back to default', tone: 'ok' });
+          }}
+        >
+          RESET KEYS
+        </FdButton>
+        <FdButton tone="sun" size="md" fontSize={24} icon="check" primary data-nav data-testid="settings-done" onClick={onDone}>
+          DONE
+        </FdButton>
+      </div>
     </>
   );
 };
 
-const CameraTab = () => {
+const Grid = ({ children, done }: { children: ReactNode; done: () => void }) => (
+  <>
+    <div className="fd-abs" style={{ left: 36, top: 202, width: 1080, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 22px', alignContent: 'start' }}>
+      {children}
+    </div>
+    <div className="fd-abs" style={{ left: 36, top: 512, width: 1080, display: 'flex', gap: 14, justifyContent: 'flex-end' }}>
+      <FdButton tone="sun" size="md" fontSize={24} icon="check" primary data-nav data-testid="settings-done" onClick={done}>
+        DONE
+      </FdButton>
+    </div>
+  </>
+);
+
+const CameraTab = ({ onDone }: { onDone: () => void }) => {
   const s = useSettings();
   const store = getSettings();
   return (
-    <>
-      <Section title="Camera" />
-      <Row
-        label="Camera shake"
-        hint={
-          s.reducedMotion
-            ? 'Off while Reduced motion is on (Accessibility)'
-            : 'Shake, zoom punch and flashes on big hits and knockouts'
-        }
+    <Grid done={onDone}>
+      <Card
+        title="Camera shake"
+        note={s.reducedMotion ? 'Off while Reduced motion is on (Accessibility)' : 'Shake, zoom punch and flashes on big hits and knockouts'}
       >
-        <Toggle
-          label="Camera shake"
-          value={s.shake && !s.reducedMotion}
-          onChange={(v) => store.set({ shake: v, reducedMotion: v ? false : s.reducedMotion })}
-        />
-      </Row>
-      <p className="mt-3 text-xs text-cream/45">
-        The camera always shows the whole office on a desktop and follows the fight on a phone.
-      </p>
-    </>
+        <Toggle label="Camera shake" checked={s.shake && !s.reducedMotion} onChange={(v) => store.set({ shake: v, reducedMotion: v ? false : s.reducedMotion })} data-nav />
+      </Card>
+      <div className="fd-note" style={{ gridColumn: '1 / 3', padding: '0 6px' }}>
+        The camera always shows the whole arena on a desktop and follows the fight on a phone.
+      </div>
+    </Grid>
   );
 };
 
-const GraphicsTab = () => {
+const GraphicsTab = ({ onDone }: { onDone: () => void }) => {
   const s = useSettings();
   const store = getSettings();
   const facts = useMemo(() => deviceFacts(), []);
   const tier = resolveTier(s.quality, facts);
   return (
-    <>
-      <Section title="Quality" />
-      <Row
-        label="Preset"
-        hint={
-          s.quality === 'auto'
-            ? `Auto picked ${tier} for this device`
-            : 'Forced; Auto picks by device'
-        }
-      >
+    <Grid done={onDone}>
+      <Card title="Preset" note={s.quality === 'auto' ? `Auto picked ${tier} for this device` : 'Forced; Auto picks by device'}>
         <Segmented<Quality>
           label="Quality preset"
           value={s.quality}
           options={[
-            { id: 'auto', label: 'Auto' },
-            { id: 'low', label: 'Low' },
-            { id: 'medium', label: 'Med' },
-            { id: 'high', label: 'High' },
+            { id: 'auto', label: 'AUTO' },
+            { id: 'low', label: 'LOW' },
+            { id: 'medium', label: 'MED' },
+            { id: 'high', label: 'HIGH' },
           ]}
           onChange={(v) => store.set({ quality: v })}
         />
-      </Row>
-      <Row
-        label="Shadows"
-        hint={
-          tier === 'low'
-            ? 'The Low preset always turns shadows off'
-            : 'Soft shadows under fighters and furniture'
-        }
-      >
-        <Toggle label="Shadows" value={s.shadows} onChange={(v) => store.set({ shadows: v })} />
-      </Row>
-      <Row label="Resolution scale" hint="Lower is sharper on battery, softer on screen">
-        <Slider
-          label="Resolution scale"
-          value={s.resScale}
-          min={0.5}
-          max={1}
-          step={0.05}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => store.set({ resScale: v })}
-        />
-      </Row>
-      <Row label="Show FPS">
-        <Toggle label="Show FPS" value={s.showFps} onChange={(v) => store.set({ showFps: v })} />
-      </Row>
-    </>
+      </Card>
+      <Card title="Shadows" note={tier === 'low' ? 'The Low preset always turns shadows off' : 'Soft shadows under fighters and furniture'}>
+        <Toggle label="Shadows" checked={s.shadows} onChange={(v) => store.set({ shadows: v })} data-nav />
+      </Card>
+      <Card stack title="Resolution scale" value={`${pct(s.resScale)}%`} note="Lower is sharper on battery, softer on screen" height={100}>
+        <Slider label="Resolution scale" value={Math.round(s.resScale * 100)} min={50} max={100} step={5} onChange={(v) => store.set({ resScale: v / 100 })} data-nav />
+      </Card>
+      <Card title="Show FPS">
+        <Toggle label="Show FPS" checked={s.showFps} onChange={(v) => store.set({ showFps: v })} data-nav />
+      </Card>
+    </Grid>
   );
 };
 
-const AudioTab = () => {
+const AudioTab = ({ onDone }: { onDone: () => void }) => {
   const s = useSettings();
   const store = getSettings();
   const external = store.effectiveMute() && !s.audio.muted;
-  const vol = (key: 'master' | 'effects' | 'guns' | 'ui', label: string, hint?: string) => (
-    <Row label={label} hint={hint}>
+  const vol = (key: 'master' | 'effects' | 'guns' | 'ui', label: string, note?: string) => (
+    <Card stack title={label} value={`${pct(s.audio[key])}`} note={note} height={100} testId={`vol-${key}`}>
       <Slider
         label={label}
-        value={s.audio[key]}
-        min={0}
-        max={1}
-        step={0.05}
-        format={pct}
+        value={Math.round(s.audio[key] * 100)}
         onChange={(v) => {
-          store.setAudio({ [key]: v });
-          if (key === 'ui' || key === 'master') menuSound.tick();
+          store.setAudio({ [key]: v / 100 });
+          if (key === 'ui' || key === 'master') fdSound.focus();
         }}
+        data-nav
       />
-    </Row>
+    </Card>
   );
   return (
     <>
-      <Section title="Volume" />
-      {vol('master', 'Master')}
-      {vol('effects', 'Effects', 'Hits, jumps, glass, knockouts')}
-      {vol('guns', 'Gunshots')}
-      {vol('ui', 'Menus', 'Focus ticks and confirms')}
-      <Row
-        label="Mute all"
-        hint={
-          external ? 'The site this game runs on has turned sound off' : 'M also mutes in a match'
-        }
-      >
-        <Toggle
-          label="Mute all"
-          value={s.audio.muted}
-          onChange={(v) => store.setAudio({ muted: v })}
-        />
-      </Row>
-      <p className="mt-3 text-xs text-cream/45">
-        No music: the office stays quiet between fights, so you hear every footstep.
-      </p>
+      <div className="fd-abs" style={{ left: 36, top: 202, width: 1080, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 22px' }}>
+        {vol('master', 'Master', 'The whole game')}
+        {vol('effects', 'Effects', 'Hits, jumps, glass, knockouts')}
+        {vol('guns', 'Gunshots')}
+        {vol('ui', 'Menus', 'Focus ticks and confirms')}
+        <Card title="Mute everything" note={external ? 'The site this game runs on has turned sound off' : 'M also mutes in a match'} style={{ gridColumn: '1 / 3' }} testId="row-mute">
+          <Toggle label="Mute everything" checked={s.audio.muted} onChange={(v) => store.setAudio({ muted: v })} data-nav />
+        </Card>
+      </div>
+      <div className="fd-abs" style={{ left: 36, top: 512, width: 1080, display: 'flex', justifyContent: 'flex-end' }}>
+        <FdButton tone="sun" size="md" fontSize={24} icon="check" primary data-nav data-testid="settings-done" onClick={onDone}>
+          DONE
+        </FdButton>
+      </div>
+      <div className="fd-abs fd-note" style={{ left: 36, top: 540, width: 600 }}>
+        No music: the arena stays quiet between fights, so you hear every footstep.
+      </div>
     </>
   );
 };
 
-const AccessTab = ({ onCredits }: { onCredits: () => void }) => {
+const AccessTab = ({ onCredits, onDone }: { onCredits: () => void; onDone: () => void }) => {
   const s = useSettings();
   const store = getSettings();
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => {
+    if (!confirm) return;
+    const t = window.setTimeout(() => setConfirm(false), 2500);
+    return () => window.clearTimeout(t);
+  }, [confirm]);
   return (
-    <>
-      <Section title="Comfort" />
-      <Row
-        label="Reduced motion"
-        hint="No screen shake, flashes or sliding menus; the menu camera holds still"
-      >
-        <Toggle
-          label="Reduced motion"
-          value={s.reducedMotion}
-          onChange={(v) => store.set({ reducedMotion: v })}
-        />
-      </Row>
-      <Section title="Readability" />
-      <Row label="Colour-blind friendly" hint="Green and red highlights become blue and orange">
-        <Toggle
-          label="Colour-blind friendly"
-          value={s.colourBlind}
-          onChange={(v) => store.set({ colourBlind: v })}
-        />
-      </Row>
-      <Row label="Larger HUD text" hint="Health, timer and key hints 25% bigger">
-        <Toggle
-          label="Larger HUD text"
-          value={s.largeHud}
-          onChange={(v) => store.set({ largeHud: v })}
-        />
-      </Row>
-      {!PORTAL_BUILD && (
-        <Row label="Game words" hint="Developer: merge-conflict jokes. Regular: plain fighting-game words. Same game.">
-          <Segmented<CopyVariant>
-            label="Game words"
-            value={resolveVariant(s.audience)}
-            options={[
-              { id: 'developer', label: 'Developer' },
-              { id: 'regular', label: 'Regular' },
-            ]}
-            onChange={(v) => store.set({ audience: v })}
-          />
-        </Row>
-      )}
-      {/* Credits moved out of the main menu (spec local-2p.md 7): the last row of the last tab. */}
-      <Row label="Credits">
-        <button
-          type="button"
-          data-testid="settings-credits"
+    <Grid done={onDone}>
+      <Card title="Reduced motion" note="No screen shake, flashes or sliding menus; the menu camera holds still">
+        <Toggle label="Reduced motion" checked={s.reducedMotion} onChange={(v) => store.set({ reducedMotion: v })} data-nav />
+      </Card>
+      <Card title="Colour-blind friendly" note="Green and red highlights become blue and orange">
+        <Toggle label="Colour-blind friendly" checked={s.colourBlind} onChange={(v) => store.set({ colourBlind: v })} data-nav />
+      </Card>
+      <Card title="Larger HUD text" note="Health, timer and key hints 25% bigger">
+        <Toggle label="Larger HUD text" checked={s.largeHud} onChange={(v) => store.set({ largeHud: v })} data-nav />
+      </Card>
+      <Card title="Credits">
+        <FdButton tone="white" height={44} fontSize={16} icon="star" data-nav data-testid="settings-credits" onClick={onCredits}>
+          CREDITS
+        </FdButton>
+      </Card>
+      <Card title="Reset all settings" note="Keys, volumes, graphics and the rest back to their defaults">
+        <FdButton
+          tone={confirm ? 'tang' : 'white'}
+          height={44}
+          fontSize={16}
+          icon="again"
+          sound="none"
+          data-nav
+          data-testid="reset-all"
           onClick={() => {
-            menuSound.confirm();
-            onCredits();
+            if (!confirm) {
+              fdSound.tab();
+              setConfirm(true);
+              return;
+            }
+            getSettings().resetAll();
+            setConfirm(false);
+            fdSound.back();
           }}
-          className="focus-ring border border-cream/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-cream/70 hover:border-cream/40 hover:text-cream"
         >
-          Credits
-        </button>
-      </Row>
-    </>
+          {confirm ? 'PRESS AGAIN TO RESET ALL' : 'RESET ALL'}
+        </FdButton>
+      </Card>
+    </Grid>
   );
 };
 
-export const SettingsPanel = ({
-  onClose,
-  initialTab = 'controls',
-}: {
-  onClose: () => void;
-  initialTab?: SettingsTab;
-}) => {
+export const SettingsPanel = ({ onClose, initialTab = 'controls' }: { onClose: () => void; initialTab?: SettingsTab }) => {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
-  const [confirmReset, setConfirmReset] = useState(false);
   const [credits, setCredits] = useState(false);
   const [touch, setTouch] = useState(false);
-  const panelRef = useRef<HTMLElement>(null);
-  const bodyRef = useRef<HTMLDivElement>(null);
+  const tabRef = useRef<HTMLDivElement>(null);
   const tabIndex = TABS.findIndex((t) => t.id === tab);
+  const padOn = useHasPad();
 
   useEffect(() => setTouch(isTouchDevice()), []);
 
   const switchTab = (dir: 1 | -1) => {
     const next = TABS[(tabIndex + dir + TABS.length) % TABS.length].id;
     setTab(next);
-    menuSound.tick();
+    fdSound.tab();
+    // The new tab's button keeps the focus, so the keyboard and the pad carry on from there.
+    window.setTimeout(() => tabRef.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus(), 0);
   };
-
-  // Focus the active tab when the panel opens, so keyboard and gamepad start inside it.
-  useEffect(() => {
-    (
-      panelRef.current?.querySelector('[role="tab"][aria-selected="true"]') as HTMLElement | null
-    )?.focus();
-  }, []);
+  const switchRef = useRef(switchTab);
+  switchRef.current = switchTab;
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const panel = panelRef.current;
-      if (!panel || rebinding) return;
-      // The Credits panel on top takes Esc and closes itself first.
-      if (credits) {
-        if (e.code === 'Escape') {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          menuSound.back();
-          setCredits(false);
-        }
-        return;
-      }
-      if (e.code === 'Escape') {
+      if (rebinding || credits) return;
+      if (['BracketLeft', 'BracketRight', 'PageUp', 'PageDown', 'KeyQ', 'KeyE'].includes(e.code)) {
         e.preventDefault();
         e.stopImmediatePropagation();
-        menuSound.back();
-        onClose();
-        return;
-      }
-      if (
-        e.code === 'BracketLeft' ||
-        e.code === 'BracketRight' ||
-        e.code === 'PageUp' ||
-        e.code === 'PageDown' ||
-        e.code === 'KeyQ' ||
-        e.code === 'KeyE'
-      ) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        switchTab(e.code === 'BracketLeft' || e.code === 'PageUp' || e.code === 'KeyQ' ? -1 : 1);
-        return;
-      }
-      if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
-        // ↑/↓ walk every control in the panel (sliders keep ←/→ for their value).
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        const items = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-          (el) => el.tabIndex >= 0 && el.offsetParent !== null,
-        );
-        const i = items.indexOf(document.activeElement as HTMLElement);
-        const next =
-          items[
-            Math.max(
-              0,
-              Math.min(items.length - 1, i < 0 ? 0 : i + (e.code === 'ArrowDown' ? 1 : -1)),
-            )
-          ];
-        next?.focus();
-        next?.scrollIntoView({ block: 'nearest' });
-        menuSound.tick();
+        switchRef.current(e.code === 'BracketLeft' || e.code === 'PageUp' || e.code === 'KeyQ' ? -1 : 1);
       }
     };
     // Capture: the panel owns these keys while it is open (the menu or the game under it must not move).
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  });
+  }, [credits]);
+
+  const done = () => {
+    fdSound.back();
+    onClose();
+  };
+  const hints =
+    tab === 'controls'
+      ? [{ keys: ['[', ']'], label: 'Tab' }, { keys: ['↑', '↓'], label: 'Move' }, { keys: ['ENTER'], label: 'Change key' }, { keys: ['ESC'], label: 'Back' }]
+      : tab === 'audio'
+        ? [{ keys: ['[', ']'], label: 'Tab' }, { keys: ['↑', '↓'], label: 'Move' }, { keys: ['←', '→'], label: 'Adjust' }, { keys: ['M'], label: 'Mute' }, { keys: ['ESC'], label: 'Back' }]
+        : [{ keys: ['[', ']'], label: 'Tab' }, { keys: ['↑', '↓'], label: 'Move' }, { keys: ['←', '→'], label: 'Change' }, { keys: ['ESC'], label: 'Back' }];
+  const padHints = [{ keys: ['LB', 'RB'], label: 'Tab' }, { keys: ['D-PAD'], label: 'Move' }, { keys: ['A'], label: 'Select' }, { keys: ['B'], label: 'Back' }];
 
   return (
-    <div className="fixed inset-0 z-[60]" role="presentation">
-      <button
-        type="button"
-        aria-label="Close settings"
-        tabIndex={-1}
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-ink-deep/40 [animation:fadeIn_0.25s_ease-out]"
-      />
-      <aside
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Settings"
-        className="relative flex h-full w-full flex-col border-r border-gold/20 bg-[linear-gradient(180deg,#141a2b,#0a0d18)] shadow-[30px_0_80px_rgba(0,0,0,0.6)] backdrop-blur-md [animation:slideInLeft_0.32s_cubic-bezier(.2,.9,.2,1)] sm:w-[min(600px,100vw)] [@media(max-height:500px)]:sm:w-[min(640px,100vw)]"
-      >
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-gold/60 to-transparent" />
-        <header className="flex items-end justify-between gap-3 px-5 pb-3 pt-5 sm:px-8 sm:pt-8 [@media(max-height:500px)]:pt-3">
-          <div className="flex flex-col">
-            <h2 className="font-display text-4xl leading-none text-cream sm:text-5xl [@media(max-height:500px)]:text-3xl">
+    <>
+      <Modal label="Settings" tint={0.45} onBack={done} escCapture skip={() => rebinding || credits} z={60} testId="settings-panel">
+        <Frame>
+          <div className="fd-abs" style={{ left: '50%', marginLeft: -576, top: 0, width: 1152, height: 720 }}>
+            <div className="fd-panel" style={{ left: 0, top: 78, width: 1152, height: 568 }} />
+            <TitleRibbon top={44} icon={<Icon name="gear" size={30} />}>
               SETTINGS
-            </h2>
+            </TitleRibbon>
+            <div ref={tabRef} role="tablist" aria-label="Settings sections" className="fd-tabs fd-abs" style={{ left: 36, top: 134 }}>
+              {TABS.map((t) => {
+                const on = t.id === tab;
+                return (
+                  <FdButton
+                    key={t.id}
+                    tone={on ? 'sun' : 'white'}
+                    size="sm"
+                    height={48}
+                    fontSize={on ? 19 : 18}
+                    sound="none"
+                    className="fd-tab"
+                    role="tab"
+                    id={`tab-${t.id}`}
+                    aria-selected={on}
+                    aria-controls="settings-body"
+                    tabIndex={on ? 0 : -1}
+                    data-nav
+                    data-nav-pref={on || undefined}
+                    data-testid={`tab-${t.id}`}
+                    onClick={() => {
+                      setTab(t.id);
+                      fdSound.tab();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+                        // Left and right on a tab switch the tab (the content follows), like the old panel.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        switchTab(e.code === 'ArrowRight' ? 1 : -1);
+                      }
+                    }}
+                  >
+                    {t.label}
+                  </FdButton>
+                );
+              })}
+            </div>
+            <div id="settings-body" role="tabpanel" aria-labelledby={`tab-${tab}`} key={tab} className="fd-abs" style={{ inset: 0 }}>
+              {tab === 'controls' && <ControlsTab touch={touch} onDone={done} />}
+              {tab === 'camera' && <CameraTab onDone={done} />}
+              {tab === 'graphics' && <GraphicsTab onDone={done} />}
+              {tab === 'audio' && <AudioTab onDone={done} />}
+              {tab === 'access' && <AccessTab onCredits={() => setCredits(true)} onDone={done} />}
+            </div>
+            <div className="fd-abs" style={{ left: '50%', bottom: 16, transform: 'translateX(-50%)' }}>
+              <HintStrip items={padOn ? padHints : hints} />
+            </div>
           </div>
-          <span className="hidden items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-cream/40 sm:flex">
-            <kbd className="border border-cream/25 px-1.5">Q</kbd>
-            <kbd className="border border-cream/25 px-1.5">E</kbd> tabs
-          </span>
-        </header>
-
-        <div
-          role="tablist"
-          aria-label="Settings sections"
-          className="flex gap-1 overflow-x-auto px-5 pb-1 sm:px-8 [scrollbar-width:none]"
-        >
-          {TABS.map((t) => {
-            const on = t.id === tab;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                id={`tab-${t.id}`}
-                aria-selected={on}
-                aria-controls="settings-body"
-                tabIndex={on ? 0 : -1}
-                onClick={() => {
-                  setTab(t.id);
-                  menuSound.tick();
-                }}
-                onKeyDown={(e) => {
-                  if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
-                    e.preventDefault();
-                    switchTab(e.code === 'ArrowRight' ? 1 : -1);
-                    setTimeout(
-                      () =>
-                        (
-                          panelRef.current?.querySelector(
-                            '[role="tab"][aria-selected="true"]',
-                          ) as HTMLElement | null
-                        )?.focus(),
-                      0,
-                    );
-                  }
-                }}
-                className={`focus-ring relative shrink-0 -skew-x-12 px-3 py-2 text-xs font-bold uppercase tracking-wider transition sm:px-4 ${
-                  on
-                    ? 'bg-gold text-ink-deep'
-                    : 'bg-cream/5 text-cream/60 hover:bg-cream/10 hover:text-cream'
-                }`}
-              >
-                <span className="inline-block skew-x-12">{t.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div
-          ref={bodyRef}
-          id="settings-body"
-          role="tabpanel"
-          aria-labelledby={`tab-${tab}`}
-          key={tab}
-          className="flex-1 overflow-y-auto px-5 pb-6 pt-4 [animation:fadeIn_0.2s_ease-out] sm:px-8"
-        >
-          {tab === 'controls' && <ControlsTab touch={touch} />}
-          {tab === 'camera' && <CameraTab />}
-          {tab === 'graphics' && <GraphicsTab />}
-          {tab === 'audio' && <AudioTab />}
-          {tab === 'access' && <AccessTab onCredits={() => setCredits(true)} />}
-        </div>
-
-        <footer className="flex items-center justify-between gap-3 border-t border-cream/10 bg-ink-deep/60 px-5 py-3 sm:px-8 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]">
-          <button
-            type="button"
-            onClick={() => {
-              menuSound.back();
-              onClose();
-            }}
-            className="focus-ring flex -skew-x-12 items-center gap-2 bg-cream/10 px-5 py-2.5 text-sm font-bold uppercase tracking-wider text-cream hover:bg-cream/20"
-          >
-            <span className="inline-flex skew-x-12 items-center gap-2">
-              <kbd className="hidden border border-cream/30 px-1 text-[10px] sm:inline">Esc</kbd>{' '}
-              Back
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!confirmReset) {
-                setConfirmReset(true);
-                setTimeout(() => setConfirmReset(false), 2500);
-                return;
-              }
-              getSettings().resetAll();
-              setConfirmReset(false);
-              menuSound.back();
-            }}
-            className={`focus-ring -skew-x-12 px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${confirmReset ? 'bg-orange text-ink-deep' : 'text-cream/60 hover:text-cream'}`}
-          >
-            <span className="inline-block skew-x-12">
-              {confirmReset ? 'Press again to reset all' : 'Reset all'}
-            </span>
-          </button>
-        </footer>
-      </aside>
+        </Frame>
+      </Modal>
       {credits && <CreditsPanel onClose={() => setCredits(false)} />}
-    </div>
+    </>
   );
 };

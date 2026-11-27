@@ -42,6 +42,16 @@ export const BUDGET = {
   floorTick: { cooldownMs: 70, maxVoices: 2, lengthMs: 30 },
   winSting: { cooldownMs: 300, maxVoices: 1, lengthMs: 400 },
   lossSting: { cooldownMs: 300, maxVoices: 1, lengthMs: 500 },
+  // Field Day result reveal (spec 4): one beat at a time, all on the ui bus.
+  resultWhoosh: { cooldownMs: 200, maxVoices: 1, lengthMs: 250 },
+  drumroll: { cooldownMs: 300, maxVoices: 1, lengthMs: 350 },
+  partyHorn: { cooldownMs: 300, maxVoices: 1, lengthMs: 600 },
+  wahwah: { cooldownMs: 300, maxVoices: 1, lengthMs: 700 },
+  thud: { cooldownMs: 150, maxVoices: 1, lengthMs: 200 },
+  slideWhistle: { cooldownMs: 200, maxVoices: 1, lengthMs: 400 },
+  ding: { cooldownMs: 100, maxVoices: 2, lengthMs: 500 },
+  softPop: { cooldownMs: 40, maxVoices: 2, lengthMs: 100 },
+  crowd: { cooldownMs: 1000, maxVoices: 2, lengthMs: 2400 },
 } as const satisfies Record<string, Budget>;
 
 export type SoundName = keyof typeof BUDGET;

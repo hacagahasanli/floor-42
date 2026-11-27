@@ -4,21 +4,27 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { reducedMotion } from '~/components/Elevator';
+import { FD_COPY } from '~/components/fieldday/copy';
+import { fighterView } from '~/components/fieldday/fighters';
+import { Icon } from '~/components/fieldday/Icon';
+import { Pill, Ribbon } from '~/components/fieldday/parts';
+import { Stage, useStage } from '~/components/fieldday/Stage';
+import { Sunburst } from '~/components/fieldday/Sunburst';
 import { menuSound } from '~/components/menu/menuSound';
-import { useCopy } from '~/components/menu/useCopy';
-import { Stamp } from '~/components/Stamp';
+import { ARENA_COPY } from '~/game/arenaChoice';
 import { doorPortrait, ensureDoorPortraits } from '~/components/vsPortraits';
-import { ROSTER } from '~/game/roster';
 import { getSettings } from '~/game/settings';
-import { RULES } from '~/game/sim/constants';
+import { DEFAULT_ARENA, RULES } from '~/game/sim/constants';
 
 import type { BotLevel } from '~/game/sim/bot';
+import type { ArenaId } from '~/game/sim/constants';
 import type { CharacterId } from '~/game/sim/types';
 
 /**
- * The VS doors (R-013 4.4): the lift doors close with the two fighters painted on them (left = P1 / YOU, right = the
- * rival), a VS stamp on the seam, the floor counter racing to 42 while the match loads, a ding, and the doors open on the
- * arena. Reuses the lift's door, seam and counter pieces (Elevator.tsx, globals.css `f42-door*`). DOM only: no draw calls.
+ * The VS doors (R-013 4.4) in Field Day (b05): two doors in the fighters' colours close along a slanted grape seam (14 px, a 4 px
+ * white core, about 10 degrees) with the fighters on them (left = P1 / YOU, right = the rival), a sun VS medallion tilted -6 degrees
+ * on turning rays, the arena ribbon on top, each name (66 px) with a role pill, and FIRST TO n. The timing and flow are the old ones:
+ * close, the VS lands, the match loads (the counter still runs, for the progress and the screen-reader label), ding, open. DOM only.
  *
  * The same picture is drawn twice: by the menu while the doors slide in (`useVsTo`), then by the arena (`VsRun`) while
  * the match loads, which carries on from the menu's clock so nothing restarts between the two.
@@ -31,13 +37,13 @@ export interface VsInfo {
   tag2: string;
   /** Match length shown on the bottom line. */
   kosToWin: number;
+  /** The arena the ribbon names (default: the default arena). */
+  arena?: ArenaId;
 }
 
 /** The corner tags: a 1-player match is YOU against the bot at its level; 2-player is P1 and P2. */
 export const vsTags = (kind: '1p' | '2p', level: BotLevel = 'normal'): [string, string] =>
   kind === '2p' ? ['P1', 'P2'] : ['YOU', `BOT · ${level.toUpperCase()}`];
-
-const accentOf = (id: CharacterId) => ROSTER.find((r) => r.id === id)?.accent ?? '#ffd23f';
 
 /** The menu's clock for the doors, so the arena's `VsRun` continues the same timeline (and does not slam twice). */
 let clock: { t0: number; slammed: boolean } | null = null;
@@ -70,67 +76,119 @@ const usePortraitTick = (ids: CharacterId[]) => {
   }, [key]);
 };
 
-/** One door: the accent slab, the fighter facing the seam, and the name with its tag, bottom outer corner. */
-const Half = ({ side, id, tag, role }: { side: 'l' | 'r'; id: CharacterId; tag: string; role: string }) => {
+/** The door colour: the fighter's accent, a touch deeper so the white names and the VS medallion pop (b05 uses #DD5F3B for #FF6A3D). */
+const doorColour = (accent: string) => `color-mix(in srgb, ${accent} 88%, #26124a)`;
+
+/** One door: a full-screen layer clipped to its side of the seam, with its fighter and its name; closing, the two meet exactly at the seam. */
+const Half = ({ side, id, tag, shut, phase, sk }: { side: 'l' | 'r'; id: CharacterId; tag: string; shut?: number; phase: 'closing' | 'closed' | 'opening'; sk: number }) => {
   const left = side === 'l';
-  const accent = accentOf(id);
+  const v = fighterView(id);
   const src = doorPortrait(id);
-  const name = ROSTER.find((r) => r.id === id)?.name.toUpperCase() ?? id;
   return (
-    <div className="absolute inset-0 overflow-hidden" data-vs-side={side}>
-      {/* The slab: the result screen's slanted colour block, tight to the seam. */}
-      <div
-        className="absolute inset-y-[-2px] w-[62%]"
-        style={{
-          [left ? 'right' : 'left']: '-6%',
-          background: `${accent}d9`,
-          border: '4px solid #0a0d18',
-          transform: `skewX(${left ? -8 : 8}deg)`,
-        }}
-      />
-      {/* The fighter, facing the seam; the right one is mirrored. */}
-      <div
-        className="absolute bottom-0 flex items-end"
-        style={{ height: '78vh', [left ? 'right' : 'left']: '4%', transform: left ? undefined : 'scaleX(-1)' }}
-      >
+    <div
+      className={`fd-vs-door fd-${side} ${phase === 'closing' ? 'fd-close' : phase === 'opening' ? 'fd-open' : ''}`}
+      data-vs-side={side}
+      style={{ background: doorColour(v.accent), ['--sk' as string]: `${sk}px`, ...(shut ? { ['--vs-close' as string]: `${shut}ms` } : null) }}
+    >
+      {/* The fighter faces the seam; the right one is mirrored. */}
+      <div className="fd-abs" style={{ [left ? 'left' : 'right']: '4%', bottom: '-1%', height: '86%', aspectRatio: '360 / 440', transform: left ? undefined : 'scaleX(-1)' }}>
         {src && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="" className="f42-vs-portrait h-full w-auto max-w-none" draggable={false} />
+          <img src={src} alt="" className="fd-vs-fighter" draggable={false} style={{ height: '100%', width: '100%', objectFit: 'contain', objectPosition: left ? 'right bottom' : 'right bottom' }} />
         )}
       </div>
-      <div
-        className={`absolute flex flex-col gap-1 ${left ? 'items-start' : 'items-end'}`}
-        style={{ bottom: 56, [left ? 'left' : 'right']: 48 }}
-      >
-        <Stamp size="lg" colour="#e6ebf5" rot={left ? -4 : 4} silent noKick>
-          {name}
-        </Stamp>
-        <span className="text-[18px] font-semibold text-cream/75" data-testid={`vs-tag-${side}`}>
-          {role} · {tag}
+      <div className="fd-abs" style={{ [left ? 'left' : 'right']: 36, bottom: 40, display: 'flex', flexDirection: 'column', alignItems: left ? 'flex-start' : 'flex-end', gap: 10 }}>
+        <span className="fd-titan fd-ol" style={{ fontSize: 66, whiteSpace: 'nowrap', ['--o' as string]: '4.5px', ['--d' as string]: '6px' }}>
+          {v.name}
         </span>
+        <Pill style={{ fontSize: 15 }} data-testid={`vs-tag-${side}`}>
+          {v.role} · {tag}
+        </Pill>
       </div>
     </div>
   );
 };
 
-/** The two door halves with the seam light. `closing` slides them in, `opening` out; `closed` is a static shut state. */
-export const VsDoors = ({ info, phase, shut }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number }) => {
-  const copy = useCopy();
+/**
+ * Everything on the VS screen, in one Stage. `stampOn`: the VS medallion and its rays have landed. The ribbon and the "first to"
+ * pill show while the doors are shut and leave as they open. Reduced motion: the doors do not slide (a 120 ms fade, see CSS).
+ */
+const VsStage = ({ info, phase, shut, stampOn }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn: boolean }) => {
   usePortraitTick([info.p1, info.p2]);
-  const anim = phase === 'closing' ? 'f42-door-close' : phase === 'opening' ? 'f42-door-open' : '';
-  const style = shut ? ({ '--vs-close': `${shut}ms` } as React.CSSProperties) : undefined;
+  const opening = phase === 'opening';
+  return (
+    <Stage testId="vs-stage">
+      <VsInner info={info} phase={phase} shut={shut} stampOn={stampOn} opening={opening} />
+    </Stage>
+  );
+};
+
+const VsInner = ({ info, phase, shut, stampOn, opening }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn: boolean; opening: boolean }) => {
+  const { h, s } = useStage();
+  // The seam leans 10 degrees: half the stage height times tan(10).
+  const sk = Math.round(h * 0.0881);
   return (
     <>
-      <div className={`f42-door f42-door-vs f42-door-l ${anim}`} style={{ ...style, top: -10, bottom: -10 }}>
-        <Half side="l" id={info.p1} tag={info.tag1} role={copy.fighters[info.p1].role} />
-      </div>
-      <div className={`f42-door f42-door-vs f42-door-r ${anim}`} style={{ ...style, top: -10, bottom: -10 }}>
-        <Half side="r" id={info.p2} tag={info.tag2} role={copy.fighters[info.p2].role} />
-      </div>
-      <div className={`f42-seam ${anim}`} />
+      <Half side="l" id={info.p1} tag={info.tag1} shut={shut} phase={phase} sk={sk} />
+      <Half side="r" id={info.p2} tag={info.tag2} shut={shut} phase={phase} sk={sk} />
+      <div
+        aria-hidden="true"
+        className="fd-vs-seam"
+        style={{ ['--s' as string]: 1, opacity: opening ? 0 : 1, transition: 'opacity 120ms linear', animation: phase === 'closing' ? `fd-fade ${shut ?? 220}ms steps(1, end) both` : undefined }}
+        data-s={s}
+      />
+      {!opening && (
+        <>
+          <div className="fd-abs" style={{ left: '50%', top: 24, transform: 'translateX(-50%)', animation: 'fd-fade 200ms linear both' }}>
+            <Ribbon height={56} tilt={0}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }} data-testid="vs-arena">
+                <Icon name="flag" size={24} />
+                {ARENA_COPY[info.arena ?? DEFAULT_ARENA].name}
+              </span>
+            </Ribbon>
+          </div>
+          <div className="fd-abs" style={{ left: '50%', bottom: 22, transform: 'translateX(-50%)', animation: 'fd-fade 200ms linear both' }}>
+            <Pill style={{ fontSize: 15, letterSpacing: 1.5 }}>{FD_COPY.twoPlayer.firstTo(info.kosToWin || RULES.kosToWin)}</Pill>
+          </div>
+        </>
+      )}
+      {stampOn && !opening && (
+        <>
+          <Sunburst size={420} spin={20} light="#FFE38A" dark="#FFF3D6" opacity={0.9} style={{ left: '50%', top: '50%', marginLeft: -210, marginTop: -210 }} />
+          <div
+            className="fd-abs fd-vs-pop"
+            data-testid="vs-medallion"
+            style={{
+              left: '50%',
+              top: '50%',
+              width: 200,
+              height: 200,
+              marginLeft: -100,
+              marginTop: -100,
+              borderRadius: '50%',
+              background: 'var(--sun)',
+              border: '6px solid var(--grape)',
+              boxShadow: 'inset 0 -12px 0 var(--sun-lo), 0 10px 0 var(--grape)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              rotate: '-6deg',
+            }}
+          >
+            <span className="fd-titan fd-ol" style={{ fontSize: 92, marginTop: -6, ['--o' as string]: '5px', ['--d' as string]: '7px' }}>
+              VS
+            </span>
+          </div>
+        </>
+      )}
     </>
   );
 };
+
+/** The two door halves with the seam, VS and names (what the menu shows while the doors slide in). */
+export const VsDoors = ({ info, phase, shut, stampOn = false }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn?: boolean }) => (
+  <VsStage info={info} phase={phase} shut={shut} stampOn={stampOn} />
+);
 
 /** The menu side: the doors slide in over the menu, then the page moves to the arena, whose `VsRun` carries on. */
 export const useVsTo = () => {
@@ -182,7 +240,6 @@ export const VsRun = ({
   onShut?: () => void;
   onDone: () => void;
 }) => {
-  const copy = useCopy();
   const rootRef = useRef<HTMLDivElement>(null);
   const cfg = mode === 'load' ? { close: 220, stamp: 260, land: 1100 } : { close: 180, stamp: 200, land: 740 };
   const [phase, setPhase] = useState<'closing' | 'closed' | 'opening'>(() => (mode === 'rematch' && !reducedMotion() ? 'closing' : 'closed'));
@@ -268,7 +325,6 @@ export const VsRun = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const opening = phase === 'opening';
   const closeMs = mode === 'rematch' ? 180 : undefined;
   return (
     <div
@@ -279,38 +335,13 @@ export const VsRun = ({
       aria-label={`Loading the match, ${Math.round(floor * (100 / 42))}%`}
       data-testid="vs-doors"
       data-phase={phase}
+      data-floor={floor}
     >
-      <VsDoors info={info} phase={phase} shut={closeMs} />
-      {!opening && (
-        <>
-          <div className="pointer-events-none absolute inset-x-0 top-6 flex justify-center">
-            <div className="f42-vs-plate flex w-[min(260px,40vw)] flex-col items-center gap-2" style={{ animationDelay: `${cfg.close}ms` }}>
-              <div className="flex items-center gap-3 border border-gold/40 bg-ink-deep px-5 py-2 shadow-[0_0_40px_rgba(255,210,63,0.18)]">
-                <span className={`text-xl text-gold ${floor < 42 ? 'f42-blink' : ''}`}>▲</span>
-                <span className="font-display text-[32px] leading-none tabular-nums text-gold" data-testid="vs-floor">
-                  {String(floor).padStart(2, '0')}
-                </span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden bg-cream/10">
-                <div className="h-full bg-[linear-gradient(90deg,#ff3b4e,#ffd23f)] transition-[width] duration-200" style={{ width: `${(100 * floor) / 42}%` }} />
-              </div>
-            </div>
-          </div>
-          <div
-            className="f42-vs-plate pointer-events-none absolute inset-x-0 bottom-6 text-center font-display text-[18px] tracking-wide text-cream/70"
-            style={{ animationDelay: `${cfg.close}ms` }}
-          >
-            {copy.vsFirstTo.replace('{n}', String(info.kosToWin || RULES.kosToWin))}
-          </div>
-        </>
-      )}
-      {stampOn && (
-        <div className="pointer-events-none absolute inset-x-0 flex justify-center" style={{ top: '46%', transform: 'translateY(-50%)' }}>
-          <Stamp size="xl" plate rot={-6} leaving={opening}>
-            VS
-          </Stamp>
-        </div>
-      )}
+      <VsDoors info={info} phase={phase} shut={closeMs} stampOn={stampOn} />
+      {/* The old floor counter stays as a hidden readout, so tests and the screen-reader label keep a number to follow. */}
+      <span className="sr-only" data-testid="vs-floor">
+        {String(floor).padStart(2, '0')}
+      </span>
     </div>
   );
 };

@@ -1,0 +1,175 @@
+{
+ "mode": "office",
+ "size": "1920x1080",
+ "gl": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+ "load1": {
+  "tag": "fresh",
+  "loadingStop": 172,
+  "wallMs": 1509,
+  "sdk": [
+   [
+    "init",
+    80
+   ],
+   [
+    "loadingStart",
+    132
+   ],
+   [
+    "loadingStop",
+    172
+   ]
+  ],
+  "menu": {
+   "checked": "",
+   "stored": null
+  }
+ },
+ "pickOffice": {
+  "before": {
+   "checked": "offsite:true office:false",
+   "line": "Mandatory team-building. 41°C in the shade.",
+   "stored": null
+  },
+  "after": {
+   "checked": "offsite:false office:true",
+   "line": "The office, after hours.",
+   "stored": "office"
+  }
+ },
+ "load2": {
+  "tag": "reload-after-pick",
+  "loadingStop": 138,
+  "wallMs": 1440,
+  "sdk": [
+   [
+    "init",
+    51
+   ],
+   [
+    "loadingStart",
+    103
+   ],
+   [
+    "loadingStop",
+    138
+   ]
+  ],
+  "menu": {
+   "checked": "",
+   "stored": "office"
+  }
+ },
+ "playAt": 1859,
+ "gameplayStart1": 4624,
+ "frameUrl": "#/arena?p1=hotfix&p2=intern&bot=easy&arena=office",
+ "hudArena": "office-ish: FLOOR 42 open",
+ "hudBot": "BOT · easy",
+ "focus": {
+  "hasFocus": true,
+  "active": "INPUT"
+ },
+ "hostScrollY": 0,
+ "frameIdle": {
+  "n": 301,
+  "fps": 60,
+  "p50": 16.7,
+  "p95": 16.7,
+  "p99": 16.8,
+  "max": 16.8,
+  "over33": 0
+ },
+ "escStop": 11322,
+ "escStart": 12446,
+ "blurCalls": [],
+ "refocus": true,
+ "frameFight": {
+  "n": 361,
+  "fps": 60,
+  "p50": 16.7,
+  "p95": 16.7,
+  "p99": 16.8,
+  "max": 16.8,
+  "over33": 0
+ },
+ "match1": {
+  "resultAt": 51974,
+  "wallS": 32
+ },
+ "result1Text": "Hotfix YOU Pistol DASH PUSH 8/∞ 107 0 : 5 FIRST TO 5 FLOOR 42 open office Intern BOT · easy SMG 12/21 INTERN WINS They took the floor. First to 5 KOs. Hotfix YOU Intern BOT 0 KOS 5 0 DAMAGE DEALT 464 ",
+ "heapMB1": 31,
+ "rematchEnterAt": 53717,
+ "rematchStart": 55955,
+ "rematchFrameUrl": "#/arena?p1=hotfix&p2=intern&bot=easy&arena=office",
+ "rematchHudArena": "not OFFSITE",
+ "match2": {
+  "resultAt": 115071,
+  "wallS": 59
+ },
+ "heapMB2": 23,
+ "cgLog": [
+  [
+   "init",
+   51
+  ],
+  [
+   "loadingStart",
+   103
+  ],
+  [
+   "loadingStop",
+   138
+  ],
+  [
+   "gameplayStart",
+   4624
+  ],
+  [
+   "gameplayStop",
+   11322
+  ],
+  [
+   "gameplayStart",
+   12446
+  ],
+  [
+   "gameplayStop",
+   51625
+  ],
+  [
+   "gameplayStart",
+   55955
+  ],
+  [
+   "gameplayStop",
+   114672
+  ]
+ ],
+ "p1": {
+  "tag": "reload-after-matches (expect office kept)",
+  "loadingStop": 144,
+  "wallMs": 1456,
+  "sdk": [
+   [
+    "init",
+    54
+   ],
+   [
+    "loadingStart",
+    106
+   ],
+   [
+    "loadingStop",
+    144
+   ]
+  ],
+  "menu": {
+   "checked": "",
+   "stored": "office"
+  }
+ }
+}
+EXTERNAL: [ 'https://sdk.crazygames.com/crazygames-sdk-v3.js' ]
+FAILED: []
+ERRORS: []
+WARNINGS: []

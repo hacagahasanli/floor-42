@@ -13,7 +13,7 @@ import { CHARACTERS, CROUCH, GUNS, RULES } from './constants';
 import type { GunStats } from './constants';
 import type { GunKind } from './types';
 
-/** Half the height of a typical fighter (the Intern, 1.7 m): the vertical window a shot must land in. */
+/** Half the height of a typical fighter (Tavo, 1.7 m): the vertical window a shot must land in. */
 export const TARGET_HALF_HEIGHT = CHARACTERS.intern.height / 2;
 /** The same fighter crouched (CROUCH.height of the body): aim that follows the crouch has a smaller window. */
 export const CROUCHED_HALF_HEIGHT = TARGET_HALF_HEIGHT * CROUCH.height;

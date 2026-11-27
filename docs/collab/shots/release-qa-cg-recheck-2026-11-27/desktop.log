@@ -1,0 +1,49 @@
+{
+ "mode": "desktop",
+ "loadingStop": 189,
+ "gl": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+ "gameplayStart": 6733,
+ "hudBotLabel": "BOT · easy",
+ "fps": 60,
+ "resultScreenAt": 108083,
+ "matchWallS": 98,
+ "cgLog": [
+  [
+   "init",
+   104
+  ],
+  [
+   "loadingStart",
+   156
+  ],
+  [
+   "loadingStop",
+   189
+  ],
+  [
+   "gameplayStart",
+   6733
+  ],
+  [
+   "gameplayStop",
+   108003
+  ]
+ ],
+ "stopAfterLastStart": 108003,
+ "stopMinusResultMs": -80,
+ "resultText": "Hotfix YOU Sniper rail Bomb G DASH PUSH 3/3 52 0 : 5 FIRST TO 5 FLOOR 42 open office Legacy BOT · easy Shotgun 2/8 Legacy wins They took the floor. First to 5 KOs. Hotfix YOU Legacy BOT 0 KOS 5 0 DAMAGE DEALT 512 0% ACCURACY 63% 0 BEST STREAK 5 5 TIMES DOWN 0 REMATCH (ENTER) → CHANGE FIGHTER A D mov",
+ "heapMB": 28,
+ "rematchStart": 6733,
+ "cgAfterRematch": [
+  [
+   "gameplayStart",
+   113344
+  ]
+ ]
+}
+EXTERNAL: [ 'https://sdk.crazygames.com/crazygames-sdk-v3.js' ]
+ERRORS: []
+WARNINGS: [
+  'THREE.WebGLShadowMap: PCFSoftShadowMap has been removed. Using PCFShadowMap instead.',
+  'THREE.WebGLShadowMap: PCFSoftShadowMap has been removed. Using PCFShadowMap instead.'
+]

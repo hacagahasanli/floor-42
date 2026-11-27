@@ -1,6 +1,7 @@
 // Pure simulation types. No DOM, no Three.js: the same code will run on the game server.
 
 import type { ArenaId } from './constants';
+import type { TraitState } from './traits';
 
 export type CharacterId = 'hotfix' | 'legacy' | 'standup' | 'intern';
 
@@ -48,6 +49,8 @@ export interface Weapon {
   reserve: number; // Infinity for the pistol
   cooldown: number;
   reload: number; // > 0 while reloading
+  /** Own magazine size (Packed Extra). Absent = the gun table's. */
+  cap?: number;
 }
 
 export interface Fighter {
@@ -97,6 +100,8 @@ export interface Fighter {
   lastHitBy: number | null;
   /** Match stats for the end screen. A shotgun blast counts as one shot. */
   stats: { damage: number; shots: number; hits: number; deaths: number; streak: number; bestStreak: number };
+  /** Signature-trait timers. Present only when GameState.traits is on. */
+  trait?: TraitState;
   prev: InputState;
 }
 
@@ -147,7 +152,11 @@ export type GameEvent =
   | { type: 'pickup'; fighter: number; gun: GunKind }
   | { type: 'reload'; fighter: number }
   | { type: 'empty'; fighter: number }
-  | { type: 'drop'; x: number };
+  | { type: 'drop'; x: number }
+  /** A signature trait just triggered (traits mode only). teaBreak = his health starts to come back. */
+  | { type: 'trait'; fighter: number; trait: TraitId; x: number; y: number };
+
+export type TraitId = 'leapfrog' | 'teaBreak' | 'sugarRush' | 'packedExtra';
 
 export type EndReason = 'kos' | 'time';
 
@@ -184,6 +193,11 @@ export interface GameState {
    * nothing, so snapshots and the protocol are unchanged. Set only by createGame's `extra.arena` (offline).
    */
   arena?: ArenaId;
+  /**
+   * Signature traits + per-fighter max HP + power guns at 120 (traits.ts). Absent (off) online: set only by createGame's
+   * `extra.traits`, so online states, snapshots and behaviour are unchanged.
+   */
+  traits?: true;
   seed: number; // deterministic RNG state (spread, drops)
   dropTimer: number;
   nextId: number;

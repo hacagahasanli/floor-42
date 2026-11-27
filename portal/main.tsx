@@ -12,8 +12,18 @@ import { App } from './App';
 
 import './portal.css';
 
+declare global {
+  interface Window {
+    /** Set by the boot screen's inline script (portal/index.html). */
+    __boot?: (pct: number) => void;
+  }
+}
+
 void detectPlatform().then((platform) => {
   setPlatform(platform);
   platform.loadingStart();
+  // Boot screen progress (portal/index.html): the code is loaded and the platform is chosen; the first screen is rendering.
+  window.__boot?.(70);
   createRoot(document.getElementById('root')!).render(<App />);
+  window.__boot?.(90);
 });

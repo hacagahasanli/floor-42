@@ -3,21 +3,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { menuSound } from '~/components/menu/menuSound';
-import { useCopy } from '~/components/menu/useCopy';
 import { useSettings } from '~/components/menu/useSettings';
+import { fdSound } from '~/components/fieldday/sound';
+import { Stage } from '~/components/fieldday/Stage';
+import { useFighterPortraits } from '~/components/fieldday/Portrait';
+import { TwoPlayerView } from '~/components/fieldday/screens/TwoPlayerScreen';
 import { ROSTER } from '~/game/roster';
 import { nextLength, padPlayers, saveLength, sessionStore, stepCursor } from '~/game/twoPlayer';
 
-import { PlayerChip, SmallKey, useKeyLabel, usePlayerColours } from './shared';
+import { useKeyLabel } from './shared';
 
+import type { PlayerKeys } from '~/components/fieldday/screens/TwoPlayerScreen';
+import type { ArenaId } from '~/game/sim/constants';
 import type { CursorDir as Dir, MatchLength, Player } from '~/game/twoPlayer';
 import type { CharacterId } from '~/game/sim/types';
-import type { CSSProperties } from 'react';
 
 /**
- * The split fighter select for local 2-player (spec local-2p.md 3.2): P1's panel left, P2's right, each a 2x2 grid of
- * the four fighters with the player's own cursor. Shoot locks in (READY), moving unlocks, Push cycles First to 3 / 5 /
- * 7, Esc goes back. When both are READY the match starts after a 500 ms beat.
+ * The split fighter select for local 2-player (spec local-2p.md 3.2), skinned as Field Day b04 (fieldday/screens/TwoPlayerScreen.tsx):
+ * P1's panel left, P2's right, each with a row of the four fighters and the player's own cursor. Shoot locks in (READY), moving
+ * unlocks, Push cycles First to 3 / 5 / 7, Esc goes back. When both are READY "Starting in 3" counts down and the match starts
+ * (moving a cursor in that time unlocks and cancels it).
  */
 
 const idx = (id: CharacterId) => ROSTER.findIndex((r) => r.id === id);
@@ -25,13 +30,13 @@ const idx = (id: CharacterId) => ROSTER.findIndex((r) => r.id === id);
 export const TwoPlayerSelect = ({
   initial,
   length: initialLength,
-  portraits,
+  arena,
   onBack,
   onFight,
 }: {
   initial: [CharacterId, CharacterId];
   length: MatchLength;
-  portraits: Record<CharacterId, string> | null;
+  arena: ArenaId;
   onBack: () => void;
   onFight: (p1: CharacterId, p2: CharacterId, n: MatchLength) => void;
 }) => {
@@ -40,30 +45,20 @@ export const TwoPlayerSelect = ({
   const [cursor, setCursor] = useState<[number, number]>([idx(initial[0]), idx(initial[1])]);
   const [ready, setReady] = useState<[boolean, boolean]>([false, false]);
   const [length, setLength] = useState<MatchLength>(initialLength);
-  const [pops, setPops] = useState<[number, number]>([0, 0]);
-  const [narrow, setNarrow] = useState(false);
-  /** Under 640 px wide the two panels stack; otherwise they sit side by side. */
-  const [stack, setStack] = useState(false);
+  const [count, setCount] = useState<number | null>(null);
+  const [celebrate, setCelebrate] = useState(0);
   const [pads, setPads] = useState(0);
-  const state = useRef({ cursor, ready, narrow });
-  state.current = { cursor, ready, narrow };
+  const state = useRef({ cursor, ready });
+  state.current = { cursor, ready };
+  const latest = useRef({ cursor, length, onFight });
+  latest.current = { cursor, length, onFight };
   const going = useRef(false);
-
-  useEffect(() => {
-    const on = () => {
-      setNarrow(window.innerWidth < 1024);
-      setStack(window.innerWidth < 640);
-    };
-    on();
-    window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
-  }, []);
 
   useEffect(() => saveLength(sessionStore(), length), [length]);
 
   const move = useCallback((p: 0 | 1, dir: Dir) => {
     const s = state.current;
-    const next = stepCursor(s.cursor[p], dir, s.narrow);
+    const next = stepCursor(s.cursor[p], dir, true);
     if (next === s.cursor[p] && !s.ready[p]) return;
     menuSound.tick();
     setCursor((c) => (p === 0 ? [next, c[1]] : [c[0], next]));
@@ -79,7 +74,6 @@ export const TwoPlayerSelect = ({
     if (state.current.ready[p]) return;
     menuSound.confirm();
     setReady((r) => (p === 0 ? [true, r[1]] : [r[0], true]));
-    setPops((n) => (p === 0 ? [n[0] + 1, n[1]] : [n[0], n[1] + 1]));
   }, []);
   const toggleReady = (p: 0 | 1) => {
     if (state.current.ready[p]) {
@@ -92,15 +86,33 @@ export const TwoPlayerSelect = ({
     setLength((n) => nextLength(n));
   }, []);
 
-  // Both READY: a 500 ms beat, then the lift.
+  // Both READY: "Starting in 3", 2, 1, then the lift. Moving a cursor unlocks, which cancels the count.
   useEffect(() => {
-    if (!ready[0] || !ready[1] || going.current) return;
-    const t = window.setTimeout(() => {
-      going.current = true;
-      onFight(ROSTER[cursor[0]].id, ROSTER[cursor[1]].id, length);
-    }, 500);
-    return () => window.clearTimeout(t);
-  }, [ready, cursor, length, onFight]);
+    if (!ready[0] || !ready[1]) {
+      setCount(null);
+      return;
+    }
+    setCelebrate((n) => n + 1);
+    fdSound.celebrate();
+    let n = 3;
+    setCount(n);
+    fdSound.count();
+    const t = window.setInterval(() => {
+      n -= 1;
+      if (n <= 0) {
+        window.clearInterval(t);
+        if (going.current) return;
+        going.current = true;
+        fdSound.count(true);
+        const l = latest.current;
+        l.onFight(ROSTER[l.cursor[0]].id, ROSTER[l.cursor[1]].id, l.length);
+      } else {
+        setCount(n);
+        fdSound.count();
+      }
+    }, 1000);
+    return () => window.clearInterval(t);
+  }, [ready]);
 
   // Keyboard: each player's own keys. Every 2-player key, the arrows and Space are swallowed (no page scroll).
   useEffect(() => {
@@ -164,246 +176,36 @@ export const TwoPlayerSelect = ({
     return () => cancelAnimationFrame(raf);
   }, [move, lock, cycle, onBack]);
 
+  const label = useKeyLabel();
+  useFighterPortraits(initial[0], { eager: true });
   const padFor = padPlayers(pads);
+  const keysOf = (p: Player): PlayerKeys => {
+    const k = b[p];
+    const cluster = [k.left, k.right, k.up, k.down];
+    const name =
+      cluster.join() === 'KeyA,KeyD,KeyW,KeyS' ? 'WASD' : cluster.join() === 'ArrowLeft,ArrowRight,ArrowUp,ArrowDown' ? 'ARROWS' : cluster.map(label).join('');
+    return { chips: [name, label(k.fire), label(k.push), label(k.dash)], move: [label(k.left), label(k.right)], ready: label(k.fire) };
+  };
   return (
-    <section
-      aria-label="2 player fighter select"
-      data-testid="select-2p"
-      className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 overflow-y-auto bg-ink-deep/70 px-4 py-4 [animation:fadeIn_0.25s_ease-out] sm:px-8"
-    >
-      <div
-        className={`grid w-full max-w-6xl items-start ${stack ? 'grid-cols-1 gap-3' : narrow ? 'grid-cols-[1fr_auto_1fr] gap-3' : 'grid-cols-[1fr_auto_1fr] gap-6'}`}
-      >
-        <Panel
-          player="p1"
-          index={0}
-          cursor={cursor}
-          ready={ready[0]}
-          pop={pops[0]}
-          narrow={narrow}
-          pad={padFor.includes(0)}
-          portraits={portraits}
-          onPick={(i) => pick(0, i)}
-          onReady={() => toggleReady(0)}
-        />
-        <LengthChip length={length} onCycle={cycle} p1Push={b.p1.push} p2Push={b.p2.push} />
-        <Panel
-          player="p2"
-          index={1}
-          cursor={cursor}
-          ready={ready[1]}
-          pop={pops[1]}
-          narrow={narrow}
-          pad={padFor.includes(1)}
-          portraits={portraits}
-          onPick={(i) => pick(1, i)}
-          onReady={() => toggleReady(1)}
-        />
-      </div>
-      <button
-        type="button"
-        onClick={() => {
+    <Stage className="z-20" testId="select-2p-stage">
+      <TwoPlayerView
+        cursor={cursor}
+        ready={ready}
+        keys={[keysOf('p1'), keysOf('p2')]}
+        pad={[padFor.includes(0), padFor.includes(1)]}
+        length={length}
+        onLength={cycle}
+        lengthKeys={[label(b.p1.push), label(b.p2.push)]}
+        count={count}
+        celebrate={celebrate}
+        arena={arena}
+        onPick={pick}
+        onReady={toggleReady}
+        onBack={() => {
           menuSound.back();
           onBack();
         }}
-        className="focus-ring -skew-x-12 bg-cream/10 px-5 py-2 text-xs font-bold uppercase tracking-wider hover:bg-cream/20"
-      >
-        <span className="inline-flex skew-x-12 items-center gap-2">
-          <kbd className="border border-cream/30 px-1 text-[10px]">Esc</kbd> Back
-        </span>
-      </button>
-    </section>
-  );
-};
-
-const LengthChip = ({
-  length,
-  onCycle,
-  p1Push,
-  p2Push,
-}: {
-  length: MatchLength;
-  onCycle: () => void;
-  p1Push: string;
-  p2Push: string;
-}) => {
-  const label = useKeyLabel();
-  return (
-    <div className="flex flex-col items-center gap-1.5 self-center">
-      <button
-        type="button"
-        data-testid="length-chip"
-        onClick={onCycle}
-        className="focus-ring panel-cut -skew-x-6 bg-gold px-5 py-2 font-display text-xl text-ink-deep shadow-[0_0_30px_rgba(255,210,63,0.3)] hover:brightness-110"
-      >
-        <span className="inline-block skew-x-6">First to {length}</span>
-      </button>
-      <span className="text-[11px] text-cream/55">
-        {label(p1Push)} / {label(p2Push)} to change
-      </span>
-    </div>
-  );
-};
-
-const Panel = ({
-  player,
-  index,
-  cursor,
-  ready,
-  pop,
-  narrow,
-  pad,
-  portraits,
-  onPick,
-  onReady,
-}: {
-  player: Player;
-  index: 0 | 1;
-  cursor: [number, number];
-  ready: boolean;
-  pop: number;
-  narrow: boolean;
-  pad: boolean;
-  portraits: Record<CharacterId, string> | null;
-  onPick: (i: number) => void;
-  onReady: () => void;
-}) => {
-  const copy = useCopy();
-  const label = useKeyLabel();
-  const colours = usePlayerColours();
-  const colour = colours[index];
-  const b = useSettings().bindings2p[player];
-  const mine = cursor[index];
-  const r = ROSTER[mine];
-  const [popping, setPopping] = useState(false);
-  useEffect(() => {
-    if (!pop) return;
-    setPopping(true);
-    const t = window.setTimeout(() => setPopping(false), 120);
-    return () => window.clearTimeout(t);
-  }, [pop]);
-  return (
-    <div
-      data-testid={`panel-${player}`}
-      data-ready={ready}
-      className="panel-cut relative flex flex-col gap-3 bg-ink/85 p-4 backdrop-blur-sm [@media(max-height:500px)]:gap-1.5 [@media(max-height:500px)]:p-2"
-    >
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-2">
-          <PlayerChip index={index} colour={colour} className="text-lg" />
-          {pad && (
-            <span className="text-cream/70" title="Gamepad" aria-label="Gamepad">
-              <svg viewBox="0 0 24 16" width="22" height="15" aria-hidden>
-                <path
-                  d="M6 2h12a5 5 0 0 1 5 5l-1 6a3 3 0 0 1-5 1l-2-3H9l-2 3a3 3 0 0 1-5-1L1 7a5 5 0 0 1 5-5z"
-                  fill="currentColor"
-                />
-              </svg>
-            </span>
-          )}
-        </span>
-        {pad ? (
-          // A pad drives this panel: pad words, not keyboard keys.
-          <span className="text-[11px] text-cream/70" data-testid={`pad-hint-${player}`}>
-            Stick move · A ready
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-[11px] text-cream/70">
-            <SmallKey k={label(b.left)} />
-            <SmallKey k={label(b.right)} /> move · <SmallKey k={label(b.fire)} /> ready
-          </span>
-        )}
-      </header>
-      <div
-        className={`grid gap-2 ${narrow ? 'grid-cols-4' : 'grid-cols-2'}`}
-        role="radiogroup"
-        aria-label={`P${index + 1} fighter`}
-      >
-        {ROSTER.map((f, i) => {
-          const me = i === mine;
-          const other = i === cursor[1 - index];
-          // Picked by both: a split border, left half P1's colour, right half P2's.
-          const frame: CSSProperties =
-            me && other
-              ? { background: `linear-gradient(90deg, ${colours[0]} 50%, ${colours[1]} 50%)` }
-              : me
-                ? { background: colour }
-                : { background: 'rgba(230,235,245,0.08)' };
-          return (
-            <button
-              key={f.id}
-              type="button"
-              role="radio"
-              aria-checked={me}
-              data-testid={`card-${player}-${f.id}`}
-              onClick={() => onPick(i)}
-              className="relative p-[3px] transition-transform duration-100"
-              style={{ ...frame, transform: me && popping ? 'scale(1.06)' : undefined }}
-            >
-              <span
-                className={`relative flex flex-col justify-end overflow-hidden bg-ink-deep ${narrow ? 'h-24 [@media(max-height:500px)]:h-16' : 'h-36 [@media(max-height:760px)]:h-28 [@media(max-height:600px)]:h-20'}`}
-              >
-                <span className="absolute inset-x-0 top-0 h-1" style={{ background: f.accent }} />
-                <span
-                  className="absolute inset-0 opacity-30"
-                  style={{
-                    background: `radial-gradient(circle at 50% 40%, ${f.accent}, transparent 65%)`,
-                  }}
-                />
-                {portraits && (
-                  // A rendered portrait, not a photo: a plain <img> is right here.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={portraits[f.id]}
-                    alt=""
-                    className="absolute inset-x-0 top-1 mx-auto h-[80%] w-auto object-contain"
-                  />
-                )}
-                <span
-                  className={`relative bg-gradient-to-t from-ink-deep to-transparent pb-1 pt-3 text-left font-display leading-none ${narrow ? 'px-1 text-[10px]' : 'px-2 text-sm'}`}
-                  style={{ color: f.accent }}
-                >
-                  {f.name.toUpperCase()}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex min-h-[3.25rem] flex-col justify-center">
-        <span
-          className="font-display text-3xl leading-none [@media(max-height:600px)]:text-2xl"
-          style={{ color: r.accent }}
-        >
-          {r.name.toUpperCase()}
-        </span>
-        <span className="text-sm text-cream/70">{copy.fighters[r.id].role}</span>
-      </div>
-      {/* The Ready slot: the button, or once locked the READY stamp in the same box (no height change). A click on
-          the stamp unlocks, like moving the cursor. */}
-      <div className="flex h-14 items-stretch [@media(max-height:500px)]:h-11">
-        {ready ? (
-          <button
-            type="button"
-            data-testid={`ready-stamp-${player}`}
-            aria-label={`P${index + 1} ready. Click to change fighter.`}
-            onClick={onReady}
-            className="flex w-full -rotate-3 cursor-pointer items-center justify-center border-4 font-display text-4xl leading-none transition-opacity [animation:riseIn_0.12s_ease-out] hover:opacity-85 [@media(max-height:600px)]:text-3xl"
-            style={{ color: colour, borderColor: colour }}
-          >
-            READY
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onReady}
-            className="focus-ring w-full -skew-x-12 border px-4 text-sm font-bold tracking-wider transition hover:brightness-110"
-            style={{ borderColor: colour, color: colour }}
-          >
-            <span className="inline-block skew-x-12">Ready</span>
-          </button>
-        )}
-      </div>
-    </div>
+      />
+    </Stage>
   );
 };

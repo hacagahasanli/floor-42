@@ -425,3 +425,60 @@ Deviations in the LOG: **accepted** 1 (mesa tops 47-57 %), 2 (rope z -1.12), 4 (
   - Arena pill (OFFSITE + card line): fade to opacity 0 over 300 ms **3 s after FIGHT at every viewport size** (today only when `short`); back to 1 on pause/menu. Applies to the office pill too.
 - Expected result: at 1920x1080 over sky.top, every HUD string is pure cream with the F-032 shadow; the top centre holds only timer and score after 3 s.
 - Status: implemented (Engineering, 2026-11-28, R-020 round 3; see LOG.md)
+
+---
+
+# Review R-025: roster-v3 in the game (BRIX, ORMO, ZUZU, TAVO A), portal-build uncommitted, 2026-11-28
+
+Verdict: **accepted, no P0.** The four builds match the sheets in proportion, palette and pose under the game light on both arenas; R-024 holds in the game (no star or gold disc on BRIX, ORMO has hair, a walrus moustache that hangs down and the argyle on every side). I found nothing that still evokes a protected character (my visual judgement, not an ip-guard re-run). Four items keep it from finished: BRIX's defeat does not tell its story, the select/menu cards swallow each fighter's body, TAVO's pan reads as a cap, ORMO's toast reads as a hat. All P1/P2.
+
+Reviewed from: the engineering shots in `shots/roster-v3-ingame/` (all four `*-vs-sheet`, `overview-4x4`, all four `poses-*`, both office shots, full size) and my own run of the portal dev build (Vite, real GPU, 1280x720 at 1x, follow camera, OFFSITE and the office, both pairings: idle, jump, hit, KO, menu, select). My captures: `shots/roster-v3-review-cd/`. Not seen: motion (stills only, so springs, BRIX's roll, ZUZU's bounce and the spinning wheels are unjudged), phones and the low tier, the result screen (in progress, ignored as asked). The 50 px/m flat-silhouette test was **not** run as a threshold pass; the notes below are a visual estimate from 1x crops.
+
+Decisions on the R-025 asks:
+- (a) Likeness: accepted. At 1x play distance a head is about 10 px, so the face kit reads only as ORMO's white moustache and BRIX's gold mouthguard; that is expected, not a fault. Idle stances read as crouched.
+- (b) Criterion 3: ZUZU's red card **passes**; ORMO's cup passes, the puddle shows in the portrait but is hidden behind his legs on a deck in play (accepted); TAVO's pan and BRIX's skate **fail** (F-046, F-047). Props on the facing axis: accepted for play; the portrait/result pose must turn them to the camera (F-046).
+- (c) Spirals: kept, with the change in F-047.
+- (d) Deviations: all **accepted** for release (normal run on skates, mitts on the grip, idle arms only in portraits, no taunt in a match, stat-true pitch lines). Push-glide stride stays a P2 wish, not a blocker.
+- (e) Whiteboard and monitors: accepted. The board copy reads at play distance; dashboards read as office charts.
+- Silhouette estimate: ZUZU (two puffs), TAVO (pack hump) and ORMO (wide block + quiff) read by shape; BRIX reads by colour more than shape at 50 px/m (skates are about 10 px). Acceptable because her red is unique in the roster.
+
+## F-045 — Select and menu cards: the fighter melts into a card of their own colour (P1)
+- What is wrong: every select card fills the portrait box with the slot accent, the same hex as the fighter's top (BRIX red jersey on red, ORMO green vest on green, ZUZU pink on pink, TAVO blue on blue). The torso and arms disappear; only heads and props read. The menu showcase card does the same for BRIX. Also inconsistent framing: ZUZU is shown full-body and small while the others are chest-up; BRIX's helmet crown and TAVO's pack top touch or cross the top edge (`shots/roster-v3-review-cd/select.png`).
+- Why it matters: the select screen is where a player picks "theirs"; v2 criterion 4 made the top colour = the accent precisely so it carries the identity, and the card background now cancels it.
+- What should change: portrait box background = **cream `#FFF1DC`** with a radial burst of the accent at **22 % opacity** from behind the head (same burst as the sheets), plus a 4 px accent band along the bottom edge of the box. Framing: the `ready` pose framed so the **top of the head (incl. hair, helmet, pack) sits 8 % below the box top** and the head height is the same for all four (ZUZU then shows chest-up like the others; her smallness reads from the stat card, not from distance). Same rule for the menu showcase card.
+- Expected result: in a 1280x720 select shot every torso, arm and prop is distinct from its background; the four heads line up at one height.
+- Related spec: roster-v2.md §4 / §8.4, roster-v3.md §0.
+- Status: implemented (2026-11-28, engineering; shots in `shots/roster-v3-polish/`, see LOG.md)
+
+## F-046 — BRIX defeat: the lost skate is a 10 px speck (P1)
+- What is wrong: at play distance the defeat is a black/red tangle and the skate a cream dot (about 10 px, `offsite-hotfix-legacy-ko.png`); in the defeat portrait the skate is a small box with the wheels barely visible (`poses-hotfix.png`, 4th). Nobody would name "a skate". Criterion 3 fails.
+- What should change: (1) Skate prop at **1.35x** scale (cheat, prop only), lying **wheels up and side-on to the camera** (boot profile + all four scarlet wheels visible), placed **0.55 m from her hip toward the camera side**, never on the facing axis behind her body. (2) The sock foot points up beside it, so the eye links foot and skate. (3) Portrait/result `defeat` framing includes the skate inside the box with 6 % margin. (4) Wheels spin (as built).
+- Expected result: in a 300 px tall crop of the defeat portrait, the upside-down skate is at least 45 px wide with four red wheels visible; at play distance it is at least 18 px wide.
+- Related spec: roster-v3.md §4.1, §6 criterion 3.
+- Status: implemented (2026-11-28, engineering; shots in `shots/roster-v3-polish/`, see LOG.md)
+
+## F-047 — TAVO defeat: the pan reads as a cap with a badge (P1)
+- What is wrong: on the head the pan shows its light underside (portrait) or a dark dome with a gold spiral overlapping it (play), so it reads as a sailor cap or a beret with a logo. The handle is not visible. The gold spirals overlap the pan and read as gold coins in the portrait.
+- What should change: pan **face down** on his head (dark top `#1B1F2E` up, a 0.03 m lighter rim `#6B6F78`), tilted **18°** toward the camera, the **handle sticking out sideways toward the camera side at 0.32 m**, never hidden behind the head. Spirals: orbit radius **0.45 m** centred 0.2 m above the pan, orbit plane tilted 20° toward the camera, each spiral **0.12 m**, colour stays `#FFC83D`, line weight doubled so they read as spirals, not discs.
+- Expected result: in the defeat portrait and at play distance the pan's handle is visible and the spirals never overlap the pan.
+- Related spec: roster-v3.md §4.5, §6 criterion 3.
+- Status: implemented (2026-11-28, engineering; shots in `shots/roster-v3-polish/`, see LOG.md)
+
+## F-048 — ORMO victory: the raised red cup reads as a hat (P2)
+- What is wrong: at play distance the cup lifted above the crown sits on top of his silhouette like a fez (`overview-4x4.png`, ORMO victory).
+- What should change: toast at **face height, in front of the face toward the camera side** (cup centre about 0.15 m beside the head, not above it); the chest thump unchanged.
+- Expected result: the cup is never above the top of his hair in the victory pose.
+- Related spec: roster-v3.md §4.3.
+- Status: implemented (2026-11-28, engineering; shots in `shots/roster-v3-polish/`, see LOG.md)
+
+## F-049 — TAVO on the office: blue on the blue night (P2)
+- What is wrong: the `#2456D6` flannel sits on the navy city windows; TAVO reads by his orange pack alone there (`office-standup-intern-hit.png`). Not a blocker: the pack is his hook and his rim helps.
+- What should change: office only, raise TAVO's rim intensity **x1.3** (rim tint unchanged); no colour change to the accent.
+- Expected result: the flannel's edge separates from the windows in a 1x office crop.
+- Status: implemented (2026-11-28, engineering; shots in `shots/roster-v3-polish/`, see LOG.md)
+
+## F-050 — BRIX on the office: helmet merges with the night (P2)
+- What is wrong: the matte black helmet is lost on the dark office background; her head reads only by the stripe (`office-hotfix-legacy-jump.png`). Known weak spot (roster-v3 §7).
+- What should change: the cream pinstripes on the helmet from 0.02 m to **0.035 m** wide; nothing else.
+- Expected result: the helmet outline reads in a 1x office crop.
+- Status: implemented (2026-11-28, engineering; shots in `shots/roster-v3-polish/`, see LOG.md)

@@ -261,7 +261,7 @@ export const RULES = {
   hp: 100,
   kosToWin: 5,
   roundSeconds: 150,
-  /** The title card (2 s: what this game is about), then "git merge" ... "CONFLICT!". */
+  /** The title card (2 s: what this game is about), then "READY" ... "FIGHT!". */
   countdownSeconds: 3.6,
   respawnSeconds: 3,
   spawnInvulnerable: 1.4,
@@ -325,7 +325,7 @@ export interface CharacterStats {
 
 export const CHARACTERS: Record<CharacterId, CharacterStats> = {
   hotfix: {
-    name: 'Hotfix',
+    name: 'Brix',
     speed: 9.4,
     jump: 16.5,
     weight: 0.92,
@@ -335,7 +335,7 @@ export const CHARACTERS: Record<CharacterId, CharacterStats> = {
     airJumps: 1,
   },
   legacy: {
-    name: 'Legacy',
+    name: 'Ormo',
     speed: 7.6,
     jump: 15.2,
     weight: 1.38,
@@ -345,7 +345,7 @@ export const CHARACTERS: Record<CharacterId, CharacterStats> = {
     airJumps: 1,
   },
   standup: {
-    name: 'Standup',
+    name: 'Zuzu',
     speed: 10.6,
     jump: 17,
     weight: 0.8,
@@ -355,7 +355,7 @@ export const CHARACTERS: Record<CharacterId, CharacterStats> = {
     airJumps: 2,
   },
   intern: {
-    name: 'Intern',
+    name: 'Tavo',
     speed: 9.0,
     jump: 16.2,
     weight: 1.0,

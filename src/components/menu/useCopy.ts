@@ -2,18 +2,10 @@
 
 import { useMemo } from 'react';
 
-import { copyFor, resolveVariant } from '~/game/copy';
+import { copyFor } from '~/game/copy';
 
-import { useSettings } from './useSettings';
-
-import type { Copy, CopyVariant } from '~/game/copy';
+import type { Copy } from '~/game/copy';
 import type { ArenaId } from '~/game/sim/constants';
 
-/** The copy variant the player chose (plain words until they answer, and always on a portal build). */
-export const useCopyVariant = (): CopyVariant => resolveVariant(useSettings().audience);
-
-/** Every dev-joke line in the player's chosen variant, live: switching in Settings re-renders at once. */
-export const useCopy = (arena: ArenaId = 'office'): Copy => {
-  const variant = useCopyVariant();
-  return useMemo(() => copyFor(variant, arena), [variant, arena]);
-};
+/** Every line of game copy, with the arena's place-naming lines laid over it. */
+export const useCopy = (arena: ArenaId = 'office'): Copy => useMemo(() => copyFor(arena), [arena]);

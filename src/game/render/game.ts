@@ -12,9 +12,11 @@ import type { Settings } from '../settings';
 import { createBot, EASY_GUN_GRACE_TICKS } from '../sim/bot';
 import { arenaOf, ASSIST, CHARACTERS, DEFAULT_ARENA, DT, GUNS, OFFLINE_COUNTDOWN_SECONDS, PUSH, PHYS, RULES } from '../sim/constants';
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step, visibleAim } from '../sim/step';
+import { maxHp, regenDelay } from '../sim/traits';
 
+import { createMatchTally } from '../awards';
 import { buildArenaFor } from './arenaView';
-import { buildRig, cancelWinner, CHARACTER_FX, disposeRig, lifeRig, poseDeath, poseSide, setCharacterFx, setRimStrength, startFlinch, startLanding, startShot, startTakeoff, startWinner, stepSpring } from './characters';
+import { buildRig, cancelWinner, CHARACTER_FX, disposeRig, lifeRig, poseDeath, poseSide, rimBoostFor, setCharacterFx, setRimStrength, startFlinch, startLanding, startShot, startTakeoff, startWinner, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 import { createGovernor, MAX_STEPS_PER_FRAME, stepDown } from './governor';
@@ -22,6 +24,7 @@ import { createVfx } from './vfx';
 import { headedTracerGeometry } from './projectileGeometry';
 import { DESKTOP_CAM, finaleHolding, finaleScale, followTarget, followWeight, koBeatWeight, nextFollowTime, PHONE_CAM } from './cameraMath';
 
+import type { PlayerTally } from '../awards';
 import type { Rig } from './characters';
 import type { NetStatus, OnlineSession, Presentation } from '../net/client';
 import type { StartMessage } from '../net/protocol';
@@ -40,7 +43,9 @@ export interface HudFighter {
   kos: number;
   push: number; // 0..1 ready
   dash: number; // 0..1 ready
-  stats: { damage: number; accuracy: number; deaths: number; bestStreak: number };
+  stats: { damage: number; accuracy: number; deaths: number; bestStreak: number; shots: number };
+  /** Render-side match counts for the result screen's awards (awards.ts). */
+  tally: PlayerTally;
   gun: string;
   mag: number;
   reserve: number; // Infinity for the pistol
@@ -48,6 +53,8 @@ export interface HudFighter {
   /** Bombs carried (0 or 1), thrown with the Throw bomb key. */
   bombs: number;
   out: boolean;
+  /** The gun kind in hand (the HUD picks its icon from it). */
+  kind: GunKind;
 }
 
 export interface HudState {
@@ -58,7 +65,8 @@ export interface HudState {
   winner: number | null;
   fighters: HudFighter[];
   fps: number;
-  lastKo: { fighter: number; at: number } | null;
+  /** The last KO: who fell, when, who scored it (0 = you, 1 = rival) and the gun they held (for the KO feed). */
+  lastKo: { fighter: number; at: number; by: number; gun: GunKind } | null;
   hint: { key: string; text: string }[];
   muted: boolean;
   aimMode: AimMode;
@@ -142,12 +150,14 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       false,
       tp ? { kosToWin: tp.kosToWin, assist: true } : undefined,
       // Offline only (never `online`): the shorter countdown is opt-in, so the shared sim default stays 3.6 s.
-      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS, arena: arenaId },
+      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS, arena: arenaId, traits: !online },
     );
   let hold = !!opts.hold;
   let padsSeen = 0;
   /** Which fighter you are. Offline you are always 0. */
   const me = online?.slot ?? 0;
+  /** Jumps, push-backs, rockets taken and damage taken, for the result screen's awards (render side only). */
+  const tally = createMatchTally((id) => (id === me ? 0 : id === 1 - me ? 1 : null));
   let state: GameState = online ? online.state : newGame();
   let bot = createBot(1, randomSeed(), level);
   let demoBot = createBot(0, randomSeed(), level);
@@ -181,7 +191,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   setRimStrength(0.8); // arena strength (menu, showcase and lobby close-ups use 0.35)
   vfx.setPuffs(profile0.tier !== 'low');
   const rigs: Rig[] = state.fighters.map((f) => {
-    const rig = buildRig(f.character);
+    const rig = buildRig(f.character, { rimBoost: rimBoostFor(f.character, arenaId) });
     scene.add(rig.root);
     return rig;
   });
@@ -219,7 +229,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     if (rigCharacters[i] === character) return;
     scene.remove(rigs[i].root);
     disposeRig(rigs[i]);
-    rigs[i] = buildRig(character);
+    rigs[i] = buildRig(character, { rimBoost: rimBoostFor(character, arenaId) });
     scene.add(rigs[i].root);
     rigCharacters[i] = character;
   };
@@ -627,6 +637,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
 
   const handleEvent = (e: GameEvent) => {
     arena.react?.(e);
+    tally.feed(e);
     switch (e.type) {
       case 'shot':
         if (rigs[e.fighter]) startShot(rigs[e.fighter], e.gun);
@@ -692,7 +703,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         // OFFSITE: a dust cloud where the fighter lies (14 puffs, size 1.6, spread 0.8; none on the low tier, as today).
         if (arena.wall === 'rock') vfx.puff(e.x, downY[e.fighter], 0, 14, 1.6, 0.8);
         feedback('huge');
-        lastKo = { fighter: e.fighter, at: time };
+        {
+          // The scorer is the last attacker, or the other fighter when there is none (the sim's own rule, step.ts knockOut).
+          const scorer = e.by !== null && e.by !== e.fighter ? e.by : state.fighters.findIndex((o) => o.id !== e.fighter);
+          lastKo = { fighter: e.fighter, at: time, by: scorer, gun: state.fighters[scorer]?.weapon.kind ?? 'pistol' };
+        }
         if (!online && !tp) {
           koAt = time;
           koX = e.x;
@@ -1144,6 +1159,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   let hudTimer = 0;
   const emitHud = () => {
     const state = viewState();
+    const tallies = tally.snapshot();
     // The final KO's slow-motion and hold keep the match on screen: the result card waits.
     const hold = state.phase === 'over' && finaleHolding(finalePending, finaleSince());
     opts.onHud({
@@ -1153,7 +1169,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       // The HUD always shows you first.
       winner: state.winner === null || state.winner < 0 ? state.winner : state.winner === me ? 0 : 1,
       fps: Math.round(fps),
-      lastKo: lastKo ? { ...lastKo, fighter: lastKo.fighter === me ? 0 : 1 } : null,
+      lastKo: lastKo ? { ...lastKo, fighter: lastKo.fighter === me ? 0 : 1, by: lastKo.by === me ? 0 : 1 } : null,
       net: online ? online.status : null,
       paused: state.paused,
       motion: motion === 1,
@@ -1174,8 +1190,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
           name: CHARACTERS[f.character].name,
           character: f.character,
           hp: Math.max(0, f.hp),
-          maxHp: CHARACTERS[f.character].hp,
-          healing: f.respawn <= 0 && f.hp > 0 && f.hp < CHARACTERS[f.character].hp && (f.sinceHit ?? 0) >= RULES.regenAfter,
+          maxHp: maxHp(state, f),
+          healing: f.respawn <= 0 && f.hp > 0 && f.hp < maxHp(state, f) && (f.sinceHit ?? 0) >= regenDelay(state, f),
           kos: f.kos,
           push: 1 - f.pushCooldown / PUSH.cooldown,
           dash: 1 - f.dashCooldown / PHYS.dashCooldown,
@@ -1185,8 +1201,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
             accuracy: f.stats && f.stats.shots > 0 ? Math.round((f.stats.hits / f.stats.shots) * 100) : 0,
             deaths: f.stats?.deaths ?? 0,
             bestStreak: f.stats?.bestStreak ?? 0,
+            shots: f.stats?.shots ?? 0,
           },
+          tally: tallies[f.id === me ? 0 : 1],
           gun: g.name,
+          kind: f.weapon.kind,
           mag: f.weapon.mag,
           reserve: f.weapon.reserve,
           reloading: f.weapon.reload > 0 ? 1 - f.weapon.reload / g.reloadTime : 0,
@@ -1310,11 +1329,13 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         sfx.start();
       }
       events.forEach(handleEvent);
+      tally.endBatch();
       acc -= DT;
     }
     if (online?.present) {
       pres = online.present(dt * 1000);
       pres.events.forEach(handleEvent);
+      tally.endBatch();
     }
     renderFrame(dt, acc / DT, viewState());
     // The result card appears the moment the slow-motion and the hold end.
@@ -1399,6 +1420,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     demoBot = createBot(0, randomSeed(), level);
     started = false;
     savePrev();
+    tally.reset();
     lastKo = null;
     finalePending = false;
     finaleT0 = -1;
@@ -1413,6 +1435,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     online.restart(msg);
     state = online.state;
     started = false;
+    tally.reset();
     lastKo = null;
     savePrev();
     emitHud();

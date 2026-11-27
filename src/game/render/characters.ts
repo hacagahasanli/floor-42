@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 
-import { mat, mesh, PALETTE } from './palette';
+import { mat, mesh } from './palette';
+import { bake, LOOKS, REST_EXPR, SHEET_POSES, STANCE, WIN_EXPR } from './rosterRigs';
+
+import type { Fx, Hang, PoseDef, ShowPose } from './rosterRigs';
 
 import type { CharacterId, GunKind } from '../sim/types';
 
@@ -8,9 +11,8 @@ import type { CharacterId, GunKind } from '../sim/types';
 type WeaponKind = GunKind | 'fists';
 
 /**
- * Low-poly fighters built from primitives. Each one has a different silhouette:
- * Hotfix is tall with a hood, Legacy is a wide block, Standup is small under a
- * cloud of hair, Intern carries a backpack bigger than their back.
+ * Low-poly fighters built from primitives (rosterRigs.ts has the four: BRIX the skater with the striped helmet, ORMO the wide
+ * office dad with the walrus moustache, ZUZU the small coach with two hair puffs, TAVO under his towering pack).
  * Models face +z; the arena turns them sideways.
  */
 
@@ -52,6 +54,10 @@ export interface Rig {
   torso: THREE.Group;
   /** Weight and life state (see lifeRig). */
   life: Life;
+  /** The fighter's face, props and prop motion (rosterRigs.ts). */
+  fx: Fx;
+  /** Where the story props lie in a defeat pose: the fighter's frame, child of the root. */
+  ground: THREE.Group;
 }
 
 /** One hanging part (hood, cable, belly, backpack, hair) on a pivot, lagging the body on two springs. */
@@ -108,7 +114,7 @@ export interface Life {
   ay: number;
   secondary: Secondary[];
   eyes: THREE.Mesh[];
-  /** Legacy's belly and its jiggle spring (+/-10 % of scale y). */
+  /** A belly and its jiggle spring (+/-10 % of scale y): none of the current four has one. */
   belly: THREE.Object3D | null;
   bellyBase: number;
   jiggle: { x: number; v: number };
@@ -123,6 +129,13 @@ export interface Life {
   events: number;
   /** Per-rig clones of the shared materials (with the rim light); disposed with the rig. */
   mats: THREE.Material[];
+  /** The knock-out pose (and its props) is showing: poseSide clears it when the fighter is back up. */
+  down: boolean;
+  /** The winner props (cup, flag) are showing. */
+  winProps: boolean;
+  /** Half the foot's length (metres), and how far the knocked-out pose is lifted so nothing sinks into the floor (-1 = not measured yet). */
+  footHalf: number;
+  downLift: number;
 }
 
 const DEG = Math.PI / 180;
@@ -135,245 +148,22 @@ export const TAKEOFF = { load: 0.9, dip: 0.18, loadSeconds: 0.06, peakAt: 0.1, y
 export const WINNER_SECONDS = 0.9;
 export const LOAD_SECONDS = TAKEOFF.loadSeconds;
 
-interface Spec {
-  legLen: number;
-  legR: number;
-  torsoW: number;
-  torsoH: number;
-  torsoD: number;
-  headR: number;
-  armLen: number;
-  armR: number;
-  skin: number;
-  top: number;
-  pants: number;
-  shoes: number;
-  extras: (ctx: { head: THREE.Group; torso: THREE.Group; spec: Spec; hang: Hang }) => void;
-}
-
 const ico = (r: number, detail = 1) => new THREE.IcosahedronGeometry(r, detail);
-const cyl = (r: number, h: number, seg = 7) => new THREE.CylinderGeometry(r, r, h, seg);
+const cyl = (r: number, h: number, seg = 7, r2 = r) => new THREE.CylinderGeometry(r2, r, h, seg);
 const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
-
-const addEyes = (head: THREE.Group, r: number, y = 0.03) => {
-  const eyes: THREE.Mesh[] = [];
-  for (const sx of [-1, 1]) {
-    const eye = mesh(box(0.045, 0.06, 0.02), mat(PALETTE.ink), false);
-    eye.position.set(sx * r * 0.36, y, r * 0.93);
-    head.add(eye);
-    eyes.push(eye);
-  }
-  return eyes;
+const put = <T extends THREE.Object3D>(o: T, x: number, y: number, z: number): T => {
+  o.position.set(x, y, z);
+  return o;
 };
 
-type Hang = (
-  parent: THREE.Object3D,
-  pivot: [number, number, number],
-  tune: Partial<Pick<Secondary, 'w' | 'zeta' | 'pitchGain' | 'liftGain' | 'maxPitch' | 'maxLift'>>,
-  ...parts: THREE.Object3D[]
-) => void;
+/**
+ * F-049: TAVO's blue flannel sits on the office's navy windows, so on the office his rim is 1.3x (tint unchanged). One number per
+ * fighter and arena; every other pair is 1. It multiplies the shared rim strength in the shader, so the governor still fades it.
+ */
+export const rimBoostFor = (id: CharacterId, arena: string): number => (id === 'intern' && arena === 'office' ? 1.3 : 1);
 
-const SPECS: Record<CharacterId, Spec> = {
-  hotfix: {
-    legLen: 0.9,
-    legR: 0.085,
-    torsoW: 0.5,
-    torsoH: 0.66,
-    torsoD: 0.32,
-    headR: 0.19,
-    armLen: 0.78,
-    armR: 0.07,
-    skin: PALETTE.skinB,
-    top: PALETTE.orange,
-    pants: PALETTE.ink,
-    shoes: PALETTE.white,
-    extras: ({ head, torso, spec, hang }) => {
-      // Hood: a shell open at the face.
-      const hood = mesh(
-        new THREE.SphereGeometry(spec.headR * 1.32, 8, 6, Math.PI / 2 + 0.7, Math.PI * 2 - 1.4, 0, Math.PI * 0.72),
-        mat(PALETTE.orange),
-      );
-      (hood.material as THREE.Material).side = THREE.DoubleSide;
-      hood.position.y = 0.02;
-      head.add(hood);
-      // The hood trails the head a few frames; the headset cable swings from the left cup.
-      hang(head, [0, -spec.headR * 0.5, -0.05], { pitchGain: -0.0035, maxPitch: 0.14, liftGain: 0.0006, maxLift: 0.02 }, hood);
-      const cable = mesh(cyl(0.011, 0.34, 4), mat(PALETTE.ink), false);
-      cable.position.set(-spec.headR * 1.4, -0.17, 0.02);
-      head.add(cable);
-      hang(head, [-spec.headR * 1.4, 0, 0.02], { w: 15, pitchGain: 0.012, maxPitch: 0.5, liftGain: 0, maxLift: 0 }, cable);
-      // On-call headset with a gold mic.
-      const band = mesh(new THREE.TorusGeometry(spec.headR * 1.38, 0.022, 4, 10, Math.PI), mat(PALETTE.ink));
-      band.position.y = 0.02;
-      head.add(band);
-      for (const sx of [-1, 1]) {
-        const cup = mesh(cyl(0.07, 0.06, 8), mat(PALETTE.ink));
-        cup.rotation.z = Math.PI / 2;
-        cup.position.set(sx * spec.headR * 1.36, 0.0, 0);
-        head.add(cup);
-      }
-      const boom = mesh(box(0.02, 0.02, 0.22), mat(PALETTE.ink));
-      boom.position.set(-spec.headR * 1.2, -0.08, 0.1);
-      boom.rotation.y = -0.5;
-      head.add(boom);
-      const mic = mesh(ico(0.03, 0), mat(PALETTE.gold, { emissive: 0x3a2a00 }));
-      mic.position.set(-spec.headR * 0.75, -0.11, 0.2);
-      head.add(mic);
-      // Hoodie strings and pocket.
-      for (const sx of [-1, 1]) {
-        const s = mesh(cyl(0.012, 0.2, 4), mat(PALETTE.white), false);
-        s.position.set(sx * 0.07, spec.torsoH - 0.14, spec.torsoD / 2 + 0.01);
-        torso.add(s);
-      }
-      const pocket = mesh(box(0.34, 0.14, 0.03), mat(0xb8441f));
-      pocket.position.set(0, 0.16, spec.torsoD / 2);
-      torso.add(pocket);
-    },
-  },
-  legacy: {
-    legLen: 0.55,
-    legR: 0.15,
-    torsoW: 0.95,
-    torsoH: 0.75,
-    torsoD: 0.55,
-    headR: 0.23,
-    armLen: 0.62,
-    armR: 0.12,
-    skin: PALETTE.skinA,
-    top: PALETTE.green,
-    pants: 0x5a4a3a,
-    shoes: 0x4a3426,
-    extras: ({ head, torso, spec, hang }) => {
-      const shirt = mesh(box(0.3, spec.torsoH * 0.92, 0.04), mat(PALETTE.paper));
-      shirt.position.set(0, spec.torsoH / 2, spec.torsoD / 2);
-      torso.add(shirt);
-      // A soft belly under the shirt: it is what lags the body (the rest of Legacy stays a block).
-      const belly = mesh(ico(0.3, 1), mat(spec.top));
-      belly.scale.set(1.2, 0.75, 0.55);
-      belly.position.set(0, 0.22, spec.torsoD / 2 - 0.02);
-      torso.add(belly);
-      belly.userData.isBelly = true;
-      hang(torso, [0, 0.5, spec.torsoD / 2 - 0.02], { w: 11, pitchGain: 0.004, maxPitch: 0.12, liftGain: 0.0016, maxLift: 0.05 }, belly);
-      for (let i = 0; i < 3; i++) {
-        const b = mesh(cyl(0.025, 0.02, 6), mat(PALETTE.ink), false);
-        b.rotation.x = Math.PI / 2;
-        b.position.set(0.19, 0.18 + i * 0.18, spec.torsoD / 2 + 0.01);
-        torso.add(b);
-      }
-      // A beard that takes the whole jaw.
-      const beard = mesh(ico(spec.headR * 0.95, 1), mat(0x8a7e72));
-      beard.scale.set(1.05, 0.95, 0.75);
-      beard.position.set(0, -spec.headR * 0.45, spec.headR * 0.38);
-      head.add(beard);
-      const tache = mesh(box(0.2, 0.05, 0.06), mat(0x7a6e62));
-      tache.position.set(0, -0.03, spec.headR * 0.95);
-      head.add(tache);
-      for (const sx of [-1, 1]) {
-        const side = mesh(box(0.08, 0.14, 0.24), mat(0xb8b0a4));
-        side.position.set(sx * spec.headR * 0.95, 0.02, -0.03);
-        head.add(side);
-        const lens = mesh(new THREE.TorusGeometry(0.065, 0.016, 4, 10), mat(PALETTE.ink), false);
-        lens.position.set(sx * 0.085, 0.05, spec.headR * 0.98);
-        head.add(lens);
-      }
-    },
-  },
-  standup: {
-    legLen: 0.45,
-    legR: 0.085,
-    torsoW: 0.48,
-    torsoH: 0.45,
-    torsoD: 0.3,
-    headR: 0.19,
-    armLen: 0.48,
-    armR: 0.065,
-    skin: PALETTE.skinC,
-    top: PALETTE.blue,
-    pants: PALETTE.ink,
-    shoes: PALETTE.gold,
-    extras: ({ head, torso, spec, hang }) => {
-      // The hair cloud is the silhouette.
-      const puffs: [number, number, number, number][] = [
-        [0, 0.2, -0.04, 0.2],
-        [-0.17, 0.14, -0.04, 0.16],
-        [0.17, 0.14, -0.04, 0.16],
-        [-0.22, -0.02, -0.06, 0.14],
-        [0.22, -0.02, -0.06, 0.14],
-        [-0.1, 0.26, 0.08, 0.13],
-        [0.1, 0.26, 0.08, 0.13],
-        [0, 0.12, -0.18, 0.19],
-      ];
-      const hair: THREE.Object3D[] = [];
-      for (const [x, y, z, r] of puffs) {
-        const p = mesh(ico(r, 0), mat(0x2b2230));
-        p.position.set(x, y, z);
-        p.rotation.set(x * 7, y * 5, z * 3);
-        head.add(p);
-        hair.push(p);
-      }
-      hang(head, [0, 0.02, -0.04], { w: 14, pitchGain: -0.0035, maxPitch: 0.14, liftGain: 0.0012, maxLift: 0.045 }, ...hair);
-      // Lanyard and badge.
-      for (const sx of [-1, 1]) {
-        const strap = mesh(cyl(0.012, 0.3, 4), mat(PALETTE.red), false);
-        strap.position.set(sx * 0.07, spec.torsoH - 0.12, spec.torsoD / 2 + 0.01);
-        strap.rotation.z = sx * 0.4;
-        torso.add(strap);
-      }
-      const badge = mesh(box(0.11, 0.14, 0.02), mat(PALETTE.gold));
-      badge.position.set(0, spec.torsoH - 0.3, spec.torsoD / 2 + 0.02);
-      torso.add(badge);
-    },
-  },
-  intern: {
-    legLen: 0.7,
-    legR: 0.1,
-    torsoW: 0.52,
-    torsoH: 0.55,
-    torsoD: 0.32,
-    headR: 0.19,
-    armLen: 0.6,
-    armR: 0.075,
-    skin: PALETTE.skinA,
-    top: PALETTE.paper,
-    pants: PALETTE.blue,
-    shoes: PALETTE.red,
-    extras: ({ head, torso, spec, hang }) => {
-      const stripe = mesh(box(spec.torsoW + 0.01, 0.08, spec.torsoD + 0.01), mat(PALETTE.red));
-      stripe.position.y = spec.torsoH * 0.55;
-      torso.add(stripe);
-      // Beanie with a pompom.
-      const beanie = mesh(
-        new THREE.SphereGeometry(spec.headR * 1.08, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2),
-        mat(PALETTE.red),
-      );
-      beanie.position.y = 0.04;
-      head.add(beanie);
-      const cuff = mesh(cyl(spec.headR * 1.1, 0.07, 9), mat(0xa82e2e));
-      cuff.position.y = 0.05;
-      head.add(cuff);
-      const pom = mesh(ico(0.07, 0), mat(PALETTE.gold));
-      pom.position.y = spec.headR * 1.15;
-      head.add(pom);
-      // The backpack, bigger than it should be.
-      const pack = mesh(box(0.62, 0.74, 0.4), mat(PALETTE.gold));
-      pack.position.set(0, spec.torsoH * 0.5, -spec.torsoD / 2 - 0.2);
-      torso.add(pack);
-      const flap = mesh(box(0.5, 0.26, 0.06), mat(0xc98a1b));
-      flap.position.set(0, spec.torsoH * 0.36, -spec.torsoD / 2 - 0.42);
-      torso.add(flap);
-      // Hinged at the shoulders: the heavy pack swings behind every start and stop.
-      hang(torso, [0, spec.torsoH * 0.9, -spec.torsoD / 2], { w: 12, pitchGain: 0.006, maxPitch: 0.26, liftGain: 0.0008, maxLift: 0.03 }, pack, flap);
-      for (const sx of [-1, 1]) {
-        const strap = mesh(box(0.06, spec.torsoH * 0.95, 0.04), mat(0xc98a1b), false);
-        strap.position.set(sx * 0.15, spec.torsoH * 0.5, spec.torsoD / 2 + 0.01);
-        torso.add(strap);
-      }
-    },
-  },
-};
-
-export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): Rig => {
-  const s = SPECS[id];
+export const buildRig = (id: CharacterId, opts: { rimBoost?: number } = {}): Rig => {
+  const s = LOOKS[id];
   const root = new THREE.Group();
   const sway = new THREE.Group();
   const body = new THREE.Group();
@@ -384,87 +174,48 @@ export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): 
   const secondary: Secondary[] = [];
   const hang: Hang = (parent, pivot, tune, ...parts) => {
     const g = new THREE.Group();
+    g.userData.keep = true;
     g.position.set(pivot[0], pivot[1], pivot[2]);
     parent.add(g);
     for (const part of parts) {
       part.position.sub(g.position);
       g.add(part);
     }
-    const t = { w: 13, zeta: 0.22, pitchGain: 0.004, liftGain: 0.001, maxPitch: 0.15, maxLift: 0.03, ...tune };
+    const t = { w: 13, pitchGain: 0.004, liftGain: 0.001, maxLift: 0.03, maxPitch: 0.15, ...tune };
     // F-029: slow springs (w 11-15, zeta 0.22: 5-8 frames of lag and one visible swing), drive x2.5, clamp 28 degrees.
     secondary.push({
       g, w: t.w, zeta: 0.22, pitchGain: t.pitchGain * 2.5, liftGain: t.liftGain * 2.5, maxPitch: 28 * DEG, maxLift: t.maxLift * 2.5,
       pitch: { x: 0, v: 0 }, lift: { x: 0, v: 0 }, baseY: g.position.y,
     });
   };
+  const bone = () => {
+    const g = new THREE.Group();
+    g.userData.keep = true;
+    return g;
+  };
 
-  const torso = new THREE.Group();
+  const torso = bone();
   torso.position.y = s.legLen;
   const torsoMesh = mesh(box(s.torsoW, s.torsoH, s.torsoD), mat(s.top));
   torsoMesh.position.y = s.torsoH / 2;
   torso.add(torsoMesh);
+  const hem = mesh(box(s.torsoW * 0.96, 0.12, s.torsoD * 0.96), mat(s.pants));
+  hem.position.y = 0.02;
+  torso.add(hem);
   upper.add(torso);
 
-  const head = new THREE.Group();
-  head.position.y = s.legLen + s.torsoH + 0.04 + s.headR;
+  const head = bone();
+  head.position.y = s.legLen + s.torsoH + s.headR * 0.95;
   head.add(mesh(ico(s.headR, 1), mat(s.skin)));
-  const eyes = addEyes(head, s.headR);
+  const neck = mesh(cyl(s.headR * 0.42, 0.14, 6), mat(s.skin));
+  neck.position.y = -s.headR * 0.85;
+  head.add(neck);
   upper.add(head);
 
-  s.extras({ head, torso, spec: s, hang });
-
-  // ---- kit: everyone is dressed for a fight (the Intern brought their own huge backpack).
-  const olive = mat(0x4f5638);
+  // The plate carrier, shown while you wear armor: separate meshes, hidden until then.
   const oliveDark = mat(0x3b412a);
-  const strapMat = mat(0x2a2d24);
-  const tan = mat(0xa08c64);
-  const back = -s.torsoD / 2;
-  if (kit === 'battle' && id !== 'intern') {
-    const pack = mesh(box(s.torsoW * 0.78, s.torsoH * 0.72, 0.26), olive);
-    pack.position.set(0, s.torsoH * 0.52, back - 0.13);
-    const flap = mesh(box(s.torsoW * 0.7, s.torsoH * 0.22, 0.05), oliveDark);
-    flap.position.set(0, s.torsoH * 0.78, back - 0.27);
-    const pouchL = mesh(box(0.1, s.torsoH * 0.36, 0.18), oliveDark);
-    pouchL.position.set(-s.torsoW * 0.44, s.torsoH * 0.42, back - 0.12);
-    const pouchR = pouchL.clone();
-    pouchR.position.x = s.torsoW * 0.44;
-    const roll = mesh(new THREE.CylinderGeometry(0.09, 0.09, s.torsoW * 0.82, 10).rotateZ(Math.PI / 2), tan);
-    roll.position.set(0, s.torsoH * 0.93, back - 0.13);
-    torso.add(pack, flap, pouchL, pouchR, roll);
-  }
-  if (kit === 'battle') {
-    for (const sx of [-1, 1]) {
-      // Shoulder straps over the chest.
-      const strap = mesh(box(0.06, s.torsoH * 0.62, 0.03), strapMat, false);
-      strap.position.set(sx * s.torsoW * 0.26, s.torsoH * 0.62, s.torsoD / 2 + 0.012);
-      torso.add(strap);
-    }
-  } else {
-    // Office: the access badge on its lanyard.
-    for (const sx of [-1, 1]) {
-      const cord = mesh(box(0.02, s.torsoH * 0.42, 0.012), mat(0x3ec5ff), false);
-      cord.position.set(sx * 0.07, s.torsoH * 0.78, s.torsoD / 2 + 0.01);
-      cord.rotation.z = sx * 0.25;
-      torso.add(cord);
-    }
-    const badge = mesh(box(0.13, 0.17, 0.015), mat(0xf4f6fb), false);
-    badge.position.set(0, s.torsoH * 0.5, s.torsoD / 2 + 0.018);
-    const photo = mesh(box(0.06, 0.06, 0.004), mat(0x3ec5ff), false);
-    photo.position.set(0, s.torsoH * 0.52, s.torsoD / 2 + 0.027);
-    torso.add(badge, photo);
-  }
-  const belt = mesh(box(s.torsoW + 0.04, 0.08, s.torsoD + 0.04), strapMat);
-  belt.position.y = 0.05;
-  const buckle = mesh(box(0.07, 0.06, 0.02), mat(0x9a9a8a), false);
-  buckle.position.set(0, 0.05, s.torsoD / 2 + 0.03);
-  const holster = mesh(box(0.08, 0.2, 0.13), oliveDark);
-  holster.position.set(s.torsoW / 2 + 0.05, -0.05, 0.02);
-  const beltPouchL = mesh(box(0.1, 0.11, 0.07), olive);
-  beltPouchL.position.set(-s.torsoW * 0.3, 0.02, s.torsoD / 2 + 0.05);
-  const beltPouchR = beltPouchL.clone();
-  beltPouchR.position.x = s.torsoW * 0.3;
-  torso.add(belt, buckle, holster, beltPouchL, beltPouchR);
-  const vest = new THREE.Group();
+  const olive = mat(0x4f5638);
+  const vest = bone();
   const plate = mesh(box(s.torsoW + 0.07, s.torsoH * 0.58, s.torsoD + 0.08), oliveDark);
   plate.position.y = s.torsoH * 0.6;
   vest.add(plate);
@@ -476,68 +227,48 @@ export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): 
   vest.visible = false;
   torso.add(vest);
 
-  const makeLimb = (len: number, r: number, color: number, endColor: number, end: 'hand' | 'shoe') => {
-    const g = new THREE.Group();
-    const limb = mesh(cyl(r, len), mat(color));
-    limb.position.y = -len / 2;
-    g.add(limb);
-    const tip =
-      end === 'hand' ? mesh(ico(r * 1.15, 0), mat(endColor)) : mesh(box(r * 2.2, r * 1.2, r * 3.2), mat(endColor));
-    tip.position.set(0, -len - (end === 'hand' ? 0.02 : 0), end === 'shoe' ? r * 0.7 : 0);
-    g.add(tip);
-    return g;
-  };
-
-  // Two-bone arms: an upper arm with a forearm hinged at the elbow, so hands can reach a grip.
+  // Two-bone arms (the sheet's build): an upper arm and a forearm hinged at the elbow, so hands can reach a grip.
   const makeArm = () => {
-    const half = s.armLen / 2;
-    const upper = new THREE.Group();
-    const u = mesh(cyl(s.armR, half + 0.02), mat(s.top));
-    u.position.y = -half / 2;
-    upper.add(u);
-    const elbow = mesh(ico(s.armR * 1.02, 0), mat(s.top));
-    elbow.position.y = -half;
-    upper.add(elbow);
-    const fore = new THREE.Group();
-    fore.position.y = -half;
-    const f = mesh(cyl(s.armR * 0.92, half), mat(s.top));
-    f.position.y = -half / 2;
-    fore.add(f);
-    const hand = mesh(ico(s.armR * 1.15, 0), mat(s.skin));
-    hand.position.y = -half - 0.02;
-    fore.add(hand);
-    upper.add(fore);
-    return { upper, fore };
+    const u = s.armLen / 2;
+    const upperC = s.sleeve ?? s.top;
+    const arm = bone();
+    arm.add(put(mesh(cyl(s.armR, u, 7), mat(upperC)), 0, -u / 2, 0));
+    if (s.rolled) arm.add(put(mesh(cyl(s.armR * 1.12, 0.07, 7), mat(upperC)), 0, -u + 0.02, 0));
+    const fore = bone();
+    fore.position.y = -u;
+    const foreC = s.rolled || s.sleeve ? s.skin : s.top;
+    fore.add(put(mesh(cyl(s.armR * (s.rolled ? 1.08 : 0.9), u, 7, s.armR * (s.rolled ? 0.95 : 0.9)), mat(foreC)), 0, -u / 2, 0));
+    if (!s.hideFists) {
+      const fist = mesh(ico(s.armR * s.fist, 0), mat(s.fistC ?? s.skin));
+      fist.scale.set(1, 1.05, 1.1);
+      fist.position.y = -u - 0.02;
+      fore.add(fist);
+    }
+    arm.add(fore);
+    return { upper: arm, fore };
   };
-  const shoulderY = s.legLen + s.torsoH - 0.06;
+  const shoulderY = s.legLen + s.torsoH - s.armR * 1.2;
   const left = makeArm();
   const right = makeArm();
   const armL = left.upper;
   const armR = right.upper;
-  armL.position.set(-(s.torsoW / 2 + s.armR), shoulderY, 0);
-  armR.position.set(s.torsoW / 2 + s.armR, shoulderY, 0);
+  armL.position.set(-(s.torsoW / 2 + s.armR * 0.9), shoulderY, 0);
+  armR.position.set(s.torsoW / 2 + s.armR * 0.9, shoulderY, 0);
   upper.add(armL, armR);
 
-  // Two-bone legs: a thigh and a shin hinged at the knee, the shoe on the shin.
+  // Two-bone legs: a thigh and a shin hinged at the knee. The shin ends at the floor; a sock, shoe or skate sits on it.
   const makeLeg = () => {
-    const half = s.legLen / 2;
-    const thigh = new THREE.Group();
-    const t = mesh(cyl(s.legR * 1.08, half + 0.02), mat(s.pants));
-    t.position.y = -half / 2;
-    thigh.add(t);
-    const knee = mesh(ico(s.legR * 1.05, 0), mat(s.pants));
-    knee.position.y = -half;
-    thigh.add(knee);
-    const shin = new THREE.Group();
-    shin.position.y = -half;
-    const sh = mesh(cyl(s.legR * 0.95, half), mat(s.pants));
-    sh.position.y = -half / 2;
-    shin.add(sh);
-    const shoe = mesh(box(s.legR * 2.2, s.legR * 1.2, s.legR * 3.2), mat(s.shoes));
-    // The sole, not the middle of the shoe, sits at the end of the leg: standing on a table or
-    // a walkway the feet rest on its top instead of sinking into it.
-    shoe.position.set(0, -half + s.legR * 0.6, s.legR * 0.7);
-    shin.add(shoe);
+    const t = s.legLen / 2;
+    const thigh = bone();
+    thigh.add(put(mesh(cyl(s.legR, t, 7), mat(s.pants)), 0, -t / 2, 0));
+    const shin = bone();
+    shin.position.y = -t;
+    const lift = s.footLift ?? 0;
+    const shinLen = t - lift;
+    shin.add(put(mesh(cyl(s.legR * 0.92, shinLen, 7), mat(s.sock ? s.skin : s.pants)), 0, -shinLen / 2, 0));
+    if (s.sock) shin.add(put(mesh(cyl(s.legR * 0.98, t * 0.5, 7), mat(s.sock)), 0, -t * 0.66, 0));
+    // The sole, not the middle of the shoe, sits at the end of the leg: standing on a table or a walkway the feet rest on top.
+    if (!lift) shin.add(put(mesh(box(s.legR * 2.3, 0.1, s.legR * 3.6), mat(s.shoes)), 0, -t + 0.05, s.legR * 0.7));
     thigh.add(shin);
     return { thigh, shin };
   };
@@ -560,25 +291,25 @@ export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): 
   weapon.add(hand);
   upper.add(weapon);
 
-  let belly: THREE.Object3D | null = null;
-  torso.traverse((o) => {
-    if (o.userData.isBelly) belly = o;
-  });
-  // A thumb for the Intern's thumbs-up: hidden except during the winner pose.
-  let thumb: THREE.Object3D | null = null;
-  if (id === 'intern') {
-    thumb = mesh(box(0.035, 0.09, 0.035), mat(s.skin), false);
-    thumb.position.set(0, -s.armLen / 2 - 0.1, 0.0);
-    thumb.visible = false;
-    left.fore.add(thumb);
-  }
+  // Everything that lies on the floor in a defeat pose hangs from here (the fighter's frame, turned with the root).
+  const ground = bone();
+  root.add(ground);
+  const eyes: THREE.Mesh[] = [];
+  const fx = s.build(
+    { head, torso, foreL: left.fore, foreR: right.fore, legL, legR, shinL: ll.shin, shinR: lr.shin, ground, hang, eyes },
+    s,
+  );
+  // Bake: every static part of a bone becomes one vertex-coloured mesh (and one skin mesh).
+  for (const g of [torso, head, armL, armR, legL, legR]) bake(g, s.skin);
+
   const life: Life = {
     id, height: s.legLen + s.torsoH + 0.08 + s.headR * 2, k: 1,
     landT: 9, landAmt: 0, takeT: 9, takeKind: 0, turnT: 9, turnDir: 0, load: 0, sx: 1, sy: 1, shot: { x: 0, v: 0 },
     flinchT: 9, flinchSide: 0, flinchAmt: 0, flinch: 0, idle: 0,
     blinkT: 1.5 + Math.random() * 3, blinkLeft: 0, prevVx: 0, prevVy: 0, prevFacing: 0, run: 0, ax: 0, ay: 0,
-    secondary, eyes, belly, bellyBase: belly ? (belly as THREE.Object3D).scale.y : 1, jiggle: { x: 0, v: 0 }, thumb,
+    secondary, eyes, belly: null, bellyBase: 1, jiggle: { x: 0, v: 0 }, thumb: null,
     headY: head.position.y, shoulderY: shoulderY, phase: Math.random() * 6.28, winT: 9, hideGun: false, events: 0, mats: [],
+    down: false, winProps: false, footHalf: s.footHalf, downLift: -1,
   };
   const rig: Rig = {
     root, body, armL, armR, foreL: left.fore, foreR: right.fore, armLen: s.armLen,
@@ -586,14 +317,15 @@ export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): 
     head, vest, hipYaw: 0, hipInit: false,
     shoulderL: armL.position.clone(), shoulderR: armR.position.clone(),
     legL, legR, weapon, hand, chestY, phase: 0, turn: 0,
-    sway, upper, torso, life,
+    sway, upper, torso, life, fx, ground,
   };
-  if (CHARACTER_FX.rim) applyRim(rig, RIM_COLOR[id], s.skin);
+  if (CHARACTER_FX.rim) applyRim(rig, RIM_COLOR[id], s.skin, opts.rimBoost ?? 1);
   return rig;
 };
 
 /** Each fighter's own colour: the rim light, the menu accent. */
-export const RIM_COLOR: Record<CharacterId, number> = { hotfix: 0xff6a3d, legacy: 0x3ddc84, standup: 0x3ec5ff, intern: 0xffd23f };
+/** The rim tints of roster-v2 section 4 (light, so they separate from both dark and mid backgrounds): BRIX, ORMO, ZUZU, TAVO. */
+export const RIM_COLOR: Record<CharacterId, number> = { hotfix: 0xffb3a8, legacy: 0x9ff0d8, standup: 0xffc4e6, intern: 0xa9c2ff };
 
 /**
  * Cheap effects that scale with the quality tier. `rim` decides at build time (the low tier builds plain materials);
@@ -614,29 +346,31 @@ export const setRimStrength = (v: number) => {
  * light, no shadow pass. The shared materials are cloned per rig (the colour is per fighter); all clones share one
  * compiled program (customProgramCacheKey), so it costs one extra shader variant, not one per fighter.
  */
-const applyRim = (rig: Rig, color: number, skin: number) => {
+const applyRim = (rig: Rig, color: number, skin: number, boost: number) => {
   const rimColor = { value: new THREE.Color(color) };
+  const rimBoost = { value: boost };
   const clones = new Map<THREE.Material, THREE.Material>();
   rig.root.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const src = o.material as THREE.MeshStandardMaterial;
     // Never on the eyes or on skin (face, hands): they keep the plain material.
-    if (rig.life.eyes.includes(o) || src.color.getHex() === new THREE.Color(skin).getHex()) return;
+    if (o.userData.noRim || rig.life.eyes.includes(o) || src.color.getHex() === new THREE.Color(skin).getHex()) return;
     let m = clones.get(src);
     if (!m) {
       m = src.clone();
       m.onBeforeCompile = (sh) => {
         sh.uniforms.rimColor = rimColor;
         sh.uniforms.rimStrength = RIM_STRENGTH;
+        sh.uniforms.rimBoost = rimBoost;
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform vec3 rimColor;\nuniform float rimStrength;')
+          .replace('#include <common>', '#include <common>\nuniform vec3 rimColor;\nuniform float rimStrength;\nuniform float rimBoost;')
           .replace(
             '#include <opaque_fragment>',
             // A narrow edge band on faces turned away from the camera, on the top and back only (light from behind and above),
             // in the fighter's colour mixed 50 % with warm white. It adds light only where the band is: base colours stay.
             'float rimF = 1.0 - saturate(dot(normalize(vViewPosition), normal));\n' +
               '  float rimB = smoothstep(0.60, 0.80, rimF) * saturate(0.35 + dot(normal, normalize(vec3(-0.3, 0.9, -0.2))));\n' +
-              '  outgoingLight += mix(rimColor, vec3(1.0, 0.945, 0.839), 0.5) * rimB * rimStrength;\n#include <opaque_fragment>',
+              '  outgoingLight += mix(rimColor, vec3(1.0, 0.945, 0.839), 0.5) * rimB * rimStrength * rimBoost;\n#include <opaque_fragment>',
           );
       };
       m.customProgramCacheKey = () => 'f42-rim';
@@ -1127,6 +861,12 @@ const CROUCH_POSE = { thighL: -1.5, thighR: -1.25, kneeL: 2.75, kneeR: 2.8, lean
 export const poseSide = (rig: Rig, p: SidePose) => {
   const { dt } = p;
   if (dt > 0) advanceWeight(rig, dt);
+  if (rig.life.down) {
+    // Back on their feet after a knock-out: the defeat props go away (the pose itself is rebuilt every frame below).
+    rig.life.down = false;
+    rig.fx.setProps(null);
+    rig.life.winProps = false;
+  }
   // Turn three-quarters to the side you face; a spring a little under critical damping.
   const turnTarget = p.facing * (Math.PI / 2 - 0.3);
   const w = 16;
@@ -1162,7 +902,8 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   } else if (p.dashing) {
     tl = -0.7; tr = 0.6; kl = 0.5; kr = 1.1;
   } else {
-    const ready = 0.24;
+    // Standing still, each fighter drops into their own idle stance from the sheets (Brix's skater crouch, Ormo's wide stand).
+    const ready = 0.24 + STANCE[rig.life.id].knee * rig.life.idle;
     tl = -swing * 1.0 - ready * 0.6;
     tr = swing * 1.0 - ready * 0.6;
     kl = ready + (running ? Math.max(0, c) * 1.5 * amp + 0.15 * amp : 0);
@@ -1189,11 +930,14 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   rig.legR.rotation.x = damp(rig.legR.rotation.x, tr - cl, lk, dt);
   rig.legL.rotation.y = 0;
   rig.legR.rotation.y = 0;
-  rig.legL.rotation.z = damp(rig.legL.rotation.z, -0.04, 10, dt);
-  rig.legR.rotation.z = damp(rig.legR.rotation.z, 0.04, 10, dt);
+  const spread = STANCE[rig.life.id].spread * rig.life.idle;
+  rig.legL.rotation.z = damp(rig.legL.rotation.z, -0.04 - spread, 10, dt);
+  rig.legR.rotation.z = damp(rig.legR.rotation.z, 0.04 + spread, 10, dt);
   rig.shinL.rotation.x = damp(rig.shinL.rotation.x, kl, lk, dt);
   rig.shinR.rotation.x = damp(rig.shinR.rotation.x, kr, lk, dt);
-  const reachOf = (thigh: number, knee: number) => (Math.cos(thigh) + Math.cos(thigh + knee)) / 2;
+  // A tilted foot dips below the ankle by half its length times the tilt: the body stands that much higher.
+  const tilt = rig.life.footHalf / rig.legLen;
+  const reachOf = (thigh: number, knee: number) => (Math.cos(thigh) + Math.cos(thigh + knee)) / 2 + tilt * Math.abs(Math.sin(thigh + knee));
   const legDrop = p.onGround ? rig.legLen * (1 - Math.max(reachOf(rig.legL.rotation.x + cl, rig.shinL.rotation.x), reachOf(rig.legR.rotation.x + cl, rig.shinR.rotation.x))) : 0;
 
   // ---- body
@@ -1256,29 +1000,101 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   reach(rig.armL, rig.foreL, rig.shoulderL, tmpSupport, rig.armLen, -1);
 };
 
+const wBox = new THREE.Box3();
+const dQ = new THREE.Quaternion();
+const dE = new THREE.Euler();
+const jointRad = (j: { x?: number; y?: number; z?: number } | undefined) => dE.set((j?.x ?? 0) * DEG, (j?.y ?? 0) * DEG, (j?.z ?? 0) * DEG);
+/** An arm or forearm turns from where it is towards the pose's angles by `w` (0..1). */
+const blendLimb = (g: THREE.Group, j: { x?: number; y?: number; z?: number } | undefined, w: number) => {
+  g.quaternion.slerp(dQ.setFromEuler(jointRad(j)), w);
+};
+/** A thigh, shin or head eases its rotation towards the pose's angles by `w`. */
+const blendJoint = (g: THREE.Object3D, j: { x?: number; y?: number; z?: number } | undefined, w: number) => {
+  g.rotation.x += ((j?.x ?? 0) * DEG - g.rotation.x) * w;
+  g.rotation.y += ((j?.y ?? 0) * DEG - g.rotation.y) * w;
+  g.rotation.z += ((j?.z ?? 0) * DEG - g.rotation.z) * w;
+};
+/** The limbs and head of a sheet pose, `w` of the way from where they are. */
+const blendPose = (rig: Rig, p: PoseDef, w: number) => {
+  blendLimb(rig.armL, p.armL, w);
+  blendLimb(rig.armR, p.armR, w);
+  blendLimb(rig.foreL, p.foreL, w);
+  blendLimb(rig.foreR, p.foreR, w);
+  blendJoint(rig.legL, p.legL, w);
+  blendJoint(rig.legR, p.legR, w);
+  blendJoint(rig.shinL, p.shinL, w);
+  blendJoint(rig.shinR, p.shinR, w);
+  blendJoint(rig.head, p.head, w);
+};
+/** Everything a pose sets, back to the rest shape. */
+const resetBones = (rig: Rig) => {
+  for (const g of [rig.armL, rig.armR, rig.foreL, rig.foreR]) g.quaternion.identity();
+  for (const g of [rig.legL, rig.legR, rig.shinL, rig.shinR, rig.head, rig.sway, rig.body]) g.rotation.set(0, 0, 0);
+  rig.body.position.set(0, 0, 0);
+  rig.sway.position.set(0, 0, 0);
+  rig.torso.scale.set(1, 1, 1);
+  rig.upper.rotation.set(0, 0, 0);
+  rig.upper.position.set(0, 0, 0);
+  rig.head.position.y = rig.life.headY;
+  rig.armL.position.y = rig.shoulderL.y;
+  rig.armR.position.y = rig.shoulderR.y;
+};
+/** Bend the torso (everything above the hips) by the pose's angles, the hips staying where they are. */
+const bendTorso = (rig: Rig, j: { x?: number; y?: number; z?: number } | undefined, w: number) => {
+  rig.upper.rotation.set((j?.x ?? 0) * DEG * w, (j?.y ?? 0) * DEG * w, (j?.z ?? 0) * DEG * w);
+  wV.set(0, rig.legLen, 0).applyEuler(rig.upper.rotation);
+  rig.upper.position.set(-wV.x, rig.legLen - wV.y, -wV.z);
+};
+
 /**
- * Knocked out: the body folds and falls back over 0.6 s, then lies still, arms flung out,
- * one knee up. `t` is seconds since the knock-out; `seed` varies which way it twists.
+ * Knocked out: the sheet's defeat pose, `t` seconds in (the fall takes 0.6 s): Brix flat on her back with her skate off, Ormo sitting
+ * in his tea, Zuzu with her red card, Tavo with the pan on his head. `seed` is kept for callers; the pose is the same every time.
  */
-export const poseDeath = (rig: Rig, t: number, seed: number) => {
+export const poseDeath = (rig: Rig, t: number, _seed: number) => {
   const k = Math.min(1, t / 0.6);
   const e = k < 1 ? 1 - Math.pow(1 - k, 3) : 1;
   const bounce = k >= 1 ? 0 : Math.sin(k * Math.PI) * 0.05;
-  const twist = (seed % 2 ? 1 : -1) * 0.35;
-  rig.body.rotation.set(-1.52 * e, twist * e, 0);
-  rig.body.position.set(0, 0.16 * e + bounce, 0);
+  const pose = SHEET_POSES[rig.life.id].defeat;
+  resetBones(rig);
   rig.weapon.visible = false;
-  rig.head.rotation.y = twist * 0.8 * e;
-  rig.armL.quaternion.setFromEuler(tmpE.set(-0.4 * e, 0, -1.3 * e));
-  rig.armR.quaternion.setFromEuler(tmpE.set(-0.9 * e, 0, 1.1 * e));
-  rig.foreL.quaternion.setFromEuler(tmpE.set(-0.5 * e, 0, 0));
-  rig.foreR.quaternion.setFromEuler(tmpE.set(-0.2 * e, 0, 0));
-  rig.legL.rotation.set(-0.6 * e, 0, -0.1 * e);
-  rig.legR.rotation.set(0.05 * e, 0, 0.12 * e);
-  rig.shinL.rotation.set(1.1 * e, 0, 0);
-  rig.shinR.rotation.set(0.1 * e, 0, 0);
+  blendPose(rig, pose, e);
+  bendTorso(rig, pose.torso, e);
+  rig.body.rotation.x = (pose.root?.x ?? 0) * DEG * e;
+  rig.body.position.set(0, (pose.root?.y ?? 0) * e + bounce, -(pose.root?.pz ?? 0) * e);
+  // Nothing sinks into the floor: lift the pose by how far its lowest point is below the feet (measured while it settles, then kept).
+  if (!rig.life.down) rig.life.downLift = -1;
+  let lift = rig.life.downLift;
+  if (k < 1 || lift < 0) {
+    rig.root.updateMatrixWorld(true);
+    wBox.setFromObject(rig.body);
+    lift = Math.max(0, rig.root.position.y - wBox.min.y);
+  }
+  rig.life.downLift = k < 1 ? -1 : lift;
+  rig.body.position.y += lift;
+  rig.life.down = true;
+  rig.fx.setExpr(k < 0.35 ? 'shock' : pose.expr);
+  rig.fx.setProps(k >= 0.6 ? (pose.flags ?? null) : null);
+  rig.fx.tick(0.016, t);
+  for (const eye of rig.life.eyes) eye.scale.y = rig.fx.eyeTall;
 };
 
+/**
+ * One of the sheet poses (idle, victory, defeat, taunt) held still, for the home page, the result screen and the portraits.
+ * Frees the rig from the gun and from the fight's lean: call it instead of poseSide.
+ */
+export const poseShow = (rig: Rig, kind: ShowPose, time = 0) => {
+  const pose = SHEET_POSES[rig.life.id][kind];
+  resetBones(rig);
+  rig.weapon.visible = false;
+  blendPose(rig, pose, 1);
+  bendTorso(rig, pose.torso, 1);
+  rig.body.rotation.x = (pose.root?.x ?? 0) * DEG;
+  rig.body.position.set(0, pose.root?.y ?? 0, -(pose.root?.pz ?? 0));
+  rig.life.down = kind === 'defeat';
+  rig.fx.setExpr(pose.expr);
+  rig.fx.setProps(pose.flags ?? null);
+  rig.fx.tick(0.016, time);
+};
 
 // ---------------------------------------------------------------------------------------------------------------
 // Weight and life (purely visual; the sim never sees any of it). F-029..F-031: every one-shot body effect holds its
@@ -1401,54 +1217,33 @@ const advanceWeight = (rig: Rig, dt: number) => {
 
 const winEnv = (t: number) => smooth(t / 0.12) * (1 - smooth((t - 0.76) / 0.14));
 
-/** Winner poses: blended over the normal pose, last thing in lifeRig. */
+/** Winner poses: the sheet's victory pose blended over the normal one, last thing in lifeRig. The gun is put away. */
 const applyWinner = (rig: Rig, t: number) => {
   const L = rig.life;
   const e = winEnv(t);
   const full = L.k >= 1;
   const kk = Math.min(1, t / WINNER_SECONDS);
-  const arm = (g: THREE.Group, x: number, y: number, z: number, w = e) => {
-    wQa.setFromEuler(wE.set(x, y, z));
-    g.quaternion.slerp(wQa, w);
-  };
-  L.hideGun = false;
+  const pose = SHEET_POSES[L.id].victory;
+  L.hideGun = e > 0.02;
+  blendPose(rig, pose, e);
+  if (full) rig.root.position.y += (pose.root?.y ?? 0) * e;
   switch (L.id) {
-    case 'hotfix': {
-      // Fist pump: the free arm up to 150 degrees, pumping, with a small hop.
-      const pump = 0.5 + 0.5 * Math.sin(t * Math.PI * 5);
-      arm(rig.armL, -(105 + 45 * pump) * DEG, 0, 0.15);
-      arm(rig.foreL, -0.5, 0, 0);
-      if (full) rig.root.position.y += 0.15 * 4 * kk * (1 - kk);
+    case 'hotfix':
+      // Two turns on one skate in 0.6 s, then the arm up.
+      if (full) rig.root.rotation.y += Math.PI * 4 * smooth(Math.min(1, t / 0.6));
       break;
-    }
-    case 'legacy': {
-      // Arms crossed over the chest, the gun put away, the belly bounces twice.
-      L.hideGun = e > 0.02;
-      arm(rig.armL, -0.55, 0, 1.05);
-      arm(rig.armR, -0.55, 0, -1.05);
-      arm(rig.foreL, -1.9, 0, 0);
-      arm(rig.foreR, -1.9, 0, 0);
-      if (L.belly && full) L.belly.scale.y = L.bellyBase * (1 + 0.1 * Math.sin(kk * Math.PI * 4) * e);
+    case 'legacy':
+      // The chest puffs twice.
+      if (full) rig.torso.scale.set(1 + 0.04 * Math.sin(kk * Math.PI * 4) * e, 1 + 0.05 * Math.sin(kk * Math.PI * 4) * e, 1 + 0.04 * Math.sin(kk * Math.PI * 4) * e);
       break;
-    }
-    case 'standup': {
-      // An air spin: one full turn in 0.4 s with a hop.
-      if (full) {
-        const k = Math.min(1, t / 0.4);
-        rig.root.rotation.y += Math.PI * 2 * smooth(k);
-        rig.root.position.y += 0.3 * Math.sin(Math.PI * k);
-      }
-      break;
-    }
     case 'intern': {
-      // Thumbs up, and the backpack hitched up 0.08 m.
-      arm(rig.armL, -1.25, 0, 0.2);
-      arm(rig.foreL, -1.45, 0, 0);
-      if (L.thumb) L.thumb.visible = e > 0.3;
+      // The pack hitched up 0.08 m.
       const pack = L.secondary[0];
       if (pack && full) pack.g.position.y += 0.08 * Math.sin(Math.PI * Math.min(1, t / 0.5));
       break;
     }
+    default:
+      break;
   }
 };
 
@@ -1505,7 +1300,10 @@ export const lifeRig = (rig: Rig, p: LifeInput) => {
   const aBody = L.flinch * FLINCH.body;
   rig.sway.rotation.set(-sy * aBody, 0, cy * aBody);
   const aUp = L.flinch * FLINCH.torso + shift + L.run + L.turnDir * 12 * DEG * skidEnv * k + p.facing * 5 * DEG * L.shot.x * k;
-  rig.upper.rotation.set(-sy * aUp, 0, cy * aUp);
+  // The winner pose bends the torso too (Brix leans back with her arm up, Ormo tips back for the toast).
+  const win = L.winT < WINNER_SECONDS ? winEnv(L.winT) : 0;
+  const wt = win > 0 ? SHEET_POSES[L.id].victory.torso : undefined;
+  rig.upper.rotation.set(-sy * aUp + (wt?.x ?? 0) * DEG * win, (wt?.y ?? 0) * DEG * win, cy * aUp + (wt?.z ?? 0) * DEG * win);
   wV.set(0, rig.legLen, 0).applyEuler(rig.upper.rotation);
   // The torso also slides 6 cm away from the shot, and 3 cm back from a gun's kick.
   const dxW = -L.flinch * FLINCH.shift - p.facing * 0.03 * L.shot.x * k;
@@ -1515,6 +1313,19 @@ export const lifeRig = (rig: Rig, p: LifeInput) => {
   rig.head.rotation.x += -sy * aHead;
   rig.head.rotation.z = cy * aHead;
 
+  // Face: the expression of the moment (a hit is a shock for 0.2 s; a winner wears the victory face).
+  const fx = rig.fx;
+  fx.setExpr(L.flinchT < 0.2 ? 'shock' : win > 0.3 ? WIN_EXPR[L.id] : REST_EXPR[L.id]);
+  if ((win > 0.3) !== L.winProps) {
+    L.winProps = win > 0.3;
+    fx.setProps(L.winProps ? (SHEET_POSES[L.id].victory.flags ?? null) : null);
+  }
+  // Idle life from the sheets: Brix rolls side to side on her skates, Zuzu bounces on her toes.
+  const sheetIdle = L.idle * k;
+  if (L.id === 'hotfix') rig.sway.position.x = Math.sin(time * 2 * Math.PI * 0.5) * 0.1 * sheetIdle;
+  else if (L.id === 'standup') rig.sway.position.y = Math.abs(Math.sin(time * Math.PI * 3)) * 0.035 * sheetIdle;
+  if (dt > 0) fx.tick(dt, time);
+
   // Blink.
   L.blinkT -= rawDt;
   if (L.blinkT <= 0) {
@@ -1523,7 +1334,7 @@ export const lifeRig = (rig: Rig, p: LifeInput) => {
   }
   L.blinkLeft = Math.max(0, L.blinkLeft - rawDt);
   const open = L.blinkLeft > 0 ? 0.1 : 1;
-  for (const e of L.eyes) e.scale.y = open;
+  for (const e of L.eyes) e.scale.y = open * fx.eyeTall;
 
   // Hanging parts: trail the acceleration of the body on two springs each.
   if (dt > 0) {

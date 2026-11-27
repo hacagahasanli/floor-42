@@ -1,0 +1,101 @@
+// Update check 2026-11-28: node upd.mjs <offsite|office> <W> <H> <shotsDir>
+import { chromium } from 'playwright-core';
+const EXE = process.env.HOME + '/Library/Caches/ms-playwright/chromium-1255/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
+const [ARENA, W, H, SHOTS] = [process.argv[2], +process.argv[3], +process.argv[4], process.argv[5]];
+const FAKE_SDK = `(function(){var T=function(){return Math.round(performance.now())};window.__cg=[];var L=[];function log(n){window.__cg.push([n,T()]);}
+window.CrazyGames={SDK:{environment:'crazygames',init:function(){log('init');return new Promise(function(r){setTimeout(r,50)});},
+game:{settings:{muteAudio:false},loadingStart:function(){log('loadingStart')},loadingStop:function(){log('loadingStop')},
+gameplayStart:function(){log('gameplayStart')},gameplayStop:function(){log('gameplayStop')},happytime:function(){log('happytime')},
+addSettingsChangeListener:function(cb){L.push(cb)},removeSettingsChangeListener:function(){}},ad:{requestAd:function(){log('requestAd')}},user:{},data:{}}};})();`;
+const MODE = ARENA;
+const ext = new Set(), errors = [], warns = [], out = { mode: MODE, size: `${W}x${H}` }, marks = [];
+const browser = await chromium.launch({ executablePath: EXE, headless: true, args: ['--autoplay-policy=user-gesture-required', '--enable-precise-memory-info', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: W, height: H + 40 } });
+await ctx.route('https://sdk.crazygames.com/**', (r) => r.fulfill({ status: 200, contentType: 'application/javascript', body: FAKE_SDK }));
+ctx.on('request', (q) => { const u = new URL(q.url()); if (!['127.0.0.1', 'localhost'].includes(u.hostname) && !['data:', 'blob:'].includes(u.protocol)) ext.add(q.url()); });
+ctx.on('websocket', (w) => ext.add('WS ' + w.url()));
+const failed = []; ctx.on('requestfailed', (q) => failed.push(q.url())); ctx.on('response', (r) => { if (r.status() >= 400) failed.push(r.status() + ' ' + r.url()); });
+const page = await ctx.newPage();
+page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); if (m.type() === 'warning') warns.push(m.text()); });
+page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+let f;
+const frame = async () => { f = null; for (let i = 0; i < 400 && !(f = page.frames().find((x) => x.url().includes('8611'))); i++) await page.waitForTimeout(25); };
+const now = () => f.evaluate(() => Math.round(performance.now()));
+const cg = () => f.evaluate(() => window.__cg);
+const txt = () => f.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
+const wait = async (n, ms, after = -1) => { const t = Date.now(); while (Date.now() - t < ms) { const e = (await cg()).filter((x) => x[0] === n && x[1] > after).pop(); if (e) return e[1]; await page.waitForTimeout(50); } return null; };
+const menuState = async () => f.evaluate(() => ({ checked: [...document.querySelectorAll('[role=radiogroup][aria-label=Arena] [role=radio]')].map((b) => b.dataset.id + ':' + b.getAttribute('aria-checked')).join(' '), line: (document.querySelector('[data-testid=arena-line]') || {}).textContent, stored: (() => { try { return JSON.parse(localStorage.getItem('floor42:settings') || 'null')?.arena ?? null; } catch (e) { return 'ERR ' + e.message; } })() }));
+const load = async (tag) => { const t0 = Date.now(); await page.goto(`http://localhost:8612/index.html?w=${W}&h=${H}`); await frame(); const ls = await wait('loadingStop', 30000); await page.waitForTimeout(1200); return { tag, loadingStop: ls, wallMs: Date.now() - t0, sdk: await cg(), menu: await menuState() }; };
+const pick = async (id) => { await f.getByText(/^FIGHTER$/).first().click(); await page.waitForTimeout(800); const before = await menuState(); await f.locator(`[role=radiogroup][aria-label=Arena] [data-id=${id}]`).click(); await page.waitForTimeout(300); const after = await menuState(); await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-pick-${id}.png` }); await page.keyboard.press('Escape'); await page.waitForTimeout(600); return { before, after }; };
+const frameTimes = async (ms) => f.evaluate((ms) => new Promise((r) => { const d = []; let last = performance.now(); const t0 = last; const k = (t) => { d.push(t - last); last = t; t - t0 < ms ? requestAnimationFrame(k) : (d.sort((a, b) => a - b), r({ n: d.length, fps: Math.round(d.length / (ms / 1000)), p50: +d[Math.floor(d.length * 0.5)].toFixed(1), p95: +d[Math.floor(d.length * 0.95)].toFixed(1), p99: +d[Math.floor(d.length * 0.99)].toFixed(1), max: +d[d.length - 1].toFixed(1), over33: d.filter((x) => x > 33.4).length })); }; requestAnimationFrame(k); }), ms);
+
+out.gl = null;
+process.on('unhandledRejection', (e) => { console.log(JSON.stringify(out, null, 1)); console.log('CRASH', e && e.message); console.log('ERRORS:', errors); process.exit(1); });
+out.load1 = await load('fresh');
+out.gl = await f.evaluate(() => { const c = document.createElement('canvas').getContext('webgl2'); const d = c && c.getExtension('WEBGL_debug_renderer_info'); return d ? c.getParameter(d.UNMASKED_RENDERER_WEBGL) : 'n/a'; });
+await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-1-menu.png` });
+if (ARENA === 'office') { out.pickOffice = await pick('office'); out.load2 = await load('reload-after-pick'); await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-1b-menu-after-reload.png` }); }
+
+await f.getByText(/^PLAY$/).first().click();
+const playAt = await now();
+const gs1 = await wait('gameplayStart', 30000, playAt); out.playAt = playAt; out.gameplayStart1 = gs1;
+out.frameUrl = f.url().replace(/^.*#/, '#');
+const hud = await txt(); out.hudArena = /OFFSITE/.test(hud) ? 'OFFSITE' : /FLOOR 42|FLOOR/.test(hud) ? 'office-ish: ' + (hud.match(/FLOOR[^A-Z]{0,8}\w*/) || [''])[0] : '?';
+out.hudBot = hud.match(/BOT[^A-Z]{0,4}[a-z]+/)?.[0];
+out.focus = await f.evaluate(() => ({ hasFocus: document.hasFocus(), active: document.activeElement && document.activeElement.tagName }));
+await page.keyboard.press('Space'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('PageDown');
+out.hostScrollY = await page.evaluate(() => scrollY);
+await page.waitForTimeout(1500);
+out.frameIdle = await frameTimes(5000);
+await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-4-fight.png` });
+const b0 = await now(); await page.keyboard.press('Escape'); await page.waitForTimeout(800);
+await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-5-paused.png` });
+out.escStop = await wait('gameplayStop', 1000, b0);
+const b1 = await now(); await page.keyboard.press('Escape'); await page.waitForTimeout(800);
+out.escStart = await wait('gameplayStart', 1000, b1);
+const b3 = await now(); await page.click('#outside'); await page.waitForTimeout(800);
+out.blurCalls = (await cg()).filter((x) => x[1] > b3).map((x) => x[0]);
+await page.mouse.click(W / 2, 30 + H / 2); await page.waitForTimeout(300);
+out.refocus = await f.evaluate(() => document.hasFocus());
+
+let ftFight = null;
+const playMatch = async (tag) => {
+  const T0 = Date.now(); let res = null, shot = 0;
+  while (Date.now() - T0 < 420000) {
+    const k = ['KeyD', 'KeyA'][Math.floor((Date.now() - T0) / 1500) % 2];
+    await page.keyboard.down(k); await page.keyboard.down('KeyJ'); await page.waitForTimeout(220); await page.keyboard.up('KeyJ'); await page.keyboard.press('KeyW'); await page.waitForTimeout(220); await page.keyboard.up(k);
+    const s = await txt();
+    if (/rematch/i.test(s)) { res = await now(); break; }
+    if (Date.now() - T0 > 30000 * (shot + 1)) { shot++; await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-${tag}-mid${shot}.png` }); }
+  }
+  return { resultAt: res, wallS: Math.round((Date.now() - T0) / 1000) };
+};
+// frame time while fighting (inputs held in parallel via a short busy loop)
+const ftP = frameTimes(6000);
+for (let i = 0; i < 12; i++) { await page.keyboard.down('KeyD'); await page.keyboard.down('KeyJ'); await page.waitForTimeout(220); await page.keyboard.up('KeyJ'); await page.keyboard.up('KeyD'); await page.keyboard.press('KeyW'); await page.waitForTimeout(220); }
+out.frameFight = await ftP;
+out.match1 = await playMatch('m1');
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-6-result1.png` });
+out.result1Text = (await txt()).slice(0, 200);
+out.heapMB1 = await f.evaluate(() => performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null);
+const r0 = await now(); await page.keyboard.press('Enter');
+out.rematchEnterAt = r0; out.rematchStart = await wait('gameplayStart', 20000, r0);
+out.rematchFrameUrl = f.url().replace(/^.*#/, '#');
+out.rematchHudArena = /OFFSITE/.test(await txt()) ? 'OFFSITE' : 'not OFFSITE';
+await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-7-rematch.png` });
+out.match2 = await playMatch('m2');
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${SHOTS}/${MODE}-${W}-8-result2.png` });
+out.heapMB2 = await f.evaluate(() => performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null);
+out.cgLog = await cg();
+// persistence round trip
+if (ARENA === 'offsite') {
+  out.p1 = await load('reload-after-matches');
+  out.p1pick = await pick('office'); out.p2 = await load('reload-after-office');
+  out.p2pick = await pick('offsite'); out.p3 = await load('reload-after-offsite');
+} else {
+  out.p1 = await load('reload-after-matches (expect office kept)');
+}
+await ctx.close(); await browser.close();
+console.log(JSON.stringify(out, null, 1)); console.log('EXTERNAL:', [...ext]); console.log('FAILED:', failed); console.log('ERRORS:', errors); console.log('WARNINGS:', warns.slice(0, 15));

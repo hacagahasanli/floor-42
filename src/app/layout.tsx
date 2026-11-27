@@ -2,7 +2,7 @@ import { Bungee, Chakra_Petch } from 'next/font/google';
 
 import { SettingsRoot } from '~/components/menu/SettingsRoot';
 import { TelemetryInit } from '~/components/TelemetryInit';
-import { COPY, DEFAULT_VARIANT } from '~/game/copy';
+import { COPY } from '~/game/copy';
 import { STUDIO_NAME } from '~/lib/studio';
 
 import type { Metadata, Viewport } from 'next';
@@ -15,7 +15,7 @@ const ui = Chakra_Petch({ weight: ['400', '500', '600', '700'], subsets: ['latin
 
 export const metadata: Metadata = {
   title: { default: `Floor 42 · ${STUDIO_NAME}`, template: '%s · Floor 42' },
-  description: `${COPY.tagline[DEFAULT_VARIANT]} A two-player office shootout from ${STUDIO_NAME}: settle it on floor 42, first to five KOs.`,
+  description: `${COPY.tagline} A two-player office shootout from ${STUDIO_NAME}: settle it on floor 42, first to five KOs.`,
   // Added to the iPhone home screen, it opens full screen with no browser bars.
   appleWebApp: { capable: true, title: 'Floor 42', statusBarStyle: 'black-translucent' },
   metadataBase: new URL('https://floor42.nalbakigames.com'),

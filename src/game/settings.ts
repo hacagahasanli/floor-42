@@ -8,7 +8,6 @@ import { RESERVED_KEYS } from './reservedKeys';
 import { ARENA_IDS, DEFAULT_ARENA } from './sim/constants';
 import { DEFAULT_BINDINGS_2P, rebind2P, sanitizeBindings2P } from './twoPlayer';
 
-import type { Audience } from './copy';
 import type { AimMode, Button } from './input';
 import type { ArenaId } from './sim/constants';
 import type { Action2P, Bindings2P, Player } from './twoPlayer';
@@ -44,8 +43,6 @@ export interface Settings {
   reducedMotion: boolean;
   colourBlind: boolean;
   largeHud: boolean;
-  /** Developer jokes or plain fighting-game words (see copy.ts); 'unset' until the first-entry question. */
-  audience: Audience;
   /** The arena offline matches are played in (the menu's Arena row). Online is always the office. */
   arena: ArenaId;
 }
@@ -96,7 +93,6 @@ export const DEFAULT_SETTINGS: Settings = {
   reducedMotion: false,
   colourBlind: false,
   largeHud: false,
-  audience: 'unset',
   arena: DEFAULT_ARENA,
 };
 
@@ -175,7 +171,6 @@ export const sanitize = (raw: unknown): Settings => {
     reducedMotion: bool(r.reducedMotion, d.reducedMotion),
     colourBlind: bool(r.colourBlind, d.colourBlind),
     largeHud: bool(r.largeHud, d.largeHud),
-    audience: pick(r.audience, ['unset', 'developer', 'regular'] as const, d.audience),
     arena: pick(r.arena, ARENA_IDS, d.arena),
   };
 };
@@ -317,8 +312,8 @@ export const createSettingsStore = (storage: StorageLike | null) => {
     },
     /** "Reset 2 player keys": only the 2-player map, the 1-player keys stay. */
     resetBindings2P: () => commit({ ...current, bindings2p: sanitizeBindings2P({}) }),
-    /** Back to the defaults; the developer/regular answer and the arena pick stay (they are not tuning knobs). */
-    resetAll: () => commit({ ...sanitize({}), audience: current.audience, arena: current.arena }),
+    /** Back to the defaults; the arena pick stays (they are not tuning knobs). */
+    resetAll: () => commit({ ...sanitize({}), arena: current.arena }),
     /** Sound is off when the player muted it or the platform asked for silence. */
     effectiveMute: () => current.audio.muted || externalMute,
     setExternalMute: (on: boolean) => {

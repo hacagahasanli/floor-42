@@ -8,6 +8,9 @@ import { cpSync } from 'fs';
 import path from 'path';
 import { defineConfig } from 'vite';
 
+import { GAME_NAME, wordmarkParts } from './src/components/fieldday/brand';
+import { STUDIO_NAME } from './src/lib/studio';
+
 const out = path.resolve(__dirname, 'dist/portal');
 
 export default defineConfig({
@@ -19,7 +22,6 @@ export default defineConfig({
     alias: [
       { find: /^next\/link$/, replacement: path.resolve(__dirname, 'portal/shims/link.tsx') },
       { find: /^next\/navigation$/, replacement: path.resolve(__dirname, 'portal/shims/navigation.ts') },
-      { find: /^(\.\/|~\/components\/menu\/)AudiencePrompt$/, replacement: path.resolve(__dirname, 'portal/shims/audiencePrompt.tsx') },
       { find: '~', replacement: path.resolve(__dirname, 'src') },
     ],
   },
@@ -39,6 +41,20 @@ export default defineConfig({
   preview: { port: 3206 },
   plugins: [
     {
+      // The boot screen's wordmark, studio pill and page title come from the same constants as the app (brand.ts, studio.ts),
+      // so the rename (R-023) is one edit.
+      name: 'boot-wordmark',
+      transformIndexHtml: {
+        order: 'pre',
+        handler: (html) => {
+          const [a, b] = wordmarkParts(GAME_NAME);
+          const mark = `<div class="wmw"><div class="wm">${b === undefined ? '' : `<span class="a">${a}</span>`}<span class="b">${b ?? a}</span></div></div>`;
+          const title = GAME_NAME.replace(/\w+/g, (w) => w[0] + w.slice(1).toLowerCase());
+          return html.replace('<!--FD_WORDMARK-->', mark).replace('<!--FD_STUDIO-->', STUDIO_NAME).replace('%GAME_TITLE%', title);
+        },
+      },
+    },
+    {
       // 'use client' marks components for Next.js; it means nothing here.
       name: 'strip-use-client',
       enforce: 'pre',
@@ -55,6 +71,8 @@ export default defineConfig({
       },
       closeBundle() {
         cpSync(path.resolve(__dirname, 'public/assets'), path.join(out, 'assets'), { recursive: true });
+        // The OFL texts of the self-hosted fonts ship with the build (Field Day spec section 8).
+        cpSync(path.resolve(__dirname, 'public/licenses'), path.join(out, 'licenses'), { recursive: true });
       },
     },
   ],

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildRig, cancelWinner, FLINCH, lifeRig, poseSide, ringEnv, startFlinch, startLanding, startShot, startTakeoff, startWinner, stepSpring, WINNER_SECONDS } from './characters';
+import * as THREE from 'three';
+import { buildRig, cancelWinner, FLINCH, rimBoostFor, lifeRig, poseDeath, poseShow, poseSide, ringEnv, startFlinch, startLanding, startShot, startTakeoff, startWinner, stepSpring, WINNER_SECONDS } from './characters';
 
 import type { SidePose } from './characters';
 
@@ -220,7 +221,7 @@ describe('weight and life', () => {
         sawGunAway ||= rig.life.hideGun;
         for (const c of [rig.armL, rig.armR, rig.root]) expect(Number.isFinite(c.position.y)).toBe(true);
       }
-      expect(sawGunAway).toBe(id === 'legacy');
+      expect(sawGunAway, id).toBe(true); // every victory pose uses both hands: the gun goes away
       expect(rig.life.hideGun).toBe(false);
       expect(rig.life.thumb?.visible ?? false).toBe(false);
       startWinner(rig);
@@ -257,5 +258,163 @@ describe('weight and life', () => {
     expect(max).toBeGreaterThan(0.001);
     expect(max).toBeGreaterThan(0.015);
     expect(max).toBeLessThan(0.03);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// R-022b roster (BRIX hotfix, ORMO legacy, ZUZU standup, TAVO intern): rigs, faces, props, poses.
+// ---------------------------------------------------------------------------------------------------------------------
+describe('roster v3 rigs', () => {
+  const IDS = ['hotfix', 'legacy', 'standup', 'intern'] as const;
+  /** Meshes that would be drawn: visible, with every parent visible. */
+  const drawn = (root: THREE.Object3D) => {
+    let n = 0;
+    root.traverseVisible((o) => {
+      if ((o as THREE.Mesh).isMesh) n++;
+    });
+    return n;
+  };
+  /** Visible meshes of the fighters this roster replaced (measured before the swap, same pose and kit). */
+  const BEFORE = { hotfix: 43, legacy: 44, standup: 44, intern: 41 };
+
+  it('draws fewer meshes than the fighters it replaced (the bake merges every static part of a bone)', () => {
+    for (const id of IDS) {
+      const n = drawn(buildRig(id).root);
+      expect(n, id).toBeLessThanOrEqual(26);
+      expect(n, id).toBeLessThan(BEFORE[id]);
+    }
+  });
+
+  it('has no star shape anywhere (R-024): no extruded or shape geometry, in any rig or in any pose', () => {
+    for (const id of IDS) {
+      const rig = buildRig(id);
+      for (const kind of ['idle', 'victory', 'defeat', 'taunt'] as const) poseShow(rig, kind);
+      rig.root.traverse((o) => {
+        const g = (o as THREE.Mesh).geometry;
+        if (g) expect(['ExtrudeGeometry', 'ShapeGeometry'], `${id} ${g.type}`).not.toContain(g.type);
+      });
+    }
+  });
+
+  const life = (rig: ReturnType<typeof buildRig>, dt: number, t: number) => lifeRig(rig, { dt, rawDt: dt, time: t, vx: 0, vy: 0, onGround: true, facing: 1 });
+
+  it('shows exactly one face per expression, X eyes on a KO and no blinking eyes while they are shut', () => {
+    for (const id of IDS) {
+      const rig = buildRig(id);
+      for (const e of ['angry', 'grin', 'smug', 'shout', 'shock', 'sad', 'closed', 'ko'] as const) {
+        rig.fx.setExpr(e);
+        expect(rig.fx.expr).toBe(e);
+        const eyesOn = rig.life.eyes.every((m) => m.visible);
+        expect(eyesOn, `${id} ${e}`).toBe(e !== 'ko' && e !== 'closed');
+      }
+      // a hit is a shock, a knock-out is X eyes
+      rig.fx.setExpr('grin');
+      startFlinch(rig, 1);
+      poseSide(rig, pose(1 / 60, 1));
+      life(rig, 1 / 60, 0);
+      expect(rig.fx.expr, id).toBe('shock');
+      poseDeath(rig, 1, 0);
+      expect(rig.fx.expr, id).toBe(id === 'legacy' ? 'sad' : id === 'standup' ? 'shout' : 'ko');
+    }
+  });
+
+  it('hangs its secondary parts (braids, walrus ends and tie, hair puffs and whistle, pack and bandana) on springs', () => {
+    const want = { hotfix: 2, legacy: 4, standup: 3, intern: 2 };
+    for (const id of IDS) expect(buildRig(id).life.secondary.length, id).toBeGreaterThanOrEqual(want[id]);
+    // Tavo's pack is the first: the winner pose hitches it
+    expect(buildRig('intern').life.secondary[0].g.getObjectByName('pack') ?? buildRig('intern').life.secondary[0].g.children[0].name).toBeTruthy();
+  });
+
+  it('puts the defeat props on the floor on a knock-out and takes them away when the fighter is back up', () => {
+    const at = (rig: ReturnType<typeof buildRig>, name: string) => rig.root.getObjectByName(name)!;
+    {
+      const rig = buildRig('hotfix');
+      expect(at(rig, 'skate-r').parent, 'skate on the foot').toBe(rig.shinR);
+      poseDeath(rig, 1, 0);
+      expect(at(rig, 'skate-r').parent, 'skate off').toBe(rig.ground);
+      expect(at(rig, 'sock-r').visible).toBe(true);
+      poseSide(rig, pose(1 / 60, 1));
+      expect(at(rig, 'skate-r').parent).toBe(rig.shinR);
+      expect(at(rig, 'sock-r').visible).toBe(false);
+    }
+    {
+      const rig = buildRig('legacy');
+      poseDeath(rig, 1, 0);
+      expect(at(rig, 'tea-spill').visible).toBe(true);
+      expect(at(rig, 'thermos').visible).toBe(false);
+      poseSide(rig, pose(1 / 60, 1));
+      expect(at(rig, 'tea-spill').visible).toBe(false);
+      expect(at(rig, 'thermos').visible).toBe(true);
+    }
+    {
+      const rig = buildRig('standup');
+      poseDeath(rig, 1, 0);
+      expect(at(rig, 'red-card').visible).toBe(true);
+      poseSide(rig, pose(1 / 60, 1));
+      expect(at(rig, 'red-card').visible).toBe(false);
+    }
+    {
+      const rig = buildRig('intern');
+      expect(at(rig, 'pan').parent).toBe(at(rig, 'pack'));
+      poseDeath(rig, 1, 0);
+      expect(at(rig, 'pan').parent, 'pan on his head').toBe(rig.head);
+      expect(at(rig, 'pack').parent, 'pack slid off').toBe(rig.ground);
+      expect(at(rig, 'swirls').visible).toBe(true);
+      poseSide(rig, pose(1 / 60, 1));
+      expect(at(rig, 'pan').parent).toBe(at(rig, 'pack'));
+      expect(at(rig, 'pack').parent).not.toBe(rig.ground);
+      expect(at(rig, 'swirls').visible).toBe(false);
+    }
+  });
+
+  it('the knock-out pose is finite and nothing sinks into the floor', () => {
+    for (const id of IDS) {
+      const rig = buildRig(id);
+      for (const t of [0, 0.2, 0.6, 3]) {
+        poseDeath(rig, t, 0);
+        rig.root.updateMatrixWorld(true);
+        const b = new THREE.Box3().setFromObject(rig.root);
+        expect(Number.isFinite(b.min.y) && Number.isFinite(b.max.y), `${id} ${t}`).toBe(true);
+        if (t >= 0.6) expect(b.min.y, `${id} ${t}`).toBeGreaterThan(-0.02);
+      }
+    }
+  });
+
+  it('every sheet pose (idle, victory, defeat, taunt) poses finite joints', () => {
+    for (const id of IDS) {
+      const rig = buildRig(id);
+      for (const kind of ['idle', 'victory', 'defeat', 'taunt'] as const) {
+        poseShow(rig, kind);
+        for (const g of [rig.armL, rig.armR, rig.foreL, rig.foreR]) expect(g.quaternion.toArray().every(Number.isFinite), `${id} ${kind}`).toBe(true);
+        for (const g of [rig.legL, rig.legR, rig.shinL, rig.shinR, rig.head]) expect([g.rotation.x, g.rotation.y, g.rotation.z].every(Number.isFinite), `${id} ${kind}`).toBe(true);
+      }
+    }
+  });
+
+  it('F-046 BRIX skate: 1.35x, wheels up, 0.55 m to the camera side; F-048 ORMO cup stays below his hair; F-049 rim boost', () => {
+    for (const facing of [1, -1] as const) {
+      const rig = buildRig('hotfix');
+      rig.root.rotation.y = facing * TURN_RIGHT;
+      rig.root.updateMatrixWorld(true);
+      poseDeath(rig, 1, 0);
+      const sk = rig.root.getObjectByName('skate-r')!;
+      rig.fx.tick(0.016, 0);
+      expect(sk.scale.x).toBeCloseTo(1.35);
+      expect(Math.abs(sk.rotation.x)).toBeCloseTo(Math.PI);
+      rig.root.updateMatrixWorld(true);
+      // the camera is at +z: the skate sits on the +z side of the fighter's own axis
+      const w = sk.getWorldPosition(new THREE.Vector3());
+      const r = rig.root.getWorldPosition(new THREE.Vector3());
+      expect(w.z - r.z, `facing ${facing}`).toBeGreaterThan(0.3);
+    }
+    const ormo = buildRig('legacy');
+    poseShow(ormo, 'victory');
+    ormo.root.updateMatrixWorld(true);
+    const hair = new THREE.Box3().setFromObject(ormo.head).max.y;
+    const cup = new THREE.Box3().setFromObject(ormo.foreL.children.flatMap((c) => c.children).find((c) => c.visible && c.children.length) ?? ormo.foreL);
+    expect(cup.max.y).toBeLessThan(hair);
+    expect(rimBoostFor('intern', 'office')).toBe(1.3);
+    expect(rimBoostFor('intern', 'offsite')).toBe(1);
+    expect(rimBoostFor('hotfix', 'office')).toBe(1);
   });
 });

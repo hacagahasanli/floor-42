@@ -1,0 +1,181 @@
+import type { ReactNode, SVGProps } from 'react';
+
+/**
+ * The Field Day icon set (spec 2.5): 24 px grid, grape stroke about 2.4, white fill, round joins ("sticker" icons), plus weapon
+ * silhouettes (40x20) and two award icons. Inline SVG, no icon font, no emoji. Drawn exactly as in the spec's index.html.
+ * `<Icon name="play" />` is 1em square (weapons 2em x 1em): size it with font-size or `size`.
+ */
+const G = '#3B1F6B';
+const sticker = { fill: '#fff', stroke: G, strokeLinejoin: 'round' } as const;
+
+const ICONS = {
+  play: <path d="M7 4.5 L19.5 12 L7 19.5Z" fill="#fff" stroke={G} strokeWidth="2.8" strokeLinejoin="round" />,
+  '2p': (
+    <g {...sticker} strokeWidth="2.4">
+      <circle cx="8.5" cy="8" r="3.4" />
+      <circle cx="16.5" cy="8" r="3.4" />
+      <path d="M2.5 20c0-4 2.7-6.3 6-6.3s6 2.3 6 6.3z" />
+      <path d="M10.5 20c0-4 2.7-6.3 6-6.3s6 2.3 6 6.3z" />
+    </g>
+  ),
+  globe: (
+    <g fill="none" stroke={G} strokeWidth="2.4">
+      <circle cx="12" cy="12" r="9" fill="#fff" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <path d="M3.5 9h17M3.5 15h17" />
+    </g>
+  ),
+  fighter: (
+    <>
+      <g {...sticker} strokeWidth="2.4">
+        <rect x="7" y="2.8" width="10" height="8.4" rx="2.4" />
+        <path d="M5 21.5v-5.5a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v5.5z" />
+      </g>
+      <rect x="9.6" y="6" width="1.6" height="2" fill={G} />
+      <rect x="12.8" y="6" width="1.6" height="2" fill={G} />
+    </>
+  ),
+  flag: (
+    <g stroke={G} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M5.5 21.5V3" />
+      <path d="M5.5 4h13l-3 4.5 3 4.5h-13z" fill="#fff" />
+    </g>
+  ),
+  gear: (
+    <g {...sticker} strokeWidth="2.3">
+      <path d="M10.3 2.5h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9-2.6-.5v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z" />
+      <circle cx="12" cy="12" r="3.3" />
+    </g>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9.5" fill="#fff" stroke={G} strokeWidth="2.4" />
+      <path d="M9.2 9.3a2.9 2.9 0 1 1 4.2 2.6c-.9.5-1.4 1.1-1.4 2.1v.6" fill="none" stroke={G} strokeWidth="2.6" strokeLinecap="round" />
+      <circle cx="12" cy="17.6" r="1.5" fill={G} />
+    </>
+  ),
+  back: <path d="M14.5 4.5 L6.5 12 L14.5 19.5 M7 12h11" fill="none" stroke={G} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />,
+  left: <path d="M15 4.5 L7 12 L15 19.5Z" fill="#fff" stroke={G} strokeWidth="2.6" strokeLinejoin="round" />,
+  right: <path d="M9 4.5 L17 12 L9 19.5Z" fill="#fff" stroke={G} strokeWidth="2.6" strokeLinejoin="round" />,
+  pause: (
+    <g fill="#fff" stroke={G} strokeWidth="2.4">
+      <rect x="5.5" y="4" width="4.6" height="16" rx="1.6" />
+      <rect x="13.9" y="4" width="4.6" height="16" rx="1.6" />
+    </g>
+  ),
+  sound: (
+    <g stroke={G} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M3.5 9h4l5-4.5v15l-5-4.5h-4z" fill="#fff" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7M18.3 5.8a9 9 0 0 1 0 12.4" fill="none" />
+    </g>
+  ),
+  mute: (
+    <g stroke={G} strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M3.5 9h4l5-4.5v15l-5-4.5h-4z" fill="#fff" />
+      <path d="M15.5 9l5 6M20.5 9l-5 6" fill="none" />
+    </g>
+  ),
+  check: <path d="M4.5 12.5l5 5 10-11" fill="none" stroke={G} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />,
+  lock: (
+    <g stroke={G} strokeWidth="2.4" strokeLinejoin="round">
+      <rect x="4.5" y="10.5" width="15" height="11" rx="2.6" fill="#fff" />
+      <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" />
+    </g>
+  ),
+  again: (
+    <g fill="none" stroke={G} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+      <path d="M19.8 3.8v4.6h-4.6" />
+    </g>
+  ),
+  home: <path d="M3.5 11.5 12 4l8.5 7.5V20.5h-5.5v-5.5h-6v5.5H3.5z" fill="#fff" stroke={G} strokeWidth="2.4" strokeLinejoin="round" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9.5" fill="#fff" stroke={G} strokeWidth="2.4" />
+      <path d="M12 7v5.3l3.4 2.2" fill="none" stroke={G} strokeWidth="2.4" strokeLinecap="round" />
+    </>
+  ),
+  keys: (
+    <>
+      <rect x="2.5" y="6" width="19" height="12.5" rx="2.6" fill="#fff" stroke={G} strokeWidth="2.2" strokeLinejoin="round" />
+      <g fill={G}>
+        <rect x="5.5" y="9" width="2.4" height="2.2" rx=".6" />
+        <rect x="9.5" y="9" width="2.4" height="2.2" rx=".6" />
+        <rect x="13.5" y="9" width="2.4" height="2.2" rx=".6" />
+        <rect x="17" y="9" width="1.8" height="2.2" rx=".6" />
+        <rect x="7.5" y="13.4" width="9" height="2.2" rx=".6" />
+      </g>
+    </>
+  ),
+  star: <path d="M12 2.8l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.7l-5.6 3.1 1.3-6.2L3 9.3l6.3-.7z" fill="#fff" stroke={G} strokeWidth="2.3" strokeLinejoin="round" />,
+  /** The award burst (sun fill) and the jump arrow. */
+  burst: <path d="M12 1.8l2.2 5 5.2-1.7-1.8 5.1 4.8 2.5-5 2 1.4 5.3-5-1.9L12 23l-1.8-4.9-5 1.9 1.4-5.3-5-2 4.8-2.5L4.6 5.1l5.2 1.7z" fill="#FFC83D" stroke={G} strokeWidth="2" strokeLinejoin="round" />,
+  jump: (
+    <g fill="none" stroke={G} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 15V3.5M7 8l5-5 5 5" />
+      <path d="M5 17c2 2.5 4 2.5 7 0s5-2.5 7 0" />
+      <path d="M5 21c2 2.5 4 2.5 7 0s5-2.5 7 0" opacity=".5" />
+    </g>
+  ),
+} satisfies Record<string, ReactNode>;
+
+const WEAPONS = {
+  pistol: <path d="M4 5h26v6H16l-2 7H8l2-7H4z" fill={G} />,
+  smg: <path d="M2 5h32v3h3v3h-3v1H19l-1 6h-5l1-6h-3l-1 4H6l1-4H2z" fill={G} />,
+  shotgun: <path d="M1 6h38v4H16l-4 7H5l4-7H1z" fill={G} />,
+  rocket: (
+    <>
+      <path d="M2 6h30l6 4-6 4H2z" fill={G} />
+      <rect x="12" y="13" width="4" height="6" fill={G} />
+    </>
+  ),
+} satisfies Record<string, ReactNode>;
+
+export type IconName = keyof typeof ICONS;
+export type WeaponName = keyof typeof WEAPONS;
+export const ICON_NAMES = Object.keys(ICONS) as IconName[];
+export const WEAPON_NAMES = Object.keys(WEAPONS) as WeaponName[];
+
+type Props = Omit<SVGProps<SVGSVGElement>, 'name'> & { size?: number | string };
+
+/** A UI icon. Decorative by default (aria-hidden); give the button a text label. */
+export const Icon = ({ name, size, className = '', ...rest }: Props & { name: IconName }) => (
+  <svg
+    viewBox="0 0 24 24"
+    style={size === undefined ? undefined : { width: size, height: size }}
+    className={`fd-ic ${className}`}
+    aria-hidden="true"
+    focusable="false"
+    {...rest}
+  >
+    {ICONS[name]}
+  </svg>
+);
+
+/** A weapon silhouette (the HUD chips and the KO feed). 2:1. */
+export const WeaponIcon = ({ name, size, className = '', ...rest }: Props & { name: WeaponName }) => (
+  <svg
+    viewBox="0 0 40 20"
+    className={`fd-ic ${className}`}
+    style={{ width: typeof size === 'number' ? size * 2 : '2em', height: typeof size === 'number' ? size : '1em' }}
+    aria-hidden="true"
+    focusable="false"
+    {...rest}
+  >
+    {WEAPONS[name]}
+  </svg>
+);
+
+/** The ribbon's folded tail (fill follows `fill`), pointing left; flip it with CSS for the right side. */
+export const RibbonTail = ({ fill = '#E08A00', className = '', style }: { fill?: string; className?: string; style?: React.CSSProperties }) => (
+  <svg viewBox="0 0 46 52" className={className} style={style} aria-hidden="true" focusable="false">
+    <path d="M2 2h42v48H2l12-24z" fill={fill} stroke={G} strokeWidth="4" strokeLinejoin="round" />
+  </svg>
+);
+
+/** The sun pointer that marks the focused item of a vertical menu. */
+export const Pointer = ({ className = '' }: { className?: string }) => (
+  <svg viewBox="0 0 30 34" className={className} aria-hidden="true" focusable="false">
+    <path d="M4 4 L26 17 L4 30Z" fill="#FFC83D" stroke={G} strokeWidth="4" strokeLinejoin="round" />
+  </svg>
+);

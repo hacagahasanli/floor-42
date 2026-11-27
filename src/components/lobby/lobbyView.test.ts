@@ -17,7 +17,7 @@ import {
 
 import type { LobbyInput } from './lobbyView';
 
-const base: LobbyInput = { stage: 'menu', online: true, developer: false, kos: 5 };
+const base: LobbyInput = { stage: 'menu', online: true, kos: 5 };
 const view = (o: Partial<LobbyInput>) => lobbyView({ ...base, ...o });
 
 describe('connection line and rival plate per stage (spec 7.1)', () => {
@@ -25,15 +25,12 @@ describe('connection line and rival plate per stage (spec 7.1)', () => {
     expect(view({})).toMatchObject({
       dot: 'green',
       pulse: false,
-      centre: '1v1 · first to 5',
+      centre: '1v1 · first to 5 wins',
       rival: 'Not here yet',
       panel: 'menu',
       spot: 'idle',
       offline: false,
     });
-  });
-  it('menu, developer copy', () => {
-    expect(view({ developer: true }).centre).toBe('1v1 · first to 5 takes the merge');
   });
   it('menu, offline: No internet, orange, the online buttons are disabled by the page', () => {
     expect(view({ online: false })).toMatchObject({

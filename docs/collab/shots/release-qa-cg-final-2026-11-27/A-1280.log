@@ -1,0 +1,88 @@
+{
+ "mode": "A",
+ "size": "1280x720",
+ "posterBg": "url(\"http://127.0.0.1:8601/menu-poster.webp\")",
+ "loadingStop": 202,
+ "gl": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)",
+ "wallToLoadingStopMs": 3473,
+ "playClickAt": 5131,
+ "gameplayStart1": 9464,
+ "introSeen": {
+  "FIGHT!": 5135,
+  "VS": 6159,
+  "READY": 7656
+ },
+ "hudBot": "BOT · easy",
+ "focus": {
+  "hasFocus": true,
+  "active": "INPUT#pointer-events-none absolute l"
+ },
+ "hostScrollY": 0,
+ "fps": 58,
+ "escStop": 15737,
+ "escStart": 16727,
+ "blurCalls": [],
+ "refocus": true,
+ "match1": {
+  "resultAt": 82848,
+  "wallS": 64
+ },
+ "result1Text": "Hotfix YOU Pistol DASH PUSH 8/∞ 81 0 : 5 FIRST TO 5 FLOOR 42 open office Legacy BOT · easy Shotgun 3/3 LEGACY WINS They took the floor. First to 5 KOs. Hotfix YOU Legacy BOT 0 KOS 5 0 DAMAGE DEALT 589 0% ACCURACY 100% 0 BEST STREAK 5 5 TIMES DOWN 0 REMATCH (EN",
+ "heapMB1": 51,
+ "rematchEnterAt": 84500,
+ "rematchStart": 86743,
+ "match2": {
+  "resultAt": 159069,
+  "wallS": 72
+ },
+ "result2Text": "Hotfix YOU Pistol DASH PUSH 8/∞ 80 0 : 5 FIRST TO 5 FLOOR 42 open office Legacy BOT · easy Pistol 8/∞ LEGACY WINS They took the floor. First to 5 KOs. Hotfix YOU Legacy BOT 0 KOS 5 0 DAMAGE DEALT 504 0% ACCURACY 100% 0 BEST STREAK 5 5 TIMES DOWN 0 REMATCH (ENT",
+ "heapMB2": 27,
+ "cgLog": [
+  [
+   "init",
+   109
+  ],
+  [
+   "loadingStart",
+   161
+  ],
+  [
+   "loadingStop",
+   202
+  ],
+  [
+   "gameplayStart",
+   9464
+  ],
+  [
+   "gameplayStop",
+   15737
+  ],
+  [
+   "gameplayStart",
+   16727
+  ],
+  [
+   "gameplayStop",
+   82403
+  ],
+  [
+   "gameplayStart",
+   86743
+  ],
+  [
+   "gameplayStop",
+   158963
+  ]
+ ],
+ "marks": [
+  [
+   "play-click",
+   5131
+  ]
+ ]
+}
+EXTERNAL: [ 'https://sdk.crazygames.com/crazygames-sdk-v3.js' ]
+FAILED: []
+ERRORS: []
+WARNINGS: []

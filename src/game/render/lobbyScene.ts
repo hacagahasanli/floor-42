@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 
+import { ROSTER } from '../roster';
 import { getSettings } from '../settings';
 import { GUNS } from '../sim/constants';
 
@@ -44,18 +45,9 @@ const RIVAL = new THREE.Vector3(1.3, 0, FZ - 0.15);
 const FIGHTER_H = 1.9;
 const FOV = 32;
 const SHOW_GUNS: GunKind[] = ['pistol', 'smg', 'shotgun'];
-const ACCENT: Record<CharacterId, number> = {
-  hotfix: 0xff6a3d,
-  legacy: 0x3ddc84,
-  standup: 0x3ec5ff,
-  intern: 0xffd23f,
-};
-const RIM: Record<CharacterId, number> = {
-  hotfix: 0xff7a4d,
-  legacy: 0x4be08f,
-  standup: 0x58ceff,
-  intern: 0xffc94a,
-};
+/** The roster's accents (roster.ts) as colours, and a slightly lighter shade of each for the rim light. */
+const ACCENT = Object.fromEntries(ROSTER.map((r) => [r.id, parseInt(r.accent.slice(1), 16)])) as Record<CharacterId, number>;
+const RIM = Object.fromEntries(ROSTER.map((r) => [r.id, parseInt(r.rim.slice(1), 16)])) as Record<CharacterId, number>;
 /** Idle tempo per fighter (the P0 fallback for signature beats): speed of the idle, and how much they look around. */
 const TEMPO: Record<CharacterId, { speed: number; look: number }> = {
   hotfix: { speed: 1.15, look: 1.6 },

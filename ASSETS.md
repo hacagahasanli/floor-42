@@ -9,3 +9,12 @@ most sounds (synthesised with WebAudio in `src/game/sfx.ts`). The exceptions are
 
 The sounds are edited for the game: trimmed to 1.1–2.2 s with a fade-out and encoded as AAC. Credit is
 not required, but the author asked for it, so: gun sounds by Snake (f8studios.itch.io). Thank you.
+
+## Fonts (Field Day UI)
+
+| What | Source | Author | Licence | Files |
+| --- | --- | --- | --- | --- |
+| Titan One (display) | Google Fonts, latin subset as served (11 KB) | Rodrigo Fuenzalida | SIL Open Font License 1.1, Reserved Font Name "Titan" (do not ship a modified copy under that name) | `src/components/fieldday/fonts/TitanOne-Regular.woff2`, licence `public/licenses/OFL-TitanOne.txt` |
+| Baloo 2 (UI text), weights 500/600/700/800 | Google Fonts, latin subsets as served (about 19 KB each) | The Baloo 2 Project Authors (Ek Type) | SIL Open Font License 1.1 | `src/components/fieldday/fonts/Baloo2-*.woff2`, licence `public/licenses/OFL-Baloo2.txt` |
+
+Self-hosted (no request leaves the bundle). The two licence texts ship in the build: `public/licenses/` is served by the site and copied to `dist/portal/licenses/` by `vite.portal.config.ts`. Total font weight is 87 KB, so no further subsetting was done.

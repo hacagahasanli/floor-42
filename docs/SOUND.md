@@ -31,7 +31,10 @@ voices ─> sfx (Effects) / ui (UI) / amb (0.5, ducked) / guns (Guns) ─┬─>
 | menu tick / confirm / back | 40 / 80 / 80 ms | 2 / 1 / 1 | menuSound also keeps 40 ms between ticks |
 | stamp / stampBig | 60 / 150 ms | 2 / 1 | `<Stamp>` md-lg / xl; ui bus |
 | doorSlam / liftDing / floorTick | 150 / 300 / 70 ms | 1 / 1 / 2 | lift doors, ui bus |
-| winSting / lossSting | 300 ms | 1 | result screen, ui bus |
+| winSting / lossSting | 300 ms | 1 | old result screen, ui bus |
+| resultWhoosh / drumroll / partyHorn / wahwah / thud / slideWhistle | 150-300 ms | 1 | Field Day result reveal (spec 4), ui bus, synth stand-ins |
+| ding / softPop | 100 / 40 ms | 2 | award dings (3 rising), button pops |
+| crowd | 1000 ms | 2 | murmur under the result idle, repeated to 8 s |
 
 ## Adding a sound
 
