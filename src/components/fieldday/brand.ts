@@ -1,13 +1,10 @@
 /**
- * The game's name, in ONE place (R-023: the game is being renamed). The wordmark, the boot screen (portal/index.html, via
- * vite.portal.config.ts) and the arena ribbon all read it. A name of two words shows the Field Day wordmark (a white word
- * and a big sun word); a one-word name uses only the big sun style (spec 3.1).
+ * The game's name, in ONE place (R-023). Pewfield is always written as one word: PEWFIELD in capitals, "Pewfield" in sentences.
+ * The wordmark itself is artwork (logo concept A, "PEW! burst": wordmarkArt.ts), not text; the boot screen (portal/index.html, via
+ * vite.portal.config.ts), the page title and the arena ribbon read the name from here. "FLOOR 42" is the office arena's name
+ * (arenaChoice.ts), not the game's.
  */
-export const GAME_NAME = 'FLOOR 42';
+export const GAME_NAME = 'PEWFIELD';
 
-/** The words of the wordmark: [white word, sun word] or [sun word] for a one-word name. */
-export const wordmarkParts = (name: string = GAME_NAME): [string, string] | [string] => {
-  const words = name.trim().split(/\s+/);
-  if (words.length <= 1) return [words[0] ?? ''];
-  return [words.slice(0, -1).join(' '), words[words.length - 1]];
-};
+/** The name as written in a sentence or a page title: "Pewfield". */
+export const GAME_NAME_TITLE = GAME_NAME.charAt(0) + GAME_NAME.slice(1).toLowerCase();

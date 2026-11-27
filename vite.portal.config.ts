@@ -8,7 +8,8 @@ import { cpSync } from 'fs';
 import path from 'path';
 import { defineConfig } from 'vite';
 
-import { GAME_NAME, wordmarkParts } from './src/components/fieldday/brand';
+import { GAME_NAME_TITLE } from './src/components/fieldday/brand';
+import { WORDMARK_INNER, WORDMARK_VIEWBOX } from './src/components/fieldday/wordmarkArt';
 import { STUDIO_NAME } from './src/lib/studio';
 
 const out = path.resolve(__dirname, 'dist/portal');
@@ -47,10 +48,9 @@ export default defineConfig({
       transformIndexHtml: {
         order: 'pre',
         handler: (html) => {
-          const [a, b] = wordmarkParts(GAME_NAME);
-          const mark = `<div class="wmw"><div class="wm">${b === undefined ? '' : `<span class="a">${a}</span>`}<span class="b">${b ?? a}</span></div></div>`;
-          const title = GAME_NAME.replace(/\w+/g, (w) => w[0] + w.slice(1).toLowerCase());
-          return html.replace('<!--FD_WORDMARK-->', mark).replace('<!--FD_STUDIO-->', STUDIO_NAME).replace('%GAME_TITLE%', title);
+          // The logo artwork at the home screen's slot size x 1.25 (height 147.5, width 340.4), as inline SVG: no font to wait for.
+          const mark = `<div class="wmw"><h1 class="wm"><svg viewBox="${WORDMARK_VIEWBOX}" role="img" aria-label="${GAME_NAME_TITLE}">${WORDMARK_INNER}</svg></h1></div>`;
+          return html.replace('<!--FD_WORDMARK-->', mark).replace('<!--FD_STUDIO-->', STUDIO_NAME).replace('%GAME_TITLE%', `${GAME_NAME_TITLE} \u2014 1v1 shootout`);
         },
       },
     },

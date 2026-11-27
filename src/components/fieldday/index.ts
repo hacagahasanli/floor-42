@@ -1,7 +1,7 @@
 /**
  * Field Day design system (Direction B). Import from '~/components/fieldday'. See README.md in this folder.
  */
-export { GAME_NAME, wordmarkParts } from './brand';
+export { GAME_NAME, GAME_NAME_TITLE } from './brand';
 export { Bunting } from './Bunting';
 export { FdButton } from './Button';
 export { Confetti } from './Confetti';

@@ -8,10 +8,11 @@ import { ROSTER } from '~/game/roster';
 import { RULES } from '~/game/sim/constants';
 import { TRAIT_HP } from '~/game/sim/traits';
 
-import { GAME_NAME, wordmarkParts } from './brand';
+import { GAME_NAME, GAME_NAME_TITLE } from './brand';
 import { BUNTING_COLORS } from './Bunting';
 import { FD_COPY } from './copy';
 import { CONFETTI, confettiAllowed, confettiColors, confettiPlan, seeded } from './confettiRules';
+import { WORDMARK_INNER } from './wordmarkArt';
 import { cardCrop, fighterView, FIGHTER_IDS, HEAD_ANCHOR, portraitCrop } from './fighters';
 import { fitScale, MIN_FIT } from './fit';
 import { buntingPennants, stageMetrics } from './geometry';
@@ -55,15 +56,13 @@ describe('auto-fit (spec 3.1)', () => {
 });
 
 describe('wordmark slot (R-023)', () => {
-  it('splits the game name into a white word and a sun word', () => {
-    expect(wordmarkParts('FLOOR 42')).toEqual(['FLOOR', '42']);
-    expect(wordmarkParts('BIG BAD FIELD')).toEqual(['BIG BAD', 'FIELD']);
+  it('the constant is the one place that says the name: one word, capitals', () => {
+    expect(GAME_NAME).toBe('PEWFIELD');
+    expect(GAME_NAME_TITLE).toBe('Pewfield');
   });
-  it('a one-word name uses only the big sun style', () => {
-    expect(wordmarkParts('FIELD')).toEqual(['FIELD']);
-  });
-  it('the constant is the one place that says the name', () => {
-    expect(GAME_NAME).toBe('FLOOR 42');
+  it('the artwork is outlines: no live text and no font to wait for', () => {
+    expect(WORDMARK_INNER).not.toMatch(/<text|@font-face|<image/);
+    expect(WORDMARK_INNER.length).toBeGreaterThan(1000);
   });
 });
 
