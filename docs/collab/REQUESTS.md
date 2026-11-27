@@ -121,3 +121,23 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
 - Findings for the CD: A7 needed no bot change and no platform change (longest stay on one spot 3.6 s bot vs bot, 2.5 s against a rival camping above); the spec table of 4.2 matches the real physics for all four fighters, including Legacy's single-jump margin on boulder -> boardwalk.
 - Priority: P1
 - Status: done (CD review 2026-11-28): accept after P0 F-032, F-033, F-034; P1 F-035; P2 F-036 to F-039. See FEEDBACK.md "R-018 review".
+
+## R-019 — The whole UI must feel like a FUN game: new visual direction (owner picks from 3 mockups)
+- Context: Reis (2026-11-28): "The game isn't bad, but the buttons, the game's theme etc. don't satisfy me. It must feel more like a game and create that vibe; right now it is a bit boring (sıxıcı). It must look more fun, funny, interesting. This is very important." Today's UI is the "clean dark UI with yellow accents" from the project note (dark ink panels, Bungee, slanted panel-cut). With OFFSITE (bright desert) as the default arena, the dark corporate UI now clashes too. Desktop only. Our identity stays: goofy office workers fighting (developer humour as an option), low-poly, original — no copying of any game's look.
+- Expected deliverable (fast, before any build):
+  1. Short reference study of UI that makes casual action games feel fun and funny (e.g. Brawl Stars, Stumble Guys, Fall Guys, Smash Karts, Bullet League, Getaway Shootout, Gang Beasts, top CrazyGames 2-player hits) — what makes buttons/panels/type/colour/motion read as "fun game" vs "app". Cite sources.
+  2. THREE distinct directions, each as a static HTML mockup rendered to PNG at 1280x720 of (a) the home menu over the OFFSITE scene (use a real screenshot from docs/collab/shots/offsite-r2/ as the backdrop), (b) a button set (primary/secondary/disabled/hover/pressed), (c) the in-match HUD top bar, (d) the result screen. Put them in CREATIVE/ui/fun-directions/ (dir-a/, dir-b/, dir-c/ with index.html + PNGs) and a one-page comparison PNG. Each direction: name, one-line idea, palette hex, fonts (Google Fonts or self-hostable, licence noted), button shape/material (chunky, outlined, sticker, cardboard, etc.), motion and sound personality.
+  3. Your recommendation and why. Engineering builds only after Reis picks.
+- Priority: P0
+- Status: open
+
+## R-020 — OFFSITE playtest fixes (level + copy), from the playtest critic 2026-11-28
+- Context: playtest of 6b68a4c (shots docs/collab/shots/playtest-offsite/, prefixes a720-, b1080-, c720office-, d-standstill-): OFFSITE reads clearly better than the office; no stuck fighters, no console errors. Verdict: ship after fixes. Items for you:
+  1. The game says "office" but opens in a desert: menu tagline "ONE OFFICE. TWO FIGHTERS.", menu backdrop still the night office, result copy "They took the floor" / "The floor is yours" (b1080-01, a720-11). Decide copy per arena and whether the menu backdrop becomes OFFSITE (note R-019 is redesigning the UI look; this item is copy + backdrop choice).
+  2. Blowing sand streaks look like bullets/tracers: thin, cream, flying through the fight plane (b1080-12 at 510,628 and 1140,495; d-standstill-101 at 935,325). Your rule R1-R7 said nothing may read as a projectile — fix values (colour, length, height band, opacity).
+  3. The pale slanted lines on the cliffs read as decoration, so fighters standing on them look like they float / stick to the wall (d-standstill-101 right cliff, b1080-12). Make standable ledges read as standable.
+  4. First match needs no skill: the player spawned on a rocket launcher, auto-picked it, KO at 1.6 s; standing still + Space won 3:0 in 20 s vs easy. Rule: no power weapon at or near any spawn point (give exact spawn/gun-spot changes in arena-2.md).
+  5. HUD faint on the bright sky ("BOT · easy", ammo), and the OFFSITE name card stays top-centre all match at 1080p (b1080-07, b1080-12) — may be folded into R-019.
+- Engineering already fixed: keyboard taps shorter than one tick were lost (now latched).
+- Priority: P0
+- Status: open

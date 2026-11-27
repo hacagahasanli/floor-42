@@ -47,11 +47,14 @@ export const createControls = (canvas: HTMLCanvasElement, listen = true, binding
    */
   const touchHeld = new Set<Button>();
   const touchLatched = new Set<Button>();
+  /** Keys pressed since the last read, latched like touch so a tap shorter than one tick still counts (playtest 2026-11-28). */
+  const keyLatched = new Set<string>();
 
   const onDown = (e: KeyboardEvent) => {
     if (!lookup.has(e.code)) return;
     e.preventDefault();
     down.add(e.code);
+    if (!e.repeat) keyLatched.add(e.code);
   };
   const onUp = (e: KeyboardEvent) => down.delete(e.code);
   const onMove = (e: PointerEvent) => {
@@ -68,6 +71,7 @@ export const createControls = (canvas: HTMLCanvasElement, listen = true, binding
   };
   const onBlur = () => {
     down.clear();
+    keyLatched.clear();
     clicking = false;
     touchHeld.clear();
   };
@@ -86,6 +90,8 @@ export const createControls = (canvas: HTMLCanvasElement, listen = true, binding
     read: (aimX: number, aimY: number, mode: AimMode): InputState => {
       const s: InputState = { ...EMPTY_INPUT, aimX, aimY, fire: mode === 'mouse' && clicking };
       applyKeys(down, lookup, s);
+      applyKeys(keyLatched, lookup, s);
+      keyLatched.clear();
       for (const b of touchHeld) s[b] = true;
       for (const b of touchLatched) s[b] = true;
       touchLatched.clear();
@@ -95,6 +101,7 @@ export const createControls = (canvas: HTMLCanvasElement, listen = true, binding
     setBindings: (b: Bindings) => {
       lookup = buildKeyLookup(b);
       down.clear();
+      keyLatched.clear();
     },
     /** A touch button went down (true) or up (false). */
     setTouch: (b: Button, on: boolean) => {
