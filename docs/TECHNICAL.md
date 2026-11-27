@@ -555,6 +555,8 @@ The server runs the same `step` as the browser (`DuelRoom.ts:5`, `:125`) at 60 H
 
 ### Wire format (`protocol.ts`)
 
+> Superseded in part by section 15 (2026-11-27): snapshots are protocol 3, compact rows sent every tick, not the full-state JSON every second tick described in the next bullets.
+
 - `WireInput = [clientTick, buttonBitmask, aimX, aimY]` (`protocol.ts:13`). Buttons map to bits in this order: left 0, right 1, up 2, down 3, dash 4, fire 5, pickup 6, reload 7, push 8, crouch 9 (`protocol.ts:10`). New buttons go on the end, so an older peer reads the bits it knows. Aim is rounded to 2 decimals.
 - `Snapshot = { ack: [number, number], inputs: [WireInput, WireInput], state }`. `ack[slot]` is the last client tick the server applied for that player. `inputs[slot]` is the input the server is currently using for that player.
 - `SNAPSHOT_EVERY_TICKS = 2` (`protocol.ts:8`): a snapshot every second tick, 30 per second. Measured: about 139 snapshots in 4.5 s, consistent with that.
@@ -855,3 +857,94 @@ What did not get better, honestly: in server mode TCP still stalls everything be
 
 The browser part ships with Vercel. The server part (`server/DuelRoom.ts`, `server/Dockerfile`, the shared `src/game/net/authority.ts`, `protocol.ts`, `src/game/sim`) needs `cd ~/Desktop/projects/floor-42 && flyctl deploy --ha=false --remote-only`. Until then, server-mode matches run the old server logic; the new client works with it.
 
+
+## 15. Online latency pass (2026-11-27, branch `net-latency`)
+
+Owner's goal: online should feel ideal, "max 50-60 ms". That only holds when both players are near the server; our own code must add as little as possible on top of the network. Owner decision the same day: online stays parked for the CrazyGames launch and no money is spent now, so the multi-region part is code behind a flag and a written plan, and nothing is deployed.
+
+### What changed
+
+| Piece | File | Change |
+|---|---|---|
+| Snapshot rate | `net/protocol.ts` | `SNAPSHOT_EVERY_TICKS` 2 to 1: 60 snapshots a second (was 30). |
+| Snapshot size | `net/wire.ts` (new), `protocol.ts` | `GameState` as rows of rounded numbers in a fixed column order, short envelope keys, `next` inputs relative to `ack`. 2.6 KB idle and 4.5 to 7.9 KB in play become about 0.8 KB. Steps: positions, velocity, health 0.01; angles and timers 0.001; ids, seed, strings exact; Infinity is a code. A test fails when the simulation grows a field `wire.ts` does not list. |
+| Protocol version | `protocol.ts`, `DuelRoom.ts` | `PROTOCOL_VERSION` 3. The client sends `v` when it joins; the server's `onAuth` refuses anything else with code 4426 and "This page is out of date. Reload it to play online." A new client still reads the full-state snapshots of an older server or host (`decodeSnapshot` detects the old shape). |
+| Interpolation delay | `net/timeline.ts` | Target = one snapshot interval (16.7 ms, was 33.3) + measured p95 jitter + 8 ms, floor 40 ms (was 50), start 60 ms (was 100). Narrowing speed is the same per second at either rate. |
+| Server tick pacing | `net/fixedStep.ts` (new), `DuelRoom.ts` | `setSimulationInterval(fn, 1000/60)` ran the server at 59.35 ticks/s measured (58.5 in a bare Node timer test) while browsers step at 60. Now a 2 ms poll runs the ticks that real time says are due (catch-up at most 4, then it gives the time up). 60.0 ticks/s, tick gaps p50 16.6, max 19.4 ms. `TICK_STATS=1 npm run server` logs rate, gaps and work per tick every 10 s. |
+| State copy | `net/clone.ts` (new), `authority.ts` | `structuredClone` per tick replaced by a typed deep copy: 16 us to 4.7 us per copy (measured, `tools/netlab/bench-clone.mts`). Honestly small: about 1 ms of CPU a second saved. Tick work was already p50 0.3 ms, p99 0.7 to 1.3 ms. A test checks it equals `structuredClone` and shares nothing. |
+| Shared snapshot builder | `net/serverSnapshot.ts` (new) | The server's snapshot assembly, so the simulation tool runs the same code. |
+
+Determinism: the client adopts a snapshot and replays at most 9 ticks of inputs on it. The rounding (at most 1 cm, 1 ms) makes that replay differ from the server by up to that much; the next snapshot corrects it, and the existing correction smoothing hides it. The server's own simulation is not rounded. Tests that compared replays exactly (`crouch.test.ts`, `protocol.test.ts`) now compare with a 0.02 tolerance (`net/closeTo.ts`).
+
+### Numbers (before / after)
+
+Two ways, both server mode, 10 ms jitter. Regenerate with the commands under "Tools".
+
+1. `tools/netlab/sim.mts`: deterministic, 60 s, runs the real authority, snapshot code, client session and timeline on a virtual clock with netshim's TCP model (rtt/2 + U(0, jitter), a lost message waits max(200, 1.5 rtt) ms and everything behind it). "Rival age" is how far behind the authority's recorded path the drawn rival is, measured at the frames where it moves; it has a resolution of one tick (16.7 ms), so read it as a trend. "Added" = rival age minus rtt/2 (the network's share).
+
+| RTT / loss | Added latency p50 before -> after | Delay (interp.) | Bytes/s to one client before -> after | Underruns in 60 s before -> after |
+|---|---|---|---|---|
+| 30 ms / 1 % | 18.7 -> 2.2 ms | 50 -> 40 ms | 85.7 KB -> 57.9 KB | 15 -> 35 (floor 35; with the shipped floor 40 see below) |
+| 60 ms / 1 % | 20.3 -> 3.7 ms | 50 -> 40 ms | 86.5 KB -> 58.6 KB | 17 -> 37 |
+| 120 ms / 2 % | 40 -> 23.5 ms | 50 -> 38 to 40 ms | 88.8 KB -> 60.3 KB | 273 -> 177 |
+
+The "after" rows were taken with floor 35 ms; the shipped floor is 40 ms (a sweep at 60 and 120 ms RTT: floor 35 gives 224 underruns at 120 ms / 2 % loss, floor 42 gives 96, floor 50 gives 97 for the same added latency within the tool's one-tick resolution). Underruns are the timeline running out of snapshots and extrapolating the rival for up to 100 ms (never a freeze); they come from loss stalls, which TCP still imposes. The p95 of "added" is 250 to 450 ms in every row, before and after: that is the head-of-line blocking of a lost TCP message and our code cannot change it (only a direct line or UDP-like transport could).
+
+Bytes: one snapshot in a fight is 0.8 KB (was 2.9 KB on average). 60 a second at 0.8 KB is 48 to 58 KB/s per client, 32 to 38 % less than 30 a second at 2.9 KB. About 200 of the 790 bytes are the seven gun pickups, which barely change: sending them only when changed (plus a keyframe) is the next cheap saving, but it needs ordered delivery, which the direct WebRTC line does not give, so it was left out.
+
+2. `tools/netlab/run.mjs --quick` (two real Chromium browsers, local server, netshim, 30 s, one run per row; run-to-run noise is large because the shim's loss events are random and land differently). Snapshot gaps as the browsers saw them:
+
+| RTT / jitter / loss | Snapshot gap p50 before -> after | p95 before -> after | p99 / max (loss stalls) before -> after |
+|---|---|---|---|
+| 30 / 10 / 1 % | 33.3 -> 16.2 ms | 40.2 -> 24.1 | 204 / 243 -> 209 / 230 |
+| 60 / 10 / 1 % | 33.0 -> 15.8 | 42.8 -> 23.6 | 49 / 249 -> 212 / 229 |
+| 120 / 10 / 2 % | 32.6 -> 14.4 | 44.4 -> 25.1 | 237 / 247 -> 218 / 227 |
+
+Rival view error (drawn rival vs where the other browser really was) p50 stayed 0.3 to 1.2 units and p95 2 to 4 units before and after, host side slightly worse at 30 ms (1.3 -> 3.9), not better anywhere beyond noise. "Visible freeze max" is dominated by the shim's loss stalls (0.5 to 3.3 s) in both builds and did not improve. Frames over 50 ms: 0 in both. Conclusion: our added latency is down by roughly 17 ms (p50) and the stream is twice as fine-grained, but the user-visible weakness at 1 to 2 % loss is still TCP stalls, not our delay.
+
+Server (bare Node, loopback, `tools/netlab/tickprobe.mts`, 20 s): game ticks per second 59.35 -> 60.00, snapshot gap max 64 -> 40 ms (30 Hz) -> 16 ms p50 at 60 Hz in the browsers above.
+
+### Tools
+
+- `npx tsx tools/netlab/sim.mts --rtt 60 --jitter 10 --loss 0.01 --secs 60` : the deterministic simulation above.
+- `npx tsx tools/netlab/tickprobe.mts [ws://localhost:2567] [secs]` : tick rate, snapshot gaps and bytes against a local `npm run server`.
+- `npx tsx tools/netlab/bench-clone.mts`, `npx tsx tools/netlab/tiers.mts` (needs `MULTI_REGION=1`).
+- Browser lab: `NETLAB=1 npx next dev --webpack -p 3011` (strict mode off: its double-mounted effects join an invite room twice; `--webpack` because Turbopack refuses the symlinked `node_modules` of a worktree), `npm run server`, then `node tools/netlab/run.mjs out.json --quick --web http://localhost:3011 --server ws://localhost:2567 --secs 30 --host '{"rtt":60,"jitter":10,"loss":0.01,"ws":true,"blockIce":true}' --guest '{...}'` and `node tools/netlab/short.mjs out.json`. `--quick` makes both browsers press Quick match; the invite-link flow of `run.mjs` is unchanged but see "Observed, not fixed".
+
+### Regions (off by default)
+
+The aim: each player connects to the nearest region, and quick match pairs players whose round trip to a shared region is within 60 ms, widening after a wait. What Fly offers and what was chosen (checked 2026-11-27):
+
+- A browser cannot choose a region. `fly-prefer-region` and `fly-force-region` are request headers; a WebSocket opened from a page cannot set headers ([Fly: dynamic request routing](https://docs.fly.io/networking/dynamic-request-routing)). `fly-replay` is a response header the app would send; the same page says an app returning it "should not negotiate a web socket upgrade itself" and does not promise it for upgrades, so it was not relied on. It also makes every room live on one specific machine, which Colyseus without Redis does not know.
+- Chosen: one small Fly app per region from the same image and `fly.toml`, so each region has its own hostname (`floor42-game.fly.dev` stays fra; `floor42-game-iad.fly.dev`, `-sin`, `-gru`). Each app has its own Colyseus, so rooms never cross machines. The client times `GET /ping` on each, keeps the best of three after a warm-up, and connects quick match to the lowest. The Colyseus SDK has the same idea built in (`Client.selectByLatency`).
+- Runtime variables the server can read: `FLY_REGION`, `FLY_MACHINE_ID` ([Fly runtime environment](https://docs.fly.io/reference/runtime-environment)); `/ping` returns the region.
+- Quick match: `joinOrCreate` with `filterBy(['tier'])`; the tier is the smallest of 60 / 100 / 150 / any ms that admits the player's round trip to that region (`regions.ts`). Two players at 30 and 45 ms meet; a player at 85 ms waits in the 100 tier. Not built: widening while waiting (retrying in the next tier after 8 / 20 / 40 s needs the lobby, which was out of scope); a player who sends no tier matches any waiting room; invites and room codes always use the main server (a room id does not say its region).
+- A cross-region pair (Istanbul and Singapore) cannot reach 60 ms each from any server; the tier logic puts each in the best region for them and they only meet after the wait, at whatever the first allows. That is physics, not a bug.
+
+Turn it on (nothing here was run; all of it changes Fly or the live site, so a human does it):
+
+1. Deploy the current server first, to the existing app: `cd <repo> && flyctl deploy --ha=false --remote-only`. Old pages are refused with "out of date, reload" until the new site is up: deploy the site (Vercel) right after.
+2. Create the extra apps (names are free-form, `floor42-game-<region>`): `flyctl apps create floor42-game-iad` (likewise `-sin`, `-gru`), then `flyctl deploy --app floor42-game-iad --primary-region iad --ha=false --remote-only` and `flyctl secrets set --app floor42-game-iad MULTI_REGION=1` (and the same for each). Set `MULTI_REGION=1` on `floor42-game` too, so its `/ping` answers. Check `flyctl status --app ...` shows one machine in the right region.
+3. In the Vercel project set `NEXT_PUBLIC_GAME_REGIONS=fra=wss://floor42-game.fly.dev,iad=wss://floor42-game-iad.fly.dev,sin=wss://floor42-game-sin.fly.dev,gru=wss://floor42-game-gru.fly.dev` and redeploy the site.
+4. Check from a browser in each region (or a VPN) that the lobby's quick match opens a socket to the nearest host (network tab), then play a match and read the ping badge.
+
+To go back: remove `NEXT_PUBLIC_GAME_REGIONS` and redeploy the site; the extra apps can be destroyed (`flyctl apps destroy`), with the `floor42-game` app unchanged.
+
+Cost [Estimate], from Fly's pricing page (docs.fly.io/about/pricing, fetched 2026-11-27): shared-cpu-1x 256 MB is $2.19 a month always on in the cheapest regions (iad, ewr); its price in fra, sin and gru was not on the page I could read (the 1 GB machine is $6.70 iad, $7.73 fra, $8.50 sin, so assume 15 to 25 % more outside iad) [Estimate]. Stopped machines cost $0.15 per GB of root filesystem a month. Egress $0.02/GB in North America and Europe, $0.04/GB in Asia Pacific and South America. A client now receives about 50 KB/s while playing: one 10-minute match is 2 x 30 MB = 60 MB, $0.001 to $0.002. So:
+- Today (one machine, stops when idle): a few cents to about $2 a month.
+- Four regions, all `auto_stop`, none kept running: about the same as today plus a cold start (seconds) on the first player of each region; but every lobby visit probes all four `/ping`s and so wakes all four machines, which then idle a few minutes. In practice assume most of the always-on price: roughly $9 to $11 a month [Estimate].
+- Four regions each with `min_machines_running = 1` (no cold start anywhere): about $9 to $11 a month plus egress [Estimate]. For the primary alone, $2.19 to $2.8.
+At current traffic (online is parked, no demand data) none of this is justified yet; see the next item.
+
+### Future idea (not built): measure demand first, then fill empty lobbies with a bot
+
+Before spending on servers, count how many players click Online (a counter on the menu's Online button and on "Quick match") and how many get a rival within 20 s. And: quick match falls back to a bot after N seconds with no rival, labelled honestly ("No one is here right now. Play a bot?"), so an empty lobby never ends in a dead screen. Both are menu/lobby work for the Creative Director's spec and a later engineering pass.
+
+### Observed, not fixed
+
+- In the dev build, opening an invite link (`/play?room=...`) in a second browser left that page on "Joining room" in my netlab runs (the server logged the guest's seat leaving), with strict mode on or off; the server-side flow is fine (a headless SDK client gets `peer` then `start` at 6 s). I did not find the cause in the lobby's join effect and it is menu code, so I left it; it is worth a look before online is switched back on. A second, older effect: the server sends `peer` inside `onJoin`, before the joining page has registered its handler (the SDK warns "onMessage() not registered for type 'peer'"), so the second player never answers the direct-line handshake and every match starts after the server's 6 s timeout. That 6 s is the largest "latency" a player sees; fixing it (the client says `ready` after registering handlers, the server starts the handshake on that) is a small, separate change.
+- `tools/netlab/run.mjs` needed the first-visit "PLAYER" picker click and a longer start timeout (both added).
+
+### What was not verified
+
+No real network: every number above is a local server with netshim's model, not a measurement from Fly or from phones; TCP behaviour of Fly's edge, Wi-Fi and mobile paths will differ. The multi-region client path (probe, tier) is unit-tested and the server side exercised locally, but never against two real regions. The direct (WebRTC) mode was exercised only by the unit tests and not in a browser run with ICE open. `pickupHold` (local 2-player) survives the wire in a test but is never sent online.
