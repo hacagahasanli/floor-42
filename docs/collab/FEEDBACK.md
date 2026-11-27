@@ -301,3 +301,37 @@ Not verified: sound by ear (nothing heard), real-GPU timings of my own (I used t
 ## F-028 — How to play footer still says `ENTER SELECT` (P2)
 - What should change: there is nothing to select on that panel, so the footer shows only `ESC BACK`.
 - Status: open
+
+## F-029 — Weight pass is correct in kind but too small to see in play (P0, owner complaint, R-015)
+- What is wrong: I played `/arena?p1=hotfix&p2=legacy&bot=hard` at 1280x720 on a real GPU (headless Chromium, --use-angle=metal; my shots in the CD scratchpad, not kept). With the follow camera a fighter is about 100-110 px tall. At that size: landing squash 0.85 for 80 ms moves the head ~15 px for 5 frames, flinch 12 deg for 90 ms is 5 frames, idle rise `th*0.022` is ~2 px, secondary springs lag 2-4 frames on parts ~10 px big. None of these survive normal viewing. In the 6-frame stills (`still-land*`, `still-hit*`, `still-jump*`) before and after are almost indistinguishable except the landing dust. The owner is right.
+- Why it matters: the brief promise is weight. A first-time player must see the body react without being told to look.
+- Visibility rule (applies to every one-shot character effect from now on): the peak pose holds at least 100 ms, and the silhouette moves at least 8 px at 1280x720 follow distance. Recovery uses one overshoot (spring), not a linear return.
+- What should change (exact values; offline and online visual only, sim untouched):
+  1. Landing: squash y 0.85 -> **0.70**, x 1.10 -> **1.22** at full speed (keep the `(|vy|-4)/12` ramp). Hold the bottom **50 ms**, return by **170 ms** with one overshoot to y **1.06**. Add knee bend: poseSide squat load **0.75** for **130 ms**, eased out. Knees are what make low-poly read as weight, scale alone reads as a glitch.
+  2. Take-off (sim cannot pre-delay, accepted): make the rise read instead of the crouch. Crouch load 0.5 -> **0.9** and root dip 10 % -> **18 %** for the first 60 ms, then stretch y **1.22** / x **0.85** peaking at 100 ms, back to 1.0 by **200 ms**. Air jumps: stretch only, y 1.15.
+  3. Flinch: pivot the **torso at the hips 22 deg** plus the **whole body 6 deg at the feet** (feet stay planted). Peak at **40 ms**, hold to **110 ms**, recover by **260 ms** with overshoot to **-5 deg**. Head adds **+12 deg** on the same envelope. Torso also shifts **0.06 m** away from the shot. Heavy hits (shotgun point blank, rocket, railgun, any damage >= 50) x **1.5** angle and hold.
+  4. Secondary motion: spring w 20-28 -> **11-15**, zeta 0.3-0.4 -> **0.22**, drive gain **x2.5**, clamp **28 deg** (5-8 frames of lag, one visible swing). Legacy belly: scale y **+/-10 %** jiggle on landing and on hit (w 18, zeta 0.25).
+  5. Idle: breathing rise `th*0.022` -> **th*0.045**, arms swing **+/-4 deg** in phase, weight shift **+/-3 deg** over 3.5 s. Blink stays (it only reads in the menu, that is fine).
+  6. Dust: puff size **x1.8**, count 12 -> **16** on a full-speed landing (scale count with the same ramp, min 4), life 0.28-0.42 -> **0.40-0.60 s**, opacity 0.55 -> **0.7**, spread to **1.4x** fighter width. Dash: **3 puffs every 60 ms** for the dash duration, behind the feet.
+  7. Blob shadow: visible, keep (0.55, 1.5x). Only change: opacity **0.65** on the light wooden floor if it measures paler than 15 % darker than the floor around it.
+- Expected result: in a 10 s clip at 1280x720 a person who has never seen the game can point to the landing, the flinch and the idle breath without being told.
+- Related: aliveness-audit.md section 4.
+- Status: implemented (R-015 v2, see LOG.md and shots/weight-pass-v2/)
+
+## F-030 — Rim light recolours whole faces (P1, R-015 c)
+- What is wrong: `still-menu-home-1`: Hotfix's black trousers turn brick red and the orange hoodie washes to pastel. Additive `pow(1-NdotV, 2.4)` on flat-shaded boxes tints entire faces that sit at a grazing angle, so it changes material colour instead of drawing an edge. Black trousers turning red is **not right**: the palette fixes trousers as dark ink, the read of each character depends on it. In the arena at 100 px the same rim is barely visible, so today it is too much in close-ups and too little in play.
+- What should change:
+  - Band, not gradient: `rim = smoothstep(0.60, 0.80, rimF)`; only faces turned away from the camera light up, as a thin edge.
+  - Top-back mask so it reads as a light behind them: multiply by `saturate(0.35 + dot(normalView, normalize(vec3(-0.3, 0.9, -0.2))))`.
+  - Colour: `mix(accent, #FFF1D6, 0.5)` (orange on Hotfix's orange hoodie is invisible otherwise).
+  - Strength: arena **0.8**, menu/showcase/lobby close-ups **0.35**.
+  - Never on eyes, face skin or the gun.
+- Expected result: in the menu the trousers stay near-black with a lighter edge on the back/top faces; in the arena each fighter has a visible coloured outline-like edge on the shoulders, head and back against the blue city.
+- Status: implemented (R-015 v2)
+
+## F-031 — Three more high-visibility life effects (P1, after F-029)
+1. **Run lean and bob** (always on screen, highest value): lean into motion **10 deg** at full run speed (scaled by |vx|/max), head/root bob **0.035 x height** at step frequency, arms counter-swing **+/-25 deg**. Turnaround/skid: lean back **12 deg** for **120 ms** + 3 dust puffs.
+2. **Gun recoil body kick** per shot: gun arm **+14 deg** up, torso **-5 deg** back, root **0.03 m** opposite the aim, recover by **120 ms** (spring). Shotgun, rocket, railgun: x **2.2** and a **60 ms** white muzzle flash quad at the barrel. SMG/Uzi: x 0.5 per shot, accumulating to a max of 9 deg torso.
+3. **KO winner pose** during the KO slow-motion beat, **0.9 s**, one per fighter: Hotfix fist pump (free arm to 150 deg, small hop 0.15 m); Legacy arms crossed + belly bounce (y +/-10 % twice); Standup air spin 360 deg in 0.4 s; Intern thumbs up + backpack hitch (pack up 0.08 m). Cancelled by any input of the winner. Offline and online (visual only, from the `ko` event).
+- Hit flash already exists (white body flash in `still-hit*`), keep it, do not add another.
+- Status: implemented (R-015 v2)

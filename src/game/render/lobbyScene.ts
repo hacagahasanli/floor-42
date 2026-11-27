@@ -4,7 +4,7 @@ import { getSettings } from '../settings';
 import { GUNS } from '../sim/constants';
 
 import { canvasTexture, floorTexture, FURNITURE, mergeStatic } from './arena';
-import { buildRig, poseSide, stepSpring } from './characters';
+import { buildRig, disposeRig as disposeFighter, lifeRig, poseSide, setCharacterFx, setRimStrength, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { mat, mesh, PALETTE } from './palette';
 import { deviceFacts, renderProfile } from './quality';
@@ -460,7 +460,7 @@ export const startLobbyScene = (
 
   const disposeRig = (x: Rig) => {
     slab.remove(x.root);
-    x.root.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
+    disposeFighter(x);
   };
   const place = (id: CharacterId, animate: boolean) => {
     if (leaving) {
@@ -468,6 +468,8 @@ export const startLobbyScene = (
       leaving = null;
     }
     if (rig) leaving = { rig, t: 0 };
+    setCharacterFx(profile.tier);
+    setRimStrength(0.35); // close-ups: a quieter rim than the arena's 0.8
     rig = buildRig(id);
     rig.root.traverse((o) => {
       if (o instanceof THREE.Mesh) o.castShadow = true;
@@ -717,6 +719,7 @@ export const startLobbyScene = (
       });
       // Three-quarter front, a little toward the rival's spot: never the back.
       rig.root.rotation.y = rig.turn * 0.3 + Math.sin(it * 0.4) * 0.05 * tempo.look;
+      lifeRig(rig, { dt, rawDt: dt, time: it, vx: 0, vy: drop > 0 ? dropV : 0, onGround: drop === 0, facing: 1 });
       rig.root.position.set(0, drop, FZ);
       const sy = 1 + squash.s * 0.18;
       rig.root.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));

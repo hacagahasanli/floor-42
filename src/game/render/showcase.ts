@@ -4,7 +4,7 @@ import { getSettings } from '../settings';
 import { ARENA, GUNS, menuSpotX } from '../sim/constants';
 
 import { buildArena } from './arena';
-import { buildRig, poseSide, stepSpring } from './characters';
+import { buildRig, disposeRig, lifeRig, poseSide, setCharacterFx, setRimStrength, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 
@@ -87,8 +87,10 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
   const place = (id: CharacterId, animate: boolean) => {
     if (rig) {
       scene.remove(rig.root);
-      rig.root.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
+      disposeRig(rig);
     }
+    setCharacterFx(profile.tier);
+    setRimStrength(0.35); // close-ups: a quieter rim than the arena's 0.8
     rig = buildRig(id);
     rig.root.traverse((o) => {
       if (o instanceof THREE.Mesh) o.castShadow = true;
@@ -180,6 +182,7 @@ export const startShowcase = (canvas: HTMLCanvasElement, first: CharacterId, opt
     });
     // Turn a little more toward the camera than in a fight.
     rig.root.rotation.y = rig.turn * 0.55 + Math.sin(time * 0.4) * 0.12;
+    lifeRig(rig, { dt, rawDt: dt, time, vx: 0, vy: drop > 0 ? dropV : 0, onGround: drop === 0, facing, });
     rig.root.position.set(SPOT.x, SPOT.y + drop, 0);
     const sy = 1 + squash.s * 0.18;
     rig.root.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));

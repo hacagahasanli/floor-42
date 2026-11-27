@@ -42,7 +42,98 @@ export interface Rig {
   /** Where the hips and legs face on the map (they lag the upper body and follow the run). */
   hipYaw: number;
   hipInit: boolean;
+  /** Between root and body: the flinch tilt, weight shift and breathing ride here, so the pose code never sees them. */
+  sway: THREE.Group;
+  /**
+   * Everything above the hips (torso, head, arms, weapon) hangs from this group, which sits inside body at the origin:
+   * rotating it about the hips (position compensated) bends the torso while the legs stay planted. Children keep body-space coordinates.
+   */
+  upper: THREE.Group;
+  torso: THREE.Group;
+  /** Weight and life state (see lifeRig). */
+  life: Life;
 }
+
+/** One hanging part (hood, cable, belly, backpack, hair) on a pivot, lagging the body on two springs. */
+interface Secondary {
+  g: THREE.Group;
+  /** Angular frequency and damping of the springs: w 11-15 / zeta 0.22 trails the body by 5-8 frames. */
+  w: number;
+  zeta: number;
+  /** Radians of pitch per m/s^2 of forward acceleration, and metres of lift per m/s^2 of vertical acceleration. */
+  pitchGain: number;
+  liftGain: number;
+  maxPitch: number;
+  maxLift: number;
+  pitch: { x: number; v: number };
+  lift: { x: number; v: number };
+  baseY: number;
+}
+
+export interface Life {
+  id: CharacterId;
+  /** Standing height in metres: the run bob is 3.5 % of it. */
+  height: number;
+  /** Motion scale: 1, or 0.4 with Shake OFF / reduced motion (set by the caller each frame). */
+  k: number;
+  /** Seconds since the last landing / take-off / turn-around / winner pose began (9 = none). */
+  landT: number;
+  landAmt: number;
+  takeT: number;
+  /** 0 none, 1 ground jump (crouch then stretch), 2 air jump (stretch only). */
+  takeKind: number;
+  turnT: number;
+  turnDir: number;
+  /** Knee-bend load 0..1 read by poseSide, and the whole-body scale this frame (caller applies to the root). */
+  load: number;
+  sx: number;
+  sy: number;
+  /** Body kick of the last shots, on a spring (1 = one pistol shot); poseSide lifts the gun by it. */
+  shot: { x: number; v: number };
+  /** Seconds since the last hit, which way the body tilts (+1: top goes to world -x, away from a shooter on the right), strength. */
+  flinchT: number;
+  flinchSide: number;
+  flinchAmt: number;
+  flinch: number;
+  /** 0..1 how still the fighter is: breathing and weight shift only show at rest. */
+  idle: number;
+  blinkT: number;
+  blinkLeft: number;
+  prevVx: number;
+  prevVy: number;
+  prevFacing: number;
+  /** Smoothed run lean (radians, + = the top goes to world -x). */
+  run: number;
+  ax: number;
+  ay: number;
+  secondary: Secondary[];
+  eyes: THREE.Mesh[];
+  /** Legacy's belly and its jiggle spring (+/-10 % of scale y). */
+  belly: THREE.Object3D | null;
+  bellyBase: number;
+  jiggle: { x: number; v: number };
+  thumb: THREE.Object3D | null;
+  headY: number;
+  shoulderY: number;
+  phase: number;
+  /** Winner pose: seconds since it began (9 = off) and whether the gun is put away. */
+  winT: number;
+  hideGun: boolean;
+  /** Bit 1: a turn-around skid just began (the caller spawns dust). */
+  events: number;
+  /** Per-rig clones of the shared materials (with the rim light); disposed with the rig. */
+  mats: THREE.Material[];
+}
+
+const DEG = Math.PI / 180;
+/** One-shot body effects (F-029): each holds its peak >= 100 ms near the top and returns with a spring overshoot. */
+export const FLINCH = { torso: 22 * DEG, body: 6 * DEG, head: 12 * DEG, shift: 0.06, hold: 0.11, ret: 0.2, end: 0.26, over: 5 / 22 };
+export const FLINCH_SECONDS = FLINCH.end;
+export const FLINCH_RADIANS = FLINCH.torso;
+export const LAND = { y: 0.3, x: 0.22, hold: 0.05, ret: 0.17, end: 0.27, over: 0.2, loadAmt: 0.75, loadSeconds: 0.13 };
+export const TAKEOFF = { load: 0.9, dip: 0.18, loadSeconds: 0.06, peakAt: 0.1, y: 0.22, x: 0.15, end: 0.2, airY: 0.15 };
+export const WINNER_SECONDS = 0.9;
+export const LOAD_SECONDS = TAKEOFF.loadSeconds;
 
 interface Spec {
   legLen: number;
@@ -57,7 +148,7 @@ interface Spec {
   top: number;
   pants: number;
   shoes: number;
-  extras: (ctx: { head: THREE.Group; torso: THREE.Group; spec: Spec }) => void;
+  extras: (ctx: { head: THREE.Group; torso: THREE.Group; spec: Spec; hang: Hang }) => void;
 }
 
 const ico = (r: number, detail = 1) => new THREE.IcosahedronGeometry(r, detail);
@@ -65,12 +156,22 @@ const cyl = (r: number, h: number, seg = 7) => new THREE.CylinderGeometry(r, r, 
 const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
 
 const addEyes = (head: THREE.Group, r: number, y = 0.03) => {
+  const eyes: THREE.Mesh[] = [];
   for (const sx of [-1, 1]) {
     const eye = mesh(box(0.045, 0.06, 0.02), mat(PALETTE.ink), false);
     eye.position.set(sx * r * 0.36, y, r * 0.93);
     head.add(eye);
+    eyes.push(eye);
   }
+  return eyes;
 };
+
+type Hang = (
+  parent: THREE.Object3D,
+  pivot: [number, number, number],
+  tune: Partial<Pick<Secondary, 'w' | 'zeta' | 'pitchGain' | 'liftGain' | 'maxPitch' | 'maxLift'>>,
+  ...parts: THREE.Object3D[]
+) => void;
 
 const SPECS: Record<CharacterId, Spec> = {
   hotfix: {
@@ -86,7 +187,7 @@ const SPECS: Record<CharacterId, Spec> = {
     top: PALETTE.orange,
     pants: PALETTE.ink,
     shoes: PALETTE.white,
-    extras: ({ head, torso, spec }) => {
+    extras: ({ head, torso, spec, hang }) => {
       // Hood: a shell open at the face.
       const hood = mesh(
         new THREE.SphereGeometry(spec.headR * 1.32, 8, 6, Math.PI / 2 + 0.7, Math.PI * 2 - 1.4, 0, Math.PI * 0.72),
@@ -95,6 +196,12 @@ const SPECS: Record<CharacterId, Spec> = {
       (hood.material as THREE.Material).side = THREE.DoubleSide;
       hood.position.y = 0.02;
       head.add(hood);
+      // The hood trails the head a few frames; the headset cable swings from the left cup.
+      hang(head, [0, -spec.headR * 0.5, -0.05], { pitchGain: -0.0035, maxPitch: 0.14, liftGain: 0.0006, maxLift: 0.02 }, hood);
+      const cable = mesh(cyl(0.011, 0.34, 4), mat(PALETTE.ink), false);
+      cable.position.set(-spec.headR * 1.4, -0.17, 0.02);
+      head.add(cable);
+      hang(head, [-spec.headR * 1.4, 0, 0.02], { w: 15, pitchGain: 0.012, maxPitch: 0.5, liftGain: 0, maxLift: 0 }, cable);
       // On-call headset with a gold mic.
       const band = mesh(new THREE.TorusGeometry(spec.headR * 1.38, 0.022, 4, 10, Math.PI), mat(PALETTE.ink));
       band.position.y = 0.02;
@@ -136,10 +243,17 @@ const SPECS: Record<CharacterId, Spec> = {
     top: PALETTE.green,
     pants: 0x5a4a3a,
     shoes: 0x4a3426,
-    extras: ({ head, torso, spec }) => {
+    extras: ({ head, torso, spec, hang }) => {
       const shirt = mesh(box(0.3, spec.torsoH * 0.92, 0.04), mat(PALETTE.paper));
       shirt.position.set(0, spec.torsoH / 2, spec.torsoD / 2);
       torso.add(shirt);
+      // A soft belly under the shirt: it is what lags the body (the rest of Legacy stays a block).
+      const belly = mesh(ico(0.3, 1), mat(spec.top));
+      belly.scale.set(1.2, 0.75, 0.55);
+      belly.position.set(0, 0.22, spec.torsoD / 2 - 0.02);
+      torso.add(belly);
+      belly.userData.isBelly = true;
+      hang(torso, [0, 0.5, spec.torsoD / 2 - 0.02], { w: 11, pitchGain: 0.004, maxPitch: 0.12, liftGain: 0.0016, maxLift: 0.05 }, belly);
       for (let i = 0; i < 3; i++) {
         const b = mesh(cyl(0.025, 0.02, 6), mat(PALETTE.ink), false);
         b.rotation.x = Math.PI / 2;
@@ -177,7 +291,7 @@ const SPECS: Record<CharacterId, Spec> = {
     top: PALETTE.blue,
     pants: PALETTE.ink,
     shoes: PALETTE.gold,
-    extras: ({ head, torso, spec }) => {
+    extras: ({ head, torso, spec, hang }) => {
       // The hair cloud is the silhouette.
       const puffs: [number, number, number, number][] = [
         [0, 0.2, -0.04, 0.2],
@@ -189,12 +303,15 @@ const SPECS: Record<CharacterId, Spec> = {
         [0.1, 0.26, 0.08, 0.13],
         [0, 0.12, -0.18, 0.19],
       ];
+      const hair: THREE.Object3D[] = [];
       for (const [x, y, z, r] of puffs) {
         const p = mesh(ico(r, 0), mat(0x2b2230));
         p.position.set(x, y, z);
         p.rotation.set(x * 7, y * 5, z * 3);
         head.add(p);
+        hair.push(p);
       }
+      hang(head, [0, 0.02, -0.04], { w: 14, pitchGain: -0.0035, maxPitch: 0.14, liftGain: 0.0012, maxLift: 0.045 }, ...hair);
       // Lanyard and badge.
       for (const sx of [-1, 1]) {
         const strap = mesh(cyl(0.012, 0.3, 4), mat(PALETTE.red), false);
@@ -220,7 +337,7 @@ const SPECS: Record<CharacterId, Spec> = {
     top: PALETTE.paper,
     pants: PALETTE.blue,
     shoes: PALETTE.red,
-    extras: ({ head, torso, spec }) => {
+    extras: ({ head, torso, spec, hang }) => {
       const stripe = mesh(box(spec.torsoW + 0.01, 0.08, spec.torsoD + 0.01), mat(PALETTE.red));
       stripe.position.y = spec.torsoH * 0.55;
       torso.add(stripe);
@@ -244,6 +361,8 @@ const SPECS: Record<CharacterId, Spec> = {
       const flap = mesh(box(0.5, 0.26, 0.06), mat(0xc98a1b));
       flap.position.set(0, spec.torsoH * 0.36, -spec.torsoD / 2 - 0.42);
       torso.add(flap);
+      // Hinged at the shoulders: the heavy pack swings behind every start and stop.
+      hang(torso, [0, spec.torsoH * 0.9, -spec.torsoD / 2], { w: 12, pitchGain: 0.006, maxPitch: 0.26, liftGain: 0.0008, maxLift: 0.03 }, pack, flap);
       for (const sx of [-1, 1]) {
         const strap = mesh(box(0.06, spec.torsoH * 0.95, 0.04), mat(0xc98a1b), false);
         strap.position.set(sx * 0.15, spec.torsoH * 0.5, spec.torsoD / 2 + 0.01);
@@ -256,23 +375,43 @@ const SPECS: Record<CharacterId, Spec> = {
 export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): Rig => {
   const s = SPECS[id];
   const root = new THREE.Group();
+  const sway = new THREE.Group();
   const body = new THREE.Group();
-  root.add(body);
+  const upper = new THREE.Group();
+  root.add(sway);
+  sway.add(body);
+  body.add(upper);
+  const secondary: Secondary[] = [];
+  const hang: Hang = (parent, pivot, tune, ...parts) => {
+    const g = new THREE.Group();
+    g.position.set(pivot[0], pivot[1], pivot[2]);
+    parent.add(g);
+    for (const part of parts) {
+      part.position.sub(g.position);
+      g.add(part);
+    }
+    const t = { w: 13, zeta: 0.22, pitchGain: 0.004, liftGain: 0.001, maxPitch: 0.15, maxLift: 0.03, ...tune };
+    // F-029: slow springs (w 11-15, zeta 0.22: 5-8 frames of lag and one visible swing), drive x2.5, clamp 28 degrees.
+    secondary.push({
+      g, w: t.w, zeta: 0.22, pitchGain: t.pitchGain * 2.5, liftGain: t.liftGain * 2.5, maxPitch: 28 * DEG, maxLift: t.maxLift * 2.5,
+      pitch: { x: 0, v: 0 }, lift: { x: 0, v: 0 }, baseY: g.position.y,
+    });
+  };
 
   const torso = new THREE.Group();
   torso.position.y = s.legLen;
   const torsoMesh = mesh(box(s.torsoW, s.torsoH, s.torsoD), mat(s.top));
   torsoMesh.position.y = s.torsoH / 2;
   torso.add(torsoMesh);
-  body.add(torso);
+  upper.add(torso);
 
   const head = new THREE.Group();
   head.position.y = s.legLen + s.torsoH + 0.04 + s.headR;
   head.add(mesh(ico(s.headR, 1), mat(s.skin)));
-  addEyes(head, s.headR);
-  body.add(head);
+  const eyes = addEyes(head, s.headR);
+  upper.add(head);
 
-  s.extras({ head, torso, spec: s });
+  s.extras({ head, torso, spec: s, hang });
 
   // ---- kit: everyone is dressed for a fight (the Intern brought their own huge backpack).
   const olive = mat(0x4f5638);
@@ -377,7 +516,7 @@ export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): 
   const armR = right.upper;
   armL.position.set(-(s.torsoW / 2 + s.armR), shoulderY, 0);
   armR.position.set(s.torsoW / 2 + s.armR, shoulderY, 0);
-  body.add(armL, armR);
+  upper.add(armL, armR);
 
   // Two-bone legs: a thigh and a shin hinged at the knee, the shoe on the shin.
   const makeLeg = () => {
@@ -419,15 +558,100 @@ export const buildRig = (id: CharacterId, kit: 'battle' | 'office' = 'office'): 
   const hand = new THREE.Object3D();
   hand.position.set(0, 0, s.torsoD / 2 + Math.min(s.armLen, 0.55));
   weapon.add(hand);
-  body.add(weapon);
+  upper.add(weapon);
 
-  return {
+  let belly: THREE.Object3D | null = null;
+  torso.traverse((o) => {
+    if (o.userData.isBelly) belly = o;
+  });
+  // A thumb for the Intern's thumbs-up: hidden except during the winner pose.
+  let thumb: THREE.Object3D | null = null;
+  if (id === 'intern') {
+    thumb = mesh(box(0.035, 0.09, 0.035), mat(s.skin), false);
+    thumb.position.set(0, -s.armLen / 2 - 0.1, 0.0);
+    thumb.visible = false;
+    left.fore.add(thumb);
+  }
+  const life: Life = {
+    id, height: s.legLen + s.torsoH + 0.08 + s.headR * 2, k: 1,
+    landT: 9, landAmt: 0, takeT: 9, takeKind: 0, turnT: 9, turnDir: 0, load: 0, sx: 1, sy: 1, shot: { x: 0, v: 0 },
+    flinchT: 9, flinchSide: 0, flinchAmt: 0, flinch: 0, idle: 0,
+    blinkT: 1.5 + Math.random() * 3, blinkLeft: 0, prevVx: 0, prevVy: 0, prevFacing: 0, run: 0, ax: 0, ay: 0,
+    secondary, eyes, belly, bellyBase: belly ? (belly as THREE.Object3D).scale.y : 1, jiggle: { x: 0, v: 0 }, thumb,
+    headY: head.position.y, shoulderY: shoulderY, phase: Math.random() * 6.28, winT: 9, hideGun: false, events: 0, mats: [],
+  };
+  const rig: Rig = {
     root, body, armL, armR, foreL: left.fore, foreR: right.fore, armLen: s.armLen,
     shinL: ll.shin, shinR: lr.shin, legLen: s.legLen,
     head, vest, hipYaw: 0, hipInit: false,
     shoulderL: armL.position.clone(), shoulderR: armR.position.clone(),
     legL, legR, weapon, hand, chestY, phase: 0, turn: 0,
+    sway, upper, torso, life,
   };
+  if (CHARACTER_FX.rim) applyRim(rig, RIM_COLOR[id], s.skin);
+  return rig;
+};
+
+/** Each fighter's own colour: the rim light, the menu accent. */
+export const RIM_COLOR: Record<CharacterId, number> = { hotfix: 0xff6a3d, legacy: 0x3ddc84, standup: 0x3ec5ff, intern: 0xffd23f };
+
+/**
+ * Cheap effects that scale with the quality tier. `rim` decides at build time (the low tier builds plain materials);
+ * `lite` is the frame-time governor's switch: it stops the dust and the hanging parts and fades the rim, no recompile.
+ */
+export const CHARACTER_FX = { rim: true, lite: false };
+export const setCharacterFx = (tier: 'low' | 'medium' | 'high') => {
+  CHARACTER_FX.rim = tier !== 'low';
+};
+/** Shared by every rim material: the governor sets .value to 0 to fade it out. */
+const RIM_STRENGTH = { value: 1 };
+export const setRimStrength = (v: number) => {
+  RIM_STRENGTH.value = v;
+};
+
+/**
+ * A rim light in the fighter's colour, as a fresnel term in the standard material's fragment shader: no extra
+ * light, no shadow pass. The shared materials are cloned per rig (the colour is per fighter); all clones share one
+ * compiled program (customProgramCacheKey), so it costs one extra shader variant, not one per fighter.
+ */
+const applyRim = (rig: Rig, color: number, skin: number) => {
+  const rimColor = { value: new THREE.Color(color) };
+  const clones = new Map<THREE.Material, THREE.Material>();
+  rig.root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    const src = o.material as THREE.MeshStandardMaterial;
+    // Never on the eyes or on skin (face, hands): they keep the plain material.
+    if (rig.life.eyes.includes(o) || src.color.getHex() === new THREE.Color(skin).getHex()) return;
+    let m = clones.get(src);
+    if (!m) {
+      m = src.clone();
+      m.onBeforeCompile = (sh) => {
+        sh.uniforms.rimColor = rimColor;
+        sh.uniforms.rimStrength = RIM_STRENGTH;
+        sh.fragmentShader = sh.fragmentShader
+          .replace('#include <common>', '#include <common>\nuniform vec3 rimColor;\nuniform float rimStrength;')
+          .replace(
+            '#include <opaque_fragment>',
+            // A narrow edge band on faces turned away from the camera, on the top and back only (light from behind and above),
+            // in the fighter's colour mixed 50 % with warm white. It adds light only where the band is: base colours stay.
+            'float rimF = 1.0 - saturate(dot(normalize(vViewPosition), normal));\n' +
+              '  float rimB = smoothstep(0.60, 0.80, rimF) * saturate(0.35 + dot(normal, normalize(vec3(-0.3, 0.9, -0.2))));\n' +
+              '  outgoingLight += mix(rimColor, vec3(1.0, 0.945, 0.839), 0.5) * rimB * rimStrength;\n#include <opaque_fragment>',
+          );
+      };
+      m.customProgramCacheKey = () => 'f42-rim';
+      clones.set(src, m);
+      rig.life.mats.push(m);
+    }
+    o.material = m;
+  });
+};
+
+/** Free what a rig owns: geometry and the rim material clones. */
+export const disposeRig = (rig: Rig) => {
+  rig.root.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
+  for (const m of rig.life.mats) m.dispose();
+  rig.life.mats.length = 0;
 };
 
 export interface PoseInput {
@@ -902,6 +1126,7 @@ const CROUCH_POSE = { thighL: -1.5, thighR: -1.25, kneeL: 2.75, kneeR: 2.8, lean
  */
 export const poseSide = (rig: Rig, p: SidePose) => {
   const { dt } = p;
+  if (dt > 0) advanceWeight(rig, dt);
   // Turn three-quarters to the side you face; a spring a little under critical damping.
   const turnTarget = p.facing * (Math.PI / 2 - 0.3);
   const w = 16;
@@ -945,8 +1170,9 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   }
   // Crouch: blend into the squat by the sim's crouch amount; the stride shrinks to a shuffle. While crouching
   // (and a moment after standing up) the joints follow fast, so the pose keeps up with the 0.1 s hitbox.
-  const cr = p.onGround && !p.dashing ? (p.crouch ?? 0) : 0;
-  const ud2 = rig.root.userData as { crouchT?: number; crouchLean?: number };
+  // The knee bend of a landing (load 0.75, 130 ms) and of a take-off (0.9, 60 ms; the sim has already jumped) borrows the squat, in the air too.
+  const cr = Math.max(p.onGround && !p.dashing ? (p.crouch ?? 0) : 0, rig.life.load);
+  const ud2 = rig.root.userData as { crouchT?: number; crouchLean?: number; shotRot?: number };
   ud2.crouchT = cr > 0 ? 0.2 : Math.max(0, (ud2.crouchT ?? 0) - dt);
   const quick = ud2.crouchT > 0;
   // The crouch lean turns the body at the hips: the legs take it back out, so they keep their angles in the world.
@@ -973,7 +1199,8 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   // ---- body
   const kickT = p.sinceShot < 0.25 ? p.sinceShot / 0.25 : 1;
   const kick = (1 - kickT) * Math.cos(kickT * Math.PI * 1.5) * KICK[p.gun];
-  let lean = 0.22 * fwd * amp + 0.04 - kick * 0.07;
+  // The run lean is mostly the torso bending at the hips (lifeRig adds 10 degrees there): the legs keep their stride.
+  let lean = 0.08 * fwd * amp + 0.04 - kick * 0.07;
   if (p.dashing) lean = 0.55;
   if (p.pushing > 0) lean = 0.3 * p.pushing;
   if (!p.onGround && p.vy > 0) lean = 0.12;
@@ -983,7 +1210,7 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   ud2.crouchLean = cl;
   rig.body.rotation.y = damp(rig.body.rotation.y, running ? -swing * 0.1 : 0, 12, dt);
   rig.body.rotation.z = p.stunned ? Math.sin(p.time * 30) * 0.12 : damp(rig.body.rotation.z, 0, 10, dt);
-  const bob = running ? Math.abs(Math.sin(rig.phase)) * 0.06 * amp : Math.sin(p.time * 2.1) * 0.012;
+  const bob = running ? Math.abs(Math.sin(rig.phase)) * 0.035 * rig.life.height * amp : Math.sin(p.time * 2.1) * 0.012;
   // Keep the hips over the feet while the crouch lean turns the body.
   rig.body.position.set(0, bob - legDrop + rig.legLen * (1 - Math.cos(cl)), -Math.max(0, kick) * 0.05 - rig.legLen * Math.sin(cl));
   rig.head.rotation.y = 0;
@@ -996,9 +1223,21 @@ export const poseSide = (rig: Rig, p: SidePose) => {
   const reloadTilt = r === null ? 0 : Math.sin(Math.min(1, r * 1.3) * Math.PI) * 0.5;
   const sway = running ? Math.sin(rig.phase) * 0.04 * amp : Math.sin(p.time * 1.3) * 0.015;
   rig.weapon.visible = true;
-  rig.weapon.position.set(h.x, rig.chestY + h.y + (running ? Math.sin(rig.phase * 2) * 0.025 * amp : 0), -Math.max(0, kick) * 0.12);
-  // The crouch lean is taken back out of the gun, so it stays on the aim.
-  rig.weapon.rotation.x = damp(rig.weapon.rotation.x, -elev - kick * 0.3 + sway * 0.3 + reloadTilt * 0.5 - cl, quick ? 40 : 28, dt);
+  // Both hands hold the gun, so the arms' counter-swing (+/-25 degrees at the shoulder, opposite the lead leg) is the
+  // gun carried along that arc; it settles while you shoot, reload or push.
+  const busy = r !== null || p.pushing > 0 ? 0 : Math.min(1, p.sinceShot / 0.5);
+  const armA = running ? -swing * 25 * DEG * busy : 0;
+  const L = rig.life;
+  rig.weapon.position.set(
+    h.x,
+    rig.chestY + h.y + (running ? Math.sin(rig.phase * 2) * 0.025 * amp : 0) - 0.45 * (1 - Math.cos(armA)),
+    -Math.max(0, kick) * 0.12 + 0.45 * Math.sin(armA) - L.shot.x * 0.08,
+  );
+  // The crouch lean is taken back out of the gun, so it stays on the aim. A shot kicks the gun arm up 14 degrees.
+  const shotRot = L.shot.x * 14 * DEG;
+  rig.weapon.rotation.x =
+    damp(rig.weapon.rotation.x + (ud2.shotRot ?? 0), -elev - kick * 0.3 + sway * 0.3 + reloadTilt * 0.5 - cl - armA * 0.4, quick ? 40 : 28, dt) - shotRot;
+  ud2.shotRot = shotRot;
   rig.weapon.rotation.y = 0;
   rig.weapon.rotation.z = damp(rig.weapon.rotation.z, reloadTilt * 0.6, 12, dt);
   rig.hand.position.set(0, 0, h.grip);
@@ -1038,4 +1277,277 @@ export const poseDeath = (rig: Rig, t: number, seed: number) => {
   rig.legR.rotation.set(0.05 * e, 0, 0.12 * e);
   rig.shinL.rotation.set(1.1 * e, 0, 0);
   rig.shinR.rotation.set(0.1 * e, 0, 0);
+};
+
+
+// ---------------------------------------------------------------------------------------------------------------
+// Weight and life (purely visual; the sim never sees any of it). F-029..F-031: every one-shot body effect holds its
+// peak >= 100 ms (near the top), moves the outline >= 8 px at 1280x720 with the follow camera (about 54 px per metre)
+// and returns with one spring overshoot. Everything runs on state kept in rig.life: no allocation per frame.
+// ---------------------------------------------------------------------------------------------------------------
+
+const smooth = (k: number) => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k));
+/** 1 until `hold`, eases to -over by `ret` (one overshoot), settles to 0 by `end`. */
+export const ringEnv = (t: number, hold: number, ret: number, end: number, over: number) =>
+  t < hold ? 1 : t < ret ? 1 - (1 + over) * smooth((t - hold) / (ret - hold)) : t < end ? -over * (1 - smooth((t - ret) / (end - ret))) : 0;
+
+const AXIS_Z = new THREE.Vector3(0, 0, 1);
+const wQa = new THREE.Quaternion();
+const wQb = new THREE.Quaternion();
+const wE = new THREE.Euler();
+const wV = new THREE.Vector3();
+
+/** The jump just left the ground: knee bend (load 0.9) and root dip 18 % for 60 ms, then a stretch peaking at 100 ms. Air jumps only stretch. */
+export const startTakeoff = (rig: Rig, air = false) => {
+  rig.life.takeT = 0;
+  rig.life.takeKind = air ? 2 : 1;
+};
+
+/** A landing: `hard` 0..1 is how fast you hit ((|vy| - 4) / 12). Squash, knee bend and a belly jiggle. */
+export const startLanding = (rig: Rig, hard: number) => {
+  rig.life.landT = 0;
+  rig.life.landAmt = Math.min(1, hard);
+  rig.life.jiggle.x = -hard;
+  rig.life.jiggle.v = 0;
+};
+
+/** A hit: tilt away from the shot. side +1 = the shot came from the right (the top goes to -x); amount 1 = a normal hit, 1.5 = a heavy one. */
+export const startFlinch = (rig: Rig, side: number, amount = 1) => {
+  rig.life.flinchT = 0;
+  rig.life.flinchSide = side >= 0 ? 1 : -1;
+  rig.life.flinchAmt = amount;
+  rig.life.jiggle.x = 0.8 * Math.min(1.5, amount);
+  rig.life.jiggle.v = 0;
+};
+
+/** Per-gun share of the body kick: shotgun, rocket launcher and railgun x2.2, SMG and Uzi x0.5 (they pile up to 9 degrees of torso). */
+export const SHOT_KICK: Partial<Record<GunKind, number>> = { shotgun: 2.2, launcher: 2.2, railgun: 2.2, smg: 0.5, uzi: 0.5 };
+const SHOT_CAP_LIGHT = 9 / 5;
+export const startShot = (rig: Rig, gun: GunKind) => {
+  const a = SHOT_KICK[gun] ?? 1;
+  rig.life.shot.x = Math.min(Math.max(SHOT_CAP_LIGHT, a), rig.life.shot.x + a);
+  rig.life.shot.v = 0;
+};
+
+/** The winner pose (0.9 s): call at the final knockout for the fighter who stays up. */
+export const startWinner = (rig: Rig) => {
+  rig.life.winT = 0;
+};
+export const cancelWinner = (rig: Rig) => {
+  const L = rig.life;
+  L.winT = 9;
+  L.hideGun = false;
+  if (L.thumb) L.thumb.visible = false;
+};
+
+export interface LifeInput {
+  /** Pose time step (0 during hit-stop: the flinch holds its peak on the freeze frame). */
+  dt: number;
+  /** Real frame time: the flinch eases in even while the pose is frozen. */
+  rawDt: number;
+  time: number;
+  vx: number;
+  vy: number;
+  onGround: boolean;
+  dashing?: boolean;
+  facing: 1 | -1;
+}
+
+const clampAbs = (v: number, m: number) => (v > m ? m : v < -m ? -m : v);
+
+/**
+ * Timers and the numbers poseSide and the caller read: knee-bend load, whole-body scale (L.sx, L.sy; the caller sets
+ * root.scale), the gun-kick spring. Runs at the top of poseSide, with the pose time step (0 on a hit-stop frame).
+ */
+const advanceWeight = (rig: Rig, dt: number) => {
+  const L = rig.life;
+  L.landT += dt;
+  L.takeT += dt;
+  L.turnT += dt;
+  stepSpring(L.shot, 0, 24, 0.55, dt);
+  let dy = 0;
+  let dx = 0;
+  let load = 0;
+  if (L.landT < LAND.end) {
+    const e = ringEnv(L.landT, LAND.hold, LAND.ret, LAND.end, LAND.over) * L.landAmt;
+    dy -= LAND.y * e;
+    dx += LAND.x * e;
+    if (L.landT < LAND.loadSeconds) load = LAND.loadAmt * L.landAmt * (0.5 + 0.5 * Math.cos((Math.PI * L.landT) / LAND.loadSeconds));
+  }
+  if (L.takeKind === 1) {
+    const t = L.takeT;
+    const T = TAKEOFF;
+    const y =
+      t < 0.03 ? -T.dip * smooth(t / 0.03)
+      : t < T.loadSeconds ? -T.dip
+      : t < T.peakAt ? -T.dip + (T.y + T.dip) * smooth((t - T.loadSeconds) / (T.peakAt - T.loadSeconds))
+      : t < T.end ? T.y * (1 - smooth((t - T.peakAt) / (T.end - T.peakAt)))
+      : 0;
+    dy += y;
+    dx -= y * (T.x / T.y);
+    if (t < T.loadSeconds + 0.03) load = Math.max(load, T.load * (t < T.loadSeconds ? 1 : 1 - smooth((t - T.loadSeconds) / 0.03)));
+    if (t >= T.end) L.takeKind = 0;
+  } else if (L.takeKind === 2) {
+    const t = L.takeT;
+    const y = t < TAKEOFF.peakAt ? TAKEOFF.airY * smooth(t / TAKEOFF.peakAt) : t < TAKEOFF.end ? TAKEOFF.airY * (1 - smooth((t - TAKEOFF.peakAt) / (TAKEOFF.end - TAKEOFF.peakAt))) : 0;
+    dy += y;
+    dx -= y * (TAKEOFF.x / TAKEOFF.y);
+    if (t >= TAKEOFF.end) L.takeKind = 0;
+  }
+  L.load = load * L.k;
+  L.sy = Math.max(0.5, 1 + dy * L.k);
+  L.sx = 1 + dx * L.k;
+};
+
+const winEnv = (t: number) => smooth(t / 0.12) * (1 - smooth((t - 0.76) / 0.14));
+
+/** Winner poses: blended over the normal pose, last thing in lifeRig. */
+const applyWinner = (rig: Rig, t: number) => {
+  const L = rig.life;
+  const e = winEnv(t);
+  const full = L.k >= 1;
+  const kk = Math.min(1, t / WINNER_SECONDS);
+  const arm = (g: THREE.Group, x: number, y: number, z: number, w = e) => {
+    wQa.setFromEuler(wE.set(x, y, z));
+    g.quaternion.slerp(wQa, w);
+  };
+  L.hideGun = false;
+  switch (L.id) {
+    case 'hotfix': {
+      // Fist pump: the free arm up to 150 degrees, pumping, with a small hop.
+      const pump = 0.5 + 0.5 * Math.sin(t * Math.PI * 5);
+      arm(rig.armL, -(105 + 45 * pump) * DEG, 0, 0.15);
+      arm(rig.foreL, -0.5, 0, 0);
+      if (full) rig.root.position.y += 0.15 * 4 * kk * (1 - kk);
+      break;
+    }
+    case 'legacy': {
+      // Arms crossed over the chest, the gun put away, the belly bounces twice.
+      L.hideGun = e > 0.02;
+      arm(rig.armL, -0.55, 0, 1.05);
+      arm(rig.armR, -0.55, 0, -1.05);
+      arm(rig.foreL, -1.9, 0, 0);
+      arm(rig.foreR, -1.9, 0, 0);
+      if (L.belly && full) L.belly.scale.y = L.bellyBase * (1 + 0.1 * Math.sin(kk * Math.PI * 4) * e);
+      break;
+    }
+    case 'standup': {
+      // An air spin: one full turn in 0.4 s with a hop.
+      if (full) {
+        const k = Math.min(1, t / 0.4);
+        rig.root.rotation.y += Math.PI * 2 * smooth(k);
+        rig.root.position.y += 0.3 * Math.sin(Math.PI * k);
+      }
+      break;
+    }
+    case 'intern': {
+      // Thumbs up, and the backpack hitched up 0.08 m.
+      arm(rig.armL, -1.25, 0, 0.2);
+      arm(rig.foreL, -1.45, 0, 0);
+      if (L.thumb) L.thumb.visible = e > 0.3;
+      const pack = L.secondary[0];
+      if (pack && full) pack.g.position.y += 0.08 * Math.sin(Math.PI * Math.min(1, t / 0.5));
+      break;
+    }
+  }
+};
+
+/** Call after poseSide and after root.rotation.y is final. */
+export const lifeRig = (rig: Rig, p: LifeInput) => {
+  const L = rig.life;
+  const { dt, rawDt, time } = p;
+  const k = L.k;
+  if (dt > 0) L.flinchT += dt;
+
+  // Flinch: the peak holds to 110 ms, recovers by 260 ms with one overshoot to -5 degrees (the low-pass adds the 40 ms ramp-in).
+  const env = L.flinchT < FLINCH.end ? ringEnv(L.flinchT, FLINCH.hold, FLINCH.ret, FLINCH.end, FLINCH.over) : 0;
+  L.flinch += (env * L.flinchSide * L.flinchAmt - L.flinch) * (1 - Math.exp(-90 * rawDt));
+
+  // Rest: breathing and a slow weight shift only show when the fighter is not moving.
+  const still = p.onGround && !p.dashing && Math.abs(p.vx) < 0.5 ? 1 : 0;
+  L.idle += (still - L.idle) * (1 - Math.exp(-4 * rawDt));
+  const breath = Math.sin(time * 2.3 + L.phase);
+  const th = (rig.chestY - rig.legLen) / 0.6;
+  const rise = th * 0.045 * breath * (0.4 + 0.6 * L.idle);
+  rig.torso.scale.set(1 + 0.02 * breath, 1 + 0.03 * breath, 1 + 0.02 * breath);
+  rig.head.position.y = L.headY + rise;
+  rig.armL.position.y = rig.shoulderL.y + rise;
+  rig.armR.position.y = rig.shoulderR.y + rise;
+  rig.weapon.position.y += rise;
+  // Arms swing 4 degrees in phase with the breath (at rest).
+  const armSwing = 4 * DEG * breath * L.idle;
+  rig.armL.quaternion.premultiply(wQa.setFromAxisAngle(AXIS_Z, armSwing));
+  rig.armR.quaternion.premultiply(wQa.setFromAxisAngle(AXIS_Z, -armSwing));
+  const shift = Math.sin(time * ((Math.PI * 2) / 3.5) + L.phase * 1.7) * 3 * DEG * L.idle;
+
+  // Turn-around: reversing at speed (or flipping to face the other way while running) skids, leaning back for 120 ms with dust.
+  if (dt > 0) {
+    const flipped = L.prevFacing !== 0 && p.facing !== L.prevFacing;
+    const reversed = p.vx * L.prevVx < 0;
+    if ((flipped || reversed) && p.onGround && !p.dashing && Math.abs(L.prevVx) > 3 && L.turnT > 0.3) {
+      L.turnT = 0;
+      L.turnDir = Math.sign(L.prevVx);
+      L.events |= 1;
+    }
+    L.prevFacing = p.facing;
+  }
+  const skidEnv = L.turnT < 0.2 ? (L.turnT < 0.02 ? L.turnT / 0.02 : L.turnT < 0.12 ? 1 : 1 - smooth((L.turnT - 0.12) / 0.08)) : 0;
+
+  // Run lean: 10 degrees into the motion at full speed, bending at the hips.
+  const runT = p.onGround && !p.dashing ? -Math.sign(p.vx) * Math.min(1, Math.abs(p.vx) / 7) * 10 * DEG : 0;
+  L.run += (runT - L.run) * (1 - Math.exp(-12 * rawDt));
+
+  // The torso bends at the hips (everything above them rotates, the legs stay planted); the whole body tilts 6 degrees at the
+  // feet. A lean is about the world z axis: the root's yaw splits it into the rig's own x and z.
+  const yaw = rig.root.rotation.y;
+  const sy = Math.sin(yaw);
+  const cy = Math.cos(yaw);
+  const aBody = L.flinch * FLINCH.body;
+  rig.sway.rotation.set(-sy * aBody, 0, cy * aBody);
+  const aUp = L.flinch * FLINCH.torso + shift + L.run + L.turnDir * 12 * DEG * skidEnv * k + p.facing * 5 * DEG * L.shot.x * k;
+  rig.upper.rotation.set(-sy * aUp, 0, cy * aUp);
+  wV.set(0, rig.legLen, 0).applyEuler(rig.upper.rotation);
+  // The torso also slides 6 cm away from the shot, and 3 cm back from a gun's kick.
+  const dxW = -L.flinch * FLINCH.shift - p.facing * 0.03 * L.shot.x * k;
+  rig.upper.position.set(-wV.x + dxW * cy, rig.legLen - wV.y, -wV.z + dxW * sy);
+  // The head adds 12 degrees on the same envelope.
+  const aHead = L.flinch * FLINCH.head;
+  rig.head.rotation.x += -sy * aHead;
+  rig.head.rotation.z = cy * aHead;
+
+  // Blink.
+  L.blinkT -= rawDt;
+  if (L.blinkT <= 0) {
+    L.blinkLeft = 0.12;
+    L.blinkT = 2.2 + Math.random() * 3.8;
+  }
+  L.blinkLeft = Math.max(0, L.blinkLeft - rawDt);
+  const open = L.blinkLeft > 0 ? 0.1 : 1;
+  for (const e of L.eyes) e.scale.y = open;
+
+  // Hanging parts: trail the acceleration of the body on two springs each.
+  if (dt > 0) {
+    L.ax = clampAbs((p.vx - L.prevVx) / dt, 120) * p.facing;
+    L.ay = clampAbs((p.vy - L.prevVy) / dt, 160);
+    L.prevVx = p.vx;
+    L.prevVy = p.vy;
+    const lite = CHARACTER_FX.lite;
+    for (const sc of L.secondary) {
+      stepSpring(sc.pitch, lite ? 0 : clampAbs(sc.pitchGain * L.ax, sc.maxPitch), sc.w, sc.zeta, dt);
+      stepSpring(sc.lift, lite ? 0 : clampAbs(-sc.liftGain * L.ay, sc.maxLift), sc.w, sc.zeta, dt);
+      sc.g.rotation.x = sc.pitch.x;
+      sc.g.position.y = sc.baseY + sc.lift.x;
+    }
+    if (L.belly) {
+      stepSpring(L.jiggle, 0, 18, 0.25, dt);
+      L.belly.scale.y = L.bellyBase * (1 + (CHARACTER_FX.lite ? 0 : 0.1 * L.jiggle.x * k));
+    }
+  }
+
+  if (L.winT < WINNER_SECONDS) {
+    L.winT += rawDt;
+    applyWinner(rig, L.winT);
+  } else if (L.winT < 9) {
+    cancelWinner(rig);
+  }
 };

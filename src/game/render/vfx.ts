@@ -63,6 +63,43 @@ export const createVfx = (scene: THREE.Scene) => {
   }
   let nextRing = 0;
 
+  // Dust puffs on landings and dashes: soft low-poly blobs that swell, drift along the floor and shrink away.
+  // A small fixed pool; each live puff is one draw call, so the low tier and the governor switch them off (`enabled`).
+  interface Puff {
+    mesh: THREE.Mesh;
+    vx: number;
+    life: number;
+    max: number;
+    size: number;
+  }
+  const puffGeo = new THREE.IcosahedronGeometry(0.2, 0);
+  const puffMat = new THREE.MeshBasicMaterial({ color: COLORS.dust, transparent: true, opacity: 0.7, depthWrite: false });
+  const puffs: Puff[] = [];
+  for (let i = 0; i < 32; i++) {
+    const m = new THREE.Mesh(puffGeo, puffMat);
+    m.visible = false;
+    scene.add(m);
+    puffs.push({ mesh: m, vx: 0, life: 0, max: 1, size: 1 });
+  }
+  let nextPuff = 0;
+  let puffsOn = true;
+  /** `spread`: how far (m) the puffs start from x on each side: 1.4 x the fighter's width on a landing. */
+  const puff = (x: number, y: number, dir: number, count: number, size = 1, spread = 0.3) => {
+    if (!puffsOn) return;
+    for (let i = 0; i < count; i++) {
+      const p = puffs[nextPuff++ % puffs.length];
+      // dir 0: spray both ways (a landing); -1 / 1: trail behind a dash.
+      const side = dir === 0 ? (i % 2 ? 1 : -1) : -dir;
+      p.vx = side * (1.4 + Math.random() * 1.4);
+      p.life = p.max = 0.4 + Math.random() * 0.2;
+      p.size = size * (0.7 + Math.random() * 0.6);
+      p.mesh.position.set(x + side * spread * Math.random(), y + 0.08, (Math.random() - 0.5) * 0.5);
+      p.mesh.rotation.set(Math.random() * 3, Math.random() * 3, 0);
+      p.mesh.scale.setScalar(0.01);
+      p.mesh.visible = true;
+    }
+  };
+
   const burst = (
     x: number,
     y: number,
@@ -121,6 +158,19 @@ export const createVfx = (scene: THREE.Scene) => {
       p.mesh.rotation.x += p.spin * dt;
       p.mesh.rotation.y += p.spin * dt;
     }
+    for (const p of puffs) {
+      if (!p.mesh.visible) continue;
+      p.life -= dt;
+      if (p.life <= 0) {
+        p.mesh.visible = false;
+        continue;
+      }
+      const k = 1 - p.life / p.max;
+      p.mesh.position.x += p.vx * (1 - k) * dt;
+      p.mesh.position.y += 0.5 * dt;
+      // Swell fast, then shrink out.
+      p.mesh.scale.setScalar(p.size * Math.sin(Math.min(1, k * 1.15) * Math.PI) * (1 + k * 0.6));
+    }
     for (const r of rings) {
       if (!r.mesh.visible) continue;
       r.life -= dt;
@@ -135,7 +185,12 @@ export const createVfx = (scene: THREE.Scene) => {
     }
   };
 
-  return { burst, ring, update };
+  const setPuffs = (on: boolean) => {
+    puffsOn = on;
+    if (!on) for (const p of puffs) p.mesh.visible = false;
+  };
+
+  return { burst, ring, update, puff, setPuffs };
 };
 
 export type Vfx = ReturnType<typeof createVfx>;

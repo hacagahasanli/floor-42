@@ -14,7 +14,7 @@ import { ARENA, ASSIST, CHARACTERS, DT, GUNS, OFFLINE_COUNTDOWN_SECONDS, PUSH, P
 import { chooseCharacter, createGame, muzzle, pickupCandidate, step, visibleAim } from '../sim/step';
 
 import { buildArena } from './arena';
-import { buildRig, poseDeath, poseSide, stepSpring } from './characters';
+import { buildRig, cancelWinner, CHARACTER_FX, disposeRig, lifeRig, poseDeath, poseSide, setCharacterFx, setRimStrength, startFlinch, startLanding, startShot, startTakeoff, startWinner, stepSpring } from './characters';
 import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 import { createGovernor, MAX_STEPS_PER_FRAME, stepDown } from './governor';
@@ -166,17 +166,51 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     scene.add(l);
     return l;
   });
+  // Weight pass effects by tier: the low tier builds plain materials (no rim) and no dust puffs; the governor can
+  // switch the rest off later (CHARACTER_FX.lite).
+  setCharacterFx(profile0.tier);
+  CHARACTER_FX.lite = false;
+  setRimStrength(0.8); // arena strength (menu, showcase and lobby close-ups use 0.35)
+  vfx.setPuffs(profile0.tier !== 'low');
   const rigs: Rig[] = state.fighters.map((f) => {
     const rig = buildRig(f.character);
     scene.add(rig.root);
     return rig;
   });
   const rigCharacters = state.fighters.map((f) => f.character);
+
+  // Contact shadows: one soft blob per fighter on whatever is under them (floor, desk, walkway). It fades and
+  // widens with height, so a jump reads against the room. Two draw calls, no shadow map: it works on every tier.
+  const blobTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(32, 32, 2, 32, 32, 31);
+    grad.addColorStop(0, 'rgba(0,0,0,0.9)');
+    grad.addColorStop(0.55, 'rgba(0,0,0,0.45)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })();
+  const blobGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const blobs = state.fighters.map(() => {
+    const m = new THREE.Mesh(
+      blobGeo,
+      new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    );
+    m.visible = false;
+    m.renderOrder = 1;
+    scene.add(m);
+    return m;
+  });
   /** A fighter respawned as someone else: swap the model. */
   const syncRig = (i: number, character: CharacterId) => {
     if (rigCharacters[i] === character) return;
     scene.remove(rigs[i].root);
-    rigs[i].root.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
+    disposeRig(rigs[i]);
     rigs[i] = buildRig(character);
     scene.add(rigs[i].root);
     rigCharacters[i] = character;
@@ -450,14 +484,22 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     });
   };
 
-  // Squash and stretch: a critically damped spring on the rig's vertical scale, around the feet.
-  const squash = state.fighters.map(() => ({ s: 0, v: 0 }));
-  const squashSpring = { x: 0, v: 0 };
+  // Squash, stretch, knee bend and flinch live in rig.life (characters.ts); here only the state changes that start them.
   const wasGround = state.fighters.map((f) => f.onGround);
   const lastVy = state.fighters.map(() => 0);
-  const kick = (i: number, amount: number) => {
-    squash[i].s = amount;
-    squash[i].v = 0;
+  const dashPuffAt = state.fighters.map(() => 0);
+  /** Weight pass: how much of the squash, stretch and flinch plays. Shake OFF / reduced motion soften it, not remove it. */
+  const weight = () => (motion ? 1 : 0.4);
+  /** A hit tilts the fighter away from the shot: from the attacker if known, else from the blow's point. */
+  const flinchFrom = (e: Extract<GameEvent, { type: 'hit' }>) => {
+    const target = state.fighters[e.fighter];
+    const rig = rigs[e.fighter];
+    if (!target || !rig) return;
+    const srcX = e.by !== undefined && e.by !== e.fighter && state.fighters[e.by] ? state.fighters[e.by].x : e.x;
+    const d = srcX - target.x;
+    // Heavy hits (damage >= 50, a big knock: point-blank shotgun, rocket, railgun) lean 1.5x as far.
+    const heavy = e.damage >= 50 || e.power > 12;
+    startFlinch(rig, d === 0 ? -target.facing : Math.sign(d), weight() * (heavy ? 1.5 : 1));
   };
 
   // Damage numbers: pooled sprites, one cached texture per value.
@@ -569,6 +611,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const handleEvent = (e: GameEvent) => {
     switch (e.type) {
       case 'shot':
+        if (rigs[e.fighter]) startShot(rigs[e.fighter], e.gun);
         sfx.shot(e.gun, e.x);
         if (e.gun === 'railgun') {
           fireBeam(e.x, e.y, e.angle);
@@ -580,6 +623,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         vfx.burst(e.x, e.y, 4 + Math.round(e.damage / 3), 'spark', { speed: 3 + e.power * 0.3, life: 0.3 });
         if (e.damage > 15) vfx.ring(e.x, e.y, 0xfff1a8, { grow: 5, life: 0.22 });
         feedback(e.damage >= 50 || e.power > 12 ? 'heavy' : 'light', e.fighter);
+        flinchFrom(e);
         if (e.damage >= 1) popNumber(e.x, e.y, e.damage);
         sfx.hit(e.power, e.x);
         break;
@@ -625,6 +669,12 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
           koX = e.x;
           koY = e.y;
           if (state.phase === 'over' && state.endReason === 'kos') finalePending = true;
+        }
+        // The winner's pose (0.9 s) plays through the final-KO beat, offline and online (visual only).
+        if (state.phase === 'over' && state.endReason === 'kos') {
+          state.fighters.forEach((_, i) => {
+            if (i !== e.fighter && state.winner !== -1 && rigs[i]) startWinner(rigs[i]);
+          });
         }
         sfx.ko(e.x);
         break;
@@ -828,9 +878,38 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         rig.root.updateMatrixWorld(true);
         gunFor(i, f.weapon.kind).root.visible = false;
         flashes[i].visible = false;
+        blobs[i].visible = false;
         if (i === me) aimLine.visible = false;
         return;
       }
+      // State changes that start the one-shot effects (before the pose, so the knee bend starts on the same frame).
+      rig.life.k = weight();
+      if (!out) {
+        const air = !wasGround[i] && !f.onGround && f.vy > 5 && lastVy[i] < f.vy - 6;
+        if (wasGround[i] && !f.onGround && f.vy > 5) startTakeoff(rig);
+        else if (air) startTakeoff(rig, true);
+        if (!wasGround[i] && f.onGround && lastVy[i] < -4) {
+          const hard = Math.min(1, (-lastVy[i] - 4) / 12);
+          startLanding(rig, hard);
+          if (lastVy[i] < -10) {
+            sfx.land(f.x);
+            vfx.burst(f.x, f.y + 0.05, 6, 'dust', { speed: 2.5, up: 0.8, gravity: 4, life: 0.35 });
+          }
+          // Dust: 16 puffs at full speed (min 4), spread 1.4 x the fighter's width.
+          if (lastVy[i] < -7) vfx.puff(f.x, f.y, 0, Math.max(4, Math.round(16 * hard)), 1.8 * (0.8 + hard * 0.5), CHARACTERS[f.character].width * 0.7);
+        }
+        // Dash trail: 3 puffs every 60 ms behind the feet for the whole dash.
+        if (f.dashTime > 0) {
+          if (time - dashPuffAt[i] >= 0.06) {
+            dashPuffAt[i] = time;
+            vfx.puff(f.x, f.y, f.facing, 3, 1.8 * 0.6, 0.25);
+          }
+        }
+        // A winner who touches the controls drops the pose.
+        if (rig.life.winT > 0.12 && rig.life.winT < 0.9 && (Math.abs(f.vx) > 3 || f.vy > 3)) cancelWinner(rig);
+      }
+      wasGround[i] = f.onGround;
+      lastVy[i] = f.vy;
       poseSide(rig, {
         dt: poseDt,
         time,
@@ -848,26 +927,24 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         pushing: f.pushTime > 0 ? Math.sin((1 - f.pushTime / PUSH.duration) * Math.PI) : 0,
         crouch: f.crouch ?? 0,
       });
-      // Squash and stretch from state changes: take-off stretches, a hard landing squashes.
-      if (!out) {
-        if (wasGround[i] && !f.onGround && f.vy > 5) kick(i, 0.16);
-        if (!wasGround[i] && f.onGround && lastVy[i] < -10) {
-          kick(i, -0.22);
-          sfx.land(f.x);
-          vfx.burst(f.x, f.y + 0.05, 6, 'dust', { speed: 2.5, up: 0.8, gravity: 4, life: 0.35 });
-        }
+      lifeRig(rig, {
+        dt: poseDt, rawDt: dt, time, vx: f.vx, vy: f.vy, onGround: f.onGround, dashing: f.dashTime > 0, facing: f.facing,
+      });
+      rig.root.scale.set(rig.life.sx, rig.life.sy, rig.life.sx);
+      if (rig.life.events & 1) {
+        rig.life.events &= ~1;
+        vfx.puff(f.x, f.y, -rig.life.turnDir, 3, 1.8 * 0.7, 0.3);
       }
-      wasGround[i] = f.onGround;
-      lastVy[i] = f.vy;
-      const sq = squash[i];
-      const K = 320;
-      squashSpring.x = sq.s;
-      squashSpring.v = sq.v;
-      stepSpring(squashSpring, 0, Math.sqrt(K), 1, dt);
-      sq.s = squashSpring.x;
-      sq.v = squashSpring.v;
-      const sy = 1 + sq.s * motion;
-      rig.root.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
+      // Contact shadow under the feet, projected to what is below, faint and wide while airborne.
+      const blob = blobs[i];
+      const gy = groundBelow(f.x, f.y);
+      const hAir = Math.max(0, sm.y - gy);
+      const fade = Math.max(0, 1 - hAir / 6);
+      blob.visible = rig.root.visible && fade > 0.02;
+      blob.position.set(sm.x, gy + 0.03, 0);
+      const bw = CHARACTERS[f.character].width * 1.5 * (1 + hAir * 0.12);
+      blob.scale.set(bw, 1, bw * 0.6);
+      (blob.material as THREE.MeshBasicMaterial).opacity = 0.55 * fade;
       // Hit flash.
       hitFlash[i] = Math.max(0, hitFlash[i] - dt);
       setFlash(rig, hitFlash[i] > 0 && rig.root.visible);
@@ -878,14 +955,17 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       rig.hand.getWorldQuaternion(tmpQ);
       gun.root.position.copy(tmpV);
       gun.root.quaternion.copy(tmpQ);
-      gun.root.visible = rig.root.visible;
+      gun.root.visible = rig.root.visible && !rig.life.hideGun;
 
       // Muzzle flash at the gun's tip.
       fwd.set(0, 0.05, gun.length).applyQuaternion(tmpQ).add(tmpV);
       const fl = flashes[i];
-      fl.visible = rig.root.visible && f.firing < 0.05;
+      // Heavy guns (shotgun, rocket, railgun) show a bigger white flash for 60 ms; the rest keep 50 ms.
+      const heavyGun = f.weapon.kind === 'shotgun' || f.weapon.kind === 'launcher' || f.weapon.kind === 'railgun';
+      fl.visible = rig.root.visible && !rig.life.hideGun && f.firing < (heavyGun ? 0.06 : 0.05);
       fl.position.copy(fwd);
-      fl.scale.setScalar(f.weapon.kind === 'shotgun' || f.weapon.kind === 'launcher' ? 1.8 : 1);
+      fl.scale.setScalar(heavyGun ? 2.2 : 1);
+      (fl.material as THREE.MeshBasicMaterial).color.setHex(heavyGun ? 0xffffff : 0xfff1a8);
 
       if (i === me && !opts.demo && !tp) {
         const len = 2.2;
@@ -1116,6 +1196,10 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     if (next.pixelRatio !== renderer.getPixelRatio()) renderer.setPixelRatio(next.pixelRatio);
     // Shadows off recompiles every shader (a freeze on a weak GPU): wait for a pause in the fight.
     if (!next.shadows) shadowsOffPending = true;
+    // The weight pass's extras go first: no dust, no hanging parts, no rim (no recompile, a uniform).
+    CHARACTER_FX.lite = true;
+    vfx.setPuffs(false);
+    setRimStrength(0);
   };
   let shadowsOffPending = false;
   // three.js keeps the scene through a context loss and rebuilds on restore; if the GPU never gives the
@@ -1211,7 +1295,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   const prewarm = () => {
     const extra = new THREE.Group();
     (Object.keys(GUNS) as GunKind[]).forEach((k) => extra.add(buildGun(k).root));
-    (Object.keys(CHARACTERS) as CharacterId[]).forEach((c) => extra.add(buildRig(c).root));
+    const warmRigs = (Object.keys(CHARACTERS) as CharacterId[]).map((c) => buildRig(c));
+    warmRigs.forEach((r) => extra.add(r.root));
     extra.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), WHITE));
     scene.add(extra);
     const numberMat = numbers[0].sprite.material as THREE.SpriteMaterial;
@@ -1229,6 +1314,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     } finally {
       hidden.forEach((o) => (o.visible = false));
       scene.remove(extra);
+      warmRigs.forEach(disposeRig);
       extra.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
     }
   };
@@ -1259,7 +1345,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   raf = requestAnimationFrame(frame);
   // Dev-only handle for automated checks.
   if (process.env.NODE_ENV !== 'production') {
-    (window as unknown as { __mc?: unknown }).__mc = { cam: () => ({ z: camera.position.z, fov: camera.fov }), state: () => state, me, renderer, view: () => smooth, net: () => online && { ...online.status, tl: (online as unknown as { timeline?: unknown }).timeline }, muzzle: () => muzzle(state.fighters[0]) };
+    (window as unknown as { __mc?: unknown }).__mc = { cam: () => ({ z: camera.position.z, fov: camera.fov }), state: () => state, me, renderer, view: () => smooth, rigs, net: () => online && { ...online.status, tl: (online as unknown as { timeline?: unknown }).timeline }, muzzle: () => muzzle(state.fighters[0]) };
   }
 
   const restart = () => {
