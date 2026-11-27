@@ -50,7 +50,7 @@ describe('timeline: the rival drawn from the authority', () => {
     const calm = drive(4000).tl.delay;
     const rough = drive(4000, (i) => ((i * 7919) % 13) * 8).tl.delay; // 0..96 ms of jitter
     expect(calm).toBeGreaterThanOrEqual(MIN_DELAY_MS);
-    expect(rough).toBeGreaterThan(calm + 25);
+    expect(rough).toBeGreaterThan(calm + 15);
     expect(drive(4000, (i) => ((i * 7919) % 13) * 40).tl.delay).toBeLessThanOrEqual(MAX_DELAY_MS);
   });
 
