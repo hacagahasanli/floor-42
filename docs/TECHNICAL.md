@@ -1,4 +1,4 @@
-# Floor 42: technical guide
+# Pewfield: technical guide
 
 Reader: a frontend developer (Next.js, React, TypeScript) who has not built a game before.
 Goal: after reading this you can find any rule in the code, change a number safely, and explain why the project is split the way it is.
@@ -13,7 +13,9 @@ Project tooling, one line: the game was built with agent skills from the owner's
 
 ## 1. Overview
 
-Floor 42 is a side-on, 1v1 office shootout that runs in the browser.
+Pewfield (formerly Floor 42; FLOOR 42 is now the office arena's name) is a side-on, 1v1 shootout that runs in the browser.
+
+Brand: the logo and icons are the Creative Director's concept A ("PEW! burst", `docs/collab/CREATIVE/brand/`). `tools/brand/outline.py` turns its text into paths and `tools/brand/export-pewfield.mjs` writes `public/brand`, the favicons, the manifest icons, `og.jpg` and `src/components/fieldday/wordmarkArt.ts` (the inline wordmark the Home and boot screens share). The game name lives in `src/components/fieldday/brand.ts`.
 
 - Two fighters on a 36-unit-wide arena (the office: `ARENA.left = -18`, `right = 18`, `ceiling = 13.5`; OFFSITE has the same bounds, see Arenas in section 6). One world unit is roughly one metre.
 - Every fighter has 100 hp. How many hits a KO takes depends on the gun and the range: the pistol does 50 up close, the Uzi 12, the rocket and the railgun knock you out in one (see `GUNS`).

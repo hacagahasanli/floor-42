@@ -1,31 +1,32 @@
 <div align="center">
 
-# Floor 42
+# PEWFIELD
 
-### Code review got personal. Settle it on floor 42.
+### Two fighters. One field. First to five KOs.
 
 A game by **[Nalbaki Games](https://nalbakigames.com)**.
 
 ### [▶ Play now](https://floor42.nalbakigames.com/play) · [Pick a fighter](https://floor42.nalbakigames.com/characters) · [Studio](https://nalbakigames.com) · [Last Commit Standing](https://lastcommit.nalbakigames.com)
 
-**A fast side-on office shootout in the browser. First to five KOs takes the merge.**<br>
+**A fast side-on 1v1 shootout in the browser, set at a sun-baked company OFFSITE and in the office after hours.**<br>
 Your gun **aims itself**, so the whole game is moving, jumping and timing your shots.
-Desks, walkways and cabinets are **cover**. A **Force Push** shoves your rival into the glass and sends their bullets back at them.
-A rocket crosses the whole office in a second.
+Boardwalks, crates and cabinets are **cover**. A **Force Push** shoves your rival back and sends their bullets home.
+A rocket crosses the whole arena in a second.
 
-<img alt="Two bots fighting across the office on floor 42: walkways, desks, a kitchen, guns on the mezzanine" src="docs/demo.gif" width="100%">
+<img alt="Two fighters shooting it out on the OFFSITE boardwalks, a water tower with the name PEWFIELD behind them" src="docs/demo.gif" width="100%">
 
 </div>
 
 ## What you get
 
-- **Every gun hits differently.** Everyone has 100 health. A pistol shot point blank takes half of it, the Uzi shreds up close but fades at range, the SMG owns the middle distance, and a rocket, the railgun or a point-blank shotgun blast takes all of it. Standing still and trading shots loses; cover, jumps and dashes win.
+- **Four fighters, each with a signature trait.** BRIX (tall, on roller skates) gets her dash back when she jumps over you. ORMO (wide, silver moustache) starts healing a second sooner. ZUZU (small and quick) speeds up for a second every time she survives a hit. TAVO (the pack bigger than his back) carries 25% more ammo for the SMG, Uzi and shotgun. Health differs a little per fighter (BRIX 110, ORMO 115, ZUZU 85, TAVO 100) when traits are on, which is offline play.
+- **Two arenas.** OFFSITE (the default): a desert canyon with boardwalks, a water tower and a lookout, with the town name PEWFIELD on the tank. FLOOR 42: the office after hours, the game's original arena. Pick one in the menu, or add `&arena=offsite` / `&arena=office` to a match URL. Online matches are always in the office.
+- **Every gun hits differently.** A pistol shot point blank takes about half a health bar, the Uzi shreds up close but fades at range, the SMG owns the middle distance, and a rocket, the railgun or a point-blank shotgun blast takes everything. Standing still and trading shots loses; cover, jumps and dashes win.
 - **Auto-aim by default.** Space shoots, the gun tracks your rival. Prefer aiming yourself? Press **T** for mouse aim (the choice is remembered).
-- **Five guns on the floor.** Everyone starts with a pistol that never runs dry. There is one gun per floor at a time, and it shows up at a random spot as a random kind. Walk over a gold ring for an SMG, a shotgun, a railgun that goes through furniture and people, or a rocket launcher whose blast throws you too (rocket jumps). More drops from the ceiling vents.
-- **Force Push.** A shove on a short cooldown. It knocks your rival back, splats them into the glass walls (the glass cracks) and **reflects incoming bullets** back at the shooter.
-- **An office you fight across.** Three levels: desks, a meeting table and a kitchen on the floor, hanging walkways and a cable tray in the middle, a mezzanine under the ceiling. Desks and the meeting table are solid: jump onto them. Wall-kick off the glass, double jump, drop down through the walkways.
-- **Four original fighters.** Hotfix (tall, hood up, headset on), Legacy (wide, bearded, hardest to shove), Standup (small, fastest, two air jumps) and Intern (beanie, a backpack bigger than their back).
-- **Sound without a single audio file.** Every gunshot, blast and crack is synthesised live with WebAudio.
+- **Guns on the field.** Everyone starts with a pistol that never runs dry. A gun shows up at a random spot as a random kind. Walk over a gold ring for an SMG, a shotgun, a railgun that goes through cover and people, or a rocket launcher whose blast throws you too (rocket jumps).
+- **Force Push.** A shove on a short cooldown. It knocks your rival back and **reflects incoming bullets** at the shooter.
+- **Field Day look.** Bunting, sun and a bright board-game feel: the menus, the VS screen, the HUD and the result screen all share one set of parts (`src/components/fieldday`).
+- **Synthesised effects.** Blasts, cracks and the rest are built live with WebAudio; the real gunshot recordings are credited in [ASSETS.md](ASSETS.md).
 - **A bot with three levels.** `easy`, `normal`, `hard`: reaction time, aim error and how often it dodges.
 
 <div align="center">
@@ -33,7 +34,6 @@ A rocket crosses the whole office in a second.
 ![Three.js](https://img.shields.io/badge/Three.js-r187-000)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/tests-37%20passing-2ea44f)
 ![60 fps](https://img.shields.io/badge/target-60%20fps-ffd23f)
 
 [Play locally](#play-locally) · [Controls](#controls) · [Guns](#guns) · [How it works](#how-it-works) · [Status](#status)
@@ -42,8 +42,8 @@ A rocket crosses the whole office in a second.
 
 <table>
   <tr>
-    <td><img alt="Title screen" src="docs/home.png"></td>
-    <td><img alt="Fighter select in the main menu over the live office" src="docs/characters.png"></td>
+    <td><img alt="Home screen" src="docs/home.png"></td>
+    <td><img alt="Fighter select in the main menu" src="docs/characters.png"></td>
   </tr>
 </table>
 
@@ -57,7 +57,7 @@ npm run dev
 Open http://localhost:3000.
 
 - `/play`: **online 1v1**. *Invite a friend* gives you a link to send; *Quick match* pairs you with whoever is waiting. Rematch with Enter.
-- `/characters`: the main menu's fighter select (FIGHTER and PLAY open it; Esc or Back returns to `/`), then fight the bot (`/arena?p1=legacy&p2=standup&bot=hard`, add `&demo` to watch bot against bot)
+- `/characters`: the main menu's fighter select (FIGHTER and PLAY open it; Esc or Back returns to `/`), then fight the bot (`/arena?p1=legacy&p2=standup&bot=hard`, add `&demo` to watch bot against bot). Fighter ids in URLs are internal and keep their old names: `hotfix` is BRIX, `legacy` is ORMO, `standup` is ZUZU, `intern` is TAVO.
 
 The browser connects to the game server on Fly.io by default. To run your own server locally:
 
@@ -126,11 +126,11 @@ A shot coming down onto or up into furniture is stopped. A shot skimming along a
 
 ```
 src/game/sim      pure TypeScript simulation, fixed 60 Hz, deterministic, no DOM
-src/game/render   Three.js view: low-poly characters, the office, guns, particles
+src/game/render   Three.js view: low-poly characters, the arenas, guns, particles
 src/game/sfx.ts   WebAudio sound synthesis
 src/game/net      online play: wire protocol, client prediction and reconciliation
 server            Colyseus game server (runs the same simulation, decides every hit)
-src/components    Next.js pages, the HUD and the online lobby
+src/components    Next.js pages, the Field Day screens (menus, HUD, VS, result) and the online lobby
 ```
 
 Full technical write-up: [docs/TECHNICAL.md](docs/TECHNICAL.md).
@@ -138,7 +138,7 @@ Full technical write-up: [docs/TECHNICAL.md](docs/TECHNICAL.md).
 - **The rules don't know about the screen.** `step(state, inputs)` advances the game by one tick. The renderer only reads the state. The same `step` will run on the game server, which will decide every hit, so nobody can cheat from the browser.
 - **Fixed timestep, smooth picture.** Logic runs at exactly 60 ticks a second on any monitor. Frames in between are interpolated.
 - **Deterministic.** Spread and ceiling drops come from a seeded random number generator stored in the state, so the same inputs always replay the same match. A test checks it.
-- **Everything is code.** Characters, guns and the office are built from primitives, animation is procedural, the skyline and the whiteboard are drawn into canvas textures. No model files, no image assets, no audio files.
+- **Everything is code.** Characters, guns and the arenas are built from primitives, animation is procedural, the skyline and the whiteboard are drawn into canvas textures. No model files; the only image and audio assets are listed in ASSETS.md.
 
 ```bash
 npm run test:run    # simulation tests: guns, cover, rockets, Force Push, KOs, bot determinism
@@ -147,14 +147,14 @@ npm run type-check
 
 ## Support
 
-Floor 42 is free. If you enjoyed it, you can [☕ support the studio](https://nalbakigames.com/support).
+Pewfield is free. If you enjoyed it, you can [☕ support the studio](https://nalbakigames.com/support).
 
 ## Status
 
 | | |
 | --- | --- |
 | Single player against a bot, desktop keyboard | ✅ playable |
-| Four characters, five guns, one arena | ✅ |
+| Four fighters with signature traits, five guns, two arenas (OFFSITE and FLOOR 42) | ✅ |
 | Online 1v1: invite link, quick match, rematch (Colyseus on Fly.io, server-authoritative, client prediction) | ✅ |
 | Public deploy of the pages | ✅ live at [floor42.nalbakigames.com](https://floor42.nalbakigames.com) |
 | Mobile and touch: on-screen stick and buttons, landscape, follow camera | ✅ |

@@ -1,4 +1,4 @@
-# Floor 42 arena: interaction and readability
+# Pewfield, FLOOR 42 arena (the office): interaction and readability
 
 Analysis of the arena against Reis's concept (`feedback4/ref/f42-arena-concept.png`, same camera angle) and of the
 collision data in `src/game/sim/constants.ts` (`ARENA.platforms`) against what `src/game/render/arena.ts` draws.
