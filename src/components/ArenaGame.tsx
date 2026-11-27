@@ -27,6 +27,7 @@ import { LoserFace, WinnerBar, WinnerSlab } from '~/components/ResultSlab';
 import { Support } from '~/components/SupportLink';
 import { ARENA_COPY, resolveArena } from '~/game/arenaChoice';
 import { botLevelFor, readFinishedMatch, saveFinishedMatch } from '~/game/firstMatch';
+import { OFFSITE_HUD_SCRIM, OFFSITE_HUD_TEXT_SHADOW } from '~/game/offsiteHud';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
@@ -790,7 +791,14 @@ export const ArenaGame = ({
 
       {hud && (
         <>
-          <div className="hud-scale pointer-events-none absolute inset-x-0 top-0 flex origin-top items-start justify-between bg-gradient-to-b from-ink-deep/90 to-transparent px-4 pb-8 pt-3">
+          {arenaId !== 'office' && (
+            // Offsite: a sky-blue fade to 120 px (F-032); the text shadow below carries the legibility.
+            <div data-testid="hud-scrim" aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[120px]" style={{ backgroundImage: OFFSITE_HUD_SCRIM }} />
+          )}
+          <div
+            className={`hud-scale pointer-events-none absolute inset-x-0 top-0 flex origin-top items-start justify-between px-4 pb-8 pt-3 ${arenaId === 'office' ? 'bg-gradient-to-b from-ink-deep/90 to-transparent' : ''}`}
+            style={arenaId === 'office' ? undefined : { textShadow: OFFSITE_HUD_TEXT_SHADOW }}
+          >
             <FighterPanel
               f={hud.fighters[0]}
               label={demo ? 'BOT' : 'YOU'}

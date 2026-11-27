@@ -389,6 +389,45 @@ const finishLayer = (g: THREE.BufferGeometry, color: THREE.Color, shim: number) 
   return ng;
 };
 
+/** Water tower x: right of the tower deck's parallax at the follow camera (F-036). */
+const WATER_X = 14;
+
+/**
+ * The sandstone cut bank under the floor lip (F-035): the front of the under-floor block, unlit, vertex-coloured from
+ * sand.edge under the lip to cliff.shade 3 m down, with two cliff.strata bands that wobble in two steps. One mesh.
+ */
+const buildBank = () => {
+  const half = (W + 10) / 2;
+  const z = 2.905;
+  const top = -0.07;
+  const rows: [number, number][] = [[top, P.sandEdge], [-3, P.cliffShade], [-14.5, P.cliffShade]];
+  const pos: number[] = [];
+  const col: number[] = [];
+  const c = new THREE.Color();
+  const quad = (x0: number, x1: number, y0: number, y1: number, c0: number, c1: number, zz = z) => {
+    const v: [number, number, number][] = [[x0, y1, c1], [x0, y0, c0], [x1, y0, c0], [x0, y1, c1], [x1, y0, c0], [x1, y1, c1]];
+    for (const [x, y, k] of v) {
+      pos.push(x, y, zz);
+      c.setHex(k);
+      col.push(c.r, c.g, c.b);
+    }
+  };
+  for (let i = 0; i < rows.length - 1; i++) quad(-half, half, rows[i + 1][0], rows[i][0], rows[i + 1][1], rows[i][1]);
+  const steps = [-half, -half * 0.35, half * 0.3, half];
+  for (const [y, sgn] of [[-1.2, 1], [-2.6, -1]] as const)
+    for (let i = 0; i < 3; i++) {
+      const o = sgn * 0.15 * (i === 1 ? -1 : 1);
+      quad(steps[i], steps[i + 1], y + o - 0.04, y + o + 0.04, P.cliffStrata, P.cliffStrata, z + 0.01);
+    }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }));
+  m.name = 'offsite:bank';
+  m.frustumCulled = false;
+  return m;
+};
+
 // ---------- Water tower (the landmark, z -30). ----------
 const buildWaterTower = (x: number, z: number) => {
   const g = new THREE.Group();
@@ -527,17 +566,32 @@ const vultureGeometry = () => {
   return g;
 };
 
+/** Ring axes of the tumbleweed: seeded, no two within 25 degrees of each other, none within 25 degrees of the view axis (z). */
+export const tumbleweedAxes = (count = 7, minAngle = (25 * Math.PI) / 180): THREE.Vector3[] => {
+  const r = mulberry32(4242);
+  const view = new THREE.Vector3(0, 0, 1);
+  const axes: THREE.Vector3[] = [];
+  for (let guard = 0; axes.length < count && guard < 5000; guard++) {
+    const u = r() * 2 - 1;
+    const t = r() * Math.PI * 2;
+    const q = Math.sqrt(1 - u * u);
+    const a = new THREE.Vector3(q * Math.cos(t), q * Math.sin(t), u);
+    // A ring is a line, not an arrow: compare angles between lines (a and -a are the same axis).
+    const apart = (o: THREE.Vector3) => Math.acos(Math.min(1, Math.abs(a.dot(o)))) >= minAngle;
+    if (apart(view) && axes.every(apart)) axes.push(a);
+  }
+  return axes;
+};
+
+/** A tangle, not a marker (F-033): seven thin rings on seeded random axes round a low-poly core, one merged geometry. */
 const tumbleweedGeometry = () => {
-  // Three crossed rings plus a fourth on the diagonal: a bush that still reads at 22 px against the dune.
-  const rings = [0, 1, 2, 3].map((i) => {
-    const g = new THREE.TorusGeometry(0.45, 0.06, 4, 10);
-    if (i === 1) g.rotateY(Math.PI / 2);
-    if (i === 2) g.rotateX(Math.PI / 2);
-    if (i === 3) g.rotateY(Math.PI / 4);
-    return g;
-  });
-  const merged = mergeGeometries(rings)!;
-  rings.forEach((g) => g.dispose());
+  const z = new THREE.Vector3(0, 0, 1);
+  const parts: THREE.BufferGeometry[] = tumbleweedAxes().map((axis) =>
+    new THREE.TorusGeometry(0.45, 0.035, 4, 12).applyQuaternion(new THREE.Quaternion().setFromUnitVectors(z, axis)).toNonIndexed(),
+  );
+  parts.push(new THREE.IcosahedronGeometry(0.22, 0));
+  const merged = mergeGeometries(parts.map((g) => { for (const n of Object.keys(g.attributes)) if (n !== 'position' && n !== 'normal' && n !== 'uv') g.deleteAttribute(n); return g; }))!;
+  parts.forEach((g) => g.dispose());
   return merged;
 };
 
@@ -616,11 +670,11 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
   // Ground (5.2): the floor box exactly as the office, sand with ripples, a sand.edge lip, cliff.shade below it.
   const ripples = rippleTexture();
   ripples.wrapS = ripples.wrapT = THREE.RepeatWrapping;
-  ripples.repeat.set(W / 4, 1.6);
+  ripples.repeat.set((W + 10) / 4, 1.6);
   // A3: a lit spot of the floor must read #efcf98 on screen. ACES flattens the warm light, so the floor is not tone
   // mapped and its albedo is scaled to the measured light (hemisphere + sun + rim); shadows keep their ratio.
   const floor = new THREE.Mesh(
-    box(W + 1.2, 0.5, 6.6),
+    box(W + 10, 0.5, 6.6),
     new THREE.MeshStandardMaterial({ map: ripples, color: new THREE.Color(1.35, 1.385, 1.56), roughness: 1, metalness: 0, toneMapped: false }),
   );
   floor.position.set(0, -0.25, -0.5);
@@ -628,7 +682,7 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
   scene.add(floor);
 
   const fixed = new THREE.Group();
-  fixed.add(put(mesh(box(W + 1.2, 0.1, 0.1), mat(P.sandEdge), false), 0, -0.02, 2.8));
+  fixed.add(put(mesh(box(W + 10, 0.1, 0.1), mat(P.sandEdge), false), 0, -0.02, 2.8));
   fixed.add(put(mesh(box(W + 10, 14, 0.6), mat(P.cliffShade), false), 0, -7.5, 2.6));
 
   // Fight-plane pieces, built from the collision data.
@@ -656,7 +710,8 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
     const r = rng(ps++ * 17);
     for (let i = 0; i < n; i++) fixed.add(pebble(cx + (r() - 0.5) * 1.4, -2 + r() * 1.5, 0.08 + r() * 0.12, i % 2 ? P.sandEdge : P.rockSide, ps * 7 + i));
   }
-  const water = buildWaterTower(8.5, -30);
+  scene.add(buildBank());
+  const water = buildWaterTower(WATER_X, -30);
   fixed.add(water.group);
   for (const m of mergeStatic(fixed)) scene.add(m);
   scene.add(water.label);
@@ -764,7 +819,7 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
   const sa0 = new Float32Array(POOL);
   let sandNext = 0;
   const colDust = new THREE.Color(P.dust);
-  const colEdge = new THREE.Color(P.sandEdge);
+  const colShade = new THREE.Color(P.cliffShade);
   for (let i = 0; i < POOL; i++) {
     sand.setColorAt(i, colDust);
     sand.setMatrixAt(i, ZERO);
@@ -972,7 +1027,7 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
   };
 
   // 6. The tumbleweed: rolls along the near dune crest (z -25), on a gust now and then, and in the final-KO gag.
-  const tumble = new THREE.Mesh(tumbleweedGeometry(), new THREE.MeshBasicMaterial({ color: P.timber, toneMapped: false }));
+  const tumble = new THREE.Mesh(tumbleweedGeometry(), new THREE.MeshBasicMaterial({ color: P.rockSide, toneMapped: false }));
   tumble.name = 'ambient:tumbleweed';
   tumble.visible = false;
   tumble.frustumCulled = false;
@@ -1052,7 +1107,7 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
       const near = Math.max(p.x0 + 0.2, Math.min(p.x1 - 0.2, x));
       for (let k = -1; k <= 1; k++) {
         const sxk = Math.max(p.x0 + 0.1, Math.min(p.x1 - 0.1, near + k * 0.9 + (ambRand() - 0.5) * 0.3));
-        spawnSand(sxk, p.y - PLANK_T, -1.2, 0, -2.14, 0.7, 0.06, 0.06, 0.8, 0.8, 0.55, colEdge);
+        spawnSand(sxk, p.y - PLANK_T, -1.2, 0, -2.14, 0.7, 0.08, 0.08, 1.0, 1.0, 0.55, colShade);
       }
     }
   };

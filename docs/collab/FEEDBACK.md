@@ -335,3 +335,59 @@ Not verified: sound by ear (nothing heard), real-GPU timings of my own (I used t
 3. **KO winner pose** during the KO slow-motion beat, **0.9 s**, one per fighter: Hotfix fist pump (free arm to 150 deg, small hop 0.15 m); Legacy arms crossed + belly bounce (y +/-10 % twice); Standup air spin 360 deg in 0.4 s; Intern thumbs up + backpack hitch (pack up 0.08 m). Cancelled by any input of the winner. Offline and online (visual only, from the `ko` event).
 - Hit flash already exists (white body flash in `still-hit*`), keep it, do not add another.
 - Status: implemented (R-015 v2)
+
+---
+
+# R-018 review — OFFSITE as built (CD, 2026-11-28)
+
+Seen: every still and both videos in `shots/offsite/` (frame sheets at 1 fps / 0.5 fps), pixel samples of `wide-arena.png` and `wide-arena-hud.png`, and my own play on the dev build (:3310, `/arena?p1=hotfix&p2=legacy&bot=hard`, headless Chromium 1255 --use-angle=metal, 1280x720 and 1920x1080, follow camera, a few scripted inputs; shots in the CD scratchpad, not kept). Not seen: the wide demo played live by me (judged from engineering's clips), a phone, a weak GPU, sound, reduced motion, online.
+
+**Verdict: accept OFFSITE as the default arena after the three P0 items below (all render/CSS only, about an hour together).** The arena does what the spec promised: at the follow camera the fighters are the most saturated thing on screen, the dark trousers read on sand and sky, the layout reads in one glance, and the ambient life is calm. Weight pass v2 on sand: accepted (landing dust and blob shadow read on sand; the rim is near-invisible against the bright sky, which is fine because the silhouettes already carry). Intern's backpack against the dune is the weakest read, as forecast in arena-2.md §0.2; no change.
+
+Deviations in the LOG: **accepted** 1 (mesa tops 47-57 %), 2 (rope z -1.12), 4 (final-KO tumbleweed 4 m left of the winner), 5 (vulture return), 6 (pill shows OFFSITE + card line), 8 (first gust at 2-5 s), the floor albedo tint (R-018 f). **Rejected** 3 (tumbleweed as built, F-033). 7 (water tower x 8.5) accepted at the wide camera, follow-camera problem in F-036. 9 (sift) in F-037.
+
+## F-032 — HUD top scrim turns the Offsite sky into night (P0)
+- What is wrong: `ArenaGame.tsx` HUD bar `bg-gradient-to-b from-ink-deep/90` was made for the dark office. On Offsite the top row is (19,30,44) against the canvas (111,187,227); the sky is not back within 10 of `#6fbbe3` until y 180 (`wide-arena-hud.png`). At 1920x1080 follow camera the gold roof flag sits inside it and goes brown. The top quarter of every frame looks like dusk, which is the opposite of the arena's reason to exist.
+- What should change (Offsite only; the office keeps its scrim):
+  1. Replace the scrim with `linear-gradient(180deg, rgba(38,104,150,0.45) 0px, rgba(38,104,150,0) 120px)` (a deeper sky blue, so the top reads as zenith, not night). Expected top row about (78,150,192); clean canvas from y 120.
+  2. Legibility moves from the scrim to the text: on the timer, both names, the BOT/YOU labels, the weapon/ammo lines and `FIRST TO 5`, `text-shadow: 0 1px 0 rgba(10,13,24,0.9), 0 0 6px rgba(10,13,24,0.7)`. White on the new scrim alone is only 2.1-3.3:1, so the shadow is required, not optional. Health-bar tracks keep their ink fill.
+- A3 (amended for HUD screenshots): with the HUD on at 1280x720, the top row within ±12 of (78,150,192), and from y 130 down within ±10 of the canvas value. Check also at 1920x1080 with F-024 scaling.
+- Expected result: a blue sky to the top edge; names, timer and score as readable as in the office.
+- Related: arena-2.md §5.1, A3.
+- Status: implemented (Engineering, 2026-11-28, R-018 round 2; see LOG.md)
+
+## F-033 — The tumbleweed reads as a ⊗ marker in the fight space (P0)
+- What is wrong: `timber` #7a5c43 with four tube rings draws a dark circle with a cross through it, about 25 px at 1280 and 40 px at 1920 follow camera (my 1920 shot: at screen (262,658), level with a fighter's chest beside the boulder). At play distance it looks like a UI glyph (a "no" sign or a target reticle), not a plant. That is exactly the "looks like a pickup or hazard" risk of §5.6.
+- What should change: rebuild it as a tangle: **7 rings** of radius 0.45 m, tube **0.035 m**, each on a fixed seeded random axis (no two within 25° of each other, none aligned with the view axis), plus a solid low-poly core (icosahedron, r **0.22 m**). Colour **`rock.side` #b97c57** for rings and core. Still one merged mesh, same path, speed, hops and gag.
+- Expected result: a light-brown scribbled ball with no straight line through its centre. If it disappears against the dune again, darken to `cliff.shade` #a86d50 and keep the tangle; never go back to 4 rings.
+- Status: implemented (Engineering, 2026-11-28, R-018 round 2; see LOG.md)
+
+## F-034 — Sky shows through the floor's front corners at the wide camera (P0)
+- What is wrong: at the wide start the floor box (`W + 1.2`, x ±18.6) ends inside the frame. Sky (152,205,232) shows in a wedge about 30 x 12 px at both bottom corners (`wide-arena.png` around (0-25, 580-592) and (1255-1280, 580-592)). It is a hole in the world in the first frame of every match.
+- What should change: floor box, ripple texture repeat and front lip strip to **`W + 10`** (x ±23), the same width as the under-floor block. No collision change.
+- Expected result: at the wide camera at 1280x720 and 1920x1080, no sky-coloured pixel in the bottom 25 % of the frame.
+- Status: implemented (Engineering, 2026-11-28, R-018 round 2; see LOG.md)
+
+## F-035 — The bottom band (engineering lead's flag): keep it, make it ground (P1)
+- Judgement: the lead is right that it carries nothing visually: 105 px of flat (130,69,40) under the sand lip at the wide camera (y 615-720, 14.6 %). The error is mine: §5.2 copied the office's "building below the floor", but a desert floor has no underside. It is not P0: at the follow camera it is about 5 % and it holds the key-hint bar and the respawn panel, so the HUD needs a quiet zone there. Do not reframe the camera for it (shared with the office, and the footer would land on the sand).
+- What should change: the front face of the under-floor block becomes a sandstone cut bank: unlit (`MeshBasicMaterial`, `toneMapped: false`), vertical vertex-colour gradient from **`sand.edge` #c9a070** directly under the lip to **`cliff.shade` #a86d50** at 3 m below; two **`cliff.strata` #e8c29a** bands 0.08 m high at y **-1.2** and **-2.6**, offset ±0.15 m in a slight 2-step wobble along x so they are not ruler lines. Merged with the static mesh, 0 extra draw calls.
+- Expected result: the band reads as the same rock as the cliffs, warmer and lighter at the top, and ties the floor to the canyon. The key bar stays readable on it (its plates already carry their own background).
+- Status: implemented (Engineering, 2026-11-28, R-018 round 2; see LOG.md)
+
+## F-036 — The water tower hides behind the tower deck at the follow camera (P2)
+- What is wrong: at x 8.5, z -30, the follow camera's parallax puts the tank right behind the deck plank and the right tower post (`play-1p` frame at 9.5 s; my 1920 shot), so the "42" is cut or covered most of the time the fight is centre-right.
+- What should change: try x **12-14** (z -30, height unchanged). Pick the value where, with a fighter on the deck at the follow camera, the tank does not touch the deck plank on screen, and at the wide camera it stays under the lookout R plank and out of the HUD's top 120 px. Report the value; if no x satisfies both, keep 8.5.
+- Status: implemented (Engineering, 2026-11-28, R-018 round 2; see LOG.md)
+
+## F-037 — Explosion sift: invisible as specified (P2)
+- Decision on deviation 9: pale on pale was my mistake. Change the sift to **`cliff.shade` #a86d50**, **0.08 x 1.0 m**, opacity 0.55, same life and fall. It is behind the fighters (z -1.2) and lasts 0.7 s, so the darker colour is safe.
+- Status: implemented (Engineering, 2026-11-28, R-018 round 2; see LOG.md)
+
+## F-038 — Wall splat sound on cliffs (P2, SOUND.md owner)
+- Ship with `land` + `impact` (no glass): accepted for this update. File the rock crunch with the SOUND.md owner: one short dry crunch, 120-180 ms, low-mid body, with a small gravel tail, no glass and no ring.
+- Status: open
+
+## F-039 — Respawn panel covers the floor lane (P2, all arenas, noticed here)
+- What is wrong: "Back in 3 · come back as" sits bottom centre over the floor; at 1280x720 it hid the bot standing on the floor (my shot). On Offsite the floor lane is the main lane.
+- What should change: background at 80 % opacity, and when a fighter's on-screen box overlaps the panel, move the panel to the side away from that fighter (left or right third, same bottom offset). Not needed for this update.
+- Status: open
