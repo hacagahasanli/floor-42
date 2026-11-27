@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Floor 42 - Direction B - Field Day</title>
+<link href="https://fonts.googleapis.com/css2?family=Titan+One&family=Baloo+2:wght@600;700;800&display=block" rel="stylesheet">
+<style>
+:root{
+  --grape:#3B1F6B; --grape-2:#5A3596; --sun:#FFC83D; --sun-lo:#E08A00; --tang:#FF7A2F; --tang-lo:#C2410C;
+  --teal:#22C3A6; --teal-lo:#0E8A74; --sky:#4CB8FF; --sky-lo:#1F7BC8; --cream:#FFF3D6; --white:#fff; --gray:#B9B3C9; --gray-lo:#8C84A3;
+  --p1:#FF7A2F; --p2:#38AEEA;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#222;font-family:'Baloo 2',sans-serif;color:var(--grape)}
+.screen{width:1280px;height:720px;position:relative;overflow:hidden;margin:0 auto 24px}
+.bg{position:absolute;inset:0;background:url(../_shared/offsite-wide.png) center/cover}
+.abs{position:absolute}
+.titan{font-family:'Titan One',sans-serif;letter-spacing:.5px}
+/* outlined white display text */
+.out{color:#fff;-webkit-text-stroke:0;text-shadow:
+ 3px 0 0 var(--grape),-3px 0 0 var(--grape),0 3px 0 var(--grape),0 -3px 0 var(--grape),2px 2px 0 var(--grape),-2px -2px 0 var(--grape),2px -2px 0 var(--grape),-2px 2px 0 var(--grape),
+ 0 7px 0 var(--grape),3px 7px 0 var(--grape),-3px 7px 0 var(--grape)}
+/* candy button */
+.btn{position:absolute;display:flex;align-items:center;justify-content:center;gap:12px;font-family:'Titan One';color:#fff;border:4px solid var(--grape);border-radius:22px;
+  background:linear-gradient(180deg,rgba(255,255,255,.45) 0 46%,rgba(255,255,255,0) 47%),var(--c,var(--sun));
+  box-shadow:inset 0 -7px 0 var(--lo,var(--sun-lo)),0 7px 0 var(--grape);text-shadow:0 3px 0 var(--grape),2px 0 0 var(--grape),-2px 0 0 var(--grape),0 -2px 0 var(--grape),2px 3px 0 var(--grape),-2px 3px 0 var(--grape)}
+.btn.y{--c:var(--sun);--lo:var(--sun-lo)} .btn.o{--c:var(--tang);--lo:var(--tang-lo)} .btn.t{--c:var(--teal);--lo:var(--teal-lo)} .btn.s{--c:var(--sky);--lo:var(--sky-lo)}
+.btn.w{--c:#fff;--lo:#D8CDEB;color:var(--grape);text-shadow:none}
+.key{font:800 14px 'Baloo 2';background:var(--grape);color:#fff;border-radius:8px;padding:0 8px;text-shadow:none;line-height:24px}
+.card{position:absolute;border:4px solid var(--grape);border-radius:24px;background:#fff;box-shadow:0 8px 0 var(--grape)}
+.photo{background-size:cover;background-position:50% 0}
+.rays{position:absolute;inset:-400px;background:repeating-conic-gradient(from 0deg at 50% 50%,#FFD866 0 10deg,#FFC23A 10deg 20deg)}
+.confetti{position:absolute;width:14px;height:22px;border:2.5px solid var(--grape);border-radius:3px}
+.timing{position:absolute;right:14px;bottom:10px;font:800 13px 'Baloo 2';color:#fff;background:rgba(59,31,107,.92);padding:3px 12px;border-radius:999px}
+.note{position:absolute;font:700 15px 'Baloo 2';color:var(--grape)}
+</style></head><body>
+
+<!-- HOME -->
+<section class="screen" id="b-1-home">
+  <div class="bg"></div>
+  <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(59,31,107,.55),rgba(59,31,107,0) 50%)"></div>
+  <!-- logo -->
+  <div class="abs" style="left:44px;top:20px;transform:rotate(-4deg)">
+    <div class="titan out" style="font-size:58px;line-height:1">FLOOR</div>
+    <div class="titan abs" style="left:190px;top:-14px;font-size:112px;line-height:1;color:var(--sun);text-shadow:4px 0 0 var(--grape),-4px 0 0 var(--grape),0 4px 0 var(--grape),0 -4px 0 var(--grape),3px 3px 0 var(--grape),-3px -3px 0 var(--grape),3px -3px 0 var(--grape),-3px 3px 0 var(--grape),0 10px 0 var(--tang-lo),4px 10px 0 var(--grape),-4px 10px 0 var(--grape),0 14px 0 var(--grape)">42</div>
+  </div>
+  <div class="abs" style="left:40px;top:96px;transform:rotate(-4deg);background:var(--tang);border:4px solid var(--grape);border-radius:10px;padding:2px 18px;box-shadow:0 5px 0 var(--grape)">
+    <span class="titan" style="color:#fff;font-size:20px;letter-spacing:1px;text-shadow:0 2px 0 var(--grape)">★ OFFSITE FIELD DAY ★</span></div>
+
+  <!-- buttons -->
+  <div class="btn y" style="left:48px;top:204px;width:360px;height:112px;font-size:62px;transform:rotate(-2deg)">
+    <svg width="46" height="46" viewBox="0 0 40 40"><path d="M11 6 L34 20 L11 34Z" fill="#fff" stroke="#3B1F6B" stroke-width="4.5" stroke-linejoin="round"/></svg>PLAY</div>
+  <div class="note" style="left:80px;top:322px;color:#fff;font-size:16px;text-shadow:0 2px 0 var(--grape)">vs bot · first to 5 KOs · <span class="key">ENTER</span></div>
+  <div class="btn o" style="left:48px;top:370px;width:172px;height:72px;font-size:26px">2 PLAYER</div>
+  <div class="btn t" style="left:236px;top:370px;width:172px;height:72px;font-size:26px">ONLINE</div>
+  <div class="btn s" style="left:48px;top:462px;width:360px;height:72px;font-size:30px">CHOOSE FIGHTER</div>
+  <div class="btn w" style="left:48px;top:556px;width:72px;height:66px">
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#3B1F6B" stroke-width="2.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M5.2 18.8l2.1-2.1M16.7 7.3l2.1-2.1"/></svg></div>
+  <div class="btn w" style="left:136px;top:556px;width:272px;height:66px;font-size:22px">HOW TO PLAY</div>
+
+  <!-- fighter card with rays -->
+  <div class="abs" style="left:880px;top:70px;width:340px;height:340px;border-radius:50%;overflow:hidden;border:5px solid var(--grape)"><div class="rays" style="inset:-200px"></div></div>
+  <div class="card" style="left:920px;top:110px;width:270px;height:360px;overflow:hidden;transform:rotate(4deg)">
+    <div class="photo" style="height:250px;background-image:url(../_shared/hotfix.png);background-size:140%;background-position:50% 2%;background-color:var(--p1);border-bottom:4px solid var(--grape)"></div>
+    <div class="titan out" style="font-size:40px;text-align:center;margin-top:2px">HOTFIX</div>
+    <div style="display:flex;justify-content:center;gap:6px;margin-top:4px">
+      <span style="background:var(--sky);color:#fff;border:3px solid var(--grape);border-radius:999px;font:800 13px 'Baloo 2';padding:0 9px">FAST</span>
+      <span style="background:var(--teal);color:#fff;border:3px solid var(--grape);border-radius:999px;font:800 13px 'Baloo 2';padding:0 9px">2× JUMP</span>
+      <span style="background:var(--sun);color:var(--grape);border:3px solid var(--grape);border-radius:999px;font:800 13px 'Baloo 2';padding:0 9px">MID WEIGHT</span></div>
+  </div>
+  <!-- speech bubble -->
+  <div class="abs" style="left:690px;top:170px;width:230px;background:#fff;border:4px solid var(--grape);border-radius:20px;padding:10px 14px;box-shadow:0 6px 0 var(--grape);font:800 18px/1.15 'Baloo 2';transform:rotate(-3deg)">I brought snacks.<br>And a rocket launcher.
+    <svg class="abs" style="right:-24px;top:40px" width="30" height="30"><path d="M0 4 L28 14 L0 24Z" fill="#fff" stroke="#3B1F6B" stroke-width="4" stroke-linejoin="round"/><rect x="0" y="6" width="5" height="16" fill="#fff"/></svg></div>
+  <div class="btn s" style="left:930px;top:494px;width:54px;height:54px;font-size:30px">‹</div>
+  <div class="btn s" style="left:1128px;top:494px;width:54px;height:54px;font-size:30px">›</div>
+  <div class="note" style="left:1000px;top:504px;color:#fff;font-size:18px;text-shadow:0 2px 0 var(--grape)">1 / 4</div>
+  <div class="abs" style="left:24px;bottom:10px;font:700 12px 'Baloo 2';color:#fff">Nalbaki Games · v0.1.0 · Credits</div>
+</section>
+
+<!-- BUTTONS -->
+<section class="screen" id="b-2-buttons" style="background:var(--cream)">
+  <div class="abs" style="inset:0;background-image:radial-gradient(rgba(59,31,107,.08) 3px,transparent 3.5px);background-size:28px 28px"></div>
+  <div class="titan out abs" style="left:44px;top:22px;font-size:44px">B · FIELD DAY <span style="font-size:22px">button set</span></div>
+  <div class="note" style="left:48px;top:88px;font-size:18px">Candy-plastic toy buttons: 4px grape outline, glossy top half, 7px lip underneath. They bounce like they were inflated.</div>
+  <div class="note" style="left:48px;top:134px;font:800 14px 'Baloo 2';letter-spacing:2px">PRIMARY</div>
+  <div class="btn y" style="left:48px;top:164px;width:210px;height:82px;font-size:34px">REMATCH</div>
+  <div class="btn y" style="left:300px;top:158px;width:210px;height:82px;font-size:34px;transform:scale(1.07) rotate(-2deg);filter:brightness(1.06)">REMATCH</div>
+  <div class="btn y" style="left:552px;top:170px;width:210px;height:82px;font-size:34px;box-shadow:inset 0 -2px 0 var(--sun-lo),0 1px 0 var(--grape);transform:scale(1.04,.92)">REMATCH</div>
+  <div class="btn" style="--c:var(--gray);--lo:var(--gray-lo);left:804px;top:164px;width:210px;height:82px;font-size:30px;opacity:.9">
+    <svg width="24" height="28" viewBox="0 0 24 28"><rect x="3" y="12" width="18" height="14" rx="3" fill="#fff" stroke="#3B1F6B" stroke-width="3"/><path d="M7 12V8a5 5 0 0110 0v4" fill="none" stroke="#3B1F6B" stroke-width="3"/></svg>WAIT…</div>
+  <div class="btn y" style="left:1056px;top:164px;width:180px;height:82px;font-size:34px;outline:5px solid #fff;outline-offset:5px">PLAY</div>
+  <div class="note" style="left:50px;top:262px;width:220px">default<br><span style="font-weight:600;font-size:13px">gloss top half, 7px lip, idle shine sweep every 4s</span></div>
+  <div class="note" style="left:302px;top:262px;width:220px">hover / focus<br><span style="font-weight:600;font-size:13px">scale 1.07, tilt -2&deg;, spring overshoot 140ms · "boop"</span></div>
+  <div class="note" style="left:554px;top:262px;width:220px">pressed<br><span style="font-weight:600;font-size:13px">sinks 6px onto lip, squash 1.04/0.92 · 50ms · "pok"</span></div>
+  <div class="note" style="left:806px;top:262px;width:220px">disabled<br><span style="font-weight:600;font-size:13px">grey plastic + padlock, tap = wobble + "nuh-uh"</span></div>
+  <div class="note" style="left:1058px;top:262px;width:200px">keyboard focus<br><span style="font-weight:600;font-size:13px">white 5px ring, bounces 1.03 every 0.8s</span></div>
+
+  <div class="note" style="left:48px;top:356px;font:800 14px 'Baloo 2';letter-spacing:2px">SECONDARY · COLOUR = MEANING</div>
+  <div class="btn s" style="left:48px;top:386px;width:230px;height:64px;font-size:26px">NEXT ARENA</div>
+  <div class="btn w" style="left:302px;top:386px;width:260px;height:64px;font-size:26px">CHANGE FIGHTER</div>
+  <div class="btn o" style="left:586px;top:386px;width:190px;height:64px;font-size:26px">2 PLAYER</div>
+  <div class="btn t" style="left:800px;top:386px;width:180px;height:64px;font-size:26px">ONLINE</div>
+  <div class="btn w" style="left:1006px;top:386px;width:66px;height:64px;font-size:30px">‹</div>
+  <div class="btn w" style="left:1092px;top:386px;width:66px;height:64px;font-size:30px">?</div>
+  <div class="note" style="left:50px;top:470px">yellow = do it now · sky = move on · white = go back / change · orange = local · teal = online</div>
+
+  <div class="note" style="left:48px;top:530px;font:800 14px 'Baloo 2';letter-spacing:2px">BADGES & BANNERS</div>
+  <div class="abs" style="left:48px;top:566px;background:var(--tang);border:4px solid var(--grape);border-radius:12px;padding:4px 22px;box-shadow:0 6px 0 var(--grape);transform:rotate(-3deg)"><span class="titan" style="color:#fff;font-size:34px;text-shadow:0 3px 0 var(--grape)">K.O.!</span></div>
+  <div class="abs" style="left:230px;top:560px;width:84px;height:84px;border-radius:50%;background:var(--sun);border:4px solid var(--grape);box-shadow:0 6px 0 var(--grape);display:flex;align-items:center;justify-content:center"><span class="titan" style="font-size:36px;color:#fff;text-shadow:0 3px 0 var(--grape)">1</span></div>
+  <div class="abs" style="left:340px;top:566px;background:#fff;border:4px solid var(--grape);border-radius:999px;padding:6px 20px;box-shadow:0 6px 0 var(--grape);font:800 20px 'Baloo 2'">+1 KO · HOTFIX</div>
+  <div class="note" style="left:600px;top:566px;width:620px;font-size:15px">Motion: everything springs (stiffness 400, damping 18 → ~12% overshoot). Text pops in letter by letter, 25ms apart. Confetti on every win, kazoo on win, slide-whistle on loss.</div>
+</section>
+
+<!-- HUD -->
+<section class="screen" id="b-3-hud">
+  <div class="bg"></div>
+  <!-- P1 -->
+  <div class="abs" style="left:14px;top:12px;width:400px;height:84px">
+    <div class="abs" style="left:0;top:0;width:80px;height:80px;border-radius:50%;border:4px solid var(--grape);background:url(../_shared/hotfix.png) 50% 6%/260% var(--p1);box-shadow:0 5px 0 var(--grape);z-index:2"></div>
+    <div class="abs titan out" style="left:92px;top:-4px;font-size:28px">HOTFIX</div>
+    <div class="abs" style="left:66px;top:36px;width:320px;height:30px;border:4px solid var(--grape);border-radius:999px;background:#5A3596;box-shadow:0 4px 0 var(--grape);overflow:hidden;padding:3px 3px 3px 20px;display:flex;gap:3px">
+      <div style="flex:1;background:linear-gradient(180deg,#FFB27A 0 45%,var(--p1) 46%);border-radius:6px"></div><div style="flex:1;background:linear-gradient(180deg,#FFB27A 0 45%,var(--p1) 46%);border-radius:6px"></div><div style="flex:1;background:linear-gradient(180deg,#FFB27A 0 45%,var(--p1) 46%);border-radius:6px"></div><div style="flex:1;background:linear-gradient(180deg,#FFB27A 0 45%,var(--p1) 46%);border-radius:6px;opacity:.95;clip-path:inset(0 40% 0 0)"></div><div style="flex:1;opacity:0"></div></div>
+    <div class="abs" style="left:92px;top:70px;display:flex;gap:6px">
+      <span style="background:var(--sun);border:3px solid var(--grape);border-radius:999px;font:800 12px 'Baloo 2';padding:0 8px">DASH</span>
+      <span style="background:var(--gray);border:3px solid var(--grape);border-radius:999px;font:800 12px 'Baloo 2';padding:0 8px;color:#fff">PUSH 2s</span>
+      <span style="background:#fff;border:3px solid var(--grape);border-radius:999px;font:800 12px 'Baloo 2';padding:0 8px">PISTOL ∞</span></div>
+  </div>
+  <!-- P2 -->
+  <div class="abs" style="right:14px;top:12px;width:400px;height:84px">
+    <div class="abs" style="right:0;top:0;width:80px;height:80px;border-radius:50%;border:4px solid var(--grape);background:url(../_shared/standup.png) 50% 26%/230% var(--p2);box-shadow:0 5px 0 var(--grape);z-index:2"></div>
+    <div class="abs titan out" style="right:92px;top:-4px;font-size:28px">STANDUP</div>
+    <div class="abs" style="right:66px;top:36px;width:320px;height:30px;border:4px solid var(--grape);border-radius:999px;background:#5A3596;box-shadow:0 4px 0 var(--grape);overflow:hidden;padding:3px 20px 3px 3px;display:flex;gap:3px;flex-direction:row-reverse">
+      <div style="flex:1;background:linear-gradient(180deg,#9AD9FF 0 45%,var(--p2) 46%);border-radius:6px"></div><div style="flex:1;background:linear-gradient(180deg,#9AD9FF 0 45%,var(--p2) 46%);border-radius:6px"></div><div style="flex:1;opacity:0"></div><div style="flex:1;opacity:0"></div><div style="flex:1;opacity:0"></div></div>
+    <div class="abs" style="right:92px;top:70px;display:flex;gap:6px">
+      <span style="background:#fff;border:3px solid var(--grape);border-radius:999px;font:800 12px 'Baloo 2';padding:0 8px">SMG 18</span>
+      <span style="background:var(--sun);border:3px solid var(--grape);border-radius:999px;font:800 12px 'Baloo 2';padding:0 8px">PUSH</span></div>
+  </div>
+  <!-- score -->
+  <div class="abs" style="left:520px;top:10px;width:240px;height:92px">
+    <div class="abs" style="left:0;top:10px;width:96px;height:72px;border:4px solid var(--grape);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.4) 0 46%,transparent 47%),var(--p1);box-shadow:0 6px 0 var(--grape);display:flex;align-items:center;justify-content:center"><span class="titan out" style="font-size:52px">2</span></div>
+    <div class="abs" style="right:0;top:10px;width:96px;height:72px;border:4px solid var(--grape);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.4) 0 46%,transparent 47%),var(--p2);box-shadow:0 6px 0 var(--grape);display:flex;align-items:center;justify-content:center"><span class="titan out" style="font-size:52px">1</span></div>
+    <div class="abs" style="left:84px;top:0;width:72px;height:72px;border-radius:50%;background:#fff;border:4px solid var(--grape);box-shadow:0 6px 0 var(--grape);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2">
+      <span class="titan" style="font-size:22px;line-height:1">1:42</span><span style="font:800 10px 'Baloo 2'">FIRST TO 5</span></div>
+  </div>
+  <!-- kill feed -->
+  <div class="abs" style="left:478px;top:120px;background:#fff;border:4px solid var(--grape);border-radius:999px;padding:4px 20px;box-shadow:0 5px 0 var(--grape);font:800 18px 'Baloo 2';transform:rotate(-2deg)">💥 STANDUP ate a <span style="color:var(--tang)">ROCKET</span> · +1</div>
+  <div class="abs" style="left:24px;top:660px;font:800 17px 'Baloo 2';color:#fff;text-shadow:0 2px 0 var(--grape)">Health = 5 chunky segments (20 each) that pop off with a "pok" and bounce away. Score tile squashes + confetti puff on each KO.</div>
+</section>
+
+<style>
+.rbg{position:absolute;inset:-20px;background:url(../_shared/offsite-wide.png) center/cover;filter:blur(6px) brightness(.75)}
+.pod{position:absolute;border:4px solid var(--grape);border-radius:14px 14px 0 0;background:linear-gradient(180deg,rgba(255,255,255,.35) 0 18%,transparent 19%),var(--c);display:flex;justify-content:center;padding-top:6px}
+.medal{position:absolute;width:200px}
+.medal .disc{width:86px;height:86px;border-radius:50%;border:4px solid var(--grape);box-shadow:0 6px 0 var(--grape);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:40px}
+.medal .lbl{margin-top:10px;background:#fff;border:4px solid var(--grape);border-radius:16px;padding:4px 10px;text-align:center;box-shadow:0 5px 0 var(--grape)}
+.medal .lbl b{display:block;font:400 17px 'Titan One';color:var(--grape)} .medal .lbl span{font:700 14px/1.1 'Baloo 2'}
+</style>
+
+<!-- RESULT F1 -->
+<section class="screen" id="b-4-result-f1">
+  <div class="rbg"></div>
+  <div class="abs" style="left:640px;top:360px;width:0;height:0"><div class="rays" style="inset:auto;left:-900px;top:-900px;width:1800px;height:1800px;opacity:.9;transform:rotate(8deg);-webkit-mask-image:radial-gradient(circle,#000 22%,transparent 62%)"></div></div>
+  <!-- star burst -->
+  <svg class="abs" style="left:440px;top:120px" width="400" height="400" viewBox="-100 -100 200 200"><polygon fill="#fff" stroke="#3B1F6B" stroke-width="5" stroke-linejoin="round" points="0,-95 18,-40 70,-62 42,-14 95,0 42,14 70,62 18,40 0,95 -18,40 -70,62 -42,14 -95,0 -42,-14 -70,-62 -18,-40"/></svg>
+  <div class="card" style="left:520px;top:150px;width:240px;height:320px;overflow:hidden;transform:scale(1.22) rotate(-6deg)">
+    <div class="photo" style="height:100%;background-image:url(../_shared/hotfix.png);background-color:var(--p1)"></div></div>
+  <div class="abs" style="left:300px;top:40px;transform:rotate(-3deg);background:var(--grape);border-radius:14px;padding:6px 26px;box-shadow:0 6px 0 rgba(0,0,0,.25)">
+    <span class="titan" style="color:var(--sun);font-size:44px">AND THE WINNER IS…</span></div>
+  <div class="confetti" style="left:300px;top:200px;background:var(--sun);transform:rotate(30deg)"></div>
+  <div class="confetti" style="left:380px;top:420px;background:var(--teal);transform:rotate(-50deg)"></div>
+  <div class="confetti" style="left:880px;top:180px;background:var(--tang);transform:rotate(60deg)"></div>
+  <div class="confetti" style="left:940px;top:400px;background:var(--sky);transform:rotate(-20deg)"></div>
+  <div class="confetti" style="left:820px;top:560px;background:#fff;transform:rotate(80deg)"></div>
+  <div class="confetti" style="left:420px;top:580px;background:var(--sun);transform:rotate(-70deg)"></div>
+  <div class="timing">FRAME 1 · t = 0.45s · drumroll 0.3s, rays spin in, winner card POPS (scale 0&rarr;1.25 overshoot), confetti cannon from both sides</div>
+</section>
+
+<!-- RESULT F2 -->
+<section class="screen" id="b-5-result-f2">
+  <div class="rbg"></div>
+  <div class="abs" style="left:640px;top:300px;width:0;height:0"><div class="rays" style="inset:auto;left:-900px;top:-900px;width:1800px;height:1800px;opacity:.85;transform:rotate(14deg);-webkit-mask-image:radial-gradient(circle,#000 20%,transparent 60%)"></div></div>
+  <div class="titan out abs" style="left:0;right:0;top:22px;text-align:center;font-size:76px">HOTFIX WINS!</div>
+  <!-- podium -->
+  <div class="pod" style="--c:var(--sun);left:520px;top:470px;width:240px;height:260px"><span class="titan out" style="font-size:60px">1</span></div>
+  <div class="card" style="left:540px;top:150px;width:200px;height:300px;overflow:hidden;transform:rotate(-3deg) translateY(-18px)">
+    <div class="photo" style="height:100%;background-image:url(../_shared/hotfix.png);background-color:var(--p1)"></div></div>
+  <!-- loser on tiny box -->
+  <div class="pod" style="--c:#D8CDEB;left:860px;top:640px;width:150px;height:90px;border-radius:10px 10px 0 0"><span style="font:800 13px 'Baloo 2'">PARTICIPATION</span></div>
+  <div class="card" style="left:880px;top:420px;width:112px;height:170px;overflow:hidden;transform:rotate(16deg) translateY(-60px)">
+    <div class="photo" style="height:100%;background-image:url(../_shared/standup.png);background-color:var(--p2);filter:saturate(.5)"></div></div>
+  <!-- score tiles -->
+  <div class="abs" style="left:230px;top:250px;display:flex;gap:10px;align-items:center;transform:rotate(-4deg)">
+    <div style="width:96px;height:96px;border:4px solid var(--grape);border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.4) 0 46%,transparent 47%),var(--p1);box-shadow:0 7px 0 var(--grape);display:flex;align-items:center;justify-content:center"><span class="titan out" style="font-size:64px">5</span></div>
+    <span class="titan out" style="font-size:44px">–</span>
+    <div style="width:96px;height:96px;border:4px solid var(--grape);border-radius:20px;background:var(--gray);box-shadow:0 7px 0 var(--grape);display:flex;align-items:center;justify-content:center;transform:scale(.6)"><span class="titan out" style="font-size:64px">2</span></div>
+  </div>
+  <div class="confetti" style="left:300px;top:130px;background:var(--sun);transform:rotate(30deg)"></div>
+  <div class="confetti" style="left:470px;top:400px;background:var(--teal);transform:rotate(-50deg)"></div>
+  <div class="confetti" style="left:830px;top:160px;background:var(--tang);transform:rotate(60deg)"></div>
+  <div class="confetti" style="left:1060px;top:300px;background:var(--sky);transform:rotate(-20deg)"></div>
+  <div class="confetti" style="left:150px;top:500px;background:#fff;transform:rotate(80deg)"></div>
+  <div class="timing">FRAME 2 · t = 1.3s · card lands on podium (squash), title pops letter by letter, loser's tiny box slides in, 2 shrinks with a slide-whistle</div>
+</section>
+
+<!-- RESULT F3 -->
+<section class="screen" id="b-6-result-f3">
+  <div class="rbg"></div>
+  <div class="abs" style="left:640px;top:300px;width:0;height:0"><div class="rays" style="inset:auto;left:-900px;top:-900px;width:1800px;height:1800px;opacity:.8;transform:rotate(22deg);-webkit-mask-image:radial-gradient(circle,#000 18%,transparent 58%)"></div></div>
+  <div class="titan out abs" style="left:0;right:0;top:16px;text-align:center;font-size:64px">HOTFIX WINS!</div>
+  <div class="abs" style="left:0;right:0;top:100px;text-align:center"><span style="background:var(--grape);color:#fff;border-radius:999px;padding:2px 18px;font:800 18px 'Baloo 2'">5 – 2 · match time 2:18 · best streak 3</span></div>
+  <div class="pod" style="--c:var(--sun);left:540px;top:400px;width:200px;height:160px"><span class="titan out" style="font-size:48px">1</span></div>
+  <div class="card" style="left:556px;top:150px;width:170px;height:250px;overflow:hidden;transform:rotate(-3deg)">
+    <div class="photo" style="height:100%;background-image:url(../_shared/hotfix.png);background-color:var(--p1)"></div></div>
+  <div class="pod" style="--c:#D8CDEB;left:770px;top:500px;width:120px;height:60px;border-radius:10px 10px 0 0"><span style="font:800 11px 'Baloo 2'">PARTICIPATION</span></div>
+  <div class="card" style="left:786px;top:356px;width:90px;height:136px;overflow:hidden;transform:rotate(12deg)">
+    <div class="photo" style="height:100%;background-image:url(../_shared/standup.png);background-color:var(--p2);filter:saturate(.5)"></div></div>
+  <!-- balloon -->
+  <svg class="abs" style="left:870px;top:300px" width="60" height="110"><ellipse cx="28" cy="30" rx="20" ry="16" fill="#9AD9FF" stroke="#3B1F6B" stroke-width="4" transform="rotate(25 28 30)"/><path d="M20 44 Q30 70 14 104" fill="none" stroke="#3B1F6B" stroke-width="3"/></svg>
+  <!-- medals -->
+  <div class="medal" style="left:70px;top:170px"><div class="disc" style="background:var(--tang)">🚀</div><div class="lbl"><b>HUMAN PIÑATA</b><span>Standup ate 3 rockets</span></div></div>
+  <div class="medal" style="left:290px;top:250px"><div class="disc" style="background:var(--teal)">✉️</div><div class="lbl"><b>PER MY LAST EMAIL</b><span>Hotfix pushed back 4 bullets</span></div></div>
+  <div class="medal" style="left:1000px;top:170px"><div class="disc" style="background:var(--sky)">👟</div><div class="lbl"><b>CARDIO</b><span>41 jumps · 57% accuracy</span></div></div>
+  <!-- buttons -->
+  <div class="btn y" style="left:390px;top:590px;width:300px;height:92px;font-size:44px;transform:scale(1.03)">REMATCH <span class="key">ENTER</span></div>
+  <div class="btn s" style="left:712px;top:600px;width:230px;height:74px;font-size:26px">NEXT ARENA</div>
+  <div class="btn w" style="left:960px;top:600px;width:270px;height:74px;font-size:26px">CHANGE FIGHTER</div>
+  <div class="timing" style="bottom:auto;top:684px;right:auto;left:20px">FRAME 3 · t = 2.6s · medals drop one by one 200ms apart, buttons bounce up</div>
+</section>
+</body></html>

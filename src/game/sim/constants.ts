@@ -49,6 +49,8 @@ export interface GunSpawn {
   spots: { x: number; y: number }[];
   kinds: GunKind[];
   respawn?: number;
+  /** Seconds after FIGHT before the first pickup appears (absent: it is there from the start). OFFSITE's power entry only. */
+  firstAt?: number;
 }
 
 /** Everything the sim, the bot and the renderers need to know about one arena. */
@@ -221,22 +223,23 @@ export const OFFSITE: ArenaData = {
     { x0: 10.6, x1: 17.9, y: 7.8, style: 'walkway' }, // lookout R
     { x0: -3.6, x1: 3.6, y: 10.4, style: 'walkway' }, // tower roof
   ] as Platform[],
+  // R-020 rev. 2 (F-040): every spawn is >= 9 m from every power spot and >= 2 m from every regular gun spot.
+  // The sim picks start and respawn spots at random, so there is no fixed start pair.
   spawns: [
-    { x: -13.4, y: 1.4 }, // S0 boulder L (match start)
-    { x: 13.4, y: 1.4 }, // S1 boulder R (match start), 26.8 m apart
+    { x: -11, y: 0 }, // S0 floor L, under boardwalk L
+    { x: 11, y: 0 }, // S1 floor R
     { x: -7.5, y: 4.0 }, // S2 boardwalk L
     { x: 7.5, y: 4.0 }, // S3 boardwalk R
-    { x: 0, y: 7.0 }, // S4 tower deck
-    { x: -15.5, y: 7.8 }, // S5 lookout L
-    { x: 15.5, y: 7.8 }, // S6 lookout R
+    { x: -4.5, y: 0 }, // S4 floor L, inner
+    { x: 4.5, y: 0 }, // S5 floor R, inner
   ],
   gunSpawns: [
     { spots: [{ x: 0, y: 0 }, { x: -9, y: 0 }, { x: 9, y: 0 }], kinds: GUN_TABLE }, // G0 floor
-    { spots: [{ x: -7.5, y: 4.0 }, { x: 7.5, y: 4.0 }, { x: 0, y: 7.0 }], kinds: GUN_TABLE }, // G1 mid
+    { spots: [{ x: -5.5, y: 4.0 }, { x: 5.5, y: 4.0 }, { x: 0, y: 7.0 }], kinds: GUN_TABLE }, // G1 mid (was +-7.5, on the boardwalk spawns)
     { spots: [{ x: -13.4, y: 1.4 }, { x: 13.4, y: 1.4 }], kinds: GUN_TABLE }, // G2 second floor gun, on the boulders
     { spots: [{ x: -10, y: 4.0 }, { x: 10, y: 4.0 }], kinds: GUN_TABLE }, // G3 second mid gun, outer boardwalk
     // The power weapons stay last (tests and the HUD count on it): lookouts and the roof.
-    { spots: [{ x: -16, y: 7.8 }, { x: 16, y: 7.8 }, { x: 0, y: 10.4 }], kinds: POWER_TABLE, respawn: 15 }, // G4
+    { spots: [{ x: -16, y: 7.8 }, { x: 16, y: 7.8 }, { x: 0, y: 10.4 }], kinds: POWER_TABLE, respawn: 15, firstAt: 10 }, // G4: no power gun in the first 10 s of the fight
   ],
   dropEvery: 18,
   dropSlots: 2,

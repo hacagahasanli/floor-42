@@ -19,6 +19,7 @@ import { baseOf, OFFSITE } from '../sim/constants';
 import { canvasTexture, mergeStatic } from './arena';
 import { createWind } from './offsiteWind';
 import { mat, mesh } from './palette';
+import { OFFSITE_PROJECTILES, SAND_SHAPES } from './projectileStyle';
 
 import type { GameEvent, Pickup } from '../sim/types';
 import type { ArenaView } from './arena';
@@ -38,6 +39,7 @@ export const OFFSITE_PALETTE = {
   cliffLit: 0xd6a47c,
   cliffShade: 0xa86d50,
   cliffStrata: 0xe8c29a,
+  cliffGroove: 0xb98463,
   rockTop: 0xe6b884,
   rockSide: 0xb97c57,
   rockLip: 0xf6d9aa,
@@ -188,12 +190,13 @@ const brace = (x0: number, y0: number, x1: number, y1: number, z: number) => {
 /** The canyon walls: three stacked low-poly boxes per side, the inner face exactly at x = +-18, broken edges in z. */
 const cliffs = (side: -1 | 1) => {
   const g = new THREE.Group();
-  const bands: [number, number, number][] = [
-    [0, 4.6, 3.0],
-    [4.6, 9.2, 2.4],
-    [9.2, 15, 1.8],
+  // Two groove bands (0.18 m, cliff.groove) per box on its front (+z) face, seen square-on, at these centre heights.
+  const bands: [number, number, number, [number, number]][] = [
+    [0, 4.6, 3.0, [2.2, 3.9]],
+    [4.6, 9.2, 2.4, [6.1, 8.3]],
+    [9.2, 15, 1.8, [10.9, 13.0]],
   ];
-  bands.forEach(([y0, y1, t], i) => {
+  bands.forEach(([y0, y1, t, grooves], i) => {
     const h = y1 - y0;
     const depth = 5.5;
     const cz = -1.75 + (i % 2 ? 0.3 : -0.3);
@@ -202,9 +205,10 @@ const cliffs = (side: -1 | 1) => {
     // The face toward the arena, sunlit, and a lit cap.
     g.add(put(mesh(box(0.06, h, depth), mat(P.cliffLit)), x + side * 0.03, y0 + h / 2, cz));
     g.add(put(mesh(box(t, 0.05, depth), mat(P.cliffLit), false), x + side * (t / 2), y1 + 0.025, cz));
+    // R-020 / F-042: no band on the arena-facing (+-x) face: a line receding in z reads as a ledge. The strata are
+    // grooves on the front face, 0.01 m proud, darker than cliff.lit so they read as cracks in the rock.
+    for (const gy of grooves) g.add(put(mesh(box(t, 0.18, 0.02), mat(P.cliffGroove), false), x + side * (t / 2), gy, cz + depth / 2));
   });
-  // Strata: a thin band on the face at y 3.5, 7.0 and 10.5 (0.1 m).
-  for (const y of [3.5, 7, 10.5]) g.add(put(mesh(box(0.04, 0.1, 5.7), mat(P.cliffStrata), false), side * 17.98, y, -1.75));
   return g;
 };
 
@@ -703,7 +707,7 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
   fixed.add(put(mesh(box(0.08, 2.2, 0.08), mat(P.timber), false), 0, 10.4 + 1.1, -1.3));
 
   for (const s of [-1, 1] as const) fixed.add(cliffs(s));
-  for (const [x, z, h] of [[-16.2, -2.6, 3.0], [-6.5, -5.0, 1.8], [9.6, -3.4, 2.4]] as const) fixed.add(cactus(x, z, h));
+  for (const [x, z, h] of [[-16.2, -2.6, 3.0], [-6.5, -5.0, 1.8], [7.5, -3.4, 2.4]] as const) fixed.add(cactus(x, z, h));
   // Pebbles: two clusters per cliff foot and one per boulder, on the floor behind the fight plane.
   let ps = 5;
   for (const [cx, n] of [[-16, 3], [-14.2, 2], [16, 3], [14.2, 2], [-13.4, 2], [13.4, 2]] as const) {
@@ -840,9 +844,13 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
     sand.setColorAt(i, c);
     if (sand.instanceColor) sand.instanceColor.needsUpdate = true;
   };
+  // R-020: shapes and speeds come from SAND_SHAPES (rule R8: aspect <= 2.5:1, <= 6 m/s below y 13.5).
+  const SS = SAND_SHAPES;
+  const colDune = new THREE.Color(P.dune);
   const streamer = (side: -1 | 1) =>
-    spawnSand(side * (18 + ambRand() * 3), 14.8 + ambRand() * 0.4, -2.4, 4, 0.6, 1.4, 0.5, 1.6, 0.5 / 3, 1.6 / 3, 0.45, colDust);
-  const skitter = () => spawnSand(L + ambRand() * W, 0.05 + ambRand() * 0.3, -2.4, 6, 0, 0.9, 1.2, 1.2, 0.15, 0.15, 0.3, colDust);
+    spawnSand(side * (18 + ambRand() * 3), SS.streamer.minY + ambRand() * 0.4, -2.4, SS.streamer.speed, 0.6, 1.4, SS.streamer.w0, SS.streamer.w1, SS.streamer.h0, SS.streamer.h1, SS.streamer.alpha, colDust);
+  const skitter = () =>
+    spawnSand(L + ambRand() * W, SS.skitter.y0 + ambRand() * (SS.skitter.y1 - SS.skitter.y0), -2.4, SS.skitter.speed, 0, 0.9, SS.skitter.w, SS.skitter.w, SS.skitter.h0, SS.skitter.h1, SS.skitter.alpha, colDune);
   let accL = 0;
   let accR = 0;
   let accS = 0;
@@ -1147,6 +1155,7 @@ export const buildOffsite = (scene: THREE.Scene, itemCount: number, opts: ArenaB
     wall: 'rock',
     wind: () => lastW,
     vfxColors: { dust: P.dust, glass: P.sandEdge },
+    projectileStyle: OFFSITE_PROJECTILES,
     crack,
     react,
     finale: (x: number) => {

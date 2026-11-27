@@ -32,7 +32,7 @@ const SHOW_GUNS: GunKind[] = ['pistol', 'smg', 'shotgun', 'railgun'];
 export const startShowcase = (
   canvas: HTMLCanvasElement,
   first: CharacterId,
-  /** `arena`: the menu backdrop is the office (brand: "Floor 42"); the other arenas are only for matches. */
+  /** `arena`: the menu backdrop is the selected arena (R-020: it follows Settings.arena, so the first screen is the place you then play in). */
   opts: { still?: boolean; onReady?: () => void; arena?: ArenaId } = {},
 ) => {
   const A = arenaOf({ arena: opts.arena });
@@ -51,7 +51,9 @@ export const startShowcase = (
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 400);
-  const arena = buildArenaFor(opts.arena ?? 'office', scene, 0, { tier: profile.tier });
+  // OFFSITE's backdrop is always built with the low-tier set (no sand pool, vultures, tumbleweed or shimmer; flag and cloud
+  // shadows stay), so the menu's draw calls stay close to the office's (arena-2.md section 8).
+  const arena = buildArenaFor(opts.arena ?? 'office', scene, 0, { tier: opts.arena === 'offsite' ? 'low' : profile.tier });
   // Behind the menu the left of the room sits under the menu column: no whiteboard text bleeding through it.
   for (const o of arena.whiteboard) o.visible = false;
 

@@ -391,3 +391,37 @@ Deviations in the LOG: **accepted** 1 (mesa tops 47-57 %), 2 (rope z -1.12), 4 (
 - What is wrong: "Back in 3 · come back as" sits bottom centre over the floor; at 1280x720 it hid the bot standing on the floor (my shot). On Offsite the floor lane is the main lane.
 - What should change: background at 80 % opacity, and when a fighter's on-screen box overlaps the panel, move the panel to the side away from that fighter (left or right third, same bottom offset). Not needed for this update.
 - Status: open
+
+## F-040 — Offsite: power weapon at a spawn (P0, R-020 item 4)
+- What is wrong: rev. 1 spawns S5/S6 (±15.5, 7.8) stand 0.5 m from the G4 lookout spot (±16, 7.8); S4 (0, 7) is 3.4 m under the roof spot; S0–S3 sit exactly on G1/G2 spots. The sim picks start spots at random (not entries 0/1 as my §4.3 assumed), so a lookout start hands you a launcher: KO at 1.6 s, 3:0 standing still (playtest R-020).
+- What should change (arena-2.md §4.3/§4.4, exact):
+  - `spawns`: (-11,0), (11,0), (-7.5,4.0), (7.5,4.0), (-4.5,0), (4.5,0). Boulder, deck and lookout spawns removed.
+  - G1 spots ±7.5 → **±5.5** (y 4.0); (0,7.0) stays. G0, G2, G3 unchanged. G4 unchanged plus **`firstAt: 10`** (first power gun 10 s after FIGHT; Offsite only, office hash untouched).
+  - Cactus x 9.6 → **7.5** (decor; it stood behind the new S1).
+- Expected result: min spawn → power 9.26 m, min spawn → regular gun 2.0 m, no power gun in the first 10 s; new test A10. Rerun A6/A7 (botOffsite uses `spawns.slice(0,4)`).
+- Status: implemented (Engineering, 2026-11-28, R-020 round 3; see LOG.md)
+
+## F-041 — Offsite: tracers are pale on pale (P0, R-020 item 2)
+- Disagreement, once: the cited "sand streaks" at b1080-12 (510,628) and d-standstill-101 (935,325) sit on the muzzle lines of Hotfix's and Standup's shots: they are most likely the **real tracers** (`#ffe9a0`, 0.7 × 0.06 m, game.ts) blending into a cream world. The skitter quads (1.2 × 0.15 m, 8:1) share the bullet's shape, so both directions confuse. Confirm cheaply: set tracerMat to magenta for one dev run and re-shoot the same frames.
+- What should change: §5.7 — Offsite tracer `ink #1b1f2e` 0.9 × 0.08 m with a 0.22 m `canvas #f3ede0` head; pellet `ink` 0.35 × 0.08 m; office unchanged. Sand (§5.6 item 4): skitter `dune #ebc790`, 0.7 × 0.30 m, opacity 0.22, y 0.02–0.20, grows 1 → 1.6 in y; streamers aspect 2:1, opacity 0.35. New rule R8: no ambient quad above 2.5:1 or faster than 6 m/s below y 13.5.
+- Expected result: in a 1080p follow-cam shot every bullet is a dark dash with a light tip; nothing pale and thin crosses the fight band.
+- Status: implemented (Engineering, 2026-11-28, R-020 round 3; see LOG.md)
+
+## F-042 — Offsite: cliff strata read as ledges (P1, R-020 item 3)
+- What is wrong: the three `cliff.strata #e8c29a` bands are 0.1 m boxes on the ±x face, 5.7 m deep in z, so in perspective they are pale slanted lines the colour of a plank lip (`#e8cf9e`). Fighters wall-sliding (`PHYS.wallSlide` 4 m/s) beside them look perched or floating (d-standstill-101 right cliff, b1080-12 left). There is no ledge there; the decoration lies.
+- What should change (§3.2, §5.3): remove the ±x-face strata. Add two `cliff.groove #b98463` bands 0.18 m high on each cliff box's **front (+z) face** at y 2.2/3.9, 6.1/8.3, 10.9/13.0. Nothing on a cliff lighter than `cliff.lit` inside x ±18. Optional P2: while a fighter hugs a wall and falls, 1 `vfx.puff` in `cliff.shade` every 80 ms at the feet (low tier off) so the slide reads as a slide.
+- Expected result: the only pale horizontal edges near the cliffs are the lookout plank lips; a wall-sliding fighter reads as sliding on rock.
+- Status: implemented (Engineering, 2026-11-28, R-020 round 3; see LOG.md)
+
+## F-043 — Copy and menu backdrop per arena (P1, R-020 item 1)
+- What should change: arena-2.md §7 table (per-arena `introTitle`, `introLine`, `knockoutLine`, `resultWin`, `resultLoss`, `resultDemo`, regular voice only); tagline → `Two coworkers. One grudge. No mercy.`; "top floor" → "up top". Menu backdrop follows `Settings.arena` (Offsite default, low-tier set, `menuSpotX` 5.2) with the left scrim in §8; A9 amended. R-019 may restyle the menu; the backdrop decision stands.
+- Expected result: no "office"/"floor" line ever shows around an Offsite match; the first screen is the place you then play in.
+- Status: implemented (Engineering, 2026-11-28, R-020 round 3; see LOG.md)
+
+## F-044 — HUD faint on the bright sky; name card stays all match (P1, R-020 item 5; minimal, R-019 supersedes)
+- What should change (Offsite only, under the current HUD; F-032 scrim and shadows stay):
+  - FighterPanel label (`BOT · easy`, `YOU`, `RIVAL`): `text-cream/50` → **`text-cream`**, 10 px → **11 px**.
+  - Second row (gun, ammo `mag/reserve`, Dash/Push labels): `text-cream/70` → **`text-cream`**; keep `font-semibold` on the gun name, add it to the ammo.
+  - Arena pill (OFFSITE + card line): fade to opacity 0 over 300 ms **3 s after FIGHT at every viewport size** (today only when `short`); back to 1 on pause/menu. Applies to the office pill too.
+- Expected result: at 1920x1080 over sky.top, every HUD string is pure cream with the F-032 shadow; the top centre holds only timer and score after 3 s.
+- Status: implemented (Engineering, 2026-11-28, R-020 round 3; see LOG.md)

@@ -648,6 +648,8 @@ export interface ArenaView {
   wall: 'glass' | 'rock';
   /** Dust / chip colours for the shared vfx pool (OFFSITE: sand). Absent: the office's. */
   vfxColors?: Partial<Record<'dust' | 'glass', number>>;
+  /** Bullet and pellet look for this arena (OFFSITE: dark ink with a light head). Absent: the office's cream tracer. */
+  projectileStyle?: import('./projectileStyle').ProjectileStyle;
   /** The render-only wind, 0..1 (OFFSITE; for devtools and the ambient-life checks). */
   wind?: () => number;
   /** Render-only reactions to the sim's events (OFFSITE ambient life). */

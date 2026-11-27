@@ -175,7 +175,13 @@ export const createGame = (
       f.aim = f.facing > 0 ? 0 : Math.PI;
     }
   }
-  for (const p of state.pickups) if (p.spawn !== null) placeGun(state, p);
+  for (const p of state.pickups) {
+    if (p.spawn === null) continue;
+    const firstAt = A.gunSpawns[p.spawn].firstAt;
+    // A delayed entry starts empty; updatePickups counts it down once the fight begins.
+    if (firstAt !== undefined) p.respawn = firstAt;
+    else placeGun(state, p);
+  }
   return state;
 };
 
@@ -948,6 +954,8 @@ const updatePickups = (state: GameState) => {
   for (const p of state.pickups) {
     if (!p.active) {
       if (p.spawn === null) continue;
+      // The first-appearance timer (firstAt) runs from FIGHT, not from the countdown.
+      if (state.phase === 'countdown') continue;
       p.respawn -= DT;
       if (p.respawn <= 0) placeGun(state, p);
       continue;

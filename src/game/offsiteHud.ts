@@ -5,3 +5,10 @@
  */
 export const OFFSITE_HUD_SCRIM = 'linear-gradient(180deg, rgba(38,104,150,0.45) 0px, rgba(38,104,150,0) 120px)';
 export const OFFSITE_HUD_TEXT_SHADOW = '0 1px 0 rgba(10,13,24,0.9), 0 0 6px rgba(10,13,24,0.7)';
+
+/** The arena name card under the score fades out this many seconds after FIGHT (F-044), at every viewport size and in every arena. */
+export const NAME_CARD_FADE_AFTER = 3;
+
+/** Shown on the title card, for the first 3 s of the fight, and always in pause, the menu and results. */
+export const nameCardVisible = (phase: string, timeLeft: number, roundSeconds: number, paused: boolean, menuOpen: boolean): boolean =>
+  phase !== 'fight' || paused || menuOpen || roundSeconds - timeLeft < NAME_CARD_FADE_AFTER;

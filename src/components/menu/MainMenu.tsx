@@ -44,6 +44,12 @@ import type { ReactNode } from 'react';
  * Keyboard: ↑/↓ move, Enter picks, Esc goes back. Gamepads drive the same keys.
  */
 
+/** The scrim behind the menu text on OFFSITE (arena-2.md section 8): 0.80 / 0.55 / 0 at 0 / 520 / 900 px at 1920 wide, scaled with the width, at least the menu column wide. */
+const MENU_SCRIM_VARS = {
+  '--menu-scrim-h': 'linear-gradient(90deg, rgba(10,13,24,0.80) 0px, rgba(10,13,24,0.55) max(27.1vw, 440px), rgba(10,13,24,0) max(46.9vw, 760px))',
+  '--menu-scrim-v': 'linear-gradient(180deg, rgba(10,13,24,0.55) 0%, rgba(10,13,24,0) 30%, rgba(10,13,24,0.2) 45%, rgba(10,13,24,0.9) 68%)',
+} as React.CSSProperties;
+
 type Screen = 'main' | 'select' | 'howto' | 'credits' | '2p';
 type Rival = CharacterId | 'random';
 
@@ -388,7 +394,7 @@ export const MainMenu = ({
   const [preview, setPreview] = useState<CharacterId>('hotfix');
   const [rival, setRival] = useState<Rival>('random');
   const [level, setLevel] = useState<BotLevel>('normal');
-  // The arena for offline matches is remembered in Settings (the menu backdrop stays the office either way).
+  // The arena for offline matches is remembered in Settings; the menu backdrop follows it (R-020).
   const arena = useSettings().arena;
   const setArena = (id: ArenaId) => getSettings().set({ arena: id });
   // The very first match runs against the easy bot (firstMatch.ts): show that, instead of NORMAL, until one is finished.
@@ -444,6 +450,7 @@ export const MainMenu = ({
           const facts = deviceFacts();
           const tier = renderProfile(getSettings().get(), facts).tier;
           const s = startShowcase(canvas, readCharacter() ?? 'hotfix', {
+            arena,
             still: tier === 'low' && facts.touch,
             onReady: () => setLive(true),
           });
@@ -457,8 +464,10 @@ export const MainMenu = ({
       cancelAnimationFrame(raf);
       dispose?.();
       showcase.current = null;
+      setLive(false);
     };
-  }, []);
+    // A new arena means a new canvas (the old one lost its context on dispose, see the key on <canvas>).
+  }, [arena]);
 
   useEffect(() => {
     showcase.current?.setCharacter(preview);
@@ -615,16 +624,24 @@ export const MainMenu = ({
     <main
       data-screen={screen}
       className="relative h-[100dvh] w-full select-none overflow-hidden bg-ink-deep text-cream"
-      // A still of the backdrop (always Hotfix) from the first paint; the live scene fades in over it.
-      style={{ background: `#0a0d18 url(${asset('menu-poster.webp')}) center / cover` }}
+      // A still of the selected arena's backdrop (always Hotfix) from the first paint; the live scene fades in over it.
+      style={{ background: `#0a0d18 url(${asset(arena === 'office' ? 'menu-poster-office.webp' : 'menu-poster.webp')}) center / cover` }}
     >
       <canvas
+        key={arena}
         ref={canvasRef}
         aria-hidden
         className={`absolute inset-0 h-full w-full transition-opacity duration-[400ms] ${live ? 'opacity-100' : 'opacity-0'}`}
       />
       {/* Cinematic grade: dark gradient behind the menu column, vignette, a faint scanline, the fighter's colour bleeding in. */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(10,13,24,0.97)_0%,rgba(10,13,24,0.88)_26%,rgba(10,13,24,0.35)_46%,rgba(10,13,24,0)_64%)] max-sm:bg-[linear-gradient(180deg,rgba(10,13,24,0.7)_0%,rgba(10,13,24,0)_30%,rgba(10,13,24,0.2)_45%,rgba(10,13,24,0.95)_68%)]" />
+      {arena === 'office' ? (
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(10,13,24,0.97)_0%,rgba(10,13,24,0.88)_26%,rgba(10,13,24,0.35)_46%,rgba(10,13,24,0)_64%)] max-sm:bg-[linear-gradient(180deg,rgba(10,13,24,0.7)_0%,rgba(10,13,24,0)_30%,rgba(10,13,24,0.2)_45%,rgba(10,13,24,0.95)_68%)]" />
+      ) : (
+        // OFFSITE (arena-2.md section 8): the bright desert needs a lighter scrim than the night office, so the
+        // menu text stays readable and the backdrop stays the arena. Stops are 520 / 900 px at 1920 wide, never
+        // narrower than the menu column. On a phone held upright the column is a bottom sheet, so the scrim is below.
+        <div data-testid="menu-scrim" className="pointer-events-none absolute inset-0 [background:var(--menu-scrim-h)] max-sm:[background:var(--menu-scrim-v)]" style={MENU_SCRIM_VARS} />
+      )}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_65%_50%,transparent_40%,rgba(5,7,14,0.75)_100%)]" />
       <div
         className={`pointer-events-none absolute inset-0 transition-[background,opacity] duration-700 ${screen === '2p' ? 'opacity-0' : 'opacity-50'}`}

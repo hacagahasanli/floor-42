@@ -6,6 +6,7 @@
  */
 import { RULES } from './sim/constants';
 
+import type { ArenaId } from './sim/constants';
 import type { CharacterId } from './sim/types';
 
 export type CopyVariant = 'developer' | 'regular';
@@ -43,7 +44,7 @@ export const COPY = {
   /** Under the logo on the main menu, and the page description. */
   tagline: {
     developer: 'Code review got personal.',
-    regular: 'One office. Two fighters. No mercy.',
+    regular: 'Two coworkers. One grudge. No mercy.',
   },
   /** The win condition, short (menu entry, online lobby). */
   goal: {
@@ -107,7 +108,7 @@ export const COPY = {
       'Push your rival into the glass for a wall splat.',
       'Dash makes you untouchable to bullets for a moment (every 5 s).',
       'Kick off the glass walls to climb fast.',
-      'The rockets and the sniper rail wait on the top floor: production access, six shots.',
+      'The rockets and the sniper rail wait up top: production access, six shots.',
       'Stay out of the fight for a few seconds and your health comes back. Like a weekend.',
       'The Uzi shreds up close, the SMG holds the middle, the pistol is the steadiest at range.',
       'A shotgun blast kills only point blank: get right in their face, then pump.',
@@ -118,7 +119,7 @@ export const COPY = {
       'Push your rival into the glass for a wall splat.',
       'Dash makes you untouchable to bullets for a moment (every 5 s).',
       'Kick off the glass walls to climb fast.',
-      'The rockets and the sniper rail wait on the top floor.',
+      'The rockets and the sniper rail wait up top.',
       'Stay out of the fight for a few seconds and your health comes back.',
       'The Uzi shreds up close, the SMG holds the middle, the pistol is the steadiest at range.',
       'A shotgun blast kills only point blank: get right in their face, then pump.',
@@ -144,6 +145,24 @@ export const COPY = {
 export type CopyTable = typeof COPY;
 export type Copy = { [K in keyof CopyTable]: CopyTable[K]['developer'] | CopyTable[K]['regular'] };
 
-/** One variant of the whole table. */
-export const copyFor = (variant: CopyVariant): Copy =>
-  Object.fromEntries(Object.entries(COPY).map(([k, v]) => [k, v[variant]])) as Copy;
+/**
+ * Match and result lines that name the place (docs/collab/CREATIVE/levels/arena-2.md section 7, F-043). COPY holds the
+ * office's; an arena overrides these in the `regular` voice. The `developer` voice is merge-themed and arena-neutral.
+ * No "office" or "floor" line may show around an Offsite match.
+ */
+export const ARENA_MATCH_COPY: Partial<Record<ArenaId, Pick<Copy, 'introTitle' | 'introLine' | 'knockoutLine' | 'resultWin' | 'resultLoss' | 'resultDemo'>>> = {
+  offsite: {
+    introTitle: ['TEAM-BUILDING', 'NO MERCY'],
+    introLine: `Two fighters. One canyon of guns. First to ${K} KOs wins.`,
+    knockoutLine: '{NAME} WINS THE OFFSITE',
+    resultWin: 'You survived the offsite.',
+    resultLoss: 'The offsite got you.',
+    resultDemo: '{NAME} survived the offsite.',
+  },
+};
+
+/** One variant of the whole table, with the arena's place-naming lines in the regular voice. */
+export const copyFor = (variant: CopyVariant, arena: ArenaId = 'office'): Copy => {
+  const base = Object.fromEntries(Object.entries(COPY).map(([k, v]) => [k, v[variant]])) as Copy;
+  return variant === 'regular' && ARENA_MATCH_COPY[arena] ? { ...base, ...ARENA_MATCH_COPY[arena] } : base;
+};

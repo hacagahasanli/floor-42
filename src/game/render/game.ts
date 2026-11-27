@@ -19,6 +19,7 @@ import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 import { createGovernor, MAX_STEPS_PER_FRAME, stepDown } from './governor';
 import { createVfx } from './vfx';
+import { headedTracerGeometry } from './projectileGeometry';
 import { DESKTOP_CAM, finaleHolding, finaleScale, followTarget, followWeight, koBeatWeight, nextFollowTime, PHONE_CAM } from './cameraMath';
 
 import type { Rig } from './characters';
@@ -280,9 +281,18 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   scene.add(prompt);
 
   // Projectiles: pooled tracers and grenades.
-  const tracerGeo = new THREE.BoxGeometry(1, 0.06, 0.06);
-  const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe9a0 });
-  const pelletMat = new THREE.MeshBasicMaterial({ color: 0xffb070 });
+  // The office keeps its cream tracer and orange pellet. An arena can restyle them (OFFSITE: ink with a light head).
+  const ps = arena.projectileStyle;
+  const TRACER_THICK = 0.06;
+  const tracerGeo = ps ? headedTracerGeometry(ps.tracer.headLength / ps.tracer.length, ps.tracer.body, ps.tracer.head, TRACER_THICK) : new THREE.BoxGeometry(1, TRACER_THICK, TRACER_THICK);
+  const tracerMat = ps
+    ? new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, toneMapped: false })
+    : new THREE.MeshBasicMaterial({ color: 0xffe9a0 });
+  const pelletMat = new THREE.MeshBasicMaterial(ps ? { color: ps.pellet.color, toneMapped: false } : { color: 0xffb070 });
+  const tracerLen = ps ? ps.tracer.length : 0.7;
+  const pelletLen = ps ? ps.pellet.length : 0.35;
+  const tracerScaleT = ps ? ps.tracer.thickness / TRACER_THICK : 1;
+  const pelletScaleT = ps ? ps.pellet.thickness / TRACER_THICK : 1;
   const tracers = Array.from({ length: 80 }, () => {
     const m = new THREE.Mesh(tracerGeo, tracerMat);
     m.visible = false;
@@ -1063,9 +1073,11 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
         if (!m) continue;
         m.visible = true;
         m.material = p.kind === 'pellet' ? pelletMat : tracerMat;
-        const len = p.kind === 'pellet' ? 0.35 : 0.7;
+        const isPellet = p.kind === 'pellet';
+        const len = isPellet ? pelletLen : tracerLen;
         const ang = Math.atan2(p.vy, p.vx);
-        m.scale.set(len, 1, 1);
+        const th = isPellet ? pelletScaleT : tracerScaleT;
+        m.scale.set(len, th, th);
         m.position.set(x - (Math.cos(ang) * len) / 2, y - (Math.sin(ang) * len) / 2, 0.1);
         m.rotation.set(0, 0, ang);
       }

@@ -116,3 +116,42 @@ Files to upload (final):
 - Form: desktop only (do not tick mobile / touch); orientation Landscape; controls: A/D move, W jump, Space shoot, Esc pause (plus dash/push keys as shown in How to play).
 
 Still not verified: the real SDK in the CrazyGames QA tool (run it after upload, before submitting), Firefox / Edge / Safari desktop, a low-end Windows laptop or Chromebook, throttled network, sound by ear, the side-by-side 30-second comparison with top CrazyGames fighters.
+
+## Pre-update check, 2026-11-28 01:00-01:30 (desktop only; weight pass v2, OFFSITE default arena + Arena row, OFFSITE review fixes)
+
+Verdict: **SUBMITTABLE AS AN UPDATE.** No blocker. Two new WARNs (W4, W5) plus the carried W1-W3; none is a reject reason in the written requirements.
+
+Build: `portal-build` @ `6b68a4c` (clean tree; only `docs/collab/shots/` untracked), so the zip can be rebuilt from a commit. `npm run build:portal`: checks passed, **28 files, 1456 KB on disk, 615 KB gzip, zip 0.59 MB** (31 entries incl. folders). **zip == tree**: unzipped `diff -r` against `dist/portal` is empty. sha256 `48d279bb03e1f6e3e8180848378827eee449c262043ccd695791d30aeb4936cd`, bundle `index-sUda52jd.js` (contains "OFFSITE" and "Mandatory team-building"). Vitest 28 files, **534/534 pass**.
+Test: Chromium 1255 headless, real GPU (`ANGLE Metal Renderer: Apple M1 Pro`), the unzipped zip on 127.0.0.1:8611 inside a cross-origin iframe on localhost:8612 sized exactly 1280x720 and 1920x1080. SDK script stubbed, every call logged. Four runs, **one at a time** (clean frame times), each a fresh profile: OFFSITE 1280, OFFSITE 1920, office 1280, office 1920. Each run: PLAY, Esc pause/resume, blur, full match, Enter rematch, second full match, then reloads to test the Arena setting. Script and logs: `shots/release-qa-cg-update-2026-11-28/` (`upd.mjs.txt`, `<arena>-<w>.log`, screenshots).
+Docs re-fetched 2026-11-28: https://docs.crazygames.com/requirements/technical/ (no change to size 250 MB / initial 50 MB / 1500 files / gameplay start-stop), https://docs.crazygames.com/requirements/game-covers/
+
+| Check | Result | Evidence (ms in the game frame) |
+|---|---|---|
+| zip == tree, size, file count | PASS | see Build; 28 files, 1.46 MB, far under 250 MB / 1500 files |
+| SDK init / loadingStart / loadingStop | PASS | OFFSITE 1280: 96 / 147 / 181. Office 1920: 51 / 103 / 138. Every reload: one init, one loadingStart, one loadingStop |
+| Default arena is OFFSITE on a fresh profile | PASS | PLAY from the main menu went to `#/arena?...&bot=easy&arena=offsite`; HUD shows "OFFSITE" and its card line; `floor42:settings` has no `arena` key until the player picks |
+| Office through the Arena row | PASS | FIGHTER screen -> Arena row: `offsite:true` -> click FLOOR 42 -> `office:true`, line "The office, after hours.", stored `arena: "office"`; after a reload PLAY went to `arena=office`, HUD "FLOOR 42 open office" |
+| Arena choice persists | PASS | round trip in one profile: reload -> stored `office` -> pick OFFSITE -> reload -> stored `offsite`. Office runs: still `office` after two matches and a reload |
+| gameplayStart/Stop exactly once per match, both arenas, both sizes | PASS | OFFSITE 1280: start 4467, [Esc stop 11121, start 12079], stop 49912 (card 50066), rematch start 53998, stop 86232 (card 86592). Office 1920: 4624, [11322, 12446], 51625, 55955, 114672. OFFSITE 1920 and office 1280 the same pattern. No calls during KOs, respawn pick or slow-mo; stop lands with the result card |
+| Rematch keeps the arena | PASS | rematch URL and HUD unchanged in all four runs (OFFSITE stays OFFSITE, office stays office) |
+| PLAY to control | PASS | 2.4-2.8 s (doors + countdown), first match vs `BOT · easy` in all runs |
+| Esc pause | PASS | stop on the first Esc, start on the second (all four runs) |
+| Blur sends no SDK call; keys stay in the frame | PASS | 0 calls after clicking the host input; focus on the key-trap INPUT; host scrollY 0 after Space / ArrowDown / PageDown |
+| External hosts | PASS | only `https://sdk.crazygames.com/crazygames-sdk-v3.js`; no WebSocket; 0 failed requests, 0 HTTP >= 400. Bundle URL strings: `w3.org` (SVG ns), `react.dev` (error text), the SDK |
+| Console, two full matches per arena | PASS | 0 errors, 0 page errors, 0 warnings in all four runs (8 matches, 10 page loads) |
+| Frame time | PASS (headroom not measured) | every run, idle 5 s and fighting 6 s: 60 fps, p50 16.7 ms, p95 16.7, p99 16.8, max 16.8 ms, 0 frames > 33 ms. The headless rAF is capped at 60 Hz, so this shows no hitches on an M1 Pro, not the margin on a weak laptop |
+| Memory | PASS | heap after match 1 / 2: 25/31, 31/23, 25/28, 32/24 MB (no growth) |
+
+New WARNs (fix in a later update; not reject reasons):
+- **W4. Menu tagline now contradicts the default arena.** The home screen says "ONE OFFICE. TWO FIGHTERS. NO MERCY." over the office backdrop, then PLAY drops the player in a desert (`offsite-1280-1-menu.png` vs `offsite-1280-4-fight.png`). Owner: Creative Director (copy / backdrop), then Claude Code.
+- **W5. Fighter screen at 1280x720: the credits line touches the FIGHT bar.** "Nalbaki Games · v0.1.0 · Credits" sits directly under "FIGHT AS HOTFIX" with no gap (`office-1280-pick-office.png`). Cosmetic. Owner: Claude Code, 10 min.
+- W1 (respawn panel over the first-match key strip) is still there, now also at 1280x720 on OFFSITE (`offsite-1280-4-fight.png`). W2, W3 unchanged.
+- Signal, not a defect: the scripted player (mashing move/shoot/jump) lost every match 0:5; on OFFSITE in 30-41 s, on the office in 32-59 s (the 27 Nov office run took ~73 s). A script is not a player; check with a human whether the easy bot on OFFSITE is still a fair first match (KPI risk, owner game-playtest-critic).
+
+Covers and videos after the default-arena change:
+- **Not required for the update.** /requirements/game-covers: "Game covers don't have to be an accurate representation of the gameplay"; videos must represent the gameplay "and not misleading". The office is still in the game and still selectable, so the current covers and videos stay valid.
+- **Advisable, video first.** The same page: "If you update your game by adding new content, this is a great time to update your cover and show something new", but also not to change it too often. Recommendation: re-cut the landscape and portrait videos so OFFSITE (what PLAY now shows) appears in the first seconds, keeping the cover-first 0.5 s; keep the NEW covers until the first CrazyGames CTR numbers exist, then test an OFFSITE cover as a deliberate variant rather than swapping blind. Owner: game-video-lead (video), Creative Director (cover).
+
+Files to upload: `/Users/hacaghahasanli/Desktop/projects/games-studio/floor-42/dist/floor-42-crazygames.zip` (sha256 above). Covers and videos: unchanged from the 27 Nov final list.
+
+Still not verified: the real SDK in the CrazyGames QA tool, Firefox / Edge / Safari, a low-end Windows laptop or Chromebook (frame-time headroom), throttled network, sound by ear, a human playing OFFSITE.

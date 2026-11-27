@@ -47,7 +47,8 @@ describe('arena selection', () => {
     expect('arena' in createGame(['hotfix', 'legacy'], 5, false, undefined, { arena: 'office' })).toBe(false);
     // Pickups: one per gun spawn plus the drop slots, and every gun spot comes from the offsite table.
     expect(o.pickups.filter((p) => p.spawn !== null)).toHaveLength(OFFSITE.gunSpawns.length);
-    o.pickups.filter((p) => p.spawn !== null).forEach((p) => expect(OFFSITE.gunSpawns[p.spawn!].spots.some((s) => s.x === p.x && s.y === p.y)).toBe(true));
+    // (the power entry has firstAt: it starts empty and is checked in offsite.test.ts A10)
+    o.pickups.filter((p) => p.spawn !== null && p.active).forEach((p) => expect(OFFSITE.gunSpawns[p.spawn!].spots.some((s) => s.x === p.x && s.y === p.y)).toBe(true));
     // Fighters start on offsite spawns.
     for (const f of o.fighters) expect(OFFSITE.spawns.some((s) => s.x === f.x && s.y === f.y)).toBe(true);
   });

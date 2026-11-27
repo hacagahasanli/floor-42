@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { ARENA, arenaOf, baseOf, isClosed, isSolid, OFFSITE } from './constants';
 import { findHop } from './reach';
+import { createGame, step as stepGame } from './step';
+import { EMPTY_INPUT } from './types';
 
 import type { Platform } from './constants';
 import type { Surface } from './reach';
@@ -31,17 +33,19 @@ describe('OFFSITE data (A1)', () => {
   });
   it('has the spawns of section 4.3 and the gun spawns of section 4.4, the power entry last', () => {
     expect(OFFSITE.spawns).toEqual([
-      { x: -13.4, y: 1.4 }, { x: 13.4, y: 1.4 }, { x: -7.5, y: 4.0 }, { x: 7.5, y: 4.0 }, { x: 0, y: 7.0 }, { x: -15.5, y: 7.8 }, { x: 15.5, y: 7.8 },
+      { x: -11, y: 0 }, { x: 11, y: 0 }, { x: -7.5, y: 4.0 }, { x: 7.5, y: 4.0 }, { x: -4.5, y: 0 }, { x: 4.5, y: 0 },
     ]);
     expect(OFFSITE.gunSpawns.map((g) => g.spots)).toEqual([
       [{ x: 0, y: 0 }, { x: -9, y: 0 }, { x: 9, y: 0 }],
-      [{ x: -7.5, y: 4.0 }, { x: 7.5, y: 4.0 }, { x: 0, y: 7.0 }],
+      [{ x: -5.5, y: 4.0 }, { x: 5.5, y: 4.0 }, { x: 0, y: 7.0 }],
       [{ x: -13.4, y: 1.4 }, { x: 13.4, y: 1.4 }],
       [{ x: -10, y: 4.0 }, { x: 10, y: 4.0 }],
       [{ x: -16, y: 7.8 }, { x: 16, y: 7.8 }, { x: 0, y: 10.4 }],
     ]);
     expect(OFFSITE.gunSpawns[4].kinds).toContain('railgun');
     expect(OFFSITE.gunSpawns[4].respawn).toBe(15);
+    expect(OFFSITE.gunSpawns[4].firstAt).toBe(10);
+    expect(OFFSITE.gunSpawns.slice(0, 4).every((g) => g.firstAt === undefined)).toBe(true);
     expect(OFFSITE.gunSpawns.slice(0, 4).every((g) => g.kinds.every((k) => k !== 'railgun' && k !== 'launcher'))).toBe(true);
   });
   it('keeps the office bounds and drop timing, and is symmetric about x = 0', () => {
@@ -54,6 +58,34 @@ describe('OFFSITE data (A1)', () => {
     for (const s of [...OFFSITE.spawns, ...OFFSITE.gunSpawns.flatMap((g) => g.spots)]) expect(onSurface(s.x, s.y), `${s.x},${s.y}`).toBe(true);
     for (const s of [...OFFSITE.spawns, ...OFFSITE.gunSpawns.flatMap((g) => g.spots)])
       for (const b of P.filter(isSolid)) expect(s.y < b.y && s.y >= baseOf(b) && s.x > b.x0 && s.x < b.x1, `${s.x},${s.y} inside a box`).toBe(false);
+  });
+  it('A10: every spawn is >= 9.0 m from every power spot (min 9.26) and >= 2.0 m from every regular gun spot', () => {
+    const power = OFFSITE.gunSpawns[4].spots;
+    const regular = OFFSITE.gunSpawns.slice(0, 4).flatMap((g) => g.spots);
+    let minPower = Infinity;
+    let minRegular = Infinity;
+    for (const s of OFFSITE.spawns) {
+      for (const g of power) minPower = Math.min(minPower, Math.hypot(s.x - g.x, s.y - g.y));
+      for (const g of regular) minRegular = Math.min(minRegular, Math.hypot(s.x - g.x, s.y - g.y));
+    }
+    expect(minPower).toBeGreaterThanOrEqual(9.26 - 0.005);
+    expect(minRegular).toBeGreaterThanOrEqual(2.0 - 1e-9);
+  });
+  it('A10: no power gun exists before firstAt seconds after FIGHT, on any seed, and one appears right after', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const g = createGame(['hotfix', 'legacy'], seed, false, undefined, { arena: 'offsite' });
+      const power = g.pickups.filter((p) => p.spawn === 4)[0];
+      let fightTicks = 0;
+      let appeared = -1;
+      for (let i = 0; i < 60 * 20 && appeared < 0; i++) {
+        stepGame(g, [EMPTY_INPUT, EMPTY_INPUT]);
+        if (g.phase === 'fight') fightTicks++;
+        if (power.active) appeared = fightTicks;
+        else expect(fightTicks).toBeLessThan(60 * 10 + 2);
+      }
+      expect(appeared).toBeGreaterThanOrEqual(60 * 10 - 1);
+      expect(appeared).toBeLessThanOrEqual(60 * 10 + 2);
+    }
   });
   it('has crates standing on a boardwalk and boulders solid from the floor', () => {
     for (const c of [crateL, crateR]) {

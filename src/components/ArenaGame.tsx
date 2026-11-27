@@ -27,7 +27,7 @@ import { LoserFace, WinnerBar, WinnerSlab } from '~/components/ResultSlab';
 import { Support } from '~/components/SupportLink';
 import { ARENA_COPY, resolveArena } from '~/game/arenaChoice';
 import { botLevelFor, readFinishedMatch, saveFinishedMatch } from '~/game/firstMatch';
-import { OFFSITE_HUD_SCRIM, OFFSITE_HUD_TEXT_SHADOW } from '~/game/offsiteHud';
+import { nameCardVisible, OFFSITE_HUD_SCRIM, OFFSITE_HUD_TEXT_SHADOW } from '~/game/offsiteHud';
 import { isTouchDevice } from '~/game/input';
 import { startArena } from '~/game/render/game';
 import { ROSTER } from '~/game/roster';
@@ -67,13 +67,13 @@ const BombIcon = () => (
   </svg>
 );
 
-const Ready = ({ label, value, bomb }: { label: string; value: number; bomb?: boolean }) => {
+const Ready = ({ label, value, bomb, bright }: { label: string; value: number; bomb?: boolean; bright?: boolean }) => {
   // Local 2-player: Push throws a carried bomb, so the Push bar shows a bomb, full, while one is carried.
   if (bomb) value = 1;
   const ready = value >= 1;
   return (
     <span
-      className={`flex items-center gap-1 ${ready ? 'text-gold' : 'text-cream/40'}`}
+      className={`flex items-center gap-1 ${ready ? 'text-gold' : bright ? 'text-cream' : 'text-cream/40'}`}
       title={ready ? `${label} ready` : `${label} recharging`}
     >
       {bomb ? (
@@ -120,6 +120,7 @@ const FighterPanel = ({
   compact,
   bombKey,
   chip,
+  bright,
 }: {
   f: HudFighter;
   label: string;
@@ -129,6 +130,8 @@ const FighterPanel = ({
   bombKey?: string | null;
   /** Local 2-player: the P1 / P2 chip in the player colour replaces the YOU / BOT label, and both plates show cooldowns. */
   chip?: { index: 0 | 1; colour: string };
+  /** OFFSITE (F-044): full-cream text, 11 px label, over the bright sky. */
+  bright?: boolean;
 }) => (
   <div
     className={`flex ${compact ? 'w-48' : 'w-72'} flex-col gap-1 ${align === 'right' ? 'items-end text-right' : ''}`}
@@ -138,7 +141,7 @@ const FighterPanel = ({
       <span className="font-display text-lg leading-none" style={{ color: accent(f.character) }}>
         {chip ? f.name.toUpperCase() : f.name}
       </span>
-      {!chip && <span className="text-[10px] font-semibold tracking-widest text-cream/50">{label}</span>}
+      {!chip && <span className={`font-semibold tracking-widest ${bright ? 'text-[11px] text-cream' : 'text-[10px] text-cream/50'}`}>{label}</span>}
     </div>
     <div className="panel-cut h-3 w-full bg-ink-deep/80">
       <div
@@ -154,7 +157,7 @@ const FighterPanel = ({
       )}
     </div>
     <div
-      className={`flex items-center gap-3 text-[11px] text-cream/70 ${align === 'right' ? 'flex-row-reverse' : ''}`}
+      className={`flex items-center gap-3 text-[11px] ${bright ? 'text-cream' : 'text-cream/70'} ${align === 'right' ? 'flex-row-reverse' : ''}`}
     >
       <span className="font-semibold text-cream">{f.gun}</span>
       {f.bombs > 0 && (
@@ -164,14 +167,14 @@ const FighterPanel = ({
       )}
       {(label === 'YOU' || chip) && (
         <>
-          <Ready label="Dash" value={f.dash} />
-          <Ready label="Push" value={f.push} bomb={!!chip && f.bombs > 0} />
+          <Ready label="Dash" value={f.dash} bright={bright} />
+          <Ready label="Push" value={f.push} bomb={!!chip && f.bombs > 0} bright={bright} />
         </>
       )}
       {f.reloading > 0 ? (
         <span className="text-gold">reloading</span>
       ) : (
-        <span className={`whitespace-nowrap tabular-nums ${f.mag === 0 ? 'text-orange' : ''}`}>
+        <span className={`whitespace-nowrap tabular-nums ${bright ? 'font-semibold' : ''} ${f.mag === 0 ? 'text-orange' : ''}`}>
           {f.mag}/{f.reserve === Infinity ? '∞' : f.reserve}
         </span>
       )}
@@ -403,7 +406,7 @@ export const ArenaGame = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settings = useSettings();
-  const copy = useCopy();
+  const copy = useCopy(arenaId);
   const variant = useCopyVariant();
   const colours = usePlayerColours();
   /** Local 2-player: the key card before the first round ('start') or from Pause > Controls ('view'). */
@@ -426,14 +429,6 @@ export const ArenaGame = ({
   // Phones and tablets: touch controls, auto-aim, landscape. Known only after mount.
   const [touch, setTouch] = useState(false);
   useEffect(() => setTouch(isTouchDevice()), []);
-  /** A window under 800 px tall (e.g. 1280x720): the floor pill steps aside during play. */
-  const [short, setShort] = useState(false);
-  useEffect(() => {
-    const on = () => setShort(window.innerHeight < 800);
-    on();
-    window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
-  }, []);
   const portrait = useLandscape();
   // Phones: keep the office clear of the control strips (and the notch).
   useEffect(() => {
@@ -805,6 +800,7 @@ export const ArenaGame = ({
               align="left"
               compact={touch}
               chip={tpChip(0)}
+              bright={arenaId !== 'office'}
               bombKey={!touch && !tp && settings.showKeyHints ? keyLabel(settings.bindings.throwBomb[0] || settings.bindings.throwBomb[1]) : null}
             />
             <div className="flex flex-col items-center gap-1.5">
@@ -824,16 +820,16 @@ export const ArenaGame = ({
               {Math.max(hud.fighters[0].kos, hud.fighters[1].kos) === hud.kosToWin - 1 ? (
                 <span className="text-[10px] font-bold tracking-widest text-gold">MATCH POINT</span>
               ) : (
-                <span className="text-[10px] font-semibold tracking-widest text-cream/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]">
+                <span className={`text-[10px] font-semibold tracking-widest [text-shadow:0_1px_2px_rgba(0,0,0,0.85)] ${arenaId === 'office' ? 'text-cream/70' : 'text-cream'}`}>
                   FIRST TO {hud.kosToWin}
                 </span>
               )}
               {!touch && (
-                // Under 800 px tall the pill covers the top walkway: it shows on the title card, fades out when the
-                // round starts and comes back in pause and results.
+                // The name card shows on the title card, fades out 3 s after FIGHT at every size (F-044) and comes
+                // back in pause, the menu and results.
                 <span
                   data-testid="floor-pill"
-                  className={`panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1 transition-opacity duration-200 ${short && hud.phase === 'fight' && !hud.paused && !menuOpen ? 'opacity-0' : 'opacity-100'}`}
+                  className={`panel-cut mt-1 flex items-baseline gap-2 bg-ink-deep/85 px-3 py-1 transition-opacity duration-300 ${nameCardVisible(hud.phase, hud.time, RULES.roundSeconds, hud.paused, menuOpen) ? 'opacity-100' : 'opacity-0'}`}
                 >
                   {arenaId === 'office' ? (
                     <>
@@ -856,6 +852,7 @@ export const ArenaGame = ({
               align="right"
               compact={touch}
               chip={tpChip(1)}
+              bright={arenaId !== 'office'}
             />
           </div>
 

@@ -129,7 +129,7 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
   2. THREE distinct directions, each as a static HTML mockup rendered to PNG at 1280x720 of (a) the home menu over the OFFSITE scene (use a real screenshot from docs/collab/shots/offsite-r2/ as the backdrop), (b) a button set (primary/secondary/disabled/hover/pressed), (c) the in-match HUD top bar, (d) the result screen. Put them in CREATIVE/ui/fun-directions/ (dir-a/, dir-b/, dir-c/ with index.html + PNGs) and a one-page comparison PNG. Each direction: name, one-line idea, palette hex, fonts (Google Fonts or self-hostable, licence noted), button shape/material (chunky, outlined, sticker, cardboard, etc.), motion and sound personality.
   3. Your recommendation and why. Engineering builds only after Reis picks.
 - Priority: P0
-- Status: open
+- Status: delivered, waiting on Reis to pick (CD, 2026-11-28): CREATIVE/ui/fun-directions/ (README.md, compare-sheet.png, dir-a|b|c/index.html + 6 PNGs each: home, buttons, HUD, result frames at 3 timings). The owner addendum (the result screen as the showpiece) is covered in README section 3. A "Sticky Situation" (office supplies: sticky notes, ID badge, stamps, Performance Review result), B "Field Day" (game-show candy plastic, podium), C "FLOOR42.EXE" (fake beige office OS, crash-dialog result). CD recommends A. Engineering builds nothing until Reis picks. Open engineering question: which award stats (rockets taken, bullets reflected, jumps, time on one platform) are cheap to track, and can the VS-door render path do victory and slump poses.
 
 ## R-020 — OFFSITE playtest fixes (level + copy), from the playtest critic 2026-11-28
 - Context: playtest of 6b68a4c (shots docs/collab/shots/playtest-offsite/, prefixes a720-, b1080-, c720office-, d-standstill-): OFFSITE reads clearly better than the office; no stuck fighters, no console errors. Verdict: ship after fixes. Items for you:
@@ -140,4 +140,4 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
   5. HUD faint on the bright sky ("BOT · easy", ammo), and the OFFSITE name card stays top-centre all match at 1080p (b1080-07, b1080-12) — may be folded into R-019.
 - Engineering already fixed: keyboard taps shorter than one tick were lost (now latched).
 - Priority: P0
-- Status: open
+- Status: done (CD, 2026-11-28) — spec ready: F-040 (spawns/guns, P0), F-041 (tracers + sand, P0), F-042 (cliff strata, P1), F-043 (copy + menu backdrop, P1), F-044 (HUD minimal, P1; R-019 supersedes). arena-2.md §3.2, 4.3, 4.4, 5.3, 5.5, 5.6, 5.7 (new), 7, 8, 9 (A9, A10), 10 updated.

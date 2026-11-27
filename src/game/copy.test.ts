@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { COPY, copyFor, DEFAULT_VARIANT, resolveVariant, shouldAskAudience } from './copy';
+import { ARENA_MATCH_COPY, COPY, copyFor, DEFAULT_VARIANT, resolveVariant, shouldAskAudience } from './copy';
 import { ROSTER } from './roster';
 import { createSettingsStore, sanitize, SETTINGS_KEY } from './settings';
 
@@ -101,5 +101,32 @@ describe('audience choice', () => {
   it('a portal build never asks and always shows the plain words', () => {
     expect(shouldAskAudience('unset', true)).toBe(false);
     expect(resolveVariant('developer', true)).toBe('regular');
+  });
+});
+
+describe('per-arena match copy (F-043)', () => {
+  it('Offsite names the place in the regular voice; the office keeps its lines', () => {
+    const o = copyFor('regular', 'offsite');
+    expect(o.introTitle).toEqual(['TEAM-BUILDING', 'NO MERCY']);
+    expect(o.introLine).toBe('Two fighters. One canyon of guns. First to 5 KOs wins.');
+    expect(o.knockoutLine).toBe('{NAME} WINS THE OFFSITE');
+    expect(o.resultWin).toBe('You survived the offsite.');
+    expect(o.resultLoss).toBe('The offsite got you.');
+    expect(o.resultDemo).toBe('{NAME} survived the offsite.');
+    expect(copyFor('regular', 'office')).toEqual(copyFor('regular'));
+    expect(copyFor('regular').knockoutLine).toBe('{NAME} TAKES THE FLOOR');
+  });
+  it('no "office" or "floor" word in any Offsite place line, and no developer jargon', () => {
+    for (const line of strings(ARENA_MATCH_COPY.offsite)) {
+      expect(line).not.toMatch(/\b(office|floor)\b/i);
+      expect(line).not.toMatch(JARGON);
+    }
+  });
+  it('the developer voice is arena-neutral', () => {
+    expect(copyFor('developer', 'offsite')).toEqual(copyFor('developer', 'office'));
+  });
+  it('has the new tagline, and no tip says "top floor"', () => {
+    expect(copyFor('regular').tagline).toBe('Two coworkers. One grudge. No mercy.');
+    expect(strings(COPY.tips).some((l) => /top floor/i.test(l))).toBe(false);
   });
 });

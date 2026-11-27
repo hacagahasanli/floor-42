@@ -85,7 +85,8 @@ The office for comparison: Hotfix against the oak floor ΔE 47 / CR 1.06; ink tr
 | `sand.edge` | `#c9a070` | floor front lip, pebbles |
 | `cliff.lit` | `#d6a47c` | the canyon walls, faces toward the arena |
 | `cliff.shade` | `#a86d50` | cliff faces away from the sun, under-ledges |
-| `cliff.strata` | `#e8c29a` | 3 horizontal strata bands per cliff (y 3.5, 7.0, 10.5) |
+| `cliff.strata` | `#e8c29a` | the floor cut bank only (F-035). **Not on the cliff faces** (R-020: pale = plank lip = "you can stand here") |
+| `cliff.groove` | `#b98463` | R-020: strata on the cliffs, darker than `cliff.lit`, so they read as cracks in the rock, never as ledges |
 | `rock.top` / `rock.side` / `rock.lip` | `#e6b884` / `#b97c57` / `#f6d9aa` | the two boulders |
 | `plank.top` / `plank.side` / `plank.lip` | `#b8966b` / `#6e5440` / `#e8cf9e` | boardwalks, lookouts, tower deck and roof |
 | `timber` | `#7a5c43` | posts, braces, water tower legs, flag pole |
@@ -164,31 +165,36 @@ I also ran a tick-by-tick simulation (60 Hz, every take-off point on the source 
 
 Every platform is reachable by every fighter without wall-kicks or dashes. The worst required step is 4.0 m (floor → boardwalk) against Legacy's 4.88 m. Main climb (blockout arrows): floor → boulder → boardwalk → crate → deck → roof, all single jumps except the last.
 
-### 4.3 Spawns (order matters: entries 0 and 1 are the match start pair, as in the office)
+### 4.3 Spawns (R-020 rev. 2; the sim picks start and respawn spots at random among those > 12 m from the rival, so there is no fixed "start pair")
+
+**Spawn rule (hard, R-020):** every spawn is **≥ 9.0 m** (straight line) from every power spot (G4) **and** needs at least one double jump onto another platform to reach it; every spawn is **≥ 2.0 m** from every regular gun spot (G0–G3), so you always walk to your first gun. Rev. 1 broke this: S5/S6 stood 0.5 m from the lookout launcher spot, S4 3.4 m under the roof spot, and S0–S3 sat exactly on G1/G2 spots (playtest R-020: spawned on a launcher, auto-picked, KO at 1.6 s).
 
 ```ts
 spawns: [
-  { x: -13.4, y: 1.4 },  // S0 boulder L (match start)
-  { x: 13.4, y: 1.4 },   // S1 boulder R (match start), 26.8 m apart
-  { x: -7.5, y: 4.0 },   // S2 boardwalk L
-  { x: 7.5, y: 4.0 },    // S3 boardwalk R
-  { x: 0, y: 7.0 },      // S4 tower deck
-  { x: -15.5, y: 7.8 },  // S5 lookout L
-  { x: 15.5, y: 7.8 },   // S6 lookout R
+  { x: -11, y: 0 },     // S0 floor L, under boardwalk L      (to lookout L power 9.26 m, roof 15.1)
+  { x: 11, y: 0 },      // S1 floor R
+  { x: -7.5, y: 4.0 },  // S2 boardwalk L                     (lookout L 9.31, roof 9.86)
+  { x: 7.5, y: 4.0 },   // S3 boardwalk R
+  { x: -4.5, y: 0 },    // S4 floor L, inner                  (roof 11.33, lookout L 13.9)
+  { x: 4.5, y: 0 },     // S5 floor R, inner
 ],
 ```
+
+Removed: boulder spawns (6.9 m under the lookout power spot; Standup reaches the lookout in one jump sequence), tower deck spawn (3.4 m under the roof), lookout spawns (on the power spot). Minimum spawn → power distance is now 9.26 m (S0/S1), minimum spawn → regular gun 2.0 m (S0 → G0 ±9; S2 → G1 ±5.5).
 
 ### 4.4 Gun spawns (same structure and tables as the office; the power entry stays last)
 
 ```ts
 gunSpawns: [
   { spots: [{ x: 0, y: 0 }, { x: -9, y: 0 }, { x: 9, y: 0 }], kinds: GUN_TABLE },          // G0 floor
-  { spots: [{ x: -7.5, y: 4.0 }, { x: 7.5, y: 4.0 }, { x: 0, y: 7.0 }], kinds: GUN_TABLE }, // G1 mid
+  { spots: [{ x: -5.5, y: 4.0 }, { x: 5.5, y: 4.0 }, { x: 0, y: 7.0 }], kinds: GUN_TABLE }, // G1 mid (R-020: was ±7.5, on the boardwalk spawns; 5.5 is 1.0 m clear of the crate)
   { spots: [{ x: -13.4, y: 1.4 }, { x: 13.4, y: 1.4 }], kinds: GUN_TABLE },                // G2 second floor gun, on the boulders
   { spots: [{ x: -10, y: 4.0 }, { x: 10, y: 4.0 }], kinds: GUN_TABLE },                    // G3 second mid gun, outer boardwalk
-  { spots: [{ x: -16, y: 7.8 }, { x: 16, y: 7.8 }, { x: 0, y: 10.4 }], kinds: POWER_TABLE, respawn: 15 }, // G4 power: lookouts and roof
+  { spots: [{ x: -16, y: 7.8 }, { x: 16, y: 7.8 }, { x: 0, y: 10.4 }], kinds: POWER_TABLE, respawn: 15, firstAt: 10 }, // G4 power: lookouts and roof
 ],
 ```
+
+**R-020 `firstAt: 10` (new optional field, Offsite only, absent on the office so its data hash stays):** the power entry is not placed at match creation; it first appears 10 s after FIGHT (then `respawn: 15` after each pickup as before). The first 10 s of every match is a pistol/SMG fight, and the launcher becomes a visible mid-round event instead of a spawn gift. If engineering prefers not to add a field, the fallback is `respawn`-style: create the G4 pickup inactive with `respawn = 10`.
 
 Every spot is on a surface (checked: each x lies inside its platform's x0..x1, each y equals its top). The office's floating-gun bug (ARENA.md mismatch 1) cannot recur.
 
@@ -237,7 +243,7 @@ Floor box exactly as the office (`W + 1.2` × 0.5 × 6.6 at (0, -0.25, -0.5)), m
   - tower: 4 posts at x ±2.2, two at z -1.1 and two at z -1.4 (so they read as a tower in perspective), from the floor to the roof underside. The posts pass **behind** the deck; they must not pierce any walking surface (ARENA.md mismatch 6).
   - **No hanger rods anywhere.** That is a large part of the office's visual noise.
 - **Supply crate:** the office crate builder, recoloured `crate` with `ink` straps. Collision and drawn box match.
-- **Cliffs:** per side, 3 stacked low-poly boxes (y 0–4.6, 4.6–9.2, 9.2–15), inner face exactly at x = ±18, 2–3 m thick outward, each box offset ±0.3 m in z for a broken edge. `cliff.lit` on the face toward the arena, `cliff.shade` on the others, a 0.1 m `cliff.strata` band at y 3.5, 7.0 and 10.5.
+- **Cliffs:** per side, 3 stacked low-poly boxes (y 0–4.6, 4.6–9.2, 9.2–15), inner face exactly at x = ±18, 2–3 m thick outward, each box offset ±0.3 m in z for a broken edge. `cliff.lit` on the face toward the arena, `cliff.shade` on the others. **Strata (R-020 rev.):** no band on the arena-facing (±x) face at all: any horizontal line on that face recedes in z, reads as a slanted plank, and wall-sliding fighters look perched on it. Instead, on each box's **front (+z) face**, seen square-on: two `cliff.groove` `#b98463` bands, 0.18 m high, at y 2.2 / 3.9, 6.1 / 8.3, 10.9 / 13.0, flush (0.01 m proud), so they read as horizontal rock layers. Rule added: **nothing on a cliff is lighter than `cliff.lit` except the lit cap at each box top, and those caps stay outside x ±18.**
 
 ### 5.4 Background layers (back to front; each layer one merged mesh)
 1. **Sky:** gradient plane `sky.top` → `sky.low` (the existing sky-plane approach), plus the sun disc (`sun`, radius equal to about 3 % of screen height, soft halo opacity 0.55) at the **upper left**, never behind the roof or the HUD score.
@@ -249,7 +255,7 @@ Floor box exactly as the office (`W + 1.2` × 0.5 × 6.6 at (0, -0.25, -0.5)), m
 ### 5.5 Props (4 types; the office has about 20)
 | Prop | Count | Where | Colour | Collision |
 | --- | --- | --- | --- | --- |
-| Saguaro cactus | 3 | (x -16.2, z -2.6, h 3.0), (x -6.5, z -5.0, h 1.8), (x 9.6, z -3.4, h 2.4) | `cactus`, flat shaded, no spines | none |
+| Saguaro cactus | 3 | (x -16.2, z -2.6, h 3.0), (x -6.5, z -5.0, h 1.8), (x **7.5**, z -3.4, h 2.4) (R-020: was 9.6, 1.4 m from the new floor spawn S1) | `cactus`, flat shaded, no spines | none |
 | Pebble scatter | 2 clusters per cliff foot + 1 per boulder | floor, z -2.0 to -0.5 | `sand.edge`, `rock.side` | none |
 | Tower flag | 1 | pole from the roof at x 0, z -1.3, to y 12.6; flag 0.9 × 0.45 | pole `timber`, flag `gold`; waves (vertex sine, 1 Hz) | none |
 | Water tower | 1 | section 5.4 | `canvas`, `timber`, `gold` | none |
@@ -273,7 +279,7 @@ Owner: "I like it, it looks nice … but create liveliness." The canyon breathes
 | 1 | **Tower flag** (existing, upgraded) | roof pole, x 0, z -1.3, top y 12.6 | 0.9 × 0.45 m, `gold` | Vertex sine: frequency `1.0 + 1.4·wind` Hz, tip amplitude `0.05 + 0.10·wind` m, droop 25° at wind 0.25 easing to 5° at wind 1. Always streams to +x. | on (same shader) | 0 extra |
 | 2 | **Cloud shadows** on the mesas | inside the `mesa.far` and `mesa.mid` materials (fragment term) | 2 soft bands, Gaussian σ 12 m in world x, darken the colour by 15 % (`mesa.far` → about `#c1a085`) | Band centres `x = wrap(-120 + 2.0·t + k·110, -120..120)` for k = 0, 1 (2 m/s, about 14 px/s on the far layer). Clipped to the mesa silhouettes for free, so they never touch the sky. | on (one uniform) | 0 |
 | 3 | **Heat shimmer** at the foot of far layers | vertex term in the dune, `mesa.mid` and `mesa.far` materials, vertices less than 2 m above each layer's base only | amplitude: dune 0.15 m, mid 0.35 m, far 0.6 m (each about 3–5 px) | `x += A · sin(2π·0.6·t + 1.7·y + 0.3·x)`. Independent of wind. No screen-space distortion pass. | off (static) | 0 |
-| 4 | **Blowing sand**: cliff-top streamers + floor skitter, **one shared pool** | streamers: emitted at the cliff tops (x ±18 to ±21, y 14.8–15.2); skitter: floor, z **-2.4** (behind the fight plane), y 0.05–0.35 | `InstancedMesh`, 40 camera-facing quads, `MeshBasicMaterial` `#f0d6a8` (the wall-splat dust of section 4.5), transparent, `depthWrite false`. Streamer 0.5 → 1.6 m long (aspect 3:1), opacity 0.45 → 0; skitter 1.2 × 0.15 m, opacity 0.30 → 0 | Streamers: `10·(wind − 0.4)` per second per cliff while wind > 0.4, velocity (+4 m/s x, +0.6 m/s y), life 1.4 s, and **never below y 14.0** (above the 13.5 ceiling, over everyone's head). Skitter: `6·wind` per second while wind > 0.5, x -18..18, +6 m/s, life 0.9 s. | off | 1 |
+| 4 | **Blowing sand**: cliff-top streamers + floor skitter, **one shared pool** | streamers: emitted at the cliff tops (x ±18 to ±21, y 14.8–15.2); skitter: floor, z **-2.4** (behind the fight plane), y **0.02–0.20** (R-020) | `InstancedMesh`, 40 camera-facing quads, `MeshBasicMaterial`, transparent, `depthWrite false`. **R-020 rev.:** streamer `#f0d6a8`, 0.6 → 1.4 m long, **aspect 2:1**, opacity **0.35** → 0; skitter **`dune` `#ebc790`**, **0.7 × 0.30 m** (aspect 2.3:1), opacity **0.22** → 0, scale y grows 1 → 1.6 over its life (a puff of haze, not a line). Rule R8 below. | Streamers: `10·(wind − 0.4)` per second per cliff while wind > 0.4, velocity (+4 m/s x, +0.6 m/s y), life 1.4 s, and **never below y 14.0** (above the 13.5 ceiling, over everyone's head). Skitter: `6·wind` per second while wind > 0.5, x -18..18, +6 m/s, life 0.9 s. | off | 1 |
 | 5 | **Two vultures** | circling (-28, 22, -60): upper-left third, over the left mid butte, crossing the sun disc | wingspan 2.0 m (about 27 px close, 16 px wide), flat low-poly V with a 2-bone wing flap in the vertex shader, `plank.side` `#6e5440` (fog lightens it) | Circle radii 5.0 and 6.5 m, period 16 s, 140° apart, bank 15° into the turn; glide, with 3 flaps at 2 Hz once every 5–8 s. | off | 1 (InstancedMesh ×2) |
 | 6 | **Tumbleweed** | rolls along the near dune crest, z -25 | 0.9 m open lattice (3 crossed low-poly rings, merged), `plank.top` `#b8966b`, about 22 px | Spawns at a gust start (40 % chance, at most one every 30 s), enters off-screen left, +3.5 m/s, hops 0.4 m every 1.1 s, spins at `v/r`. Leaves off-screen right, then is hidden (0 calls while idle). | off | 1 while visible |
 | 7 | **Bomb parachute** (existing, upgraded) | on each dropping bomb | as section 4.5 | Canopy tilts `±6°·wind` toward +x and wobbles at 0.8 Hz. **The bomb's x stays the sim's**: only the canopy moves. | on | 0 extra |
@@ -295,6 +301,7 @@ Owner: "I like it, it looks nice … but create liveliness." The canyon breathes
 - **R4** Nothing ambient is round, dark **and** falling (that is the bomb's read). The tumbleweed is light, open and rolls sideways on the dune. The vultures are far, high and slow.
 - **R5** The centre third of the frame and the HUD score area (top centre) never hold a vulture, and the tumbleweed never stops there.
 - **R6** No shadows. No ambient mesh casts or receives shadows, so the shadow pass is unchanged.
+- **R8** (R-020) No ambient quad has an aspect ratio above 2.5:1, and none moves faster than 6 m/s inside the frame below y 13.5. A thin fast pale line is a tracer's read; it belongs to projectiles only (section 5.7).
 - **R7** Reduced motion: gusts peak at 0.6, no wind kicks, the vultures still circle but do not scatter. Shake OFF changes nothing here.
 
 **Performance:**
@@ -309,6 +316,13 @@ Owner: "I like it, it looks nice … but create liveliness." The canyon breathes
 - **L3** In a 3-minute `bot=hard&demo` run, no ambient element ever draws over a fighter at opacity above 0.35, except the sift.
 - **L4** A rocket hit next to a boardwalk shows the sift and the wind kick, and the vultures scatter on the shot. A final KO shows the tumbleweed crossing behind the winner during the band.
 - **L5** Section 9 A4 still passes with the ambient life running.
+
+### 5.7 Projectiles on Offsite (R-020)
+The office tracer `#ffe9a0` (0.7 × 0.06 m) and pellet `#ffb070` were made to pop on a night room. On sand `#efcf98` and sky `#98cde8` they are pale on pale: cream streaks read as ambient sand, and sand reads as bullets. Fix the projectile, not just the sand:
+- **Tracer (Offsite):** `ink` `#1b1f2e`, **0.9 × 0.08 m**, plus a 0.22 m head in `canvas` `#f3ede0` at the leading end (second pooled mesh, or a 2-colour vertex-coloured box: 0 extra draw calls if both segments use one vertex-coloured material). Contrast: ink against sky about 8:1, against sand about 11:1 [computed from the hexes, before ACES; the tracer is `MeshBasicMaterial`, toneMapped false].
+- **Pellet (Offsite):** `ink` `#1b1f2e`, 0.35 × 0.08 m, no head (the spread pattern tells it from a bullet).
+- The office keeps its colours. The rail and the rocket are unchanged.
+- Per-arena: a `projectileColors` field next to `vfxColors` in the arena render setup.
 
 ---
 
@@ -325,6 +339,19 @@ Owner: "I like it, it looks nice … but create liveliness." The canyon breathes
 - **Card line:** "Mandatory team-building. 41°C in the shade."
 - **Office card line, for the picker:** FLOOR 42 — "The office, after hours."
 - **Loading/title card:** keep the current flow. The VS card may add a small subline "OFFSITE" in the HUD font, gold, 60 % opacity.
+- **Per-arena match copy (R-020, `regular` voice; the `developer` voice is merge-themed and already arena-neutral, unchanged):**
+
+| Key | Office (unchanged) | Offsite |
+| --- | --- | --- |
+| `introTitle` | ONE FLOOR / NO MERCY | TEAM-BUILDING / NO MERCY |
+| `introLine` | Two fighters. One floor of guns. First to K KOs wins. | Two fighters. One canyon of guns. First to K KOs wins. |
+| `knockoutLine` | {NAME} TAKES THE FLOOR | {NAME} WINS THE OFFSITE |
+| `resultWin` | The floor is yours. | You survived the offsite. |
+| `resultLoss` | They took the floor. | The offsite got you. |
+| `resultDemo` | {NAME} took the floor. | {NAME} survived the offsite. |
+
+- **Menu tagline (game-wide, both voices' `regular`):** `One office. Two fighters. No mercy.` → **`Two coworkers. One grudge. No mercy.`** True on every arena, keeps the workplace joke and the "No mercy" beat.
+- `howTo` lines that say "top floor" (copy.ts lines with "wait on the top floor") → "wait up top". The "Use the office" rule card stays until R-019 redoes How to play.
 
 ---
 
@@ -335,7 +362,7 @@ Owner: "I like it, it looks nice … but create liveliness." The canyon breathes
 Why:
 - **First impressions on CrazyGames:** aliveness-audit.md names the first frame of play ("a wide office with two dots in it") as the main CTR-to-retention risk. A bright, quiet arena with two saturated fighters reads at thumbnail size; the night office reads as a dark, busy picture with two small figures in it.
 - **Readability for a new player:** 10 pieces you understand at a glance against 23 you have to learn.
-- **The brand stays:** the menu, lobby and backdrop remain the office and "Floor 42". The match takes you somewhere else, which also makes the PLAY → doors → arena moment a reveal.
+- **The brand stays:** "Floor 42" (logo, name, lobby) stays. ~~The menu backdrop remains the office.~~ **R-020 reversal:** the playtest showed the night office menu followed by a desert match reads as a bug, not a reveal. The menu backdrop now **follows the selected arena** (`Settings.arena`, default Offsite): the showcase fighter stands on the Offsite floor at `menuSpotX` 5.2 under boardwalk R, built with the low-tier set (no sand pool, no vultures, no tumbleweed, no shimmer; flag and cloud shadows on). Over it, the menu text column gets a left scrim `linear-gradient(90deg, rgba(10,13,24,0.80) 0px, rgba(10,13,24,0.55) 520px, rgba(10,13,24,0) 900px)` (at 1920 wide; scale with the HUD scale). R-019 may replace the scrim; the backdrop choice stands.
 
 **Guard:** basic-launch-kpi.md tracks conversion (opened → 1+ min played) and average playtime. If either comes in worse with Offsite as the default than the office's baseline over a comparable sample, swap the default back. The arena id should therefore be one config value, not code. Online: both seats play the arena the host or the quick-match room chooses. Offsite is the default, and the arena id travels with the match setup so the shared sim and the server agree.
 
@@ -350,7 +377,8 @@ Why:
 - **A6** A sim test per platform in 4.2: Legacy (the limit case) reaches the boardwalk from the floor, the lookout from the boardwalk and the roof from the deck with a scripted double jump.
 - **A7** A 3-minute `bot=hard&demo` run on Offsite: the bot is never stuck on one spot for more than 8 s (log positions). If it is, report it in REQUESTS.md. Do not move platforms to fix it without me.
 - **A8** Wall splat on a cliff shows the crack, the dust and the pebbles. No glass shards or glass sound anywhere in Offsite.
-- **A9** The menu backdrop still shows the office. `menuSpotX` is per-arena data.
+- **A9** (R-020) The menu backdrop shows the selected arena (Offsite by default, the office when picked). `menuSpotX` is per-arena data. Report the menu's draw calls on low and high with the Offsite backdrop (budget 80 was set for the office; tell me the number before cutting anything).
+- **A10** (R-020) A sim test: every Offsite spawn is ≥ 9.0 m from every G4 spot and ≥ 2.0 m from every G0–G3 spot; no G4 pickup is active before tick `firstAt × 60` after FIGHT.
 
 ## 10. Must not change
-The office arena (data and visuals), arena bounds (±18, 13.5), gun tables, drop timing, fighter models and colours, the HUD, the menu and lobby look.
+The office arena (data and visuals), arena bounds (±18, 13.5), gun tables, drop timing, fighter models and colours, the lobby look. (R-020 changes the menu backdrop, two HUD text opacities and the match copy; nothing else in the HUD or menu.)
