@@ -5,6 +5,7 @@ import { chooseCharacter, createGame, step } from '../sim/step';
 import { EMPTY_INPUT } from '../sim/types';
 
 import { decodeInput, decodeSnapshot, encodeInput, isNewer, LAG_COMP_VERSION, PROTOCOL_VERSION, ROOM_NAME } from './protocol';
+import { nearest, parseRegions, probeRegions, tierFor } from './regions';
 import { createTimeline } from './timeline';
 
 import type { LinkMode, PeerLink } from './peer';
@@ -24,9 +25,34 @@ const serverUrl = () => {
   return new URLSearchParams(window.location.search).get('server') ?? GAME_SERVER;
 };
 
+/** Multi-region mode (docs/TECHNICAL.md, "Regions"): empty unless NEXT_PUBLIC_GAME_REGIONS is set, and then nothing changes. */
+const REGIONS = parseRegions(process.env.NEXT_PUBLIC_GAME_REGIONS);
+let probed: { at: number; best: { url: string; rtt: number } | null } | null = null;
+
+/** The nearest region's server and our round trip to it, probed at most once a minute. Null: regions off or none answered. */
+const nearestServer = async (): Promise<{ url: string; rtt: number } | null> => {
+  if (!REGIONS.length) return null;
+  if (!probed || performance.now() - probed.at > 60_000) {
+    const best = nearest(await probeRegions(REGIONS));
+    probed = { at: performance.now(), best: best ? { url: REGIONS.find((r) => r.id === best.id)!.url, rtt: best.rtt } : null };
+  }
+  return probed.best;
+};
+
 export const joinRoom = async (mode: JoinMode, character: CharacterId): Promise<Room> => {
-  const client = new Client(serverUrl());
+  let url = serverUrl();
   const options: JoinOptions = { character, private: mode.kind === 'private', v: PROTOCOL_VERSION };
+  // Quick match goes to the nearest region and meets players of the same latency tier. Invites keep
+  // the main server (a room id does not say which region it is in); ?server= (dev) wins over both.
+  if (mode.kind === 'quick' && url === GAME_SERVER) {
+    const near = await nearestServer();
+    if (near) {
+      url = near.url;
+      options.tier = tierFor(near.rtt);
+      options.rtt = near.rtt;
+    }
+  }
+  const client = new Client(url);
   if (mode.kind === 'join') return client.joinById(mode.roomId, options);
   if (mode.kind === 'private') return client.create(ROOM_NAME, options);
   return client.joinOrCreate(ROOM_NAME, options);

@@ -29,6 +29,9 @@ export interface JoinOptions {
   private?: boolean;
   /** The client's PROTOCOL_VERSION; the server refuses a join without the current one. */
   v?: number;
+  /** Multi-region quick match: the latency tier (regions.ts tierFor) rooms are matched on, and the measured round trip. */
+  tier?: number;
+  rtt?: number;
 }
 
 export interface StartMessage {
@@ -38,6 +41,9 @@ export interface StartMessage {
   direct?: boolean;
   /** The server's protocol version (missing: 1). */
   v?: number;
+  /** Multi-region quick match: the latency tier (regions.ts tierFor) rooms are matched on, and the measured round trip. */
+  tier?: number;
+  rtt?: number;
 }
 
 /**
