@@ -1,5 +1,6 @@
 import { Bungee, Chakra_Petch } from 'next/font/google';
 
+import { GAME_NAME_TITLE } from '~/components/fieldday/brand';
 import { SettingsRoot } from '~/components/menu/SettingsRoot';
 import { TelemetryInit } from '~/components/TelemetryInit';
 import { COPY } from '~/game/copy';
@@ -14,12 +15,13 @@ const display = Bungee({ weight: '400', subsets: ['latin'], variable: '--font-bu
 const ui = Chakra_Petch({ weight: ['400', '500', '600', '700'], subsets: ['latin'], variable: '--font-chakra' });
 
 export const metadata: Metadata = {
-  title: { default: `Floor 42 · ${STUDIO_NAME}`, template: '%s · Floor 42' },
-  description: `${COPY.tagline} A two-player office shootout from ${STUDIO_NAME}: settle it on floor 42, first to five KOs.`,
+  title: { default: `${GAME_NAME_TITLE} — 1v1 shootout · ${STUDIO_NAME}`, template: `%s · ${GAME_NAME_TITLE}` },
+  description: `${COPY.tagline} A two-player shootout from ${STUDIO_NAME}: first to five KOs.`,
   // Added to the iPhone home screen, it opens full screen with no browser bars.
-  appleWebApp: { capable: true, title: 'Floor 42', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: GAME_NAME_TITLE, statusBarStyle: 'black-translucent' },
+  // The address stays floor42.nalbakigames.com until the deploy step moves it (pewfield.nalbakigames.com is planned, see the brand README).
   metadataBase: new URL('https://floor42.nalbakigames.com'),
-  // Logo and icons from the brand kit (brand/floor-42/INTEGRATE.md).
+  // Logo and icons: Pewfield logo concept A (docs/collab/CREATIVE/brand), exported by tools/brand/export-pewfield.mjs.
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '48x48' },

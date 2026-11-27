@@ -318,7 +318,7 @@ export const RotateHint = () => (
     </div>
     <div className="font-display text-2xl text-gold">Turn your phone sideways</div>
     <p className="max-w-xs text-sm text-cream/70">
-      Floor 42 is a wide room: play it in landscape. The match keeps running.
+      Pewfield is a wide field: play it in landscape. The match keeps running.
     </p>
   </div>
 );

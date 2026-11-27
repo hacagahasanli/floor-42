@@ -5,7 +5,7 @@
  * Rules every adapter keeps:
  *  - every call is safe at any time, including before `init` resolves and after an SDK error (they never throw);
  *  - `gameplayStart`/`gameplayStop` and `loadingStart`/`loadingStop` are idempotent (the adapter forwards only real changes).
- * Floor 42 has no ads, so there is no ad call here: if one is ever added it goes through this interface and the SDK only.
+ * Pewfield has no ads, so there is no ad call here: if one is ever added it goes through this interface and the SDK only.
  */
 export interface Platform {
   readonly id: 'web' | 'crazygames';
