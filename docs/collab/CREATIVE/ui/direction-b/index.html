@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Field Day UI</title>
+<!-- Direction B "Field Day" - implementation mockups (R-021). Every screen is a 1280x720 design frame.
+     Render: node render.mjs  (writes png/1280/*.png, png/1920/*.png, overview.png and a layout check report). -->
+<style>
+@font-face{font-family:'Titan One';src:url(fonts/TitanOne-Regular.woff2) format('woff2');font-display:block}
+@font-face{font-family:'Baloo 2';font-weight:500;src:url(fonts/Baloo2-500.woff2) format('woff2');font-display:block}
+@font-face{font-family:'Baloo 2';font-weight:600;src:url(fonts/Baloo2-600.woff2) format('woff2');font-display:block}
+@font-face{font-family:'Baloo 2';font-weight:700;src:url(fonts/Baloo2-700.woff2) format('woff2');font-display:block}
+@font-face{font-family:'Baloo 2';font-weight:800;src:url(fonts/Baloo2-800.woff2) format('woff2');font-display:block}
+:root{
+  --grape:#3B1F6B; --grape-2:#5A3596; --grape-deep:#26124A;
+  --sun:#FFC83D; --sun-hi:#FFE38A; --sun-lo:#E08A00;
+  --tang:#FF7A2F; --tang-lo:#C2410C; --teal:#22C3A6; --teal-lo:#0E8A74; --sky:#4CB8FF; --sky-lo:#1F7BC8;
+  --tomato:#F0533A; --track:#E0603F; --cream:#FFF3D6; --paper:#FFFBF0; --mist:#E6DEF5; --gray:#B9B3C9; --gray-lo:#8C84A3;
+  --f1:#FF6A3D; --f2:#3DDC84; --f3:#3EC5FF; --f4:#FFD23F;
+  --ease-spring:cubic-bezier(.34,1.56,.64,1); --ease-out:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#1b1430;font-family:'Baloo 2',sans-serif;color:var(--grape);padding:24px 0}
+body.solo{padding:0}
+.screen{width:1280px;height:720px;position:relative;overflow:hidden;margin:0 auto 24px;background:var(--sky)}
+.abs{position:absolute}
+.titan{font-family:'Titan One',sans-serif;font-weight:400;letter-spacing:.5px;line-height:1}
+/* outlined display text: --o outline, --d drop */
+.ol{--o:3px;--d:4px;color:#fff;text-shadow:
+ var(--o) 0 0 var(--grape),calc(-1*var(--o)) 0 0 var(--grape),0 var(--o) 0 var(--grape),0 calc(-1*var(--o)) 0 var(--grape),
+ calc(.72*var(--o)) calc(.72*var(--o)) 0 var(--grape),calc(-.72*var(--o)) calc(-.72*var(--o)) 0 var(--grape),calc(.72*var(--o)) calc(-.72*var(--o)) 0 var(--grape),calc(-.72*var(--o)) calc(.72*var(--o)) 0 var(--grape),
+ 0 calc(var(--o) + var(--d)) 0 var(--grape),calc(.72*var(--o)) calc(.72*var(--o) + var(--d)) 0 var(--grape),calc(-.72*var(--o)) calc(.72*var(--o) + var(--d)) 0 var(--grape)}
+.ol.sun{color:var(--sun)}
+/* ---------- backdrops ---------- */
+.bg-poster{position:absolute;inset:0;background:url(_bg/menu-poster-offsite.png) center/cover}
+.bg-poster.soft{inset:-24px;filter:blur(7px) saturate(1.05) brightness(.92)}
+.bg-match{position:absolute;inset:0;background:url(_bg/match-shooting.png) center bottom/120% auto}
+.bg-match.soft{inset:-24px;filter:blur(8px) brightness(.85)}
+.bg-wide{position:absolute;inset:-24px;background:url(_bg/match-wide.png) center bottom/125% auto;filter:blur(8px) brightness(.9) saturate(1.1)}
+.tint{position:absolute;inset:0;background:rgba(38,18,74,var(--a,.4))}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(59,31,107,.09) 3px,transparent 3.5px);background-size:28px 28px}
+/* ---------- buttons ---------- */
+.btn{--h:64px;--fs:26px;--c:var(--sun);--lo:var(--sun-lo);position:relative;display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  height:var(--h);padding:0 calc(var(--h)*.42);border:4px solid var(--grape);border-radius:calc(var(--h)*.34);
+  background:var(--c);box-shadow:inset 0 -7px 0 var(--lo),0 7px 0 var(--grape);
+  font:400 var(--fs)/1 'Titan One';letter-spacing:.5px;color:#fff;white-space:nowrap;
+  --o:2.5px;--d:3px;text-shadow:
+  var(--o) 0 0 var(--grape),calc(-1*var(--o)) 0 0 var(--grape),0 var(--o) 0 var(--grape),0 calc(-1*var(--o)) 0 var(--grape),
+  calc(.72*var(--o)) calc(.72*var(--o)) 0 var(--grape),calc(-.72*var(--o)) calc(-.72*var(--o)) 0 var(--grape),calc(.72*var(--o)) calc(-.72*var(--o)) 0 var(--grape),calc(-.72*var(--o)) calc(.72*var(--o)) 0 var(--grape),
+  0 calc(var(--o) + var(--d)) 0 var(--grape)}
+.btn>*{position:relative;z-index:1}
+.btn::before{content:'';position:absolute;left:10px;right:10px;top:5px;height:36%;border-radius:calc(var(--h)*.22) calc(var(--h)*.22) 8px 8px;background:rgba(255,255,255,.42);pointer-events:none}
+.btn .shine{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:0}
+.btn .shine::after{content:'';position:absolute;top:-20%;bottom:-20%;width:26%;left:-40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-18deg);animation:shine 4s var(--ease-out) infinite}
+@keyframes shine{0%,70%{left:-40%}100%{left:130%}}
+.btn.y{--c:var(--sun);--lo:var(--sun-lo)} .btn.o{--c:var(--tang);--lo:var(--tang-lo)} .btn.t{--c:var(--teal);--lo:var(--teal-lo)} .btn.s{--c:var(--sky);--lo:var(--sky-lo)}
+.btn.w{--c:#fff;--lo:#D9CFEE;color:var(--grape);text-shadow:none}
+.btn.w::before{background:rgba(255,255,255,0)}
+.btn.lg{--h:96px;--fs:56px;--o:3.5px;--d:5px}
+.btn.md{--h:68px;--fs:26px}
+.btn.sm{--h:52px;--fs:20px;--o:2px;--d:2px;padding:0 18px}
+.btn.icon{padding:0;width:var(--h)}
+.btn.is-hover{transform:translateY(-3px) scale(1.05) rotate(-1.5deg);filter:brightness(1.06)}
+.btn.is-press{transform:translateY(5px) scale(1.03,.94);box-shadow:inset 0 -2px 0 var(--lo),0 2px 0 var(--grape)}
+.btn.is-disabled{--c:var(--gray);--lo:var(--gray-lo);color:var(--grape);text-shadow:none}
+.btn.is-focus::after{content:'';position:absolute;inset:-12px -12px -17px;border-radius:calc(var(--h)*.34 + 12px);border:4px solid #fff;box-shadow:0 0 0 4px var(--grape),inset 0 0 0 3px var(--grape);pointer-events:none;animation:ring 1.2s ease-in-out infinite}
+@keyframes ring{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
+.bob{animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{0%,100%{translate:0 0}50%{translate:0 -4px}}
+.ptr{position:absolute;left:-46px;top:50%;width:24px;height:28px;margin-top:-14px;animation:nudge .8s ease-in-out infinite}
+@keyframes nudge{0%,100%{translate:0 0}50%{translate:6px 0}}
+.ic{width:1em;height:1em;flex:none;overflow:visible}
+.btn .ic{width:calc(var(--fs)*1.12);height:calc(var(--fs)*1.12)}
+/* ---------- small parts ---------- */
+.kc{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:26px;padding:1px 7px 0;border:2.5px solid var(--grape);border-radius:7px;background:#fff;box-shadow:0 3px 0 var(--grape);font:800 13px/1 'Baloo 2';color:var(--grape);letter-spacing:.3px;text-shadow:none;white-space:nowrap}
+.btn .kc{font-size:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:1px 11px 0;border:3px solid var(--grape);border-radius:999px;background:var(--c,#fff);font:800 13px/1 'Baloo 2';color:var(--grape);white-space:nowrap;letter-spacing:.3px}
+.chip .ic{width:15px;height:15px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:4px 14px 3px;border-radius:999px;background:rgba(38,18,74,.86);color:var(--cream);font:700 14px/1.2 'Baloo 2';white-space:nowrap}
+.hints{display:inline-flex;align-items:center;gap:14px;padding:7px 16px 6px;border-radius:999px;background:rgba(38,18,74,.86);color:var(--cream);font:700 13px/1 'Baloo 2';white-space:nowrap}
+.hints span{display:inline-flex;align-items:center;gap:7px}
+.panel{position:absolute;background:var(--paper);border:4px solid var(--grape);border-radius:28px;box-shadow:0 8px 0 var(--grape)}
+.ribbon{position:absolute;display:flex;align-items:center;justify-content:center;height:62px;padding:0 40px;background:var(--c,var(--sun));border:4px solid var(--grape);border-radius:14px;box-shadow:inset 0 -6px 0 var(--lo,var(--sun-lo)),0 6px 0 var(--grape);white-space:nowrap}
+.ribbon .tail{position:absolute;top:18px;width:46px;height:52px;z-index:-1}
+.ribbon .tail.l{left:-30px}.ribbon .tail.r{right:-30px;transform:scaleX(-1)}
+.pips{display:flex;gap:3px}
+.pips i{width:15px;height:11px;border-radius:3px;border:2px solid var(--grape);background:#fff}
+.pips i.on{background:var(--c,var(--sun))}
+.stat{display:grid;grid-template-columns:62px auto;align-items:center;gap:6px;font:800 12px/1 'Baloo 2';letter-spacing:.8px;color:var(--grape-2)}
+.card{position:absolute;background:#fff;border:4px solid var(--grape);border-radius:22px;box-shadow:0 8px 0 var(--grape);overflow:hidden}
+.photo{background-size:cover;background-position:50% 0;background-repeat:no-repeat}
+.rays{position:absolute;border-radius:50%;background:repeating-conic-gradient(from 0deg,var(--r1,#FFE38A) 0 9deg,var(--r2,#FFC83D) 9deg 18deg);-webkit-mask-image:radial-gradient(circle,#000 30%,transparent 70%);animation:spin 60s linear infinite}
+@keyframes spin{to{rotate:360deg}}
+.bunting{position:absolute;left:-10px;top:0;width:1300px;height:80px;pointer-events:none}
+.bunting .pen{transform-box:fill-box;transform-origin:50% 0;animation:sway 2.6s ease-in-out infinite alternate}
+@keyframes sway{from{rotate:-5deg}to{rotate:5deg}}
+.confetti i{position:absolute;width:12px;height:20px;border:2.5px solid var(--grape);border-radius:3px;animation:fall var(--dur,3s) linear infinite;animation-delay:var(--del,0s)}
+@keyframes fall{from{translate:0 -40px;rotate:0deg}to{translate:var(--dx,30px) 820px;rotate:var(--rot,540deg)}}
+.fcard-home{animation:sway2 3.2s ease-in-out infinite alternate}@keyframes sway2{from{rotate:-1.5deg}to{rotate:1.5deg}}
+.medal{position:absolute;width:224px;display:flex;flex-direction:column;align-items:center}
+.medal .ros{animation:sway2 2.8s ease-in-out infinite alternate;transform-origin:50% 0}
+.cloud{position:absolute;height:34px;border-radius:999px;background:rgba(255,255,255,.85);animation:drift 40s linear infinite}
+.cloud::before,.cloud::after{content:'';position:absolute;background:inherit;border-radius:50%}
+.cloud::before{width:44%;height:150%;left:16%;top:-60%}.cloud::after{width:32%;height:120%;left:50%;top:-40%}
+@keyframes drift{from{translate:0 0}to{translate:120px 0}}
+.track{position:absolute;left:0;right:0;bottom:0;border-top:4px solid var(--grape);background:repeating-linear-gradient(180deg,var(--track) 0 30px,#FFE8C9 30px 34px)}
+.bubble{position:absolute;background:#fff;border:4px solid var(--grape);border-radius:20px;padding:9px 16px 7px;box-shadow:0 6px 0 var(--grape);font:800 17px/1.15 'Baloo 2'}
+.swatch{display:flex;flex-direction:column;gap:4px;width:92px;font:800 12px/1.1 'Baloo 2'}
+.swatch b{display:block;height:54px;border:3px solid var(--grape);border-radius:12px}
+.note{font:700 13px/1.25 'Baloo 2';color:var(--grape-2)}
+.h-sec{font:800 13px/1 'Baloo 2';letter-spacing:2px;color:var(--grape)}
+.toggle{display:inline-flex;align-items:center;width:64px;height:34px;border:3px solid var(--grape);border-radius:999px;background:var(--gray);padding:3px;box-shadow:inset 0 3px 0 rgba(0,0,0,.12)}
+.toggle i{width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--grape)}
+.toggle.on{background:var(--teal);justify-content:flex-end}
+.slider{position:relative;height:22px;border:3px solid var(--grape);border-radius:999px;background:#fff}
+.slider b{position:absolute;left:2px;top:2px;bottom:2px;border-radius:999px;background:var(--sun)}
+.slider i{position:absolute;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:#fff;border:4px solid var(--grape);box-shadow:0 3px 0 var(--grape)}
+.seg{display:inline-flex;border:3px solid var(--grape);border-radius:999px;background:#fff;padding:3px;gap:3px}
+.seg span{padding:5px 14px 3px;border-radius:999px;font:800 14px/1 'Baloo 2'}
+.seg span.on{background:var(--sun);box-shadow:inset 0 -3px 0 var(--sun-lo)}
+.tile{display:flex;align-items:center;justify-content:center;border:4px solid var(--grape);border-radius:18px;background:var(--c);box-shadow:inset 0 -6px 0 rgba(0,0,0,.16),0 6px 0 var(--grape);position:relative;overflow:hidden}
+.tile::before{content:'';position:absolute;left:0;right:0;top:0;height:46%;background:rgba(255,255,255,.28)}
+.tile::after{content:'';position:absolute;left:0;right:0;top:50%;height:3px;background:rgba(59,31,107,.35)}
+.tile span{position:relative;z-index:1}
+.seg-bar{display:flex;gap:3px;padding:3px;border:3px solid var(--grape);border-radius:999px;background:var(--grape-2);box-shadow:0 4px 0 var(--grape)}
+.seg-bar i{flex:1;height:14px;border-radius:5px;background:linear-gradient(180deg,rgba(255,255,255,.55) 0 40%,transparent 41%),var(--c)}
+.seg-bar i.off{background:rgba(255,255,255,.12)}
+.seg-bar i.part{background:linear-gradient(90deg,transparent 0 0,transparent 0),linear-gradient(180deg,rgba(255,255,255,.55) 0 40%,transparent 41%),var(--c);clip-path:inset(0 45% 0 0 round 5px)}
+.portrait{border-radius:50%;border:4px solid var(--grape);box-shadow:0 4px 0 var(--grape);background-color:var(--c);background-repeat:no-repeat}
+.kfeed{display:inline-flex;align-items:center;gap:8px;height:34px;padding:2px 16px 0;background:#fff;border:3px solid var(--grape);border-radius:999px;box-shadow:0 4px 0 var(--grape);font:800 15px/1 'Baloo 2';white-space:nowrap}
+.kfeed .ic{width:30px;height:16px}
+</style></head><body>
+
+<!-- ========== ICON SET (24x24, grape 2.6 stroke, white fill: sticker style) ========== -->
+<svg width="0" height="0" style="position:absolute">
+ <defs>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5 L19.5 12 L7 19.5Z" fill="#fff" stroke="#3B1F6B" stroke-width="2.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-2p" viewBox="0 0 24 24"><g fill="#fff" stroke="#3B1F6B" stroke-width="2.4" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3.4"/><circle cx="16.5" cy="8" r="3.4"/><path d="M2.5 20c0-4 2.7-6.3 6-6.3s6 2.3 6 6.3z"/><path d="M10.5 20c0-4 2.7-6.3 6-6.3s6 2.3 6 6.3z"/></g></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><g fill="none" stroke="#3B1F6B" stroke-width="2.4"><circle cx="12" cy="12" r="9" fill="#fff"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3.5 9h17M3.5 15h17"/></g></symbol>
+  <symbol id="i-fighter" viewBox="0 0 24 24"><g fill="#fff" stroke="#3B1F6B" stroke-width="2.4" stroke-linejoin="round"><rect x="7" y="2.8" width="10" height="8.4" rx="2.4"/><path d="M5 21.5v-5.5a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v5.5z"/></g><rect x="9.6" y="6" width="1.6" height="2" fill="#3B1F6B"/><rect x="12.8" y="6" width="1.6" height="2" fill="#3B1F6B"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><g stroke="#3B1F6B" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M5.5 21.5V3"/><path d="M5.5 4h13l-3 4.5 3 4.5h-13z" fill="#fff"/></g></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><g fill="#fff" stroke="#3B1F6B" stroke-width="2.3" stroke-linejoin="round"><path d="M10.3 2.5h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9-2.6-.5v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z"/><circle cx="12" cy="12" r="3.3"/></g></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="#fff" stroke="#3B1F6B" stroke-width="2.4"/><path d="M9.2 9.3a2.9 2.9 0 1 1 4.2 2.6c-.9.5-1.4 1.1-1.4 2.1v.6" fill="none" stroke="#3B1F6B" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.5" fill="#3B1F6B"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 4.5 L6.5 12 L14.5 19.5 M7 12h11" fill="none" stroke="#3B1F6B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 4.5 L7 12 L15 19.5Z" fill="#fff" stroke="#3B1F6B" stroke-width="2.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 4.5 L17 12 L9 19.5Z" fill="#fff" stroke="#3B1F6B" stroke-width="2.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><g fill="#fff" stroke="#3B1F6B" stroke-width="2.4"><rect x="5.5" y="4" width="4.6" height="16" rx="1.6"/><rect x="13.9" y="4" width="4.6" height="16" rx="1.6"/></g></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><g stroke="#3B1F6B" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M3.5 9h4l5-4.5v15l-5-4.5h-4z" fill="#fff"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.3 5.8a9 9 0 0 1 0 12.4" fill="none"/></g></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><g stroke="#3B1F6B" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"><path d="M3.5 9h4l5-4.5v15l-5-4.5h-4z" fill="#fff"/><path d="M15.5 9l5 6M20.5 9l-5 6" fill="none"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11" fill="none" stroke="#3B1F6B" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><g stroke="#3B1F6B" stroke-width="2.4" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="11" rx="2.6" fill="#fff"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none"/></g></symbol>
+  <symbol id="i-again" viewBox="0 0 24 24"><g fill="none" stroke="#3B1F6B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 3.8v4.6h-4.6"/></g></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11.5 12 4l8.5 7.5V20.5h-5.5v-5.5h-6v5.5H3.5z" fill="#fff" stroke="#3B1F6B" stroke-width="2.4" stroke-linejoin="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="#fff" stroke="#3B1F6B" stroke-width="2.4"/><path d="M12 7v5.3l3.4 2.2" fill="none" stroke="#3B1F6B" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-keys" viewBox="0 0 24 24"><g fill="#fff" stroke="#3B1F6B" stroke-width="2.2" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12.5" rx="2.6"/></g><g fill="#3B1F6B"><rect x="5.5" y="9" width="2.4" height="2.2" rx=".6"/><rect x="9.5" y="9" width="2.4" height="2.2" rx=".6"/><rect x="13.5" y="9" width="2.4" height="2.2" rx=".6"/><rect x="17" y="9" width="1.8" height="2.2" rx=".6"/><rect x="7.5" y="13.4" width="9" height="2.2" rx=".6"/></g></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.8l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.7l-5.6 3.1 1.3-6.2L3 9.3l6.3-.7z" fill="#fff" stroke="#3B1F6B" stroke-width="2.3" stroke-linejoin="round"/></symbol>
+  <symbol id="w-pistol" viewBox="0 0 40 20"><path d="M4 5h26v6H16l-2 7H8l2-7H4z" fill="#3B1F6B"/></symbol>
+  <symbol id="w-smg" viewBox="0 0 40 20"><path d="M2 5h32v3h3v3h-3v1H19l-1 6h-5l1-6h-3l-1 4H6l1-4H2z" fill="#3B1F6B"/></symbol>
+  <symbol id="w-shotgun" viewBox="0 0 40 20"><path d="M1 6h38v4H16l-4 7H5l4-7H1z" fill="#3B1F6B"/></symbol>
+  <symbol id="w-rocket" viewBox="0 0 40 20"><path d="M2 6h30l6 4-6 4H2z" fill="#3B1F6B"/><rect x="12" y="13" width="4" height="6" fill="#3B1F6B"/></symbol>
+  <symbol id="a-burst" viewBox="0 0 24 24"><path d="M12 1.8l2.2 5 5.2-1.7-1.8 5.1 4.8 2.5-5 2 1.4 5.3-5-1.9L12 23l-1.8-4.9-5 1.9 1.4-5.3-5-2 4.8-2.5L4.6 5.1l5.2 1.7z" fill="#FFC83D" stroke="#3B1F6B" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="a-jump" viewBox="0 0 24 24"><g fill="none" stroke="#3B1F6B" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3.5M7 8l5-5 5 5"/><path d="M5 17c2 2.5 4 2.5 7 0s5-2.5 7 0" /><path d="M5 21c2 2.5 4 2.5 7 0s5-2.5 7 0" opacity=".5"/></g></symbol>
+  <!-- ribbon tail -->
+  <symbol id="tail" viewBox="0 0 46 52"><path d="M2 2h42v48H2l12-24z" fill="var(--tc,#E08A00)" stroke="#3B1F6B" stroke-width="4" stroke-linejoin="round"/></symbol>
+  <!-- pointer -->
+  <symbol id="ptr" viewBox="0 0 30 34"><path d="M4 4 L26 17 L4 30Z" fill="#FFC83D" stroke="#3B1F6B" stroke-width="4" stroke-linejoin="round"/></symbol>
+ </defs>
+</svg>
+
+<!-- ======================= B01 BOOT / LOADING ======================= -->
+<section class="screen" id="b01-boot" data-t="1.6" style="background:linear-gradient(180deg,#6FC3F2 0%,#A9DDF7 58%,#F6D9A2 58.1%,#F2C98A 100%)">
+  <div class="cloud" style="left:120px;top:120px;width:150px"></div>
+  <div class="cloud" style="left:930px;top:90px;width:190px;animation-duration:55s"></div>
+  <div class="cloud" style="left:1010px;top:250px;width:110px;animation-duration:48s"></div>
+  <svg class="abs" style="left:0;top:330px" width="1280" height="120" viewBox="0 0 1280 120" preserveAspectRatio="none"><path d="M0 120V70l90-30 70 22 120-46 90 40 100-24 60 26 140-50 120 44 80-20 110 34 130-40 170 52V120z" fill="#E7A27C"/><path d="M0 120V96l160-20 200 18 220-24 240 22 200-16 260 20V120z" fill="#EFBF8E"/></svg>
+  <div class="bunting" data-bunting="1"></div>
+  <div class="abs" data-ui style="left:50%;top:196px;transform:translateX(-50%)">
+    <div class="wordmark" style="--s:1.25"></div>
+  </div>
+  <div class="abs" data-ui style="left:380px;top:452px;width:520px">
+    <div style="height:36px;border:4px solid var(--grape);border-radius:999px;background:#fff;box-shadow:0 5px 0 var(--grape);padding:4px;overflow:hidden">
+      <div style="position:relative;width:64%;height:100%;border-radius:999px;background:repeating-linear-gradient(-45deg,var(--sun) 0 14px,#FFD86B 14px 28px);box-shadow:inset 0 -4px 0 var(--sun-lo);overflow:hidden"><div style="position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 14px,rgba(255,255,255,.35) 14px 28px);animation:stripes .8s linear infinite"></div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:14px;font:800 17px/1 'Baloo 2';color:var(--grape)"><span>Setting up the field…</span><span>64%</span></div>
+  </div>
+  <style>@keyframes stripes{to{background-position:40px 0}}</style>
+  <div class="abs" data-ui style="left:50%;top:560px;transform:translateX(-50%)"><div class="pill" style="font-size:16px;padding:8px 18px 7px"><span class="kc">Q</span> Force Push shoves your rival and sends bullets back.</div></div>
+  <div class="abs" data-ui style="left:24px;bottom:22px"><span class="pill" style="font-size:13px">Nalbaki Games</span></div>
+</section>
+
+<!-- ======================= B02 HOME ======================= -->
+<section class="screen" id="b02-home" data-t="1.1">
+  <div class="bg-poster" style="background-size:160% auto;background-position:0 100%"></div>
+  <div class="abs" style="inset:0;background:linear-gradient(90deg,rgba(38,18,74,.62) 0,rgba(38,18,74,.38) 32%,rgba(38,18,74,0) 54%)"></div>
+  <div class="bunting" data-bunting="2"></div>
+  <div class="abs" data-ui style="left:40px;top:58px"><div class="wordmark" style="--s:1"></div></div>
+  <div class="ribbon" data-ui style="left:62px;top:170px;height:44px;padding:0 24px;--c:var(--tang);--lo:var(--tang-lo);transform:rotate(-3deg)"><svg class="tail l" style="--tc:#C2410C;top:12px;width:34px;height:38px;left:-22px"><use href="#tail"/></svg><svg class="tail r" style="--tc:#C2410C;top:12px;width:34px;height:38px;right:-22px"><use href="#tail"/></svg><span class="titan ol" style="font-size:20px;--o:2px;--d:3px;letter-spacing:1px">★ OFFSITE FIELD DAY ★</span></div>
+
+  <div class="abs" style="left:56px;top:244px;width:372px;display:flex;flex-direction:column;gap:18px">
+    <div class="btn y lg is-focus bob" style="width:100%"><span class="shine"></span><svg class="ptr"><use href="#ptr"/></svg><svg class="ic"><use href="#i-play"/></svg><span>PLAY</span></div>
+    <div style="display:flex;justify-content:center;margin-top:-2px"><span class="pill" data-ui>VS BOT · FIRST TO 5 KOs <span class="kc">ENTER</span></span></div>
+    <div style="display:flex;gap:14px"><div class="btn o md" style="flex:1 1 0;min-width:0;padding:0 12px;--fs:21px"><svg class="ic"><use href="#i-2p"/></svg><span>2 PLAYER</span></div><div class="btn t md" style="flex:1 1 0;min-width:0;padding:0 12px;--fs:21px"><svg class="ic"><use href="#i-globe"/></svg><span>ONLINE</span></div></div>
+    <div style="display:flex;gap:14px"><div class="btn s md" style="flex:1 1 0;min-width:0;padding:0 12px;--fs:21px"><svg class="ic"><use href="#i-fighter"/></svg><span>FIGHTER</span></div><div class="btn s md" style="flex:1 1 0;min-width:0;padding:0 12px;--fs:21px"><svg class="ic"><use href="#i-flag"/></svg><span>ARENA</span></div></div>
+    <div style="display:flex;gap:14px"><div class="btn w md icon" title="Settings"><svg class="ic" style="width:32px;height:32px"><use href="#i-gear"/></svg></div><div class="btn w md" style="flex:1 1 0;min-width:0;--fs:22px"><svg class="ic"><use href="#i-help"/></svg><span>HOW TO PLAY</span></div></div>
+  </div>
+
+  <div class="abs" style="left:826px;top:62px;width:372px;height:372px;border-radius:50%;overflow:hidden;border:5px solid var(--grape);box-shadow:0 8px 0 var(--grape)"><div class="rays" style="left:-60px;top:-60px;width:492px;height:492px;-webkit-mask-image:none"></div></div>
+  <div class="card fcard-home" data-ui style="left:887px;top:92px;width:252px;height:356px;transform:rotate(3deg)">
+    <div class="photo" style="height:246px;background-color:#DD5F3B;background-image:url(_bg/fighter1-hero.png);background-size:132%;background-position:50% 6%;border-bottom:4px solid var(--grape)"></div>
+    <div class="titan ol" style="font-size:32px;text-align:center;margin-top:10px;--o:3px;--d:4px">FIGHTER 1</div>
+    <div style="display:flex;justify-content:center;gap:6px;margin-top:10px"><span class="chip" style="--c:var(--sky);height:26px;font-size:12px">FAST</span><span class="chip" style="--c:var(--teal);height:26px;font-size:12px">2× JUMP</span><span class="chip" style="--c:var(--sun);height:26px;font-size:12px">MID WEIGHT</span></div></div>
+  <div class="bubble" data-ui style="left:650px;top:150px;width:196px;transform:rotate(-3deg)">Ready when<br>you are!
+    <svg class="abs" style="right:-26px;top:22px" width="30" height="30"><path d="M0 4 L28 14 L0 24Z" fill="#fff" stroke="#3B1F6B" stroke-width="4" stroke-linejoin="round"/><rect x="0" y="7" width="5" height="14" fill="#fff"/></svg></div>
+  <div class="abs" style="left:880px;top:486px;width:266px;display:flex;align-items:center;justify-content:space-between">
+    <div class="btn s sm icon"><svg class="ic" style="width:24px;height:24px"><use href="#i-left"/></svg></div>
+    <span class="pill" data-ui style="font-size:15px;padding:6px 16px 5px">HIGH FLYER · 1 / 4</span>
+    <div class="btn s sm icon"><svg class="ic" style="width:24px;height:24px"><use href="#i-right"/></svg></div>
+  </div>
+  <div class="btn w sm icon" style="position:absolute;right:24px;top:84px"><svg class="ic" style="width:24px;height:24px"><use href="#i-sound"/></svg></div>
+  <div class="abs" data-ui style="left:24px;bottom:16px"><span class="pill" style="font-size:13px">Nalbaki Games · v0.1.0 · Credits</span></div>
+  <div class="abs" data-ui style="right:24px;bottom:16px"><div class="hints"><span><span class="kc">↑</span><span class="kc">↓</span>Move</span><span><span class="kc">ENTER</span>Select</span><span><span class="kc">ESC</span>Back</span></div></div>
+</section>
+
+<!-- ======================= B03 FIGHTER SELECT 1P ======================= -->
+<section class="screen" id="b03-select-1p" data-t="1.4">
+  <div class="bg-poster soft"></div><div class="tint" style="--a:.38"></div>
+  <div class="rays" style="left:42px;top:96px;width:460px;height:460px;opacity:.85"></div>
+  <div class="btn w sm" style="position:absolute;left:24px;top:24px"><svg class="ic" style="width:20px;height:20px"><use href="#i-back"/></svg><span>BACK</span><span class="kc">ESC</span></div>
+  <div class="abs titan ol" data-ui style="left:50%;top:30px;transform:translateX(-50%);white-space:nowrap;font-size:46px;--o:3.5px;--d:5px">CHOOSE YOUR FIGHTER</div>
+  <div class="abs" style="left:0;right:0;top:146px;display:flex;justify-content:center;gap:26px" id="sel1"></div>
+  <div class="abs" style="left:0;right:0;top:572px;display:flex;justify-content:center;align-items:center;gap:22px">
+    <div class="btn w md" style="--fs:20px"><svg class="ic" style="width:20px;height:20px"><use href="#i-left"/></svg><span>BOT: NORMAL</span><svg class="ic" style="width:20px;height:20px"><use href="#i-right"/></svg></div>
+    <div class="btn y" style="--h:84px;--fs:42px;--o:3px;--d:4px"><span class="shine"></span><span>FIGHT!</span><span class="kc">ENTER</span></div>
+    <div class="btn s md" style="--fs:20px"><svg class="ic"><use href="#i-flag"/></svg><span>OFFSITE</span></div>
+  </div>
+  <div class="abs" data-ui style="left:50%;bottom:14px;transform:translateX(-50%)"><div class="hints"><span><span class="kc">←</span><span class="kc">→</span>Choose</span><span><span class="kc">ENTER</span>Fight</span><span><span class="kc">ESC</span>Back</span></div></div>
+</section>
+
+<!-- ======================= B04 FIGHTER SELECT 2P ======================= -->
+<section class="screen" id="b04-select-2p" data-t="1.4">
+  <div class="bg-poster soft"></div><div class="tint" style="--a:.42"></div>
+  <div class="btn w sm" style="position:absolute;left:24px;top:24px"><svg class="ic" style="width:20px;height:20px"><use href="#i-back"/></svg><span>BACK</span><span class="kc">ESC</span></div>
+  <div class="abs titan ol" data-ui style="left:50%;top:30px;transform:translateX(-50%);white-space:nowrap;font-size:46px;--o:3.5px;--d:5px">2 PLAYER</div>
+  <div id="p2a" class="panel" data-ui style="left:40px;top:112px;width:556px;height:474px;overflow:hidden"></div>
+  <div id="p2b" class="panel" data-ui style="left:684px;top:112px;width:556px;height:474px;overflow:hidden"></div>
+  <div class="abs" data-ui style="left:604px;top:312px;width:72px;height:72px;border-radius:50%;background:var(--sun);border:4px solid var(--grape);box-shadow:inset 0 -5px 0 var(--sun-lo),0 5px 0 var(--grape);display:flex;align-items:center;justify-content:center"><span class="titan ol" style="font-size:30px;--o:2.5px;--d:3px">VS</span></div>
+  <div class="abs" data-ui style="left:50%;top:612px;transform:translateX(-50%)"><span class="pill" style="font-size:16px;padding:8px 20px 7px"><svg class="ic" style="width:18px;height:18px"><use href="#i-clock"/></svg>Waiting for Player 2 to lock in…</span></div>
+  <div class="abs" data-ui style="left:50%;bottom:14px;transform:translateX(-50%)"><div class="hints"><span>P1 <span class="kc">A</span><span class="kc">D</span>choose <span class="kc">F</span>ready</span><span>P2 <span class="kc">←</span><span class="kc">→</span>choose <span class="kc">;</span>ready</span><span><span class="kc">ESC</span>Back</span></div></div>
+</section>
+
+<!-- ======================= B05 VS DOORS ======================= -->
+<section class="screen" id="b05-vs" data-t="0.9">
+  <svg class="abs" style="inset:0" width="1280" height="720"><defs><pattern id="lanes" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(-10)"><rect width="28" height="28" fill="none"/><rect width="10" height="28" fill="rgba(255,255,255,.07)"/></pattern></defs>
+    <polygon points="0,0 700,0 580,720 0,720" fill="#DD5F3B"/>
+    <polygon points="700,0 1280,0 1280,720 580,720" fill="#37ABDF"/></svg>
+  <div class="abs photo" style="left:190px;top:70px;width:298px;height:654px;background-image:url(_bg/fighter1-hero.png);background-size:100% 100%"></div>
+  <div class="abs photo" style="left:780px;top:150px;width:320px;height:572px;background-image:url(_bg/fighter3-hero.png);background-size:100% 100%;clip-path:inset(0 0 0 7%)"></div>
+  <svg class="abs" style="inset:0;pointer-events:none" width="1280" height="720"><line x1="700" y1="-10" x2="580" y2="730" stroke="#3B1F6B" stroke-width="14"/><line x1="700" y1="-10" x2="580" y2="730" stroke="#fff" stroke-width="4"/></svg>
+  <div class="rays" style="left:430px;top:150px;width:420px;height:420px;--r1:#FFE38A;--r2:#FFF3D6;opacity:.9;animation-duration:20s"></div>
+  <div class="abs" data-ui style="left:540px;top:260px;width:200px;height:200px;border-radius:50%;background:var(--sun);border:6px solid var(--grape);box-shadow:inset 0 -12px 0 var(--sun-lo),0 10px 0 var(--grape);display:flex;align-items:center;justify-content:center;transform:rotate(-6deg)">
+    <span class="titan ol" style="font-size:92px;--o:5px;--d:7px;margin-top:-6px">VS</span></div>
+  <div class="ribbon" data-ui style="left:50%;top:24px;transform:translateX(-50%);height:54px;padding:0 34px"><svg class="tail l"><use href="#tail"/></svg><svg class="tail r"><use href="#tail"/></svg><svg class="ic" style="width:24px;height:24px;margin-right:10px"><use href="#i-flag"/></svg><span class="titan ol" style="font-size:28px;--o:2.5px;--d:3px">OFFSITE</span></div>
+  <div class="abs" data-ui data-layer style="left:36px;bottom:40px;display:flex;flex-direction:column;align-items:flex-start;gap:10px">
+    <span class="titan ol" style="font-size:66px;--o:4.5px;--d:6px">FIGHTER 1</span>
+    <span class="pill" style="font-size:15px">HIGH FLYER · YOU</span></div>
+  <div class="abs" data-ui data-layer style="right:36px;bottom:40px;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+    <span class="titan ol" style="font-size:66px;--o:4.5px;--d:6px">FIGHTER 3</span>
+    <span class="pill" style="font-size:15px">SPEEDSTER · BOT HARD</span></div>
+  <div class="abs" data-ui style="left:50%;bottom:22px;transform:translateX(-50%)"><span class="pill" style="font-size:15px;letter-spacing:1.5px">FIRST TO 5</span></div>
+</section>
+
+<!-- ======================= B06 HUD ======================= -->
+<section class="screen" id="b06-hud" data-t="0.7">
+  <div class="bg-match"></div>
+  <div class="abs" style="left:0;right:0;top:0;height:120px;background:linear-gradient(180deg,rgba(38,104,150,.42),rgba(38,104,150,0))"></div>
+  <div class="hudp" data-side="l" data-f="1" data-hp="3.55" data-name="FIGHTER 1" data-tag="YOU" data-weapon="PISTOL ∞" data-dash="ready" data-push="2s"></div>
+  <div class="hudp" data-side="r" data-f="3" data-hp="2" data-name="FIGHTER 3" data-tag="BOT · HARD" data-weapon="SMG 18" data-dash="1s" data-push="ready"></div>
+  <div class="scorebox" data-a="2" data-b="1" data-time="2:26"></div>
+  <div class="abs" data-ui style="left:50%;top:120px;transform:translateX(-50%) rotate(-1.5deg)"><span class="kfeed"><span style="color:#D2441F">FIGHTER 1</span><svg class="ic"><use href="#w-rocket"/></svg><span style="color:#1E7FB8">FIGHTER 3</span><span class="chip" style="--c:var(--sun);height:24px;font-size:12px">+1 KO</span></span></div>
+  <div class="abs" data-ui style="left:50%;bottom:14px;transform:translateX(-50%)"><div class="hints" style="background:rgba(38,18,74,.78)"><span><span class="kc">A</span><span class="kc">D</span>Move</span><span><span class="kc">W</span>Jump</span><span><span class="kc">SPACE</span>Shoot</span><span><span class="kc">SHIFT</span>Dash</span><span><span class="kc">Q</span>Push</span><span><span class="kc">F</span>Grab gun</span><span><span class="kc">ESC</span>Pause</span></div></div>
+</section>
+
+<!-- ======================= B07 HUD - KO'D / RESPAWN ======================= -->
+<section class="screen" id="b07-hud-respawn" data-t="0.7">
+  <div class="bg-match"></div>
+  <div class="abs" style="left:0;right:0;top:0;height:120px;background:linear-gradient(180deg,rgba(38,104,150,.42),rgba(38,104,150,0))"></div>
+  <div class="hudp" data-side="l" data-f="1" data-hp="0" data-ko="1" data-name="FIGHTER 1" data-tag="YOU" data-weapon="PISTOL ∞" data-dash="ready" data-push="ready"></div>
+  <div class="hudp" data-side="r" data-f="3" data-hp="2" data-name="FIGHTER 3" data-tag="BOT · HARD" data-weapon="ROCKET 3" data-dash="ready" data-push="ready"></div>
+  <div class="scorebox" data-a="2" data-b="2" data-time="2:09" data-pop="b"></div>
+  <div class="abs" data-ui style="left:50%;top:120px;transform:translateX(-50%) rotate(-1.5deg)"><span class="kfeed"><span style="color:#1E7FB8">FIGHTER 3</span><svg class="ic"><use href="#w-rocket"/></svg><span style="color:#D2441F">FIGHTER 1</span><span class="chip" style="--c:var(--sun);height:24px;font-size:12px">+1 KO</span></span></div>
+  <div class="abs" data-ui style="left:50%;top:532px;transform:translateX(-50%);display:flex;align-items:center;gap:18px;padding:12px 26px 12px 14px;background:var(--paper);border:4px solid var(--grape);border-radius:26px;box-shadow:0 7px 0 var(--grape)">
+    <div style="position:relative;width:76px;height:76px;flex:none">
+      <svg width="76" height="76" viewBox="0 0 76 76" style="position:absolute;inset:0"><circle cx="38" cy="38" r="33" fill="var(--sun)" stroke="#3B1F6B" stroke-width="4"/><circle cx="38" cy="38" r="26" fill="none" stroke="#fff" stroke-width="7" stroke-dasharray="163" stroke-dashoffset="65" transform="rotate(-90 38 38)" stroke-linecap="round"/></svg>
+      <span class="titan ol" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:38px;--o:2.5px;--d:3px">2</span></div>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <span class="titan" style="font-size:30px;color:var(--grape)">BACK IN 2…</span>
+      <span style="font:700 16px/1.1 'Baloo 2'">FIGHTER 3 got you with a <b style="color:#C2410C">ROCKET</b></span>
+      <span style="font:600 13px/1.1 'Baloo 2';color:var(--grape-2)">Tip: the power weapon up top has six shots, then it's gone.</span></div>
+  </div>
+</section>
+
+<!-- ======================= B08 PAUSE ======================= -->
+<section class="screen" id="b08-pause" data-t="1.0">
+  <div class="bg-match soft"></div><div class="tint" style="--a:.5"></div>
+  <div class="panel" data-ui style="left:410px;top:104px;width:460px;height:536px"></div>
+  <div class="ribbon" data-ui data-layer style="left:50%;top:76px;transform:translateX(-50%) rotate(-2deg)"><svg class="tail l"><use href="#tail"/></svg><svg class="tail r"><use href="#tail"/></svg><svg class="ic" style="width:30px;height:30px;margin-right:12px"><use href="#i-pause"/></svg><span class="titan ol" style="font-size:36px">PAUSED</span></div>
+  <div class="abs" data-ui style="left:450px;top:170px;width:380px;height:56px;border-radius:16px;background:var(--mist);display:flex;align-items:center;justify-content:space-between;padding:0 16px">
+    <span style="display:flex;align-items:center;gap:8px;font:800 15px/1 'Baloo 2'"><i class="portrait" data-head="1" style="width:34px;height:34px;border-width:3px;box-shadow:none;--c:var(--f1);"></i>FIGHTER 1</span>
+    <span class="titan" style="font-size:28px">2 – 1</span>
+    <span style="display:flex;align-items:center;gap:8px;font:800 15px/1 'Baloo 2'">FIGHTER 3<i class="portrait" data-head="3" style="width:34px;height:34px;border-width:3px;box-shadow:none;--c:var(--f3);"></i></span></div>
+  <div class="abs" style="left:466px;top:254px;width:348px;display:flex;flex-direction:column;gap:26px">
+    <div class="btn y md is-focus" style="--fs:30px"><span class="shine"></span><svg class="ic"><use href="#i-play"/></svg><span>RESUME</span></div>
+    <div class="btn w md" style="--fs:22px"><svg class="ic"><use href="#i-gear"/></svg><span>SETTINGS</span></div>
+    <div class="btn w md" style="--fs:22px"><svg class="ic"><use href="#i-help"/></svg><span>HOW TO PLAY</span></div>
+    <div class="btn w md" style="--fs:22px"><svg class="ic"><use href="#i-home"/></svg><span>QUIT TO MENU</span></div>
+  </div>
+  <div class="abs" data-ui style="left:50%;bottom:20px;transform:translateX(-50%)"><div class="hints"><span><span class="kc">↑</span><span class="kc">↓</span>Move</span><span><span class="kc">ENTER</span>Select</span><span><span class="kc">ESC</span>Resume</span></div></div>
+</section>
+
+<!-- ======================= B09 SETTINGS - CONTROLS ======================= -->
+<section class="screen" id="b09-settings-controls" data-t="0.6">
+  <div class="bg-poster soft"></div><div class="tint" style="--a:.45"></div>
+  <div class="panel" data-ui style="left:64px;top:78px;width:1152px;height:568px"></div>
+  <div class="ribbon" data-ui data-layer style="left:50%;top:44px;transform:translateX(-50%) rotate(-1.5deg)"><svg class="tail l"><use href="#tail"/></svg><svg class="tail r"><use href="#tail"/></svg><svg class="ic" style="width:30px;height:30px;margin-right:12px"><use href="#i-gear"/></svg><span class="titan ol" style="font-size:36px">SETTINGS</span></div>
+  <div class="settabs" data-active="0" style="position:absolute;left:100px;top:134px;width:1080px"></div>
+  <div class="abs" data-ui style="left:100px;top:202px;width:640px;height:380px;border-radius:18px;background:var(--mist);padding:12px 16px" id="binds"></div>
+  <div class="abs" data-ui style="left:768px;top:202px;width:412px;display:flex;flex-direction:column;gap:14px">
+    <div style="background:#fff;border:3px solid var(--grape);border-radius:18px;padding:12px 16px">
+      <div style="font:800 16px/1 'Baloo 2';margin-bottom:10px">Aim</div>
+      <div class="seg"><span class="on">AUTO</span><span>MOUSE</span></div>
+      <div class="note" style="margin-top:8px">Shoot aims at your rival when you can see them.</div></div>
+    <div style="background:#fff;border:3px solid var(--grape);border-radius:18px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+      <div><div style="font:800 16px/1 'Baloo 2'">Key hints in matches</div><div class="note" style="margin-top:6px">The strip along the bottom</div></div><span class="toggle on"><i></i></span></div>
+    <div style="background:#fff;border:3px solid var(--grape);border-radius:18px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+      <div><div style="font:800 16px/1 'Baloo 2'">2 Player keys</div><div class="note" style="margin-top:6px">P1 left side, P2 right side</div></div><span class="btn w sm" style="--h:44px;--fs:16px"><span>EDIT</span></span></div>
+  </div>
+  <div class="abs" style="left:768px;top:512px;width:412px;display:flex;gap:14px;justify-content:flex-end">
+    <div class="btn w md" style="--fs:19px"><svg class="ic"><use href="#i-again"/></svg><span>RESET KEYS</span></div>
+    <div class="btn y md" style="--fs:24px"><span class="shine"></span><svg class="ic"><use href="#i-check"/></svg><span>DONE</span></div>
+  </div>
+  <div class="abs" data-ui style="left:50%;bottom:16px;transform:translateX(-50%)"><div class="hints"><span><span class="kc">[</span><span class="kc">]</span>Tab</span><span><span class="kc">↑</span><span class="kc">↓</span>Move</span><span><span class="kc">ENTER</span>Change key</span><span><span class="kc">ESC</span>Back</span></div></div>
+</section>
+
+<!-- ======================= B10 SETTINGS - AUDIO ======================= -->
+<section class="screen" id="b10-settings-audio" data-t="0.6">
+  <div class="bg-poster soft"></div><div class="tint" style="--a:.45"></div>
+  <div class="panel" data-ui style="left:64px;top:78px;width:1152px;height:568px"></div>
+  <div class="ribbon" data-ui data-layer style="left:50%;top:44px;transform:translateX(-50%) rotate(-1.5deg)"><svg class="tail l"><use href="#tail"/></svg><svg class="tail r"><use href="#tail"/></svg><svg class="ic" style="width:30px;height:30px;margin-right:12px"><use href="#i-gear"/></svg><span class="titan ol" style="font-size:36px">SETTINGS</span></div>
+  <div class="settabs" data-active="3" style="position:absolute;left:100px;top:134px;width:1080px"></div>
+  <div class="abs" data-ui style="left:100px;top:202px;width:1080px;display:grid;grid-template-columns:1fr 1fr;gap:16px 22px" id="vols"></div>
+  <div class="abs" style="left:100px;top:512px;width:1080px;display:flex;gap:14px;justify-content:flex-end">
+    <div class="btn y md" style="--fs:24px"><span class="shine"></span><svg class="ic"><use href="#i-check"/></svg><span>DONE</span></div>
+  </div>
+  <div class="abs" data-ui style="left:50%;bottom:16px;transform:translateX(-50%)"><div class="hints"><span><span class="kc">[</span><span class="kc">]</span>Tab</span><span><span class="kc">↑</span><span class="kc">↓</span>Move</span><span><span class="kc">←</span><span class="kc">→</span>Adjust</span><span><span class="kc">M</span>Mute</span><span><span class="kc">ESC</span>Back</span></div></div>
+</section>
+
+<!-- ======================= B11 HOW TO PLAY ======================= -->
+<section class="screen" id="b11-howto" data-t="1.0">
+  <div class="bg-poster soft"></div><div class="tint" style="--a:.42"></div>
+  <div class="btn w sm" style="position:absolute;left:24px;top:24px"><svg class="ic" style="width:20px;height:20px"><use href="#i-back"/></svg><span>BACK</span><span class="kc">ESC</span></div>
+  <div class="abs titan ol" data-ui style="left:50%;top:28px;transform:translateX(-50%);white-space:nowrap;font-size:46px;--o:3.5px;--d:5px">HOW TO PLAY</div>
+  <div class="abs" data-ui style="left:50%;top:94px;transform:translateX(-50%)"><span class="pill" style="font-size:17px;padding:7px 20px 6px">Knock your rival out. <b style="color:var(--sun)">First to 5 KOs wins.</b></span></div>
+  <div class="abs" style="left:0;right:0;top:150px;display:flex;justify-content:center;gap:28px" id="howcards"></div>
+  <div class="abs" data-ui style="left:50%;top:488px;transform:translateX(-50%)"><span class="pill" style="font-size:14px;padding:7px 18px 6px">2 PLAYER on one keyboard: P1 <span class="kc">WASD</span> <span class="kc">F</span> <span class="kc">G</span> <span class="kc">H</span> · P2 <span class="kc">ARROWS</span> <span class="kc">;</span> <span class="kc">L</span> <span class="kc">K</span></span></div>
+  <div class="abs" style="left:0;right:0;top:560px;display:flex;justify-content:center"><div class="btn y md is-focus" style="--fs:28px"><span class="shine"></span><svg class="ic"><use href="#i-check"/></svg><span>GOT IT!</span><span class="kc">ENTER</span></div></div>
+</section>
+
+<!-- ======================= B12 RESULT 1 - IMPACT ======================= -->
+<section class="screen" id="b12-result-1-impact" data-t="0.45">
+  <div class="bg-wide"></div><div class="tint" style="--a:.18"></div>
+  <div class="rays" style="left:40px;top:-240px;width:1200px;height:1200px;opacity:.9"></div>
+  <svg class="abs" style="left:420px;top:150px" width="440" height="440" viewBox="-110 -110 220 220"><polygon fill="#fff" stroke="#3B1F6B" stroke-width="5" stroke-linejoin="round" points="0,-100 19,-42 74,-66 44,-15 100,0 44,15 74,66 19,42 0,100 -19,42 -74,66 -44,15 -100,0 -44,-15 -74,-66 -19,-42"/></svg>
+  <div class="card" data-ui style="left:530px;top:200px;width:220px;height:310px;transform:scale(1.18) rotate(-5deg);background:#DD5F3B"><div class="photo" style="position:absolute;inset:0;background-image:url(_bg/fighter1-hero.png);background-size:118%;background-position:50% 6%"></div></div>
+  <div class="confetti" data-confetti="34" data-seed="3"></div>
+  <div class="ribbon" data-ui style="left:50%;top:40px;transform:translateX(-50%) rotate(-2deg);--c:var(--grape);--lo:var(--grape-deep);--tc:#26124A"><svg class="tail l" style="--tc:#26124A"><use href="#tail"/></svg><svg class="tail r" style="--tc:#26124A"><use href="#tail"/></svg><span class="titan" style="font-size:40px;color:var(--sun)">AND THE WINNER IS…</span></div>
+</section>
+
+<!-- ======================= B13 RESULT 2 - REACTION ======================= -->
+<section class="screen" id="b13-result-2-reaction" data-t="1.3">
+  <div class="bg-wide"></div><div class="tint" style="--a:.15"></div>
+  <div class="rays" style="left:40px;top:-300px;width:1200px;height:1200px;opacity:.85"></div>
+  <div class="track" style="top:600px"></div>
+  <div class="confetti" data-confetti="26" data-seed="7"></div>
+  <div class="abs titan ol" data-ui style="left:50%;top:26px;transform:translateX(-50%);white-space:nowrap;font-size:78px;--o:5px;--d:7px">FIGHTER 1 WINS!</div>
+  <div class="podium" data-ui style="left:530px;top:462px;width:220px;height:170px" data-n="1"></div>
+  <div class="card" data-ui style="left:545px;top:196px;width:190px;height:262px;transform:rotate(-2deg);background:#DD5F3B"><div class="photo" style="position:absolute;inset:0;background-image:url(_bg/fighter1-hero.png);background-size:120%;background-position:50% 4%"></div></div>
+  <div class="podium small" data-ui style="left:850px;top:578px;width:150px;height:54px" data-n="PARTICIPATION"></div>
+  <div class="card" data-ui style="left:874px;top:420px;width:104px;height:150px;transform:rotate(9deg);background:#37ABDF;border-width:3px;box-shadow:0 5px 0 var(--grape)"><div class="photo" style="position:absolute;inset:0;background-image:url(_bg/fighter3-hero.png);background-size:125%;background-position:50% 6%;filter:saturate(.55)"></div></div>
+  <svg class="abs balloon" style="left:990px;top:380px" width="70" height="210" viewBox="0 0 70 210"><path d="M30 62 Q44 120 22 150 Q8 175 14 200" fill="none" stroke="#3B1F6B" stroke-width="3"/><ellipse cx="32" cy="34" rx="24" ry="28" fill="#9AD9FF" stroke="#3B1F6B" stroke-width="4"/><path d="M27 61 l5 7 5-7z" fill="#9AD9FF" stroke="#3B1F6B" stroke-width="3" stroke-linejoin="round"/><ellipse cx="24" cy="24" rx="6" ry="9" fill="#fff" opacity=".7"/></svg>
+  <div class="abs" data-ui style="left:200px;top:300px;display:flex;align-items:center;gap:14px;transform:rotate(-4deg)">
+    <div class="tile" style="--c:var(--f1);width:100px;height:100px"><span class="titan ol" style="font-size:66px;--o:4px;--d:5px">5</span></div>
+    <span class="titan ol" style="font-size:44px">–</span>
+    <div class="tile" style="--c:var(--gray);width:74px;height:74px"><span class="titan ol" style="font-size:46px">2</span></div></div>
+</section>
+
+<!-- ======================= B14 RESULT 3 - FINAL (WIN) ======================= -->
+<section class="screen" id="b14-result-3-final" data-t="2.6">
+  <div class="bg-wide"></div><div class="tint" style="--a:.15"></div>
+  <div class="rays" style="left:140px;top:-320px;width:1000px;height:1000px;opacity:.8;animation-duration:90s"></div>
+  <div class="track" style="top:556px"></div>
+  <div class="confetti" data-confetti="14" data-seed="11"></div>
+  <div class="abs" data-ui style="right:24px;top:22px"><span class="pill" style="font-size:13px"><span class="kc">TAB</span>Hold for stats</span></div>
+  <div class="abs" data-ui style="left:24px;top:22px"><span class="pill" style="font-size:13px"><span class="kc">ESC</span>Menu</span></div>
+  <div class="abs titan ol" data-ui style="left:50%;top:22px;transform:translateX(-50%);white-space:nowrap;font-size:62px;--o:4.5px;--d:6px">FIGHTER 1 WINS!</div>
+  <div class="abs" data-ui style="left:50%;top:102px;transform:translateX(-50%)"><span class="pill" style="font-size:16px;padding:6px 18px 5px">5 – 2 · 57% accuracy · best streak 3</span></div>
+  <div class="podium" data-ui style="left:560px;top:408px;width:160px;height:164px" data-n="1"></div>
+  <div class="card" data-ui style="left:569px;top:196px;width:142px;height:206px;transform:rotate(-2deg);background:#DD5F3B;border-width:3px"><div class="photo" style="position:absolute;inset:0;background-image:url(_bg/fighter1-hero.png);background-size:120%;background-position:50% 4%"></div></div>
+  <div class="podium small" data-ui style="left:736px;top:516px;width:116px;height:56px" data-n="PARTICIPATION"></div>
+  <div class="card" data-ui style="left:754px;top:390px;width:80px;height:118px;transform:rotate(9deg);background:#37ABDF;border-width:3px;border-radius:16px;box-shadow:0 4px 0 var(--grape)"><div class="photo" style="position:absolute;inset:0;background-image:url(_bg/fighter3-hero.png);background-size:125%;background-position:50% 6%;filter:saturate(.55)"></div></div>
+  <svg class="abs balloon" style="left:846px;top:346px" width="56" height="176" viewBox="0 0 70 210"><path d="M30 62 Q44 120 22 150 Q8 175 14 206" fill="none" stroke="#3B1F6B" stroke-width="3.5"/><ellipse cx="32" cy="34" rx="24" ry="28" fill="#9AD9FF" stroke="#3B1F6B" stroke-width="4.5"/><path d="M27 61 l5 7 5-7z" fill="#9AD9FF" stroke="#3B1F6B" stroke-width="3" stroke-linejoin="round"/><ellipse cx="24" cy="24" rx="6" ry="9" fill="#fff" opacity=".7"/></svg>
+  <div id="awards-win" style="position:absolute;inset:0;pointer-events:none"></div>
+  <div class="abs" style="left:0;right:0;top:584px;display:flex;justify-content:center;align-items:center;gap:26px">
+    <div class="btn y is-focus" style="--h:88px;--fs:40px;--o:3px;--d:4px"><span class="shine"></span><svg class="ic" style="width:36px;height:36px"><use href="#i-again"/></svg><span>REMATCH</span><span class="kc">ENTER</span></div>
+    <div class="btn s md" style="--fs:22px"><svg class="ic"><use href="#i-flag"/></svg><span>NEXT ARENA</span></div>
+    <div class="btn w md" style="--fs:22px"><svg class="ic"><use href="#i-fighter"/></svg><span>CHANGE FIGHTER</span></div>
+  </div>
+</section>
+
+<!-- ======================= B15 RESULT - LOSS VARIANT ======================= -->
+<section class="screen" id="b15-result-loss" data-t="2.6">
+  <div class="bg-wide"></div><div class="tint" style="--a:.15"></div>
+  <div class="rays" style="left:140px;top:-320px;width:1000px;height:1000px;opacity:.55;animation-duration:90s;--r1:#FFE9B0;--r2:#FFD978"></div>
+  <div class="track" style="top:556px"></div>
+  <div class="abs" data-ui style="right:24px;top:22px"><span class="pill" style="font-size:13px"><span class="kc">TAB</span>Hold for stats</span></div>
+  <div class="abs" data-ui style="left:24px;top:22px"><span class="pill" style="font-size:13px"><span class="kc">ESC</span>Menu</span></div>
+  <div class="abs titan ol" data-ui style="left:50%;top:22px;transform:translateX(-50%);white-space:nowrap;font-size:62px;--o:4.5px;--d:6px">FIGHTER 3 WINS!</div>
+  <div class="abs" data-ui style="left:50%;top:102px;transform:translateX(-50%)"><span class="pill" style="font-size:16px;padding:6px 18px 5px">4 – 5 · so close! · one more?</span></div>
+  <div class="podium" data-ui style="left:560px;top:408px;width:160px;height:164px" data-n="1"></div>
+  <div class="card" data-ui style="left:569px;top:196px;width:142px;height:206px;transform:rotate(2deg);background:#37ABDF;border-width:3px"><div class="photo" style="position:absolute;inset:0;background-image:url(_bg/fighter3-hero.png);background-size:118%;background-position:50% 4%"></div></div>
+  <div class="podium small" data-ui style="left:736px;top:516px;width:116px;height:56px" data-n="PARTICIPATION"></div>
+  <div class="card" data-ui style="left:754px;top:390px;width:80px;height:118px;transform:rotate(-8deg);background:#DD5F3B;border-width:3px;border-radius:16px;box-shadow:0 4px 0 var(--grape)"><div class="photo" style="position:absolute;inset:0;background-image:url(_bg/fighter1-hero.png);background-size:125%;background-position:50% 4%;filter:saturate(.6)"></div></div>
+  <div class="abs" data-ui data-layer style="left:732px;top:372px"><span class="chip" style="--c:var(--sun);height:24px;font-size:12px;transform:rotate(-8deg)">YOU</span></div>
+  <svg class="abs balloon" style="left:846px;top:346px" width="56" height="176" viewBox="0 0 70 210"><path d="M30 62 Q44 120 22 150 Q8 175 14 206" fill="none" stroke="#3B1F6B" stroke-width="3.5"/><ellipse cx="32" cy="34" rx="24" ry="28" fill="#FFB27A" stroke="#3B1F6B" stroke-width="4.5"/><path d="M27 61 l5 7 5-7z" fill="#FFB27A" stroke="#3B1F6B" stroke-width="3" stroke-linejoin="round"/><ellipse cx="24" cy="24" rx="6" ry="9" fill="#fff" opacity=".7"/></svg>
+  <div id="awards-loss" style="position:absolute;inset:0;pointer-events:none"></div>
+  <div class="abs" style="left:0;right:0;top:584px;display:flex;justify-content:center;align-items:center;gap:26px">
+    <div class="btn y is-focus" style="--h:88px;--fs:40px;--o:3px;--d:4px"><span class="shine"></span><svg class="ic" style="width:36px;height:36px"><use href="#i-again"/></svg><span>REMATCH</span><span class="kc">ENTER</span></div>
+    <div class="btn s md" style="--fs:22px"><svg class="ic"><use href="#i-flag"/></svg><span>NEXT ARENA</span></div>
+    <div class="btn w md" style="--fs:22px"><svg class="ic"><use href="#i-fighter"/></svg><span>CHANGE FIGHTER</span></div>
+  </div>
+</section>
+
+<!-- ======================= B16 REMATCH (ONLINE) ======================= -->
+<section class="screen" id="b16-rematch-online" data-t="1.0">
+  <div class="bg-wide"></div><div class="tint" style="--a:.5"></div>
+  <div class="rays" style="left:240px;top:-140px;width:800px;height:800px;opacity:.35;animation-duration:90s"></div>
+  <div class="panel" data-ui style="left:340px;top:150px;width:600px;height:400px"></div>
+  <div class="ribbon" data-ui data-layer style="left:50%;top:118px;transform:translateX(-50%) rotate(-2deg)"><svg class="tail l"><use href="#tail"/></svg><svg class="tail r"><use href="#tail"/></svg><svg class="ic" style="width:30px;height:30px;margin-right:12px"><use href="#i-again"/></svg><span class="titan ol" style="font-size:36px">REMATCH?</span></div>
+  <div class="abs" style="left:380px;top:210px;width:520px;display:flex;justify-content:space-between">
+    <div data-ui style="width:240px;height:206px;border-radius:22px;background:var(--mist);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+      <i class="portrait" data-head="1" style="width:96px;height:96px;--c:var(--f1);"></i>
+      <span class="titan" style="font-size:22px">YOU</span><span class="chip" style="--c:var(--teal);color:#fff;text-shadow:0 1px 0 var(--grape)"><svg class="ic"><use href="#i-check"/></svg>READY!</span></div>
+    <div data-ui style="width:240px;height:206px;border-radius:22px;background:var(--mist);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+      <i class="portrait" data-head="3" style="width:96px;height:96px;--c:var(--f3);"></i>
+      <span class="titan" style="font-size:22px">RIVAL</span><span class="chip" style="--c:var(--sun)"><svg class="ic"><use href="#i-clock"/></svg>DECIDING… 0:12</span></div>
+  </div>
+  <div class="abs" style="left:0;right:0;top:452px;display:flex;justify-content:center"><div class="btn w md is-focus" style="--fs:22px"><span>CANCEL</span><span class="kc">ESC</span></div></div>
+  <div class="abs" data-ui style="left:50%;top:600px;transform:translateX(-50%)"><span class="pill" style="font-size:15px;padding:7px 18px 6px">If your rival leaves, you go back to the menu.</span></div>
+</section>
+
+<!-- ======================= B17 CREDITS ======================= -->
+<section class="screen" id="b17-credits" data-t="1.0">
+  <div class="bg-poster soft"></div><div class="tint" style="--a:.42"></div>
+  <div class="bunting" data-bunting="4"></div>
+  <div class="panel" data-ui style="left:290px;top:118px;width:700px;height:452px"></div>
+  <div class="ribbon" data-ui data-layer style="left:50%;top:86px;transform:translateX(-50%) rotate(-2deg)"><svg class="tail l"><use href="#tail"/></svg><svg class="tail r"><use href="#tail"/></svg><svg class="ic" style="width:30px;height:30px;margin-right:12px"><use href="#i-star"/></svg><span class="titan ol" style="font-size:36px">CREDITS</span></div>
+  <div class="abs" data-ui style="left:330px;top:186px;width:620px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center">
+    <div><div class="h-sec" style="color:var(--grape-2)">A GAME BY</div><div class="titan" style="font-size:30px;margin-top:6px">NALBAKI GAMES</div></div>
+    <div><div class="h-sec" style="color:var(--grape-2)">SOUND</div><div style="font:700 17px/1.3 'Baloo 2';margin-top:4px">Gun sounds by Snake (f8studios),<br>from Snake's Authentic Gun Sounds.</div></div>
+    <div><div class="h-sec" style="color:var(--grape-2)">FONTS</div><div style="font:700 17px/1.3 'Baloo 2';margin-top:4px">Titan One by Rodrigo Fuenzalida · Baloo 2 by Ek Type<br>SIL Open Font License 1.1</div></div>
+    <div><div class="h-sec" style="color:var(--grape-2)">BUILT WITH</div><div style="font:700 17px/1.3 'Baloo 2';margin-top:4px">three.js, React and Next.js</div></div>
+  </div>
+  <div class="abs" style="left:0;right:0;top:474px;display:flex;justify-content:center"><div class="btn w md is-focus" style="--fs:22px"><svg class="ic"><use href="#i-back"/></svg><span>BACK</span><span class="kc">ESC</span></div></div>
+</section>
+
+<!-- ======================= B18 SHEET - COMPONENTS ======================= -->
+<section class="screen" id="b18-sheet-components" data-t="0" style="background:var(--cream)">
+  <div class="dots"></div>
+  <div class="abs titan ol" style="left:40px;top:22px;font-size:36px">FIELD DAY · COMPONENTS</div>
+  <div class="abs h-sec" style="left:40px;top:84px">PRIMARY BUTTON · 5 STATES</div>
+  <div class="abs" style="left:52px;top:118px;width:1180px;display:flex;gap:22px;align-items:center">
+    <div class="btn y" style="--h:72px;--fs:30px"><span>REMATCH</span></div>
+    <div class="btn y is-hover" style="--h:72px;--fs:30px"><span>REMATCH</span></div>
+    <div class="btn y is-press" style="--h:72px;--fs:30px"><span>REMATCH</span></div>
+    <div class="btn y is-disabled" style="--h:72px;--fs:26px"><svg class="ic"><use href="#i-lock"/></svg><span>WAITING</span></div>
+    <div class="btn y is-focus" style="--h:72px;--fs:30px"><span>REMATCH</span></div>
+  </div>
+  <div class="abs" style="left:52px;top:210px;width:1180px;display:flex;gap:22px">
+    <div class="note" style="width:186px">Default: gloss pill, 7 px lip, shine sweep every 4 s</div>
+    <div class="note" style="width:204px">Hover: up 3 px, scale 1.05, -1.5°, spring 180 ms</div>
+    <div class="note" style="width:194px">Pressed: down 5 px onto lip, 1.03 / 0.94, 60 ms</div>
+    <div class="note" style="width:200px">Disabled: grey plastic, padlock, wobble on press</div>
+    <div class="note" style="width:220px">Keyboard / pad focus: white 4 px ring + grape 4 px ring, pulses 1.2 s</div>
+  </div>
+  <div class="abs h-sec" style="left:40px;top:268px">FOCUS RING ON EVERY BACKGROUND</div>
+  <div class="abs" style="left:40px;top:296px;width:1200px;height:110px;display:flex;gap:16px">
+    <div style="flex:1;border-radius:18px;background:var(--cream);border:3px dashed var(--grape-2);display:flex;align-items:center;justify-content:center"><div class="btn w sm is-focus"><span>BACK</span></div></div>
+    <div style="flex:1;border-radius:18px;background:var(--sky);display:flex;align-items:center;justify-content:center"><div class="btn s sm is-focus"><span>NEXT ARENA</span></div></div>
+    <div style="flex:1;border-radius:18px;background:url(_bg/match-wide.png) center 60%/cover;display:flex;align-items:center;justify-content:center"><div class="btn y sm is-focus"><span>RESUME</span></div></div>
+    <div style="flex:1;border-radius:18px;background:var(--grape);display:flex;align-items:center;justify-content:center"><div class="btn t sm is-focus"><span>ONLINE</span></div></div>
+  </div>
+  <div class="abs h-sec" style="left:40px;top:428px">COLOUR = MEANING</div>
+  <div class="abs" style="left:40px;top:456px;display:flex;gap:16px;align-items:center">
+    <div class="btn y sm"><span>DO IT NOW</span></div><div class="btn s sm"><span>MOVE ON</span></div><div class="btn w sm"><span>BACK / CHANGE</span></div><div class="btn o sm"><span>LOCAL</span></div><div class="btn t sm"><span>ONLINE</span></div>
+    <div class="btn w sm icon"><svg class="ic" style="width:24px;height:24px"><use href="#i-gear"/></svg></div>
+  </div>
+  <div class="abs h-sec" style="left:40px;top:540px">CONTROLS</div>
+  <div class="abs" style="left:40px;top:570px;display:flex;gap:22px;align-items:center">
+    <span class="toggle on"><i></i></span><span class="toggle"><i></i></span>
+    <div class="slider" style="width:190px"><b style="width:70%"></b><i style="left:70%"></i></div>
+    <div class="seg"><span class="on">AUTO</span><span>LOW</span><span>HIGH</span></div>
+    <span class="kc">SPACE</span><span class="kc" style="background:var(--sun)">PRESS A KEY</span>
+    <span class="chip" style="--c:var(--sun)">DASH</span><span class="chip" style="--c:var(--gray)">PUSH 2s</span>
+  </div>
+  <div class="abs h-sec" style="left:40px;top:628px">BANNERS · TILES · AWARDS</div>
+  <div class="abs" style="left:40px;top:650px;display:flex;gap:22px;align-items:center">
+    <span class="kfeed" style="height:30px;font-size:13px">FIGHTER 1<svg class="ic"><use href="#w-shotgun"/></svg>FIGHTER 2</span>
+    <div class="tile" style="--c:var(--f1);width:52px;height:50px;border-radius:12px"><span class="titan ol" style="font-size:32px;--o:2px;--d:3px">3</span></div>
+    <div class="abs" style="left:350px;top:-6px;background:var(--tang);border:4px solid var(--grape);border-radius:12px;padding:6px 18px 2px;box-shadow:0 5px 0 var(--grape);transform:rotate(-4deg)"><span class="titan ol" style="font-size:28px;--o:2px;--d:2px">K.O.!</span></div>
+  </div>
+  <div class="abs" style="left:560px;top:612px;width:680px;display:flex;gap:16px" id="sheet-rosettes"></div>
+</section>
+
+<!-- ======================= B19 SHEET - TOKENS ======================= -->
+<section class="screen" id="b19-sheet-tokens" data-t="0" style="background:var(--cream)">
+  <div class="dots"></div>
+  <div class="abs titan ol" style="left:40px;top:22px;font-size:36px">FIELD DAY · TOKENS</div>
+  <div class="abs h-sec" style="left:40px;top:84px">PALETTE</div>
+  <div class="abs" style="left:40px;top:108px;width:1200px;display:flex;flex-wrap:wrap;gap:12px 14px" id="swatches"></div>
+  <div class="abs h-sec" style="left:40px;top:340px">TYPE SCALE (px at 1280x720 · x1.5 at 1080p)</div>
+  <div class="abs" style="left:40px;top:366px;width:620px;display:flex;flex-direction:column;gap:9px">
+    <div style="display:flex;align-items:baseline;gap:14px"><span class="titan ol" style="font-size:62px;--o:4px;--d:5px">WINS!</span><span class="note">Display XL · Titan One 62-78 · result title</span></div>
+    <div style="display:flex;align-items:baseline;gap:14px"><span class="titan ol" style="font-size:46px;--o:3.5px;--d:5px">HOW TO PLAY</span><span class="note">Display L · 46 · screen titles</span></div>
+    <div style="display:flex;align-items:baseline;gap:14px"><span class="titan ol" style="font-size:26px;--o:2.5px;--d:3px">FIGHTER 1</span><span class="note">Display M · 20-30 · names, buttons</span></div>
+    <div style="display:flex;align-items:baseline;gap:14px"><span style="font:800 17px/1 'Baloo 2'">Body bold · Baloo 2 800 · 15-17</span></div>
+    <div style="display:flex;align-items:baseline;gap:14px"><span style="font:700 14px/1 'Baloo 2'">Body · Baloo 2 700 · 13-14</span></div>
+    <div style="display:flex;align-items:baseline;gap:14px"><span style="font:800 12px/1 'Baloo 2';letter-spacing:1.5px">LABEL CAPS · BALOO 2 800 · 12 MIN</span></div>
+  </div>
+  <div class="abs h-sec" style="left:700px;top:340px">ICONS (24 grid, 2.4 grape stroke, white fill)</div>
+  <div class="abs" style="left:700px;top:366px;width:540px;display:flex;flex-wrap:wrap;gap:10px" id="iconset"></div>
+  <div class="abs h-sec" style="left:700px;top:572px">WORDMARK SLOT (swappable, R-023)</div>
+  <div class="abs" style="left:700px;top:594px;width:420px;height:112px;border:3px dashed var(--grape-2);border-radius:16px;display:flex;align-items:center;justify-content:center"><div class="wordmark" data-name="LONGER NAME|GO" style="--s:.82"></div></div>
+</section>
+
+<script>
+/* ---------- tiny deterministic helpers (mockup only) ---------- */
+const rng = s => () => (s = (s * 16807) % 2147483647) / 2147483647;
+const F = {1:{name:'FIGHTER 1',role:'HIGH FLYER',c:'var(--f1)',img:'fighter1-field.png',sp:4,ju:4,we:2,jumps:'2× JUMP'},
+           2:{name:'FIGHTER 2',role:'HEAVYWEIGHT',c:'var(--f2)',img:'fighter2-field.png',sp:1,ju:2,we:5,jumps:'2× JUMP'},
+           3:{name:'FIGHTER 3',role:'SPEEDSTER',c:'var(--f3)',img:'fighter3-field.png',sp:5,ju:5,we:1,jumps:'3× JUMP'},
+           4:{name:'FIGHTER 4',role:'ALL-ROUNDER',c:'var(--f4)',img:'fighter4-field.png',sp:3,ju:3,we:3,jumps:'2× JUMP'}};
+const HEAD={1:[153,62],2:[147,107],3:[131,147],4:[140,115]};
+const headBg=(f,P,fill=.78)=>{const k=fill*P/80,[x,y]=HEAD[f];return `background-image:url(_bg/fighter${f}-field.png);background-size:${(300*k).toFixed(1)}px auto;background-position:${(P/2-x*k).toFixed(1)}px ${(P/2-y*k+P*.06).toFixed(1)}px`;};
+const pips = (n,c) => `<span class="pips" style="--c:${c}">${[1,2,3,4,5].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</span>`;
+
+/* wordmark slot: max 420x118 at --s 1 */
+document.querySelectorAll('.wordmark').forEach(w=>{
+  const [a,b] = (w.dataset.name||'FLOOR|42').split('|');
+  w.setAttribute('data-ui','');
+  w.style.cssText += ';display:flex;white-space:nowrap;align-items:flex-end;gap:calc(10px*var(--s));transform:rotate(-3deg);transform-origin:left bottom';
+  w.innerHTML = `<span class="titan ol" style="font-size:calc(60px*var(--s));--o:calc(4px*var(--s));--d:calc(6px*var(--s));padding-bottom:calc(8px*var(--s))">${a}</span>
+   <span class="titan ol sun" style="font-size:calc(104px*var(--s));--o:calc(5px*var(--s));--d:calc(9px*var(--s));display:inline-block;transform:rotate(-4deg)">${b}</span>`;
+});
+
+/* bunting */
+document.querySelectorAll('[data-bunting]').forEach((el,k)=>{
+  const cols=['#FFC83D','#FF7A2F','#22C3A6','#4CB8FF','#FFF3D6','#FF5D8F'];
+  let s=`<svg width="1300" height="80" viewBox="0 0 1300 80"><path d="M0 4 Q650 54 1300 4" fill="none" stroke="#3B1F6B" stroke-width="3"/>`;
+  for(let i=0;i<24;i++){const x=20+i*54.5,t=x/1300,y=4+ (1-(2*t-1)**2)*25;
+    s+=`<g class="pen" style="animation-delay:${-(i*0.37)%2.6}s"><path d="M${x-15} ${y} L${x+15} ${y+1.5} L${x} ${y+34}Z" fill="${cols[(i+k)%cols.length]}" stroke="#3B1F6B" stroke-width="3" stroke-linejoin="round"/></g>`;}
+  el.innerHTML = s+'</svg>';
+});
+
+/* confetti */
+document.querySelectorAll('[data-confetti]').forEach(el=>{
+  const r=rng(+el.dataset.seed), n=+el.dataset.confetti, cols=['var(--sun)','var(--teal)','var(--tang)','var(--sky)','#fff','#FF5D8F'];
+  el.style.cssText='position:absolute;inset:0;pointer-events:none';
+  let h=''; for(let i=0;i<n;i++){const side=i%2?1:0, x= side? 820+r()*420 : 40+r()*420;
+    h+=`<i style="left:${x}px;top:0;background:${cols[i%cols.length]};--dur:${2.6+r()*1.8}s;--del:${-r()*3}s;--dx:${(r()-.5)*160}px;--rot:${(r()>.5?1:-1)*(360+r()*400)}deg"></i>`;}
+  el.innerHTML=h;
+});
+
+/* podiums */
+document.querySelectorAll('.podium').forEach(p=>{
+  const small=p.classList.contains('small'), n=p.dataset.n;
+  p.style.cssText+=`;position:absolute;border:4px solid var(--grape);border-bottom:none;border-radius:16px 16px 0 0;background:${small?'var(--mist)':'var(--sun)'};box-shadow:inset 0 -10px 0 rgba(0,0,0,.08);display:flex;align-items:${small?'center':'flex-start'};justify-content:center;padding-top:${small?0:10}px;overflow:hidden`;
+  p.innerHTML = `<div style="position:absolute;left:0;right:0;top:0;height:${small?10:16}px;background:rgba(255,255,255,.55)"></div>`+
+    (small?`<span style="position:relative;font:800 ${p.offsetWidth<130?12:14}px/1 'Baloo 2';letter-spacing:1px">${n}</span>`:`<span class="titan ol" style="position:relative;font-size:${p.offsetWidth>200?64:48}px;--o:3.5px;--d:5px">${n}</span>`);
+});
+
+/* select 1P cards */
+const sel=document.getElementById('sel1');
+[1,2,3,4].forEach(i=>{const f=F[i], on=i===1;
+  sel.insertAdjacentHTML('beforeend',`<div data-ui class="${on?'focuswrap':''}" style="position:relative;width:226px;height:356px;${on?'transform:translateY(-12px) scale(1.04)':''}">
+   <div class="card" style="position:relative;inset:auto;width:100%;height:100%;${on?'':''}">
+    <div class="photo" style="height:196px;background-color:${f.c};background-image:url(_bg/${f.img});background-size:118%;background-position:50% 28%;border-bottom:4px solid var(--grape)"></div>
+    <div style="padding:10px 14px 0">
+     <div class="titan" style="font-size:25px">${f.name}</div>
+     <div style="font:800 13px/1 'Baloo 2';color:var(--grape-2);letter-spacing:1px;margin:6px 0 10px">${f.role} · ${f.jumps}</div>
+     <div style="display:flex;flex-direction:column;gap:6px">
+      <div class="stat"><span>SPEED</span>${pips(f.sp,f.c)}</div><div class="stat"><span>JUMP</span>${pips(f.ju,f.c)}</div><div class="stat"><span>WEIGHT</span>${pips(f.we,f.c)}</div></div></div></div>
+   ${on?`<div style="position:absolute;inset:-12px -12px -17px;border-radius:32px;border:4px solid #fff;box-shadow:0 0 0 4px var(--grape),inset 0 0 0 3px var(--grape);animation:ring 1.2s ease-in-out infinite"></div>
+   <span class="chip" style="position:absolute;left:50%;top:-26px;transform:translateX(-50%);--c:var(--sun)"><svg class="ic"><use href="#i-star"/></svg>YOUR PICK</span>`:''}
+  </div>`);});
+
+/* select 2P panels */
+function panel2(el,{p,f,keys,ready,col,lo}){const d=F[f];
+  el.innerHTML=`<div style="height:58px;background:${col};border-bottom:4px solid var(--grape);display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-shadow:inset 0 -5px 0 ${lo}">
+    <span class="titan ol" style="font-size:26px;--o:2.5px;--d:3px">PLAYER ${p}</span><span style="display:flex;gap:5px">${keys.map(k=>`<span class="kc">${k}</span>`).join('')}</span></div>
+   <div style="display:flex;gap:20px;padding:18px 20px 0">
+    <div class="photo" style="width:200px;height:280px;flex:none;border:4px solid var(--grape);border-radius:18px;background-color:${d.c};background-image:url(_bg/${d.img});background-size:150%;background-position:50% 40%"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px">
+     <div class="titan" style="font-size:32px">${d.name}</div>
+     <div style="font:800 14px/1 'Baloo 2';color:var(--grape-2);letter-spacing:1px">${d.role} · ${d.jumps}</div>
+     <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px"><div class="stat"><span>SPEED</span>${pips(d.sp,d.c)}</div><div class="stat"><span>JUMP</span>${pips(d.ju,d.c)}</div><div class="stat"><span>WEIGHT</span>${pips(d.we,d.c)}</div></div>
+     <div style="display:flex;gap:9px;margin-top:14px">${[1,2,3,4].map(i=>`<i style="position:relative;width:52px;height:52px;border-radius:14px;border:3px solid var(--grape);background-color:${F[i].c};${headBg(i,46,.8)};background-repeat:no-repeat;${i===f?`outline:4px solid ${col};outline-offset:2px;box-shadow:0 0 0 9px var(--grape)`:'opacity:.75'}"></i>`).join('')}</div>
+    </div></div>
+   <div style="position:absolute;left:20px;right:20px;bottom:20px;height:64px;border-radius:18px;border:4px solid var(--grape);display:flex;align-items:center;justify-content:center;gap:10px;${ready?'background:var(--teal);box-shadow:inset 0 -6px 0 var(--teal-lo)':'background:#fff;box-shadow:inset 0 -6px 0 #D9CFEE'}">
+    ${ready?`<svg class="ic" style="width:30px;height:30px"><use href="#i-check"/></svg><span class="titan ol" style="font-size:30px;--o:2.5px;--d:3px">READY!</span>`:`<span style="font:800 17px/1 'Baloo 2'">Press</span><span class="kc">;</span><span style="font:800 17px/1 'Baloo 2'">when ready</span>`}</div>`;}
+panel2(document.getElementById('p2a'),{p:1,f:1,keys:['WASD','F','G','H'],ready:true,col:'var(--f1)',lo:'#C2410C'});
+panel2(document.getElementById('p2b'),{p:2,f:3,keys:['ARROWS',';','L','K'],ready:false,col:'var(--f3)',lo:'#1F7BC8'});
+
+/* HUD player plates */
+document.querySelectorAll('.hudp').forEach(h=>{const d=h.dataset, r=d.side==='r', f=F[d.f], ko=d.ko;
+  const hp=+d.hp, segs=[0,1,2,3,4].map(i=>i<Math.floor(hp)?'':(i<hp?'part':'off'));
+  if(r) segs.reverse();
+  const chip=(t,st)=>`<span class="chip" style="height:24px;font-size:12px;--c:${st==='ready'?'var(--sun)':'var(--gray)'}">${t}${st==='ready'?'':' '+st}</span>`;
+  h.setAttribute('data-ui','');
+  h.style.cssText=`position:absolute;top:14px;${r?'right':'left'}:18px;width:372px;height:94px`;
+  h.innerHTML=`<i class="portrait" style="position:absolute;top:0;${r?'right':'left'}:0;width:66px;height:66px;--c:${f.c};${headBg(+d.f,58)};${ko?'filter:grayscale(1) brightness(.9)':''}"></i>
+   ${ko?`<span class="titan" style="position:absolute;top:44px;${r?'right':'left'}:-4px;padding:3px 8px 1px;background:var(--tomato);border:3px solid var(--grape);border-radius:8px;color:#fff;font-size:16px;transform:rotate(-8deg)">KO</span>`:''}
+   <div style="position:absolute;top:2px;${r?'right':'left'}:80px;display:flex;align-items:center;gap:8px;${r?'flex-direction:row-reverse':''}"><span class="titan ol" style="font-size:22px;--o:2.5px;--d:3px">${d.name}</span><span class="chip" style="height:22px;font-size:11.5px;padding:1px 8px 0;border-width:2.5px">${d.tag}</span></div>
+   <div class="seg-bar" style="position:absolute;top:34px;${r?'right':'left'}:76px;width:290px;--c:${f.c}">${segs.map(s=>`<i class="${s}"></i>`).join('')}</div>
+   <div style="position:absolute;top:68px;${r?'right':'left'}:80px;display:flex;gap:6px;${r?'flex-direction:row-reverse':''}"><span class="chip" style="height:24px;font-size:12px">${d.weapon}</span>${chip('DASH',d.dash)}${chip('PUSH',d.push)}</div>`;
+});
+/* HUD score */
+document.querySelectorAll('.scorebox').forEach(s=>{const d=s.dataset;
+  s.setAttribute('data-ui','');
+  s.style.cssText='position:absolute;left:50%;top:12px;width:232px;height:96px;transform:translateX(-50%)';
+  s.innerHTML=`<div class="tile" style="position:absolute;left:0;top:6px;width:82px;height:66px;--c:var(--f1)"><span class="titan ol" style="font-size:44px">${d.a}</span></div>
+   <div class="tile" style="position:absolute;right:0;top:6px;width:82px;height:66px;--c:var(--f3);${d.pop==='b'?'transform:scale(1.12,.9) translateY(4px)':''}"><span class="titan ol" style="font-size:44px">${d.b}</span></div>
+   <div style="position:absolute;left:50%;top:0;width:78px;height:78px;margin-left:-39px;border-radius:50%;background:#fff;border:4px solid var(--grape);box-shadow:0 5px 0 var(--grape);display:flex;align-items:center;justify-content:center;z-index:2"><span class="titan" style="font-size:24px">${d.time}</span></div>
+   <span class="chip" style="position:absolute;left:50%;top:80px;transform:translateX(-50%);height:22px;font-size:12px;--c:var(--sun);z-index:3">FIRST TO 5</span>
+   ${d.pop==='b'?`<div class="confetti" data-c2 style="position:absolute;right:-118px;top:-6px;width:110px;height:80px">${[0,1,2,3,4,5].map(i=>`<i style="position:absolute;left:${20+i*16}px;top:${(i%3)*22}px;width:9px;height:14px;border:2px solid var(--grape);border-radius:2px;background:${['var(--sun)','var(--teal)','#fff','var(--tang)','var(--sun)','#FF5D8F'][i]};transform:rotate(${i*47}deg);animation:none"></i>`).join('')}</div>`:''}`;
+});
+
+/* settings tabs */
+document.querySelectorAll('.settabs').forEach(t=>{const a=+t.dataset.active;
+  t.innerHTML=`<div style="display:flex;gap:12px">${['CONTROLS','CAMERA','GRAPHICS','AUDIO','ACCESSIBILITY'].map((n,i)=>`<span class="btn ${i===a?'y':'w'} sm" style="--h:48px;--fs:${i===a?19:18}px;${i===a?'':'box-shadow:inset 0 -5px 0 #D9CFEE,0 4px 0 var(--grape)'}"><span>${n}</span></span>`).join('')}</div>`;});
+/* key bindings */
+const binds=[['Move left','A','←'],['Move right','D','→'],['Jump','W','↑'],['Drop down','S','↓'],['Shoot','SPACE',''],['Dash','SHIFT','R-SHIFT'],['Force Push','Q',''],['Pick up / swap gun','F',''],['Throw bomb','G','']];
+document.getElementById('binds').innerHTML=binds.map((b,i)=>`<div style="display:grid;grid-template-columns:1fr 150px 150px;align-items:center;height:39px;${i<binds.length-1?'border-bottom:2px solid rgba(59,31,107,.12)':''}">
+  <span style="font:800 16px/1 'Baloo 2'">${b[0]}</span>
+  <span style="display:flex;justify-content:center"><span class="kc" style="min-width:92px;height:28px;font-size:14px;${i===6?'background:var(--sun);animation:ring .6s ease-in-out infinite':''}">${i===6?'PRESS A KEY':b[1]}</span></span>
+  <span style="display:flex;justify-content:center"><span class="kc" style="min-width:92px;height:28px;font-size:14px;${b[2]?'':'color:var(--gray-lo);border-style:dashed;box-shadow:none'}">${b[2]||'+ ADD'}</span></span></div>`).join('');
+/* volume rows */
+const vols=[['Master','The whole game',80],['Effects','Hits, jumps, glass, knockouts',70],['Gunshots','',60],['Menus','Focus ticks and confirms',45]];
+document.getElementById('vols').innerHTML=vols.map((v,i)=>`<div style="background:${i===0?'#fff':'var(--mist)'};border:3px solid ${i===0?'var(--grape)':'transparent'};border-radius:18px;padding:14px 18px;height:100px;${i===0?'box-shadow:0 0 0 4px #fff,0 0 0 8px var(--grape)':''}">
+  <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:800 17px/1 'Baloo 2'">${v[0]}</span><span class="titan" style="font-size:20px">${v[2]}</span></div>
+  <div class="note" style="margin:5px 0 12px;min-height:16px">${v[1]}</div>
+  <div class="slider"><b style="width:${v[2]}%"></b><i style="left:${v[2]}%"></i></div></div>`).join('')+
+  `<div style="grid-column:1/3;background:var(--mist);border-radius:18px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between"><div><div style="font:800 17px/1 'Baloo 2'">Mute everything</div><div class="note" style="margin-top:5px">M also mutes in a match</div></div><span class="toggle"><i></i></span></div>`;
+/* how to play cards */
+const kcs = a => a.map(k=>`<span class="kc" style="height:34px;min-width:36px;font-size:15px">${k}</span>`).join('');
+const how=[['MOVE & JUMP','var(--sky)',`<div style="display:grid;grid-template-columns:repeat(3,40px);gap:6px;justify-content:center"><span></span>${kcs(['W'])}<span></span>${kcs(['A','S','D'])}</div>`,'Jump again in the air. Some fighters jump three times.','or the arrow keys'],
+ ['SHOOT & GRAB','var(--tang)',`<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;width:200px;margin:0 auto">${kcs(['SPACE','F','R','G'])}</div>`,'Shoot, pick up or swap a gun, reload, throw a bomb.','Power weapons wait up top'],
+ ['DASH & PUSH','var(--teal)',`<div style="display:flex;gap:10px;justify-content:center">${kcs(['SHIFT','Q'])}</div>`,'Dash out of trouble. Force Push shoves your rival and sends bullets back.','Watch the chips under your health']];
+document.getElementById('howcards').innerHTML=how.map(h=>`<div class="card" data-ui style="position:relative;width:340px;height:306px">
+  <div style="height:150px;background:${h[1]};border-bottom:4px solid var(--grape);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+   <div style="position:absolute;inset:0;background:repeating-linear-gradient(-30deg,rgba(255,255,255,.12) 0 14px,transparent 14px 28px)"></div><div style="position:relative">${h[2]}</div></div>
+  <div style="padding:16px 22px 0"><div class="titan" style="font-size:26px">${h[0]}</div>
+   <div style="font:700 16px/1.3 'Baloo 2';margin-top:10px">${h[3]}</div>
+   <div class="note" style="margin-top:10px">${h[4]}</div></div></div>`).join('');
+/* rosettes */
+function rosette(col,icon,size=72){let pts='';for(let i=0;i<32;i++){const a=i/32*Math.PI*2,r=i%2?30:35;pts+=`${50+r*Math.cos(a)},${44+r*Math.sin(a)} `;}
+  return `<svg width="${size}" height="${size*1.1}" viewBox="0 0 100 110" style="flex:none"><path d="M34 66 L24 106 L36 98 L44 108 L50 70Z M66 66 L76 106 L64 98 L56 108 L50 70Z" fill="${col}" stroke="#3B1F6B" stroke-width="4" stroke-linejoin="round"/>
+   <polygon points="${pts}" fill="${col}" stroke="#3B1F6B" stroke-width="4" stroke-linejoin="round"/><circle cx="50" cy="44" r="24" fill="#fff" stroke="#3B1F6B" stroke-width="4"/>
+   <svg x="33" y="27" width="34" height="34" viewBox="0 0 ${icon.startsWith('w-')?'40 20':'24 24'}"><use href="#${icon}"/></svg></svg>`;}
+const medal=(col,icon,ti,d,x,y,r)=>`<div class="medal" data-ui style="left:${x}px;top:${y}px;transform:rotate(${r}deg)"><div class="ros" style="width:92px;height:92px;border-radius:50%;background:${col};border:4px solid var(--grape);box-shadow:inset 0 -7px 0 rgba(0,0,0,.18),0 6px 0 var(--grape);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden"><i style="position:absolute;left:12px;right:12px;top:6px;height:30%;border-radius:40px;background:rgba(255,255,255,.4)"></i><svg style="position:relative;width:${icon.startsWith('w-')?56:48}px;height:${icon.startsWith('w-')?28:48}px" viewBox="0 0 ${icon.startsWith('w-')?'40 20':'24 24'}"><use href="#${icon}"/></svg></div><div class="card" style="position:relative;width:224px;height:70px;margin-top:10px;padding:9px 12px 0;border-radius:18px;box-shadow:0 5px 0 var(--grape);text-align:center"><div class="titan" style="font-size:18px">${ti}</div><div style="font:700 13px/1.2 'Baloo 2';margin-top:5px;color:var(--grape-2)">${d}</div></div></div>`;
+document.getElementById('awards-win').innerHTML=medal('var(--tang)','a-burst','PIÑATA','Fighter 3 took 3 rockets',60,150,-3)+medal('var(--teal)','i-again','BOOMERANG','Fighter 1 pushed back 4 bullets',300,346,2)+medal('var(--sky)','a-jump','BOUNCY CASTLE','Fighter 1 jumped 41 times',990,170,3);
+document.getElementById('awards-loss').innerHTML=medal('var(--teal)','i-again','BOOMERANG','You pushed back 6 bullets',60,150,-3)+medal('var(--sun)','w-pistol','SHARPSHOOTER','Fighter 3 hit 61% of shots',300,346,2)+medal('var(--sky)','a-jump','BOUNCY CASTLE','You jumped 52 times',990,170,3);
+document.getElementById('sheet-rosettes').innerHTML=rosette('var(--tang)','a-burst',52)+rosette('var(--teal)','i-again',52)+rosette('var(--sky)','a-jump',52)+rosette('var(--sun)','w-pistol',52)+rosette('var(--mist)','i-check',52)+`<div class="note" style="width:300px;align-self:center">Awards are prize rosettes, not medals: 3 per match, picked by the most extreme stat. The loser's box is a PARTICIPATION ribbon.</div>`;
+/* stat card */
+document.querySelectorAll('.statcard').forEach(s=>{const L=s.dataset.loss;
+  const rows=L?[['KOs',4,5],['Damage dealt',388,402],['Accuracy','44%','61%'],['Best streak',2,3],['Times down',5,4]]:[['KOs',5,2],['Damage dealt',512,301],['Accuracy','57%','41%'],['Best streak',3,1],['Times down',2,5]];
+  s.className='card'; s.style.position='absolute';
+  s.innerHTML=`<div style="display:grid;grid-template-columns:1fr 64px 64px;align-items:center;padding:12px 16px 8px;border-bottom:3px solid var(--grape);background:var(--mist)"><span class="h-sec">THIS MATCH</span>
+   <i class="portrait" data-head="1" style="justify-self:center;width:38px;height:38px;border-width:3px;box-shadow:none;--c:var(--f1);"></i>
+   <i class="portrait" data-head="3" style="justify-self:center;width:38px;height:38px;border-width:3px;box-shadow:none;--c:var(--f3);"></i></div>
+   ${rows.map((r,i)=>`<div style="display:grid;grid-template-columns:1fr 64px 64px;align-items:center;height:40px;padding:0 16px;${i%2?'background:#FBF6EA':''}"><span style="font:700 15px/1 'Baloo 2'">${r[0]}</span><span class="titan" style="text-align:center;font-size:19px">${r[1]}</span><span class="titan" style="text-align:center;font-size:19px;color:var(--grape-2)">${r[2]}</span></div>`).join('')}<div style="height:6px"></div>`;});
+/* swatches */
+const sw=[['grape','#3B1F6B','outline / ink'],['grape-2','#5A3596','secondary ink'],['grape-deep','#26124A','scrim 86%'],['sun','#FFC83D','primary action'],['sun-lo','#E08A00','sun lip'],['tang','#FF7A2F','local / hot'],['teal','#22C3A6','online / ready'],['sky','#4CB8FF','move on'],['tomato','#F0533A','KO / danger'],['track','#E0603F','result track'],['cream','#FFF3D6','sheet bg'],['paper','#FFFBF0','panels'],['mist','#E6DEF5','wells'],['gray','#B9B3C9','disabled'],['f1','#FF6A3D','fighter 1'],['f2','#3DDC84','fighter 2'],['f3','#3EC5FF','fighter 3'],['f4','#FFD23F','fighter 4']];
+document.getElementById('swatches').innerHTML=sw.map(s=>`<div class="swatch"><b style="background:${s[1]}"></b><span>--${s[0]}</span><span style="font-weight:600;color:var(--grape-2)">${s[1]} · ${s[2]}</span></div>`).join('');
+document.getElementById('iconset').innerHTML=['i-play','i-2p','i-globe','i-fighter','i-flag','i-gear','i-help','i-back','i-left','i-right','i-pause','i-sound','i-mute','i-check','i-lock','i-again','i-home','i-clock','i-keys','i-star','w-pistol','w-smg','w-shotgun','w-rocket'].map(i=>`<div style="width:52px;height:52px;border-radius:14px;background:${i.startsWith('w-')?'#fff':'var(--sky)'};border:3px solid var(--grape);display:flex;align-items:center;justify-content:center"><svg style="width:${i.startsWith('w-')?40:30}px;height:${i.startsWith('w-')?20:30}px"><use href="#${i}"/></svg></div>`).join('');
+
+document.querySelectorAll('[data-head]').forEach(e=>{const P=e.clientWidth;e.style.cssText+=';'+headBg(+e.dataset.head,P)+';background-repeat:no-repeat';});
+const AR={'←':'M15 5 8 12l7 7M8 12h0','→':'M9 5l7 7-7 7','↑':'M5 15l7-7 7 7','↓':'M5 9l7 7 7-7'};
+document.querySelectorAll('.kc').forEach(k=>{const s=k.textContent.trim();if(AR[s])k.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24"><path d="${AR[s]}" fill="none" stroke="#3B1F6B" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;});
+document.querySelectorAll('.wordmark').forEach(w=>{const box=w.parentElement, max=box.dataset.ui!==undefined&&box.classList.contains('abs')?Infinity:box.clientWidth-24; if(w.scrollWidth>max){const s=parseFloat(getComputedStyle(w).getPropertyValue('--s'))||1;w.style.setProperty('--s',(s*max/w.scrollWidth).toFixed(3));}});
+/* solo mode for video capture: index.html#solo=b02-home */
+if(location.hash.startsWith('#solo=')){const id=location.hash.slice(6);document.body.classList.add('solo');document.querySelectorAll('section.screen').forEach(s=>{if(s.id!==id)s.remove();else s.style.margin='0'});}
+</script>
+</body></html>

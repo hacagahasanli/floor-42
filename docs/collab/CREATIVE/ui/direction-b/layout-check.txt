@@ -1,0 +1,39 @@
+fonts loaded (Titan One, Baloo 2 800, 700): true, true, true
+
+[b01-boot] clean
+
+[b02-home] clean
+
+[b03-select-1p] clean
+
+[b04-select-2p] clean
+
+[b05-vs] clean
+
+[b06-hud] clean
+
+[b07-hud-respawn] clean
+
+[b08-pause] clean
+
+[b09-settings-controls] clean
+
+[b10-settings-audio] clean
+
+[b11-howto] clean
+
+[b12-result-1-impact] clean
+
+[b13-result-2-reaction] clean
+
+[b14-result-3-final] clean
+
+[b15-result-loss] clean
+
+[b16-rematch-online] clean
+
+[b17-credits] clean
+
+[b18-sheet-components] clean
+
+[b19-sheet-tokens] clean

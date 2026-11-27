@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Roster v2 Sheets</title>
+<!-- R-022 concept sheets. Every figure is a live three.js build from boxes, cylinders and icosahedrons,
+     the same primitives and proportions as src/game/render/characters.ts, so what you see is buildable.
+     Render to PNG: node render.mjs (this folder). -->
+<link href="https://fonts.googleapis.com/css2?family=Titan+One&family=Baloo+2:wght@500;600;700;800&display=block" rel="stylesheet">
+<style>
+  :root { --ink:#22163f; --grape:#3B1F6B; --paper:#fff8ec; --sand:#efcf98; --sky:#6fbbe3; --cliff:#b97c57; --office:#1b1f2e; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #2a2140; font-family: 'Baloo 2', sans-serif; color: var(--ink); }
+  .sheet { width: 1920px; height: 1080px; position: relative; overflow: hidden; margin-bottom: 40px;
+    background: radial-gradient(ellipse at 22% 55%, var(--tint) 0%, #fff3df 46%, #f6dfb6 100%); }
+  .sheet::before { content:''; position:absolute; left:-340px; top:-380px; width:1500px; height:1500px; opacity:.20;
+    background: repeating-conic-gradient(from 0deg at 50% 50%, var(--acc) 0 6deg, transparent 6deg 18deg); border-radius:50%;
+    -webkit-mask: radial-gradient(circle, #000 25%, transparent 70%); mask: radial-gradient(circle, #000 25%, transparent 70%); }
+  .hero { position:absolute; left:20px; top:150px; width:760px; height:900px; }
+  .hero img { width:100%; height:100%; object-fit:contain; }
+  .nameblock { position:absolute; left:56px; top:34px; }
+  .name { font-family:'Titan One'; font-size:118px; line-height:1; color:var(--acc); letter-spacing:2px;
+    -webkit-text-stroke: 7px var(--grape); paint-order: stroke fill; text-shadow: 0 8px 0 var(--grape); }
+  .role { font-weight:800; font-size:30px; color:var(--grape); margin-top:8px; letter-spacing:1px; text-transform:uppercase; }
+  .backups { font-size:20px; font-weight:600; color:#6b5a86; margin-top:2px; }
+  .slot { position:absolute; left:58px; bottom:30px; font-size:17px; font-weight:600; color:#7d6c93; }
+  .col { position:absolute; top:40px; }
+  .card { background: var(--paper); border: 5px solid var(--grape); border-radius: 26px; box-shadow: 0 8px 0 var(--grape); padding: 14px 22px; }
+  .kicker { font-family:'Titan One'; font-size:22px; color:var(--acc2); letter-spacing:1px; text-transform:uppercase; -webkit-text-stroke:0; }
+  .big { font-size:23px; font-weight:800; line-height:1.15; color:var(--grape); }
+  .txt { font-size:19px; font-weight:600; line-height:1.3; color:#3d2d5c; }
+  .quotes { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .quote { background:var(--acc); color:#fff; font-weight:800; font-size:18px; padding:2px 14px; border-radius:999px; border:3px solid var(--grape); }
+  .poses { position:absolute; left:790px; top:40px; width:600px; display:flex; flex-direction:column; gap:22px; }
+  .pose { display:flex; gap:16px; align-items:stretch; height:320px; }
+  .pose .pic { width:270px; flex:none; border-radius:22px; border:5px solid var(--grape); box-shadow:0 7px 0 var(--grape);
+    background: linear-gradient(#bfe6f7 0%, #9fd3ee 58%, #f1d39d 58%, #e9c487 100%); overflow:hidden; }
+  .pose .pic img { width:100%; height:100%; object-fit:cover; }
+  .pose .desc { flex:1; padding:6px 0; }
+  .pose h3 { font-family:'Titan One'; font-size:30px; color:var(--acc); -webkit-text-stroke:4px var(--grape); paint-order:stroke fill; font-weight:400; }
+  .pose p { font-size:19px; font-weight:600; line-height:1.28; color:#3d2d5c; margin-top:4px; }
+  .pose code { font-family:'Baloo 2'; font-weight:800; color:var(--acc2); }
+  .right { position:absolute; left:1414px; top:36px; width:476px; display:flex; flex-direction:column; gap:18px; }
+  .trait { background: var(--acc); color:#fff; }
+  .trait .kicker { color:#fff; opacity:.92; }
+  .trait .big { color:#fff; font-size:34px; font-family:'Titan One'; font-weight:400; -webkit-text-stroke:5px var(--grape); paint-order:stroke fill; }
+  .trait .txt { color:#fff; }
+  .sil { display:flex; align-items:flex-end; gap:14px; margin-top:8px; }
+  .sil figure { text-align:center; font-size:15px; font-weight:700; color:#6b5a86; }
+  .sil img { display:block; height:110px; image-rendering: auto; }
+  .sil .bgs { display:flex; gap:8px; }
+  .sil .bgs div { width:70px; height:110px; border-radius:12px; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+  .sil .bgs img { height:110px; }
+  .swatches { display:flex; gap:8px; margin-top:10px; }
+  .sw { flex:1; height:64px; border-radius:12px; border:3px solid var(--grape); position:relative; }
+  .sw span { position:absolute; left:0; right:0; bottom:-24px; text-align:center; font-size:13px; font-weight:700; color:#6b5a86; }
+  .contrast { display:flex; gap:8px; margin-top:34px; }
+  .contrast div { flex:1; border-radius:10px; padding:6px 0; text-align:center; font-weight:800; font-size:15px; }
+  .contrast b { display:inline-block; width:26px; height:26px; border-radius:6px; vertical-align:middle; margin-right:6px; border:2px solid rgba(0,0,0,.25); }
+  /* overview */
+  .ov { background: radial-gradient(ellipse at 50% 30%, #fff6e4 0%, #f7e2bb 55%, #eec78a 100%); }
+  .ov::before { display:none; }
+  .ov .title { position:absolute; left:0; right:0; top:26px; text-align:center; font-family:'Titan One'; font-size:64px; color:#FFC83D;
+    -webkit-text-stroke:7px var(--grape); paint-order:stroke fill; text-shadow:0 7px 0 var(--grape); }
+  .ov .sub { position:absolute; left:0; right:0; top:110px; text-align:center; font-size:24px; font-weight:700; color:#6b5a86; }
+  .ov .lineup { position:absolute; left:0; top:150px; width:1920px; height:620px; }
+  .ov .lineup img { width:100%; height:100%; object-fit:contain; }
+  .ov .cards { position:absolute; left:60px; right:60px; top:790px; display:flex; gap:28px; }
+  .ov .cards .card { flex:1; padding:14px 20px; border-top: 16px solid var(--c); }
+  .ov .cards .nm { font-family:'Titan One'; font-size:46px; color:var(--c); -webkit-text-stroke:5px var(--grape); paint-order:stroke fill; line-height:1.05; }
+  .ov .cards .ln { font-size:19px; font-weight:700; color:#3d2d5c; line-height:1.25; margin-top:4px; }
+  .ov .cards .ln b { color:var(--grape); }
+  .ov .silrow { position:absolute; right:64px; top:28px; display:flex; gap:6px; align-items:flex-end; background:#fff8ec; border:4px solid var(--grape); border-radius:16px; padding:8px 12px 4px; }
+  .ov .silrow img { height:104px; display:block; }
+  .ov .silrow figcaption { font-size:12px; font-weight:700; color:#6b5a86; text-align:center; }
+  .ov .silcap { position:absolute; right:64px; top:178px; font-size:14px; font-weight:700; color:#6b5a86; width:420px; text-align:right; }
+</style>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.170.0/build/three.module.js" } }</script>
+</head>
+<body>
+<div id="sheets"></div>
+<script type="module">
+import * as THREE from 'three';
+
+const D = Math.PI / 180;
+const FIGHTERS = [
+  {
+    ov: ['Competitive about everything, including the stairs.', 'a long striped scarf streaming behind her', 'float for a moment at the top of a jump'], id: 'kessa', slot: 'hotfix', name: 'KESSA', backups: 'Tova · Sela', role: 'The Overachiever',
+    acc: '#E5392F', acc2: '#B8261F', tint: '#ffd9cf',
+    personality: 'Signed up for every event at the field day, keeps score of all of them, and will tell you hers.',
+    quotes: ['Watch this.', 'Did anyone film that?', 'Again. Faster.'],
+    hook: 'A long striped scarf that streams behind her. It draws every jump in the air: you track Kessa by her ribbon.',
+    trait: ['HANG TIME', 'Hold jump at the top of a jump: she floats (falls slower) for a moment, once per jump. She shows off mid-air, and is an easy target while she does.'],
+    stats: 'Tallest · light · highest jumps · fast',
+    palette: [['#E5392F','track top'],['#FFF1DC','stripe'],['#1B1F2E','leggings'],['#C68A63','skin'],['#2A1A14','hair'],['#FFB3A8','rim tint']],
+    poses: {
+      idle: 'Bouncing on her toes (root y +0.03 m at 2 Hz), chest up (torso -5°), hands loose at the hips, scarf always streaming back 60° (wind, even indoors: it is her flag).',
+      victory: 'Hop 0.15 m; right arm points straight up (shoulder <code>-170°</code>), left fist on hip (shoulder 40° out, elbow -100°), left knee up 70°. Scarf whips up and back.',
+      defeat: 'Drops to one knee (right shin on the ground), both hands on her head (arms up and out 140°, elbows folded 112° inward), head down 24°.',
+      taunt: 'Taunt: checks an imaginary stopwatch on her wrist (left elbow -110°, head down 25°), then taps it twice.',
+    },
+  },
+  {
+    ov: ['Never runs, never panics, always has tea.', 'a handlebar moustache wider than his head', 'health comes back sooner after a fight'], id: 'ormo', slot: 'legacy', name: 'ORMO', backups: 'Hollis · Barlo', role: 'The Office Dad',
+    acc: '#14A37F', acc2: '#0B7A5E', tint: '#cff3e6',
+    personality: 'Never runs, never panics, always has a thermos of tea and a folding chair. Everyone\'s favourite uncle.',
+    quotes: ['Easy now.', 'Tea\'s still warm.', 'I\'ve seen worse.'],
+    hook: 'A huge dark handlebar moustache, wider than his head, on the widest, squarest body. A bar on a block: no one else reads like that.',
+    trait: ['TEA BREAK', 'His health starts coming back sooner after he leaves a fight (the others wait 4 s, he waits less). Calm pays off; a rushed Ormo heals like everyone.'],
+    stats: 'Widest · heaviest · hardest to shove · slow',
+    palette: [['#14A37F','knit vest'],['#F3EBDD','shirt'],['#4A2E22','moustache'],['#5A4A3A','trousers'],['#E9B48F','skin'],['#9FF0D8','rim tint']],
+    poses: {
+      idle: 'Hands behind his back (shoulders +35° back, elbows -70°), slow heel-to-toe rock (root pitch ±2° at 0.5 Hz). Moustache twitches every 3-5 s.',
+      victory: 'Raises his thermos cup in a toast (right shoulder <code>-105°</code>, elbow -45°), left hand pats his belly. Belly bounces twice.',
+      defeat: 'Sits down heavily on the floor, legs out in a V (thighs -85°, 25° apart), hands on his knees, head down 15°. One long sigh.',
+      taunt: 'Taunt: smooths the moustache with one finger (right elbow -140°, hand at the lip), slow nod.',
+    },
+  },
+  {
+    ov: ['Shortest in the company, self-appointed coach.', 'two big round hair puffs', 'a burst of speed every time she is hit'], id: 'zuzu', slot: 'standup', name: 'ZUZU', backups: 'Nuni · Tizi', role: 'The Tiny Coach',
+    acc: '#F25CB8', acc2: '#C2358C', tint: '#ffd6ee',
+    personality: 'Shortest person in the company and its self-appointed coach. Blows her whistle at everything, especially you.',
+    quotes: ['Too slow!', 'Keep up!', '*TWEEEET*'],
+    hook: 'Two big round hair puffs on top of a small body: a round head with two round ears. Instantly readable even at 80 px.',
+    trait: ['SUGAR RUSH', 'Every time she gets hit she runs faster for a moment. Hard to finish off, never stronger at dealing damage.'],
+    stats: 'Smallest · lightest · fastest · two air jumps',
+    palette: [['#F25CB8','track top'],['#2B2230','hair'],['#1B1F2E','shorts'],['#FFC93C','shoes'],['#8D5A3B','skin'],['#FFC4E6','rim tint']],
+    poses: {
+      idle: 'Low ready crouch (knees bent 25°), fists up at chest height (shoulders -50°, elbows -110°), bouncing 0.04 m at 3 Hz, puffs jiggle on a spring.',
+      victory: 'Star jump 0.35 m: arms <code>150°</code> out, legs 25° out, then blows the whistle (head back 10°).',
+      defeat: 'Flat on her back like a starfish, arms 70° and legs 30° out. Whistle rolls off her chest.',
+      taunt: 'Taunt: blows the whistle and points at the rival (right shoulder -90°, elbow 0°): foul!',
+    },
+  },
+  {
+    ov: ['Packed for a week. It is a day trip.', 'a towering orange pack with a mat on top', 'extra ammo in every gun he picks up'], id: 'tavo', slot: 'intern', name: 'TAVO', backups: 'Benno · Fenn', role: 'The Over-Packer',
+    acc: '#2456D6', acc2: '#163A94', tint: '#d8e3ff',
+    personality: 'Packed for a week. It is a day trip. Earnest, helpful, a bit worried, and he has a spare of everything.',
+    quotes: ['I brought a spare.', 'Good thing I packed this.', 'Plaster, anyone?'],
+    hook: 'A towering orange hiking pack with a rolled mat on top, higher than his head. A hump above the head: one glance and it\'s Tavo.',
+    trait: ['PACKED EXTRA', 'Every gun he picks up comes with a bit more ammo (not the power guns). He out-lasts you in a long fight, never out-guns you in a short one.'],
+    stats: 'Balanced · medium build · all-rounder',
+    palette: [['#2456D6','fleece'],['#F08A24','backpack'],['#C8B07A','hat'],['#8C7A55','pants'],['#F1C7A0','skin'],['#A9C2FF','rim tint']],
+    poses: {
+      idle: 'Thumbs hooked in the pack straps (shoulders -15°, elbows -115°), weight shifts side to side, glances at the pack every 4 s.',
+      victory: 'Pulls a tiny flag from a side pocket and waves it high (right shoulder <code>-165°</code>, ±15° wave at 3 Hz); left thumb up.',
+      defeat: 'Sits down, legs straight out; the pack has slid off beside him and spilled a mug and a sandwich. He looks at them.',
+      taunt: 'Taunt: holds out a sandwich to the rival (right shoulder -80°, elbow -20°), head tilted 10°. Peace offering.',
+    },
+  },
+];
+
+// ---------------------------------------------------------------- rig building
+const hex = (h) => new THREE.Color(h);
+const matCache = new Map();
+const M = (c) => { const k = String(c); if (!matCache.has(k)) matCache.set(k, new THREE.MeshStandardMaterial({ color: hex(c), flatShading: true, roughness: 0.85, metalness: 0.04 })); return matCache.get(k); };
+const box = (w, h, d, c) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(c));
+const ico = (r, c, det = 1) => new THREE.Mesh(new THREE.IcosahedronGeometry(r, det), M(c));
+const cyl = (r, h, c, seg = 8, r2 = r) => new THREE.Mesh(new THREE.CylinderGeometry(r2, r, h, seg), M(c));
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const G = () => new THREE.Group();
+
+const SPEC = {
+  kessa: { legLen: 0.9, legR: 0.085, torsoW: 0.5, torsoH: 0.66, torsoD: 0.32, headR: 0.19, armLen: 0.78, armR: 0.07,
+    skin: '#C68A63', top: '#E5392F', pants: '#1B1F2E', shoes: '#FFFAF0' },
+  ormo: { legLen: 0.55, legR: 0.15, torsoW: 0.95, torsoH: 0.75, torsoD: 0.55, headR: 0.23, armLen: 0.62, armR: 0.12,
+    skin: '#E9B48F', top: '#14A37F', pants: '#5A4A3A', shoes: '#4A3426', sleeve: '#F3EBDD' },
+  zuzu: { legLen: 0.45, legR: 0.085, torsoW: 0.48, torsoH: 0.45, torsoD: 0.3, headR: 0.21, armLen: 0.48, armR: 0.065,
+    skin: '#8D5A3B', top: '#F25CB8', pants: '#1B1F2E', shoes: '#FFC93C', sock: '#FFFAF0' },
+  tavo: { legLen: 0.7, legR: 0.1, torsoW: 0.52, torsoH: 0.55, torsoD: 0.32, headR: 0.19, armLen: 0.6, armR: 0.075,
+    skin: '#F1C7A0', top: '#2456D6', pants: '#8C7A55', shoes: '#5A4130' },
+};
+
+function buildRig(id) {
+  const s = SPEC[id];
+  const root = G(), hips = G(), torso = G(), head = G();
+  root.add(hips); hips.position.y = s.legLen; hips.add(torso);
+  // torso
+  torso.add(at(box(s.torsoW, s.torsoH, s.torsoD, s.top), 0, s.torsoH / 2, 0));
+  torso.add(at(box(s.torsoW * 0.96, 0.12, s.torsoD * 0.96, s.pants), 0, 0.02, 0));
+  // head
+  torso.add(head); head.position.y = s.torsoH + s.headR * 0.95;
+  head.add(at(cyl(s.headR * 0.42, 0.14, s.skin, 6), 0, -s.headR * 0.85, 0));
+  head.add(ico(s.headR, s.skin, 1));
+  for (const sx of [-1, 1]) head.add(at(box(0.045, 0.065, 0.02, '#1B1F2E'), sx * s.headR * 0.36, 0.03, s.headR * 0.93));
+  // limbs
+  const limbs = {};
+  for (const [side, sx] of [['L', 1], ['R', -1]]) {
+    const sh = G(); sh.position.set(sx * (s.torsoW / 2 + s.armR * 0.9), s.torsoH - s.armR * 1.2, 0); torso.add(sh);
+    const u = s.armLen * 0.5;
+    sh.add(at(cyl(s.armR, u, s.sleeve || s.top, 7), 0, -u / 2, 0));
+    const el = G(); el.position.y = -u; sh.add(el);
+    el.add(at(cyl(s.armR * 0.9, u, s.sleeve ? s.skin : s.top, 7), 0, -u / 2, 0));
+    el.add(at(ico(s.armR * 1.25, s.skin, 0), 0, -u - 0.02, 0));
+    const hand = G(); hand.position.y = -u - 0.03; el.add(hand);
+    const hip = G(); hip.position.set(sx * s.torsoW * 0.24, 0, 0); hips.add(hip);
+    const t = s.legLen * 0.5;
+    hip.add(at(cyl(s.legR, t, s.pants, 7), 0, -t / 2, 0));
+    const kn = G(); kn.position.y = -t; hip.add(kn);
+    kn.add(at(cyl(s.legR * 0.92, t, s.sock && id === 'zuzu' ? s.skin : s.pants, 7), 0, -t / 2, 0));
+    if (id === 'zuzu') { kn.add(at(cyl(s.legR * 0.98, t * 0.55, s.sock, 7), 0, -t * 0.62, 0)); kn.add(at(cyl(s.legR, 0.035, s.top, 7), 0, -t * 0.36, 0)); }
+    kn.add(at(box(s.legR * 2.3, 0.1, s.legR * 3.6, s.shoes), 0, -t - 0.0, s.legR * 0.7));
+    limbs['arm' + side] = sh; limbs['fore' + side] = el; limbs['hand' + side] = hand; limbs['leg' + side] = hip; limbs['shin' + side] = kn;
+  }
+  const rig = { id, s, root, hips, torso, head, ...limbs, extra: {} };
+  EXTRAS[id](rig);
+  return rig;
+}
+
+const EXTRAS = {
+  kessa(r) {
+    const { s, head, torso } = r;
+    // short bob hair cap + cream sweatband
+    const hair = ico(s.headR * 1.1, '#2A1A14', 1); hair.scale.set(1.02, 0.86, 1.02); hair.position.set(0, 0.07, -0.04); head.add(hair);
+    const band = cyl(s.headR * 1.04, 0.055, '#FFF1DC', 10); band.position.y = 0.125; head.add(band);
+    // side stripe on the leggings
+    for (const k of ['legL', 'legR']) r[k].add(at(box(0.02, s.legLen * 0.48, 0.02, '#FFF1DC'), (k === 'legL' ? 1 : -1) * s.legR, -s.legLen * 0.25, 0));
+    // the scarf: a collar ring plus two tails made of chained segments
+    const collar = cyl(s.headR * 0.78, 0.1, '#E5392F', 10); collar.position.y = s.torsoH + 0.03; torso.add(collar);
+    const tails = [];
+    for (const [i, off] of [[0, 0.07], [1, -0.07]]) {
+      const base = G(); base.position.set(off, s.torsoH + 0.02, -s.torsoD / 2 - 0.02); torso.add(base);
+      let parent = base; const segs = [];
+      const n = i === 0 ? 6 : 5;
+      for (let k = 0; k < n; k++) {
+        const g = G(); parent.add(g); if (k) g.position.y = -0.21;
+        g.add(at(box(0.2, 0.22, 0.07, k % 2 ? '#FFF1DC' : '#E5392F'), 0, -0.1, 0));
+        segs.push(g); parent = g;
+      }
+      tails.push(segs);
+    }
+    r.extra.scarf = tails;
+  },
+  ormo(r) {
+    const { s, head, torso } = r;
+    // shirt panel under the vest, collar
+    torso.add(at(box(0.3, s.torsoH * 0.92, 0.04, s.sleeve), 0, s.torsoH / 2, s.torsoD / 2));
+    for (let i = 0; i < 3; i++) torso.add(at(cyl(0.025, 0.02, '#1B1F2E', 6), 0, 0.18 + i * 0.18, s.torsoD / 2 + 0.03).rotateX(Math.PI / 2));
+    const belly = ico(0.34, '#14A37F', 1); belly.scale.set(1.12, 0.8, 0.3); belly.position.set(0, 0.25, s.torsoD / 2 + 0.0); torso.add(belly);
+    // bald head, grey sides, bushy brows
+    for (const sx of [-1, 1]) { const sd = ico(0.1, '#B8B0A4', 0); sd.scale.set(0.6, 1, 1.3); sd.position.set(sx * s.headR * 0.9, 0.0, -0.05); head.add(sd); }
+    for (const sx of [-1, 1]) head.add(at(box(0.12, 0.04, 0.05, '#4A2E22'), sx * s.headR * 0.4, 0.1, s.headR * 0.92));
+    // THE moustache: a wide bar with curled tips, wider than the head
+    const tache = G(); tache.position.set(0, -0.05, s.headR * 0.93); head.add(tache);
+    tache.add(at(box(0.26, 0.085, 0.09, '#4A2E22'), 0, 0, 0));
+    for (const sx of [-1, 1]) {
+      const arm = box(0.2, 0.07, 0.08, '#4A2E22'); arm.position.set(sx * 0.21, 0.02, -0.02); arm.rotation.z = sx * 0.28; tache.add(arm);
+      const tip = ico(0.055, '#4A2E22', 0); tip.position.set(sx * 0.32, 0.08, -0.03); tache.add(tip);
+    }
+    head.add(at(ico(0.05, s.skin, 0), 0, 0.0, s.headR * 1.02));
+    // thermos on the right hip
+    const th = G(); th.position.set(-s.torsoW / 2 - 0.02, 0.12, 0.05); torso.add(th);
+    th.add(cyl(0.07, 0.3, '#C9CED8', 8)); th.add(at(cyl(0.075, 0.07, '#E5392F', 8), 0, 0.18, 0));
+    r.extra.thermos = th;
+  },
+  zuzu(r) {
+    const { s, head, torso } = r;
+    const cap = ico(s.headR * 1.05, '#2B2230', 1); cap.scale.set(1, 0.7, 1); cap.position.set(0, 0.07, -0.02); head.add(cap);
+    for (const sx of [-1, 1]) { const p = ico(0.19, '#2B2230', 1); p.position.set(sx * 0.2, 0.25, -0.02); head.add(p); }
+    for (const sx of [-1, 1]) head.add(at(box(0.04, 0.04, 0.04, '#F25CB8'), sx * 0.12, 0.17, 0.05));
+    // lanyard + whistle
+    for (const sx of [-1, 1]) torso.add(at(box(0.025, 0.24, 0.02, '#FFC93C'), sx * 0.08, s.torsoH - 0.12, s.torsoD / 2 + 0.01));
+    const wh = G(); wh.position.set(0, s.torsoH - 0.26, s.torsoD / 2 + 0.04); torso.add(wh);
+    wh.add(box(0.1, 0.06, 0.06, '#FFC93C')); wh.add(at(box(0.04, 0.04, 0.08, '#FFC93C'), 0.06, 0.0, 0.03));
+    torso.add(at(box(s.torsoW + 0.01, 0.06, s.torsoD + 0.01, '#FFFAF0'), 0, s.torsoH * 0.55, 0));
+  },
+  tavo(r) {
+    const { s, head, torso } = r;
+    // bucket hat
+    head.add(at(cyl(s.headR * 1.05, 0.14, '#C8B07A', 9, s.headR * 0.95), 0, 0.12, 0));
+    head.add(at(cyl(s.headR * 1.55, 0.03, '#B39A62', 10), 0, 0.06, 0));
+    // round glasses
+    for (const sx of [-1, 1]) { const l = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.013, 4, 10), M('#1B1F2E')); l.position.set(sx * 0.075, 0.03, s.headR * 0.97); head.add(l); }
+    // straps
+    for (const sx of [-1, 1]) torso.add(at(box(0.06, s.torsoH * 0.95, 0.04, '#B85F12'), sx * 0.16, s.torsoH / 2, s.torsoD / 2 + 0.01));
+    // pockets on cargo pants
+    for (const k of ['legL', 'legR']) r[k].add(at(box(0.05, 0.12, 0.12, '#7A6A47'), (k === 'legL' ? 1 : -1) * (s.legR + 0.01), -0.22, 0));
+    // THE pack: tall, orange, with a rolled mat on top and a mug
+    const pack = G(); pack.position.set(0, 0.0, -s.torsoD / 2 - 0.22); torso.add(pack);
+    pack.add(at(box(0.62, 0.98, 0.42, '#F08A24'), 0, 0.5, 0));
+    pack.add(at(box(0.5, 0.3, 0.08, '#C96E16'), 0, 0.82, 0.2));
+    pack.add(at(box(0.44, 0.3, 0.1, '#C96E16'), 0, 0.28, -0.22));
+    for (const sx of [-1, 1]) pack.add(at(box(0.1, 0.32, 0.26, '#C96E16'), sx * 0.36, 0.35, 0));
+    const mat = cyl(0.13, 0.78, '#3F7A4A', 9); mat.rotation.z = Math.PI / 2; mat.position.set(0, 1.11, 0); pack.add(mat);
+    for (const sx of [-1, 1]) { const b = cyl(0.135, 0.05, '#2C2C2C', 9); b.rotation.z = Math.PI / 2; b.position.set(sx * 0.22, 1.11, 0); pack.add(b); }
+    const mug = cyl(0.06, 0.1, '#FFFAF0', 8); mug.position.set(0.41, 0.1, 0.05); pack.add(mug);
+    r.extra.pack = pack;
+  },
+};
+
+// ---------------------------------------------------------------- poses
+// angles in degrees. arm x<0 swings forward/up; arm z>0 lifts the LEFT arm (on +x) sideways (mirrored for R).
+const POSES = {
+  kessa: {
+    idle: { root: { y: 0.02 }, torso: { x: -5 }, armL: { x: 8, z: 10 }, foreL: { x: -18 }, armR: { x: -10, z: -10 }, foreR: { x: -25 },
+      legL: { x: -6, z: 3 }, shinL: { x: 8 }, legR: { x: 8, z: -3 }, shinR: { x: 4 }, scarf: { lift: 70, wave: 10 } },
+    victory: { root: { y: 0.16 }, torso: { x: -8 }, head: { x: -14 }, armR: { x: -172, z: -6 }, foreR: { x: -4 }, armL: { x: -5, z: 42 }, foreL: { x: -105 },
+      legL: { x: -72, z: 4 }, shinL: { x: 85 }, legR: { x: 6 }, shinR: { x: 6 }, scarf: { lift: 88, wave: 16 } },
+    defeat: { root: { y: -0.42 }, torso: { x: 14 }, head: { x: 24 }, armL: { x: -25, z: 140 }, foreL: { z: 112 }, armR: { x: -25, z: -140 }, foreR: { z: -112 },
+      legL: { x: -88 }, shinL: { x: 88 }, legR: { x: 0 }, shinR: { x: 92 }, scarf: { lift: 12, wave: 8 } },
+  },
+  ormo: {
+    idle: { torso: { x: -3 }, armL: { x: 38, z: 8 }, foreL: { x: -72 }, armR: { x: 38, z: -8 }, foreR: { x: -72 }, legL: { z: 4 }, legR: { z: -4 } },
+    victory: { torso: { x: -6 }, head: { x: -12 }, armR: { x: -112, z: -10 }, foreR: { x: -48 }, armL: { x: -28, z: 22 }, foreL: { x: -80 },
+      legL: { z: 5 }, legR: { z: -5 }, thermosInHand: true },
+    defeat: { root: { y: -0.5 }, torso: { x: 10 }, head: { x: 18 }, armL: { x: -48, z: 10 }, foreL: { x: -20 }, armR: { x: -48, z: -10 }, foreR: { x: -20 },
+      legL: { x: -86, y: 0, z: 22 }, shinL: { x: 5 }, legR: { x: -86, z: -22 }, shinR: { x: 5 } },
+  },
+  zuzu: {
+    idle: { root: { y: -0.04 }, torso: { x: 10 }, head: { x: -8 }, armL: { x: -52, z: 12 }, foreL: { x: -112 }, armR: { x: -60, z: -12 }, foreR: { x: -115 },
+      legL: { x: -28, z: 5 }, shinL: { x: 40 }, legR: { x: -12, z: -5 }, shinR: { x: 32 } },
+    victory: { root: { y: 0.34 }, head: { x: -10 }, armL: { x: -5, z: 150 }, foreL: { x: -10 }, armR: { x: -5, z: -150 }, foreR: { x: -10 },
+      legL: { z: 24 }, shinL: { x: 6 }, legR: { z: -24 }, shinR: { x: 6 } },
+    defeat: { root: { y: 0.17, x: -90, pz: -0.7 }, head: { x: -10, z: 15 }, armL: { z: 75 }, foreL: { x: -10 }, armR: { z: -70 }, foreR: { x: -15 },
+      legL: { z: 28 }, legR: { z: -28 } },
+  },
+  tavo: {
+    idle: { torso: { x: 4 }, head: { y: 8 }, armL: { x: -14, z: 6 }, foreL: { x: -118 }, armR: { x: -14, z: -6 }, foreR: { x: -118 },
+      legL: { x: -4, z: 3 }, legR: { x: 4, z: -3 } },
+    victory: { root: { y: 0.05 }, head: { x: -10 }, armR: { x: -165, z: -15 }, foreR: { x: -10 }, armL: { x: -50, z: 10 }, foreL: { x: -90 },
+      legL: { z: 4 }, legR: { z: -4 }, flag: true, thumb: true },
+    defeat: { root: { y: -0.6 }, torso: { x: 8 }, head: { x: 22, y: -30 }, armL: { x: 20, z: 18 }, foreL: { x: -10 }, armR: { x: 20, z: -18 }, foreR: { x: -10 },
+      legL: { x: -88, z: 6 }, legR: { x: -88, z: -6 }, packOff: true },
+  },
+};
+
+function applyPose(rig, p) {
+  const set = (o, a = {}) => { if (!o) return; o.rotation.set((a.x || 0) * D, (a.y || 0) * D, (a.z || 0) * D); };
+  rig.root.rotation.order = 'YXZ';
+  rig.root.position.y = p.root?.y || 0;
+  if (p.root?.pz) rig.root.userData.pz = p.root.pz;
+  rig.root.rotation.x = (p.root?.x || 0) * D;
+  for (const k of ['torso', 'head', 'armL', 'foreL', 'armR', 'foreR', 'legL', 'shinL', 'legR', 'shinR']) set(rig[k], p[k]);
+  if (rig.extra.scarf) {
+    const sc = p.scarf || { lift: 20, wave: 10 };
+    rig.extra.scarf.forEach((segs, ti) => segs.forEach((g, k) => {
+      g.rotation.x = (k === 0 ? sc.lift : 3 + Math.sin(k * 1.1 + ti * 1.7) * sc.wave * 0.5) * D;
+      g.rotation.z = k === 0 ? (ti ? 1 : -1) * 7 * D : 0; g.rotation.y = k === 0 ? (ti ? 1 : -1) * 14 * D : 0;
+    }));
+  }
+  if (rig.id === 'ormo' && p.thermosInHand) {
+    const cup = G(); cup.add(cyl(0.075, 0.12, '#E5392F', 8)); cup.position.set(0, -0.06, 0.02); rig.handR.add(cup);
+  }
+  if (rig.id === 'tavo') {
+    if (p.flag) {
+      const f = G(); f.add(at(cyl(0.012, 0.55, '#5A4130', 5), 0, -0.1, 0)); const tri = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 3), M('#FFC83D'));
+      tri.rotation.z = Math.PI / 2; tri.position.set(-0.15, -0.3, 0); f.add(tri); f.rotation.x = Math.PI; rig.handR.add(f);
+    }
+    if (p.thumb) rig.handL.add(at(box(0.04, 0.09, 0.04, rig.s.skin), 0, 0.02, 0.05));
+    if (p.packOff) {
+      const pack = rig.extra.pack; rig.torso.remove(pack); pack.position.set(0.5, 0.22, -0.55); pack.rotation.set(0, 0.3, -1.4); rig.root.add(pack);
+      rig.root.add(at(cyl(0.06, 0.1, '#FFFAF0', 8), 0.75, 0.05, 0.2));
+      const sw = box(0.18, 0.07, 0.15, '#E9C98F'); sw.position.set(0.6, 0.04, 0.55); sw.rotation.y = 0.6; rig.root.add(sw);
+      rig.root.add(at(box(0.16, 0.025, 0.13, '#5FB04A'), 0.6, 0.085, 0.55));
+    }
+  }
+  if (rig.id === 'zuzu' && p.root?.x) { /* whistle rolls off */ }
+}
+
+// ---------------------------------------------------------------- rendering
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setPixelRatio(1);
+
+function lights(scene, rim) {
+  scene.add(new THREE.HemisphereLight('#dff1ff', '#e3bf86', 1.5));
+  const sun = new THREE.DirectionalLight('#fff2dc', 2.3); sun.position.set(-3, 6, 5); scene.add(sun);
+  const r = new THREE.DirectionalLight(rim, 2.2); r.position.set(4, 3, -5); scene.add(r);
+  const fill = new THREE.DirectionalLight('#ffffff', 0.5); fill.position.set(3, 1, 4); scene.add(fill);
+}
+function blob(scene, x = 0, rx = 0.6) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(rx, 28), new THREE.MeshBasicMaterial({ color: '#3b2a10', transparent: true, opacity: 0.22 }));
+  m.rotation.x = -Math.PI / 2; m.position.set(x, 0.002, 0); m.scale.y = 0.6; scene.add(m);
+}
+function shot(scene, cam, w, h) {
+  renderer.setSize(w, h, false);
+  renderer.setClearColor(0x000000, 0);
+  renderer.render(scene, cam);
+  return renderer.domElement.toDataURL('image/png');
+}
+function fighterScene(f, pose, yaw) {
+  const scene = new THREE.Scene(); lights(scene, f.tint);
+  const rig = buildRig(f.id); applyPose(rig, POSES[f.id][pose]); rig.root.rotation.y = yaw * D; scene.add(rig.root);
+  if (rig.root.userData.pz) { const v = new THREE.Vector3(0, 0, rig.root.userData.pz).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw * D); rig.root.position.x -= v.x; rig.root.position.z -= v.z; }
+  blob(scene, 0, f.id === 'ormo' ? 0.75 : 0.55);
+  return { scene, rig };
+}
+function heroShot(f, pose, yaw, w, h, fov = 24, dist = 7.2, lookY = 1.0, camUp = 0.6) {
+  const { scene } = fighterScene(f, pose, yaw);
+  const cam = new THREE.PerspectiveCamera(fov, w / h, 0.1, 50);
+  cam.position.set(0, lookY + camUp, dist); cam.lookAt(0, lookY, 0);
+  return shot(scene, cam, w, h);
+}
+// Silhouette at game scale: pxPerM pixels per metre, flat black (or a flat colour), orthographic.
+function silhouette(f, yaw, pxPerM, colour = '#000000', pose = 'idle', hM = 2.4, wM = 1.6) {
+  const scene = new THREE.Scene();
+  const rig = buildRig(f.id); applyPose(rig, POSES[f.id][pose]); rig.root.rotation.y = yaw * D; scene.add(rig.root);
+  scene.overrideMaterial = new THREE.MeshBasicMaterial({ color: colour });
+  const w = Math.round(wM * pxPerM), h = Math.round(hM * pxPerM);
+  const cam = new THREE.OrthographicCamera(-wM / 2, wM / 2, hM, 0, 0.1, 50); cam.position.set(0, 0, 10); cam.lookAt(0, 0, 0);
+  // orthographic with top=hM bottom=0 needs the camera at y=0 looking straight: shift frustum instead
+  return shot(scene, cam, w, h);
+}
+
+// ---------------------------------------------------------------- DOM
+const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
+const root = document.getElementById('sheets');
+const PXM = 50; // ≈ the follow camera at 1280x720 (about 54 px per metre, LOG 2026-11-28)
+
+for (const f of FIGHTERS) {
+  const sec = el(`<section class="sheet" id="sheet-${f.id}" style="--acc:${f.acc};--acc2:${f.acc2};--tint:${f.tint}">
+    <div class="hero"><img alt=""></div>
+    <div class="nameblock"><div class="name">${f.name}</div><div class="role">${f.role}</div><div class="backups">backup names: ${f.backups}</div></div>
+    <div class="slot">replaces ${f.slot} · ${f.stats} · R-022 concept</div>
+    <div class="poses">
+      ${['idle', 'victory', 'defeat'].map((p) => `<div class="pose"><div class="pic"><img data-pose="${p}" alt=""></div><div class="desc"><h3>${p.toUpperCase()}</h3><p>${f.poses[p]}</p>${p === 'defeat' ? `<p style="margin-top:8px;color:#6b5a86">${f.poses.taunt}</p>` : ''}</div></div>`).join('')}
+    </div>
+    <div class="right">
+      <div class="card"><div class="kicker">Personality</div><div class="big">${f.personality}</div><div class="quotes">${f.quotes.map((q) => `<span class="quote">${q}</span>`).join('')}</div></div>
+      <div class="card trait"><div class="kicker">Signature trait</div><div class="big">${f.trait[0]}</div><div class="txt">${f.trait[1]}</div></div>
+      <div class="card"><div class="kicker">Hook · silhouette test</div><div class="txt">${f.hook}</div>
+        <div class="sil"><figure><img data-sil="front" alt="">front</figure><figure><img data-sil="side" alt="">side</figure>
+          <div class="bgs"><div style="background:#efcf98"><img data-sil="c-sand" alt=""></div><div style="background:#6fbbe3"><img data-sil="c-sky" alt=""></div><div style="background:#1b1f2e"><img data-sil="c-office" alt=""></div></div></div>
+        <div class="txt" style="font-size:14px;color:#6b5a86;margin-top:4px">50 px per metre ≈ the 1280×720 follow camera. Last three: flat accent on Offsite sand, Offsite sky, office.</div>
+      </div>
+      <div class="card"><div class="kicker">Palette</div>
+        <div class="swatches">${f.palette.map(([c, n]) => `<div class="sw" style="background:${c}"><span>${n}</span></div>`).join('')}</div>
+        <div class="swatches" style="margin-top:30px">${f.palette.map(([c]) => `<div style="flex:1;text-align:center;font-size:13px;font-weight:800;color:#3d2d5c">${c}</div>`).join('')}</div>
+      </div>
+    </div>
+  </section>`);
+  root.appendChild(sec);
+  const ht = { kessa: 1.0, ormo: 0.95, zuzu: 0.8, tavo: 0.93 }[f.id];
+  sec.querySelector('.hero img').src = heroShot(f, 'idle', f.id === 'kessa' ? -48 : f.id === 'tavo' ? -38 : -28, 760, 900, 22, 8.6 * ht, 1.05 * ht);
+  for (const img of sec.querySelectorAll('[data-pose]')) {
+    const p = img.dataset.pose;
+    const tall = { kessa: 1.0, ormo: 0.92, zuzu: 0.78, tavo: 0.92 }[f.id];
+    img.src = heroShot(f, p, p === 'defeat' ? { kessa: -35, ormo: -35, zuzu: 90, tavo: -62 }[f.id] : -25, 270, 320, 30, (p === 'defeat' && f.id === 'tavo' ? 6.6 : p === 'defeat' && f.id === 'zuzu' ? 6.4 : 4.9) * tall, p === 'defeat' ? (f.id === 'zuzu' ? 0.2 : 0.5) : (p === 'victory' ? 1.15 : 0.95) * tall, p === 'defeat' && f.id === 'zuzu' ? 3.6 : 0.6);
+  }
+  const s = (k) => sec.querySelector(`[data-sil="${k}"]`);
+  s('front').src = silhouette(f, 0, PXM); s('side').src = silhouette(f, 90, PXM);
+  s('c-sand').src = silhouette(f, -30, PXM, f.acc, 'idle', 2.4, 1.52); s('c-sky').src = silhouette(f, -30, PXM, f.acc, 'idle', 2.4, 1.52); s('c-office').src = silhouette(f, -30, PXM, f.acc, 'idle', 2.4, 1.52);
+}
+
+// overview: the four in one lineup, by height, on one ground
+{
+  const sec = el(`<section class="sheet ov" id="sheet-overview">
+    <div class="title">THE NEW FOUR</div>
+    <div class="sub">Roster v2 · R-022 · real names, one hook each, one trait each · no developer theme</div>
+    <div class="lineup"><img alt=""></div>
+    <div class="silrow">${FIGHTERS.map((f) => `<figure><img data-ovsil="${f.id}" alt=""><figcaption>${f.name}</figcaption></figure>`).join('')}</div>
+    <div class="silcap">Silhouette test at 50 px/m (game scale, 1280×720)</div>
+    <div class="cards">${FIGHTERS.map((f) => `<div class="card" style="--c:${f.acc}"><div class="nm">${f.name}</div>
+      <div class="ln"><b>${f.role}.</b> ${f.ov[0]}</div>
+      <div class="ln"><b>Hook:</b> ${f.ov[1]}.</div>
+      <div class="ln"><b>${f.trait[0]}:</b> ${f.ov[2]}.</div>
+      <div class="ln" style="color:#6b5a86;font-size:16px">${f.acc} · backups ${f.backups} · was ${f.slot}</div></div>`).join('')}</div>
+  </section>`);
+  root.appendChild(sec);
+  const scene = new THREE.Scene(); lights(scene, '#ffffff');
+  const xs = { kessa: -3.3, ormo: -1.1, zuzu: 1.05, tavo: 3.2 };
+  for (const f of FIGHTERS) {
+    const rig = buildRig(f.id); applyPose(rig, POSES[f.id][f.id === 'zuzu' ? 'idle' : 'idle']); rig.root.position.x = xs[f.id]; rig.root.rotation.y = ({ kessa: 52, ormo: 16, zuzu: -14, tavo: -34 })[f.id] * D; scene.add(rig.root);
+    blob(scene, xs[f.id], f.id === 'ormo' ? 0.75 : 0.55);
+  }
+  const cam = new THREE.PerspectiveCamera(20, 1920 / 620, 0.1, 60); cam.position.set(0, 1.45, 8.7); cam.lookAt(0, 1.0, 0);
+  sec.querySelector('.lineup img').src = shot(scene, cam, 1920, 620);
+  for (const f of FIGHTERS) sec.querySelector(`[data-ovsil="${f.id}"]`).src = silhouette(f, -30, 44, '#000', 'idle', 2.36, 1.5);
+}
+document.body.dataset.ready = '1';
+</script>
+</body>
+</html>
