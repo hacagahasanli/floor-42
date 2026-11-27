@@ -1,5 +1,7 @@
 import { DT } from '../sim/constants';
 
+import { SNAPSHOT_EVERY_TICKS } from './protocol';
+
 import type { EventBatch } from './protocol';
 import type { Fighter, GameEvent, GameState, Projectile } from '../sim/types';
 
@@ -12,7 +14,7 @@ import type { Fighter, GameEvent, GameState, Projectile } from '../sim/types';
  * moment, so a late or lost snapshot is covered by the next one instead of freezing or jumping.
  *
  * - The delay adapts: one snapshot interval plus the jitter actually measured (95th percentile of
- *   snapshot arrival times over the last few seconds), between 50 and 250 ms.
+ *   snapshot arrival times over the last few seconds), between 35 and 250 ms.
  * - Underrun (the buffer ran dry, e.g. a stall): the rival keeps moving on its last velocity for
  *   up to 100 ms, then slows to a stop. Never a frozen frame, never a teleport.
  * - Catch-up: after a stall the timeline runs faster (up to 1.6x) until it is back at the target
@@ -23,9 +25,11 @@ import type { Fighter, GameEvent, GameState, Projectile } from '../sim/types';
  */
 
 const MS = DT * 1000;
-const SNAP_MS = 2 * MS;
-export const MIN_DELAY_MS = 50;
+const SNAP_MS = SNAPSHOT_EVERY_TICKS * MS;
+export const MIN_DELAY_MS = 40;
 export const MAX_DELAY_MS = 250;
+/** Where the delay starts, until the first seconds of jitter are measured. */
+const START_DELAY_MS = 60;
 const EXTRAPOLATE_TICKS = 6; // 100 ms on the last velocity...
 const COAST_TICKS = 9; // ...then 150 ms easing to a stop
 const KEEP_MS = 3000;
@@ -69,7 +73,7 @@ export const createTimeline = () => {
   let jitter: { at: number; v: number }[] = [];
   let newestAt = 0;
   let renderTick: number | null = null;
-  let delay = 100;
+  let delay = START_DELAY_MS;
   let underrun = false;
   /** Fighters' last drawn positions, and the offset that hides the step when a guess meets the truth. */
   let drawn: { x: number; y: number }[] = [];
@@ -103,7 +107,8 @@ export const createTimeline = () => {
     const j = jitter.map((l) => l.v).sort((x, y) => x - y);
     const p95 = j[Math.floor(j.length * 0.95)] ?? 0;
     const target = Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, SNAP_MS + p95 + 8));
-    delay += (target - delay) * (target > delay ? 0.25 : 0.02); // widen fast, narrow slowly
+    // Widen fast, narrow slowly (the same time constant whatever the snapshot rate).
+    delay += (target - delay) * (target > delay ? 0.25 : 0.01 * SNAPSHOT_EVERY_TICKS);
     stats.delayMs = Math.round(delay);
   };
 

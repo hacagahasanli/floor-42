@@ -1,4 +1,4 @@
-import { Room } from '@colyseus/core';
+import { Room, ServerError } from '@colyseus/core';
 
 import { createAuthority } from '../src/game/net/authority';
 import { createFixedStep, createTickStats } from '../src/game/net/fixedStep';
@@ -45,6 +45,12 @@ export class DuelRoom extends Room {
   /** Direct mode: the host's browser runs the game; this room doesn't simulate. */
   private direct = false;
   private handshake: ReturnType<typeof setTimeout> | null = null;
+
+  /** A client built for another protocol version is refused with a message it can show, not fed snapshots it cannot read. */
+  onAuth(_client: Client, options: JoinOptions) {
+    if (options?.v !== PROTOCOL_VERSION) throw new ServerError(4426, 'This page is out of date. Reload it to play online.');
+    return true;
+  }
 
   onCreate(options: JoinOptions) {
     if (options?.private) void this.setPrivate(true);

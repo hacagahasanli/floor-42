@@ -7,7 +7,7 @@ RUN npm init -y >/dev/null \
 # authority loop (lag compensation) the browser host uses too.
 COPY server/index.ts server/DuelRoom.ts ./server/
 COPY src/game/sim ./src/game/sim
-COPY src/game/net/protocol.ts src/game/net/authority.ts src/game/net/clone.ts src/game/net/serverSnapshot.ts src/game/net/fixedStep.ts ./src/game/net/
+COPY src/game/net/protocol.ts src/game/net/authority.ts src/game/net/clone.ts src/game/net/serverSnapshot.ts src/game/net/fixedStep.ts src/game/net/wire.ts src/game/net/protocol-input.ts ./src/game/net/
 ENV NODE_ENV=production PORT=8080
 EXPOSE 8080
 CMD ["npx", "tsx", "server/index.ts"]

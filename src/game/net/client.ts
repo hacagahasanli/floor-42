@@ -4,7 +4,7 @@ import { DT } from '../sim/constants';
 import { chooseCharacter, createGame, step } from '../sim/step';
 import { EMPTY_INPUT } from '../sim/types';
 
-import { decodeInput, decodeSnapshot, encodeInput, isNewer, PROTOCOL_VERSION, ROOM_NAME } from './protocol';
+import { decodeInput, decodeSnapshot, encodeInput, isNewer, LAG_COMP_VERSION, PROTOCOL_VERSION, ROOM_NAME } from './protocol';
 import { createTimeline } from './timeline';
 
 import type { LinkMode, PeerLink } from './peer';
@@ -26,7 +26,7 @@ const serverUrl = () => {
 
 export const joinRoom = async (mode: JoinMode, character: CharacterId): Promise<Room> => {
   const client = new Client(serverUrl());
-  const options: JoinOptions = { character, private: mode.kind === 'private' };
+  const options: JoinOptions = { character, private: mode.kind === 'private', v: PROTOCOL_VERSION };
   if (mode.kind === 'join') return client.joinById(mode.roomId, options);
   if (mode.kind === 'private') return client.create(ROOM_NAME, options);
   return client.joinOrCreate(ROOM_NAME, options);
@@ -121,7 +121,7 @@ const TROUBLE_MS = 1500;
 export const createOnlineSession = (room: Room, start: StartMessage, link: PeerLink | null = null): OnlineSession => {
   const slot = start.slot;
   /** The authority speaks version 2: a direct host (same build) or an updated server. */
-  const v2 = !!link || (start.v ?? 1) >= PROTOCOL_VERSION;
+  const v2 = !!link || (start.v ?? 1) >= LAG_COMP_VERSION;
   let state: GameState = createGame(start.characters, 1, v2);
   let tick = 0;
   let history: WireInput[] = [];
