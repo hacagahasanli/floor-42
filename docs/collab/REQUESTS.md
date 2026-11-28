@@ -200,3 +200,9 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
 - Expected deliverable: decisions with exact values in colour-balance.md (new section) + F-items for anything engineering must change.
 - Priority: P1
 - Status: done (CD 2026-11-28): colour-balance.md section 8; F-058..F-064
+
+## R-029 — CrazyGames update today: PEWFIELD covers + store copy
+- Context: Reis decided (2026-11-28) to upload the update to CrazyGames TODAY under the name PEWFIELD. rename-pewfield is merged into portal-build (806345c); zip `dist/pewfield-crazygames.zip`. The live CG page still shows Floor 42 covers (office night scene, old fighters): `~/Desktop/projects/games-studio/crazygames/covers/floor-42/` (NEW-* are the current ones). Previous method: real build capture (or AI-repaint by Reis via `crazygames/covers/AI-PROMPTS.md`) + Claude-made title lock-up and small-card check.
+- Expected deliverable: (1) covers 1920x1080, 800x1200, 800x800 in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, made from REAL captures of the current build (OFFSITE desert, new roster, Field Day look, R-027 colour rules) with the PEWFIELD logo A lock-up; a small-card readability check (render at ~200 px wide) you have looked at; no text other than the logo; nothing that evokes a protected character/brand. If an AI-repaint would be clearly better, also write a PEWFIELD prompt section in AI-PROMPTS.md for Reis, but deliver usable covers either way. (2) CrazyGames store copy: title "Pewfield" (confirm casing), short description, full description, controls text (keyboard 1P/2P, pad), tags/category suggestion — and approve or replace the engineer-written title suffix "— 1v1 shootout" and meta description in the build. Facts must match the build (fighters BRIX/ORMO/ZUZU/TAVO + traits, arenas OFFSITE + FLOOR 42 office, modes 1P vs bot, 2P local; online is NOT in the portal build).
+- Priority: P0 (blocks today's upload)
+- Status: open
