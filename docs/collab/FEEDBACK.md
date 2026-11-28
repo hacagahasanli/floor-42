@@ -512,3 +512,16 @@ Spec: `CREATIVE/ui/direction-b/spec.md` §11; sheet `CREATIVE/ui/direction-b/tra
 - What should change: §11.6: YOUR PICK → `check`; ribbon, credits ribbon and Credits button → `pennant`; delete `star` from `Icon.tsx`; the result white 16-point burst stays (rename class `fd-res-burst`).
 - Expected result: `grep -ri "name=\"star\"\|icon=\"star\"\|★" src` returns nothing.
 - Related spec: §11.6. Status: implemented (2026-11-28, engineering; shots in `shots/traits-menus/`, see LOG.md); `grep` for star icons and ★ in `src` is empty
+
+## F-056 — Colour balance: one action colour, fighters own their colours (P0, R-027)
+- What is wrong: up to 8 saturated hue families per screen; four button tones (sun/tang/sky/teal) for two levels of importance; UI teal/sky/tang/pink collide with ORMO/TAVO/BRIX/ZUZU; decor (bunting, rays, ribbons, track, confetti, medals) as loud as actions. Owner: "too many colours, balance lost, messy".
+- Why it matters: nothing leads the eye, and the fighters stop owning their colours, which hurts readability in a fight.
+- What should change: `CREATIVE/ui/direction-b/colour-balance.md` sections 3 and 4 in one pass: ButtonTone `sun | white | warn`; delete sky/teal tokens; white chips (HUD ready = white, cooling = #d9d3e6); grape ribbons; bunting sun/cream/tang; grape pips; 2P grape headers with accent foot, READY sun, VS white; result medals white with holder-accent ring, mist balloon, muted track #c9765c, confetti sun/white/winner.
+- Expected result: frames match `shots/colour-balance/after/*.png`; acceptance criteria 1-5 and 7 of the spec.
+- Related spec: colour-balance.md. Status: open
+
+## F-057 — PEWFIELD wordmark too small on home (P1, R-027)
+- What is wrong: art about 272x118, smaller than PLAY (372x96); the tang subtitle ribbon under the tang FIELD ribbon reads as one orange block.
+- What should change: wordmark slot 420x160 (art ~369x160) at left 34 / top 34; grape arena ribbon at left 64 / top 184; menu column top 252, gap 16 (colour-balance.md section 5).
+- Expected result: `shots/colour-balance/after/home-pewfield.png`; layout check 0 issues at 1280 and 1920.
+- Related spec: colour-balance.md section 5. Status: open

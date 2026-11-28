@@ -1,0 +1,22 @@
+/* R-027 AFTER mockup: the colour-balance rules applied to the real build as an injected override (design proof only; engineering
+   applies the same values at the source, see CREATIVE/ui/direction-b/colour-balance.md section 4). */
+/* 1 secondary buttons: every non-primary tone collapses to white */
+.fd .fd-btn.fd-t-tang, .fd .fd-btn.fd-t-teal, .fd .fd-btn.fd-t-sky {
+  --c: #fff !important; --lo: #d9cfee !important; color: var(--grape) !important; text-shadow: none !important;
+}
+.fd .fd-btn.fd-t-tang::before, .fd .fd-btn.fd-t-teal::before, .fd .fd-btn.fd-t-sky::before { background: rgba(255,255,255,0) !important; }
+/* 2 chips neutral by default; only state or identity gets colour */
+.fd .fd-chip { --c: #fff !important; }
+.fd [data-testid^="dash-"][data-ready="false"], .fd [data-testid^="push-"][data-ready="false"] { --c: #d9d3e6 !important; color: var(--gray-lo) !important; border-color: var(--gray-lo) !important; }
+/* 3 stat pips in grape, not in four fighter colours */
+.fd .fd-pips { --c: var(--grape) !important; }
+/* 4 home ribbon: grape, so the wordmark keeps the only orange */
+.fd [data-testid="arena-ribbon"] { --c: var(--grape) !important; --lo: var(--grape-deep) !important; }
+.fd [data-testid="arena-ribbon"] .fd-tail path { fill: var(--grape-deep) !important; }
+.fd [data-testid="arena-ribbon"] .fd-ol { color: var(--sun) !important; text-shadow: none !important; }
+/* 5 result: medals white with the holder's accent ring, track muted, balloon mist */
+.fd .fd-res-medal { --c: #fff !important; }
+.fd .fd-res-disc { color: var(--grape) !important; box-shadow: inset 0 0 0 6px var(--ring, var(--grape-2)), inset 0 -9px 0 rgba(59,31,107,.12), 0 6px 0 var(--grape) !important; }
+.fd .fd-res-disc .fd-ic { color: var(--grape) !important; }
+.fd .fd-res-track { background: repeating-linear-gradient(180deg, #c9765c 0 30px, #f1d9bf 30px 34px) !important; }
+.fd .fd-res-balloon ellipse { fill: #e6def5 !important; }
