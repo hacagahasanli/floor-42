@@ -1,50 +1,37 @@
 // Wire format shared by the game server and the browser client.
 
-import { EMPTY_INPUT } from '../sim/types';
+import { expandState, compactState } from './wire';
 
-import type { CharacterId, GameEvent, GameState, InputState } from '../sim/types';
+import type { WireInput } from './protocol-input';
+import type { WireState } from './wire';
+import type { CharacterId, GameEvent, GameState } from '../sim/types';
 
 export const ROOM_NAME = 'duel';
-export const SNAPSHOT_EVERY_TICKS = 2; // 30 snapshots a second
+export const SNAPSHOT_EVERY_TICKS = 1; // 60 snapshots a second (2 was 30)
 /**
+ * 3: compact snapshots (wire.ts: rows of rounded numbers, about a fifth of the bytes) sent at 60
+ * a second. Clients say their version when they join and the server refuses any other, so an old
+ * page gets "reload" instead of garbage; a new client still reads an older server's snapshots.
+ *
  * 2: the authority compensates lag (rewinds up to 150 ms for late inputs), numbers snapshots and
  * sends the game's events. Sent in `start`; clients only send version-2 messages to a version-2
  * server (an older server disconnects a client for a message type it doesn't know).
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
+/** The version that introduced lag compensation, numbered snapshots and events. */
+export const LAG_COMP_VERSION = 2;
 
-// New buttons go on the end: an older peer reads the bits it knows and ignores the rest.
-const BUTTONS = ['left', 'right', 'up', 'down', 'dash', 'fire', 'pickup', 'reload', 'push', 'crouch', 'throwBomb'] as const;
-
-/** One tick of input, compact: [clientTick, buttons bitmask, aimX, aimY]. */
-export type WireInput = [number, number, number, number];
-
-export const encodeInput = (tick: number, i: InputState): WireInput => {
-  let bits = 0;
-  BUTTONS.forEach((b, n) => {
-    if (i[b]) bits |= 1 << n;
-  });
-  return [tick, bits, Math.round(i.aimX * 100) / 100, Math.round(i.aimY * 100) / 100];
-};
-
-export const decodeInput = (w: WireInput): InputState => {
-  const s: InputState = { ...EMPTY_INPUT, aimX: w[2], aimY: w[3] };
-  BUTTONS.forEach((b, n) => {
-    s[b] = (w[1] & (1 << n)) !== 0;
-  });
-  return s;
-};
-
-/** Presses that happened in skipped inputs survive into the next one. */
-export const mergePresses = (into: InputState, from: InputState): InputState => {
-  const s = { ...into };
-  for (const b of BUTTONS) s[b] = s[b] || from[b];
-  return s;
-};
+export { decodeInput, encodeInput, mergePresses } from './protocol-input';
+export type { WireInput } from './protocol-input';
 
 export interface JoinOptions {
   character: CharacterId;
   private?: boolean;
+  /** The client's PROTOCOL_VERSION; the server refuses a join without the current one. */
+  v?: number;
+  /** Multi-region quick match: the latency tier (regions.ts tierFor) rooms are matched on, and the measured round trip. */
+  tier?: number;
+  rtt?: number;
 }
 
 export interface StartMessage {
@@ -54,6 +41,9 @@ export interface StartMessage {
   direct?: boolean;
   /** The server's protocol version (missing: 1). */
   v?: number;
+  /** Multi-region quick match: the latency tier (regions.ts tierFor) rooms are matched on, and the measured round trip. */
+  tier?: number;
+  rtt?: number;
 }
 
 /**
@@ -86,9 +76,36 @@ export interface Snapshot {
 /** True when a snapshot numbered `seq` is newer than the last one used (unnumbered: always). */
 export const isNewer = (seq: number | undefined, last: number) => seq === undefined || seq > last;
 
-// JSON can't carry Infinity (the pistol's reserve, empty drop slots), so it travels as a marker.
+// JSON can't carry Infinity (events could, in principle), so it travels as a marker.
 const INF = '__inf';
-export const encodeSnapshot = (s: Snapshot) =>
-  JSON.stringify(s, (_k, v) => (v === Infinity ? INF : v === -Infinity ? `-${INF}` : v));
-export const decodeSnapshot = (raw: string): Snapshot =>
-  JSON.parse(raw, (_k, v) => (v === INF ? Infinity : v === `-${INF}` ? -Infinity : v));
+const replacer = (_k: string, v: unknown) => (v === Infinity ? INF : v === -Infinity ? `-${INF}` : v);
+const reviver = (_k: string, v: unknown) => (v === INF ? Infinity : v === `-${INF}` ? -Infinity : v);
+
+/** Version 3 on the wire: short keys, the state as rows (wire.ts), each seat's `next` inputs relative to its ack. */
+interface WireSnapshot {
+  q?: number;
+  a: [number, number];
+  i: [WireInput, WireInput];
+  n?: [number[][], number[][]];
+  e?: EventBatch;
+  s: WireState;
+}
+
+export const encodeSnapshot = (s: Snapshot): string => {
+  const w: WireSnapshot = { a: s.ack, i: s.inputs, s: compactState(s.state) };
+  if (s.seq !== undefined) w.q = s.seq;
+  if (s.ev) w.e = s.ev;
+  if (s.next) w.n = [0, 1].map((k) => s.next![k].map((r) => [r[0] - s.ack[k], r[1], r[2], r[3]])) as [number[][], number[][]];
+  return JSON.stringify(w, replacer);
+};
+
+/** Reads version 3, and the full-state form an older server or host sends (it has a `state` field). */
+export const decodeSnapshot = (raw: string): Snapshot => {
+  const w = JSON.parse(raw, reviver) as WireSnapshot | Snapshot;
+  if ('state' in w) return w;
+  const snap: Snapshot = { ack: w.a, inputs: w.i, state: expandState(w.s) };
+  if (w.q !== undefined) snap.seq = w.q;
+  if (w.e) snap.ev = w.e;
+  if (w.n) snap.next = [0, 1].map((k) => w.n![k].map((r) => [r[0] + w.a[k], r[1], r[2], r[3]])) as [WireInput[], WireInput[]];
+  return snap;
+};

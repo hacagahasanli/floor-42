@@ -15,3 +15,8 @@ primary_region = "fra"
 [[vm]]
   size = "shared-cpu-1x"
   memory = "256mb"
+
+# Multi-region (not enabled; docs/TECHNICAL.md, "Regions"): one app per region from this same file, e.g.
+#   fly deploy --app floor42-game-iad --primary-region iad --ha=false
+# with MULTI_REGION=1 set as a secret/env on each app. Keep min_machines_running = 1 in the primary
+# only if the cold start (a few seconds to wake a stopped machine) is unwanted; it is a fixed cost.

@@ -1,0 +1,50 @@
+import { budgetAt, httpUrl, nearest, parseRegions, probeRegions, tierFor } from './regions';
+
+describe('regions (off unless NEXT_PUBLIC_GAME_REGIONS is set)', () => {
+  it('parses the region list and skips garbage; unset means no regions (today\'s single server)', () => {
+    expect(parseRegions(undefined)).toEqual([]);
+    expect(parseRegions('')).toEqual([]);
+    expect(parseRegions('fra=wss://a.fly.dev, iad=wss://b.fly.dev,bad,x=http://no,,sin=ws://localhost:1')).toEqual([
+      { id: 'fra', url: 'wss://a.fly.dev' },
+      { id: 'iad', url: 'wss://b.fly.dev' },
+      { id: 'sin', url: 'ws://localhost:1' },
+    ]);
+    expect(httpUrl('wss://a.fly.dev')).toBe('https://a.fly.dev');
+    expect(httpUrl('ws://localhost:2567')).toBe('http://localhost:2567');
+  });
+
+  it('probes every region, keeps the best of three after a warm-up, drops a region that does not answer', async () => {
+    const lat: Record<string, number[]> = { 'a.dev': [90, 41, 38, 44], 'b.dev': [200, 130, 120, 125] };
+    let clock = 0;
+    const calls: string[] = [];
+    const fetchFn = async (url: string) => {
+      const host = new URL(url).host;
+      if (host === 'dead.dev') throw new Error('down');
+      calls.push(host);
+      clock += lat[host].shift()!;
+      return { ok: true };
+    };
+    const probes = await probeRegions(
+      [{ id: 'a', url: 'wss://a.dev' }, { id: 'b', url: 'wss://b.dev' }, { id: 'c', url: 'wss://dead.dev' }],
+      fetchFn,
+      () => clock,
+    );
+    expect(probes.find((p) => p.id === 'c')!.rtt).toBe(Infinity);
+    expect(probes.filter((p) => p.id !== 'c').every((p) => Number.isFinite(p.rtt))).toBe(true);
+    expect(calls.filter((h) => h === 'a.dev')).toHaveLength(4);
+    expect(nearest([{ id: 'a', rtt: 38 }, { id: 'b', rtt: 120 }, { id: 'c', rtt: Infinity }])).toEqual({ id: 'a', rtt: 38 });
+    expect(nearest([{ id: 'c', rtt: Infinity }])).toBeNull();
+  });
+
+  it('budget: 60 ms first, widening with the wait; the tier groups players of a similar round trip', () => {
+    expect(budgetAt(0)).toBe(60);
+    expect(budgetAt(8_000)).toBe(100);
+    expect(budgetAt(25_000)).toBe(150);
+    expect(budgetAt(60_000)).toBe(Infinity);
+    expect(tierFor(35)).toBe(60);
+    expect(tierFor(60)).toBe(60);
+    expect(tierFor(85)).toBe(100);
+    expect(tierFor(140)).toBe(150);
+    expect(tierFor(400)).toBe(0);
+  });
+});

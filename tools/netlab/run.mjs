@@ -53,9 +53,22 @@ const mkPage = async (browser, cfg) => {
 const [bh, bg] = await Promise.all([launch(), launch()]);
 const host = await mkPage(bh, hostCfg);
 const guest = await mkPage(bg, guestCfg);
+const t0 = Date.now();
+if (flag('quick')) {
+  // Both click Quick match (the invite-link join has its own flow; this is the path players use most).
+  for (const p of [host, guest]) {
+    await p.goto(`${web}/play?server=${encodeURIComponent(server)}`);
+    await p.waitForTimeout(2500);
+    await p.getByRole('button', { name: /^PLAYER/ }).click({ timeout: 1500 }).catch(() => {});
+    await p.waitForTimeout(1200);
+    await p.getByRole('button', { name: /Quick match/ }).click({ timeout: 5000 });
+  }
+} else {
 await host.goto(`${web}/play?server=${encodeURIComponent(server)}`);
 const linkEl = host.getByLabel('Invite link', { exact: true });
 for (let i = 0; i < 15; i++) {
+  // First visit: a "who are you" picker covers the lobby.
+  await host.getByRole('button', { name: /^PLAYER/ }).click({ timeout: 500 }).catch(() => {});
   await host.getByRole('button', { name: /Invite a friend/ }).click({ timeout: 2000 }).catch(() => {});
   if (await linkEl.waitFor({ timeout: 2000 }).then(() => true, () => false)) break;
 }
@@ -64,11 +77,12 @@ for (let i = 0; i < 40; i++) {
   if (/room=/.test(v[0] || '')) break;
   await host.waitForTimeout(500);
 }
+if (process.env.LAB_DEBUG) console.log('host text', (await host.evaluate(() => document.body.innerText)).slice(0, 300).replace(/\n/g, ' | '));
 const link = await linkEl.inputValue();
 const room = new URL(link).searchParams.get('room');
-const t0 = Date.now();
 await guest.goto(`${web}/play?room=${room}&server=${encodeURIComponent(server)}`);
-await Promise.all([host, guest].map((p) => p.waitForFunction(() => !!window.__mc, null, { timeout: 30000 }).catch(async (e) => {
+}
+await Promise.all([host, guest].map((p) => p.waitForFunction(() => !!window.__mc, null, { timeout: 90000 }).catch(async (e) => {
   console.log('no __mc', (await p.evaluate(() => document.body.innerText)).slice(0, 300).replace(/\n/g, ' | '));
   throw e;
 })));

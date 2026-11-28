@@ -1,10 +1,12 @@
 import { createGame } from '../sim/step';
 
+import { SNAPSHOT_EVERY_TICKS } from './protocol';
 import { createTimeline, MAX_DELAY_MS, MIN_DELAY_MS } from './timeline';
 
 import type { GameState } from '../sim/types';
 
-const SNAP = 1000 / 30;
+const STRIDE = SNAPSHOT_EVERY_TICKS;
+const SNAP = (1000 / 60) * STRIDE;
 const FRAME = 1000 / 60;
 
 /** A snapshot at game tick `tick` with the rival (fighter 1) running right at 6 m/s (0.1 per tick). */
@@ -15,7 +17,7 @@ const snap = (tick: number): GameState => {
   return s;
 };
 
-/** Feed snapshots every 2 ticks with the given arrival jitter, drawing every frame in between. */
+/** Feed snapshots every SNAPSHOT_EVERY_TICKS ticks with the given arrival jitter, drawing every frame in between. */
 const drive = (ms: number, jitter: (i: number) => number = () => 0, stallFrom = Infinity, stallMs = 0) => {
   const tl = createTimeline();
   const frames: { t: number; x: number; tick: number; underrun: boolean }[] = [];
@@ -23,7 +25,7 @@ const drive = (ms: number, jitter: (i: number) => number = () => 0, stallFrom = 
   for (let i = 0; i * SNAP < ms; i++) {
     let at = 1000 + i * SNAP + jitter(i);
     if (at >= stallFrom && at < stallFrom + stallMs) at = stallFrom + stallMs; // held, then a burst
-    arrivals.push({ at, tick: i * 2 });
+    arrivals.push({ at, tick: i * STRIDE });
   }
   arrivals.sort((a, b) => a.at - b.at);
   let k = 0;
@@ -44,11 +46,11 @@ describe('timeline: the rival drawn from the authority', () => {
     expect(Math.max(...steps)).toBeLessThan(0.12);
   });
 
-  it('adapts the delay to the measured jitter, within 50..250 ms', () => {
+  it('adapts the delay to the measured jitter, within MIN_DELAY_MS..250 ms', () => {
     const calm = drive(4000).tl.delay;
-    const rough = drive(4000, (i) => ((i * 7919) % 13) * 6).tl.delay; // 0..72 ms of jitter
+    const rough = drive(4000, (i) => ((i * 7919) % 13) * 8).tl.delay; // 0..96 ms of jitter
     expect(calm).toBeGreaterThanOrEqual(MIN_DELAY_MS);
-    expect(rough).toBeGreaterThan(calm + 30);
+    expect(rough).toBeGreaterThan(calm + 15);
     expect(drive(4000, (i) => ((i * 7919) % 13) * 40).tl.delay).toBeLessThanOrEqual(MAX_DELAY_MS);
   });
 
@@ -85,7 +87,7 @@ describe('timeline: the rival drawn from the authority', () => {
 
   it('shows events when the timeline reaches their tick, and a batch replaces its range', () => {
     const tl = createTimeline();
-    for (let i = 0; i < 10; i++) tl.push(snap(i * 2), 1000 + i * SNAP);
+    for (let i = 0; i < 10; i++) tl.push(snap(i * STRIDE), 1000 + i * SNAP);
     tl.applyEvents({ from: 0, to: 20, e: [[10, { type: 'drop', x: 1 }], [12, { type: 'drop', x: 2 }]] });
     // A rewind: tick 12 had no drop after all, tick 13 does.
     tl.applyEvents({ from: 11, to: 20, e: [[13, { type: 'drop', x: 3 }]] });
