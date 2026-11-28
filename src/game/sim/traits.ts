@@ -10,7 +10,7 @@ import type { CharacterId, Fighter, GameState, GunKind, TraitId, Weapon } from '
 export const TRAIT_HP: Record<CharacterId, number> = {
   hotfix: 110,
   legacy: 115,
-  standup: 85,
+  standup: 82, // F-084: 82 with the smart bot (normal/hard roster back inside the band)
   intern: 100,
 };
 /** Power weapons still one-shot anyone (max HP 115). */

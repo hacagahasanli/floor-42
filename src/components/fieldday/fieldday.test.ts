@@ -125,7 +125,7 @@ describe('traits on the menus come from the data (R-026 11.3)', () => {
       'Every SMG, Uzi or shotgun he grabs holds 25% more ammo.',
     ]);
     expect(ROSTER.map((r) => r.traitShort)).toEqual(['Jump over your rival: dash is back.', 'Heals after 3 s, not 4.', 'Hit and still up? 1 s of speed.', 'SMG, Uzi, shotgun: 25% more ammo.']);
-    expect(healthLine(true)).toBe(`Most fighters have 100 health: Ormo 115, Brix 110, Zuzu 85. A pistol shot point blank takes about half, a rocket takes it all. First to ${RULES.kosToWin} KOs wins.`);
+    expect(healthLine(true)).toBe(`Most fighters have 100 health: Ormo 115, Brix 110, Zuzu 82. A pistol shot point blank takes about half, a rocket takes it all. First to ${RULES.kosToWin} KOs wins.`);
     expect(healthLine(false)).toMatch(/^Everyone has 100 health\./);
   });
 });

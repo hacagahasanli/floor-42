@@ -53,7 +53,7 @@ describe('flag and table', () => {
   });
 
   it('on: per-slot max HP, at spawn and after a respawn', () => {
-    expect(TRAIT_HP).toEqual({ hotfix: 110, legacy: 115, standup: 85, intern: 100 });
+    expect(TRAIT_HP).toEqual({ hotfix: 110, legacy: 115, standup: 82, intern: 100 });
     for (const c of Object.keys(TRAIT_HP) as CharacterId[]) {
       const s = game(c, 'intern');
       expect(s.traits).toBe(true);
