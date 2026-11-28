@@ -23,6 +23,13 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 - Running: CD R-029 covers + store copy (`crazygames/covers/pewfield/`, `CREATIVE/brand/crazygames-store.md`); release QA report `docs/release-qa/2026-11-28-crazygames.md`.
 - Cleanup approved by Reis: archive (not delete) to `games-studio/_archive/2026-11/`: floor-42-crazy worktree (done), old Floor 42 covers/videos/brand/upwork shots AFTER new covers exist. Folder rename floor-42 -> pewfield only AFTER the upload.
 
+## Deploys (learned 2026-11-28)
+- GitHub repo renamed to hacagahasanli/pewfield. Vercel project `floor-42` is Git-connected: **every push to `main` deploys production to floor42.nalbakigames.com** (no GitHub deployments API entries, so it looks unlinked — it is not).
+- 2026-11-28 ~11:23 push of main deployed PEWFIELD to the site; /play and /arena 500'd (module-level `new Path2D` in traitCallout.ts ran in SSR). Fixed eee024c, verified live (all routes 200, no console errors).
+- pewfield.nalbakigames.com added to the Vercel project; waits for the Cloudflare CNAME `pewfield -> 5d2e2b52607fdbaa.vercel-dns-017.com` (DNS only). floor42 -> pewfield 308 only after the studio site rename is live.
+- Open: the site's ONLINE button leads to the old dark lobby and the Fly server is off (online parked).
+- Site rename spec: `nalbaki-games/docs/growth/PEWFIELD-RENAME.md`.
+
 ## Colour balance status (2026-11-28 midday)
 - R-027 spec done; F-056 implemented on portal-build `11b6915`, F-057 (bigger wordmark) on rename-pewfield `3a4a61d` (rename rebased on F-056). Captures `docs/collab/shots/colour-balance/impl/`.
 - R-028 open with the CD: Settings has 4 sun marks, cooling HUD chip text contrast 2.42:1, wordmark/ribbon tuck, deviation review. Apply its F-items next, then the full test pass.
