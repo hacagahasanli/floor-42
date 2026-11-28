@@ -17,6 +17,12 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 - Trait feedback (callouts, VFX, sounds, HUD badge, max-HP bars), star icons removed (IP).
 - Name PEWFIELD + logo A chosen (CD R-023); IP check done (ORMO/BRIX redesigned to avoid Wario / Roller Brawl likeness).
 
+## TODAY 2026-11-28: CrazyGames update as PEWFIELD (Reis decision)
+- rename-pewfield MERGED into portal-build (806345c); zip `dist/pewfield-crazygames.zip`. Reis still does the official trademark search (web screen found no exact match).
+- F-058..F-064 + Settings tab click fix done (8e3fe33, 2313775).
+- Running: CD R-029 covers + store copy (`crazygames/covers/pewfield/`, `CREATIVE/brand/crazygames-store.md`); release QA report `docs/release-qa/2026-11-28-crazygames.md`.
+- Cleanup approved by Reis: archive (not delete) to `games-studio/_archive/2026-11/`: floor-42-crazy worktree (done), old Floor 42 covers/videos/brand/upwork shots AFTER new covers exist. Folder rename floor-42 -> pewfield only AFTER the upload.
+
 ## Colour balance status (2026-11-28 midday)
 - R-027 spec done; F-056 implemented on portal-build `11b6915`, F-057 (bigger wordmark) on rename-pewfield `3a4a61d` (rename rebased on F-056). Captures `docs/collab/shots/colour-balance/impl/`.
 - R-028 open with the CD: Settings has 4 sun marks, cooling HUD chip text contrast 2.42:1, wordmark/ribbon tuck, deviation review. Apply its F-items next, then the full test pass.
