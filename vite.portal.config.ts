@@ -48,7 +48,7 @@ export default defineConfig({
       transformIndexHtml: {
         order: 'pre',
         handler: (html) => {
-          // The logo artwork at the home screen's slot size x 1.25 (height 147.5, width 340.4), as inline SVG: no font to wait for.
+          // The logo artwork at the home screen's slot size x 1.25 (height 200, width 461.5; F-057 slot 160 high), as inline SVG: no font to wait for.
           const mark = `<div class="wmw"><h1 class="wm"><svg viewBox="${WORDMARK_VIEWBOX}" role="img" aria-label="${GAME_NAME_TITLE}">${WORDMARK_INNER}</svg></h1></div>`;
           return html.replace('<!--FD_WORDMARK-->', mark).replace('<!--FD_STUDIO-->', STUDIO_NAME).replace('%GAME_TITLE%', `${GAME_NAME_TITLE} \u2014 1v1 shootout`);
         },

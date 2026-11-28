@@ -18,6 +18,7 @@ import { fitScale, MIN_FIT } from './fit';
 import { buntingPennants, stageMetrics } from './geometry';
 import { pickNext } from './nav';
 import { ICON_NAMES } from './Icon';
+import { WORDMARK_ART_ASPECT, WORDMARK_SLOT } from './parts';
 import { healthPips, jumpPips, speedPips, statsOf, traitsOf, weightPips } from './stats';
 
 import type { ButtonTone } from './Button';
@@ -59,6 +60,15 @@ describe('wordmark slot (R-023)', () => {
   it('the constant is the one place that says the name: one word, capitals', () => {
     expect(GAME_NAME).toBe('PEWFIELD');
     expect(GAME_NAME_TITLE).toBe('Pewfield');
+  });
+  it('F-057: the slot is 420x160 and the art (height-bound) is at least 360 px wide', () => {
+    expect(WORDMARK_SLOT).toEqual({ w: 420, h: 160 });
+    expect(WORDMARK_SLOT.h * WORDMARK_ART_ASPECT).toBeGreaterThanOrEqual(360);
+    expect(WORDMARK_SLOT.h * WORDMARK_ART_ASPECT).toBeLessThanOrEqual(WORDMARK_SLOT.w);
+  });
+  it('the boot screen draws the wordmark at 1.25 of the slot', () => {
+    const html = readFileSync(resolve(__dirname, '../../../portal/index.html'), 'utf8');
+    expect(html).toContain(`#boot .wm{margin:0;height:${WORDMARK_SLOT.h * 1.25}px;`);
   });
   it('the artwork is outlines: no live text and no font to wait for', () => {
     expect(WORDMARK_INNER).not.toMatch(/<text|@font-face|<image/);

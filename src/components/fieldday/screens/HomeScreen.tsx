@@ -107,7 +107,9 @@ export const HomeScreen = (p: HomeProps) => {
       <Bunting variant={2} />
     <Frame>
       <div ref={root} className="fd-enter" style={{ position: 'absolute', inset: 0 }} data-testid="home">
-        <div className="fd-abs" style={{ left: 40, top: 58 }}>
+        {/* F-057: the wordmark slot is 420x160 at 34/34 (art about 369x160), the arena ribbon tucks under it at 64/184, the menu
+            column starts at 252 with 16 gaps so it still ends where it did (HOW TO PLAY bottom about y 652). */}
+        <div className="fd-abs" style={{ left: 34, top: 34 }}>
           <Wordmark />
         </div>
         <Ribbon
@@ -115,13 +117,13 @@ export const HomeScreen = (p: HomeProps) => {
           height={44}
           tilt={-3}
           maxWidth={340}
-          style={{ position: 'absolute', left: 62, top: 170 }}
+          style={{ position: 'absolute', left: 64, top: 184 }}
           data-testid="arena-ribbon"
         >
           <Icon name="pennantOnDark" size={24} /> {h.ribbon(p.arenaName)} <Icon name="pennantOnDark" size={24} />
         </Ribbon>
 
-        <div className="fd-abs" style={{ left: 56, top: 244, width: 372, display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div className="fd-abs" style={{ left: 56, top: 252, width: 372, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <FdButton
             tone="sun"
             size="lg"
