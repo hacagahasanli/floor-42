@@ -720,6 +720,7 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
       f.vy = Math.max(f.vy, 5);
       f.stun = 0.5;
       f.hp -= WALL_SPLAT_DAMAGE;
+      f.sinceHit = 0; // a splat is damage: health regen (and Tea Break) wait again
       if (!state.net) state.hitstop = Math.max(state.hitstop, 7);
       state.events.push({ type: 'wallSplat', side, y: f.y + c.height * 0.6, fighter: f.id });
       if (f.hp <= 0) knockOut(state, f);

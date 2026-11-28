@@ -489,6 +489,16 @@ describe('Force Push', () => {
     expect(s.fighters[1].hp).toBeLessThanOrEqual(CHARACTERS.legacy.hp - WALL_SPLAT_DAMAGE);
   });
 
+  it('a splat restarts the health-regen wait like any other damage', () => {
+    const s = fighting();
+    const halfW = CHARACTERS[s.fighters[1].character].width / 2;
+    place(s, 0, 0, 1.0);
+    Object.assign(s.fighters[1], { x: ARENA.right - halfW - 0.3, y: ARENA.floor, vx: 20, pushed: 0.6, sinceHit: 99, hp: 60 });
+    const events = run(s, 1);
+    expect(events.some((e) => e.type === 'wallSplat' && e.fighter === 1)).toBe(true);
+    expect(s.fighters[1].sinceHit).toBeLessThan(2 * DT);
+  });
+
   // A splat bounces you up off the glass, but the fall you made that same tick still has to
   // land: otherwise you sink into the floor, or drop straight through furniture by the glass.
   describe('a splat while falling never goes through what is under you', () => {
