@@ -27,11 +27,17 @@ export interface ResultInput {
   winner: number | null;
   /** [you / P1, rival / P2]. */
   fighters: [ResultFighter, ResultFighter];
-  /** Which of FD_COPY.result.lossLines to show on a loss. */
+  /** The per-match random index into a two-line cell of the pill tables (F-075), modulo the cell's length. */
   lossLine?: number;
-  /** The draw line (copy.drawSub). */
-  drawLine?: string;
 }
+
+export type MarginBand = 'shutout' | 'big' | 'clear' | 'close';
+/** F-075: margin m = |a - b|; close = 1, clear = 2-3, big = 4+; shutout = a decisive match with the loser on 0 KOs. */
+export const marginBand = (score: [number, number], decisive: boolean): MarginBand => {
+  const m = Math.abs(score[0] - score[1]);
+  if (decisive && Math.min(score[0], score[1]) === 0) return 'shutout';
+  return m >= 4 ? 'big' : m >= 2 ? 'clear' : 'close';
+};
 
 export interface AwardSlot {
   x: number;
@@ -62,6 +68,9 @@ const AWARD_LOOK: Record<AwardId, Pick<AwardView, 'icon'>> = {
   bouncy: { icon: { kind: 'icon', name: 'jump' } },
   sharpshooter: { icon: { kind: 'weapon', name: 'pistol' } },
   sponge: { icon: { kind: 'icon', name: 'fighter' } },
+  hitter: { icon: { kind: 'weapon', name: 'shotgun' } },
+  streak: { icon: { kind: 'icon', name: 'flag' } },
+  ribbon: { icon: { kind: 'icon', name: 'pennant' } },
 };
 
 export interface ResultModel {
@@ -71,7 +80,7 @@ export interface ResultModel {
   loser: 0 | 1 | null;
   /** The title without the "WINS!", for the sr text and the letter pop. */
   title: string;
-  /** The score pill after the title: "5 – 2 · 57% accuracy · best streak 3". */
+  /** The score pill after the title: "5 – 3 · clean win" (F-075). */
   pill: string;
   score: [number, number];
   /** Whether the local player (index 0) is the loser: the loser's card shows the YOU chip. */
@@ -94,21 +103,28 @@ export const buildResult = (input: ResultInput): ResultModel => {
   const score: [number, number] = [fighters[0].kos, fighters[1].kos];
   const scoreText = `${score[0]} – ${score[1]}`;
 
-  let pill = scoreText;
-  if (outcome === 'win' && w !== null) {
-    const s = fighters[w].stats;
-    pill = [scoreText, ...(s.shots > 0 ? [C.accuracy(s.accuracy)] : []), ...(s.bestStreak > 0 ? [C.bestStreak(s.bestStreak)] : [])].join(' · ');
-  } else if (outcome === 'loss') {
-    pill = `${scoreText} · ${C.lossLines[(input.lossLine ?? 0) % C.lossLines.length]}`;
-  } else if (input.drawLine) {
-    pill = `${scoreText} · ${input.drawLine}`;
-  }
+  // F-075: one line by margin. solo / online: the win table when you win, the loss table when you lose; 2P and demo always
+  // the win table (it names nobody); a draw the draw line in every mode.
+  const pick = (cell: readonly string[]) => cell[(input.lossLine ?? 0) % cell.length];
+  const band = marginBand(score, w !== null);
+  const line =
+    outcome === 'draw'
+      ? C.drawLine
+      : outcome === 'loss'
+        ? pick(C.lossLines[band === 'shutout' ? 'big' : band])
+        : pick(C.winLines[band]);
+  const pill = `${scoreText} · ${line}`;
 
   const who = (i: 0 | 1) => (youPlay && i === 0 ? 'You' : mode === 'twoPlayer' ? `P${i + 1}` : titleCase(fighterView(fighters[i].character).name));
-  const awards: AwardView[] = chooseAwards([
-    { tally: fighters[0].tally, accuracy: fighters[0].stats.accuracy, shots: fighters[0].stats.shots },
-    { tally: fighters[1].tally, accuracy: fighters[1].stats.accuracy, shots: fighters[1].stats.shots },
-  ]).map((a) => ({
+  const input2 = (f: ResultFighter) => ({
+    tally: f.tally,
+    accuracy: f.stats.accuracy,
+    shots: f.stats.shots,
+    damage: f.stats.damage,
+    bestStreak: f.stats.bestStreak,
+    kos: f.kos,
+  });
+  const awards: AwardView[] = chooseAwards([input2(fighters[0]), input2(fighters[1])], w).map((a) => ({
     id: a.id,
     title: C.awards[a.id].title,
     line: C.awards[a.id].line(who(a.holder), a.value),

@@ -28,7 +28,7 @@ import { CreditsPanel } from './Credits';
 import { menuSound } from './menuSound';
 import { SettingsPanel } from './SettingsPanel';
 import { useGamepadNav } from './useGamepadNav';
-import { useSettings } from './useSettings';
+import { useEffectiveMute, useSettings } from './useSettings';
 
 import { readFinishedMatch } from '~/game/firstMatch';
 import type { BotLevel } from '~/game/sim/bot';
@@ -73,6 +73,8 @@ export const MainMenu = ({
   const [level, setLevel] = useState<BotLevel>('normal');
   // The arena for offline matches is remembered in Settings; the menu backdrop follows it (R-020).
   const settings = useSettings();
+  // Release QA item 9: the Sound button shows the portal's mute too (player mute OR CrazyGames muteAudio).
+  const soundOff = useEffectiveMute();
   const arena = settings.arena;
   const setArena = (id: ArenaId) => getSettings().set({ arena: id });
   const cycleArena = () => {
@@ -263,7 +265,7 @@ export const MainMenu = ({
             onSettings={() => setSettingsOpen(true)}
             onHowTo={() => setScreen('howto')}
             onCredits={() => setScreen('credits')}
-            muted={settings.audio.muted}
+            muted={soundOff}
             onMute={() => getSettings().setAudio({ muted: !settings.audio.muted })}
             studio={STUDIO_NAME}
             version={GAME_VERSION}

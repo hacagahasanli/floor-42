@@ -69,32 +69,55 @@ export const PlayerChip = ({ index, className = '' }: { index: 0 | 1; className?
 );
 
 /**
- * The existing keycap look at 44 px; `lit` fills it with sun while the key is held (the key tester: a momentary event, so sun
- * is allowed, colour-balance.md 8.2; it used to be the player colour).
+ * The 2P key card keycap (R-030 1.1): 52 x 48, white with a grape border and lip; `lit` (the key is held) fills it with sun and
+ * presses it in 3 px for as long as the key is down (a momentary event, so sun is allowed, colour-balance.md 8.2). Render it
+ * inside a Field Day `Stage` (design px). The label sits 5 px under the cap.
  */
 export const BigKeycap = ({
   children,
   lit,
   label,
+  wide,
+  fontSize = 22,
 }: {
   children: ReactNode;
   lit?: boolean;
   label?: string;
+  /** Text wider than one glyph (`Stick`, `RB`): min-width 52, padding 0 10. */
+  wide?: boolean;
+  fontSize?: number;
 }) => (
-  <span className="flex flex-col items-center gap-1">
+  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 52 }}>
     <kbd
-      className="inline-flex h-11 min-w-11 items-center justify-center border border-b-[3px] px-2 font-display text-lg leading-none transition-colors duration-75"
+      className="fd-kc2"
+      data-lit={lit ? '1' : undefined}
       style={
         {
-          borderColor: lit ? '#ffc83d' : 'rgba(230,235,245,0.3)',
-          background: lit ? '#ffc83d' : 'rgba(230,235,245,0.1)',
-          color: lit ? TAG_GRAPE : '#e6ebf5',
+          boxSizing: 'border-box',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: wide ? undefined : 52,
+          minWidth: 52,
+          height: 48,
+          padding: wide ? '0 10px 4px' : '0 0 4px',
+          border: `3px solid ${TAG_GRAPE}`,
+          borderRadius: 10,
+          background: lit ? 'var(--sun)' : '#fff',
+          boxShadow: lit ? `inset 0 -5px 0 var(--sun-lo), 0 1px 0 ${TAG_GRAPE}` : `inset 0 -5px 0 var(--btn2-lo), 0 4px 0 ${TAG_GRAPE}`,
+          transform: lit ? 'translateY(3px)' : undefined,
+          font: `400 ${fontSize}px/1 'Titan One', sans-serif`,
+          color: TAG_GRAPE,
         } as CSSProperties
       }
     >
       {children}
     </kbd>
-    {label && <span className="text-[11px] font-semibold text-cream/70">{label}</span>}
+    {label && (
+      <span style={{ font: "800 12px/1 'Baloo 2', sans-serif", letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--grape-2)' }}>
+        {label}
+      </span>
+    )}
   </span>
 );
 
@@ -119,19 +142,30 @@ export const stepBothPress = (s: BothPressState, now: [boolean, boolean], locked
 };
 
 /**
+ * The 2P Shoot+Shoot rematch lock (R-030 2 / F-071): closed before `INPUT_AT_MS` (0.6 s) after the result screen is up, and
+ * closed until the REMATCH button with its P1 / P2 chips is on screen (`choiceUp`: the reveal reached `BEATS.choice` at 2.2 s,
+ * or Enter / Space skipped it, or Reduced motion showed the final layout at once). A press counted before that button exists
+ * would be invisible input. Pure, unit-tested.
+ */
+export const shootRematchLocked = (elapsedMs: number, choiceUp: boolean, lockMs: number): boolean => elapsedMs < lockMs || !choiceUp;
+
+/**
  * Both players press Shoot (keys or pads) -> `onBoth`, once. Returns the ready ticks. A Shoot already held when this
- * becomes active needs a fresh press, and nothing counts for `lockMs` after it becomes active (the result screen's input
- * lock, spec section 4 item 5: so Shoot mashed through the final KO cannot skip the result).
+ * becomes active needs a fresh press, and nothing counts for `lockMs` after it becomes active, nor while `open` is false (the
+ * result screen's input lock, spec section 4 item 5 and R-030 2: Shoot mashed through the final KO cannot skip the result).
  */
 export const useBothPress = (
   peek: () => { inputs: [{ fire: boolean }, { fire: boolean }] } | null,
   active: boolean,
   onBoth: () => void,
   lockMs = 0,
+  open = true,
 ): [boolean, boolean] => {
   const [ready, setReady] = useState<[boolean, boolean]>([false, false]);
   const cb = useRef(onBoth);
   cb.current = onBoth;
+  const openRef = useRef(open);
+  openRef.current = open;
   useEffect(() => {
     setReady([false, false]);
     if (!active) return;
@@ -141,7 +175,8 @@ export const useBothPress = (
     const tick = () => {
       const p = peek();
       if (p) {
-        const next = stepBothPress(s, [p.inputs[0].fire, p.inputs[1].fire], performance.now() - since < lockMs);
+        const locked = shootRematchLocked(performance.now() - since, openRef.current, lockMs);
+        const next = stepBothPress(s, [p.inputs[0].fire, p.inputs[1].fire], locked);
         if (next.got[0] !== s.got[0] || next.got[1] !== s.got[1]) setReady(next.got);
         s = next;
         if (next.fire) cb.current();

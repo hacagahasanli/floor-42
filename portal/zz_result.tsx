@@ -30,7 +30,23 @@ const draw: [ResultFighter, ResultFighter] = [
 ];
 // `win-sharp`: the win with the winner at 90 % accuracy, so SHARPSHOOTER (the pistol medal, F-062) is one of the three awards.
 const winSharp: [ResultFighter, ResultFighter] = [{ ...win[0], stats: { ...win[0].stats, accuracy: 90 } }, win[1]];
-const data = kase === 'loss' ? loss : kase === 'draw' ? draw : kase === 'win-sharp' ? winSharp : win;
+// R-031 (F-074 / F-075) margins: the playtest 5-3 win (the rival jumped and soaked more), a 1-5 and a 4-5 loss, a 2P 5-4.
+const w53: [ResultFighter, ResultFighter] = [
+  { character: 'standup', kos: 5, stats: stats({ damage: 520, accuracy: 31, deaths: 3, bestStreak: 2, shots: 30 }), tally: tally({ jumps: 20, damageTaken: 300 }) },
+  { character: 'hotfix', kos: 3, stats: stats({ damage: 300, accuracy: 40, deaths: 5, bestStreak: 1, shots: 25 }), tally: tally({ jumps: 62, damageTaken: 456 }) },
+];
+const l15: [ResultFighter, ResultFighter] = [
+  { character: 'hotfix', kos: 1, stats: stats({ damage: 210, accuracy: 28, deaths: 5, bestStreak: 1, shots: 32 }), tally: tally({ jumps: 48, damageTaken: 520 }) },
+  { character: 'standup', kos: 5, stats: stats({ damage: 520, accuracy: 52, deaths: 1, bestStreak: 4, shots: 27 }), tally: tally({ jumps: 25, damageTaken: 210 }) },
+];
+const l45: [ResultFighter, ResultFighter] = [loss[0], loss[1]];
+const tp54: [ResultFighter, ResultFighter] = [
+  { character: 'standup', kos: 5, stats: stats({ damage: 470, accuracy: 46, deaths: 4, bestStreak: 2, shots: 34 }), tally: tally({ jumps: 38, pushedBack: 2, damageTaken: 430 }) },
+  { character: 'hotfix', kos: 4, stats: stats({ damage: 430, accuracy: 51, deaths: 5, bestStreak: 2, shots: 30 }), tally: tally({ jumps: 55, damageTaken: 470 }) },
+];
+const MARGIN: Record<string, [ResultFighter, ResultFighter]> = { w53, l15, l45, '2p54': tp54 };
+const data = MARGIN[kase] ?? (kase === 'loss' ? loss : kase === 'draw' ? draw : kase === 'win-sharp' ? winSharp : win);
+const tp = kase === '2p' || kase === '2p54';
 
 const App = () => {
   const trap = useRef<HTMLInputElement>(null);
@@ -46,14 +62,13 @@ const App = () => {
     <div style={{ position: 'fixed', inset: 0, background: `#6fbbe3 url(./menu-poster.webp) center / cover` }}>
       <input ref={trap} aria-label="trap" style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }} />
       <ResultScreen
-        mode={kase === '2p' ? 'twoPlayer' : online ? 'online' : 'solo'}
+        mode={tp ? 'twoPlayer' : online ? 'online' : 'solo'}
         fighters={data}
-        winner={kase === 'draw' ? -1 : kase === 'loss' ? 1 : 0}
-        drawLine="Dead even."
-        colours={kase === '2p' ? ['#FF7A2F', '#4CB8FF'] : undefined}
-        tally={kase === '2p' ? { p1: 3, p2: 2 } : undefined}
+        winner={kase === 'draw' ? -1 : kase === 'loss' || kase === 'l15' || kase === 'l45' ? 1 : 0}
+        colours={tp ? ['#FF7A2F', '#4CB8FF'] : undefined}
+        tally={tp ? { p1: 3, p2: 2 } : undefined}
         rematchAsked={asked}
-        rematchTicks={kase === '2p' ? [true, false] : undefined}
+        rematchTicks={tp ? [true, false] : undefined}
         canNextArena={!online}
         nextCharacter={online ? 'legacy' : undefined}
         onRematch={log('rematch')}

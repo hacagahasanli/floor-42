@@ -42,6 +42,22 @@ export const FD_COPY = {
     firstTo: (n: number) => `FIRST TO ${n}`,
     hint: { choose: 'choose', ready: 'ready', back: 'Back', length: 'length' },
   },
+  /** The 2P key card (R-030 / F-070, `CREATIVE/ui/direction-b/r030-2p-polish.md` 1.2). */
+  keyCard: {
+    titleStart: 'BOTH PRESS SHOOT TO FIGHT',
+    titleView: '2 PLAYER KEYS',
+    hint: 'Shoot is the key next to your hand. Push is next to that. Dash is the far one.',
+    tester: 'Hold your keys. They light up.',
+    press: 'Press',
+    toFight: 'to fight',
+    ready: 'READY!',
+    warnLead: "A key stays dark? Your keyboard can't take that combo. Change it in ",
+    warnPath: 'Settings → Controls → 2 Player',
+    warnEnd: '.',
+    startNow: 'start now',
+    back: 'back',
+    keys: { jump: 'Jump', move: 'Move', crouch: 'Crouch', shoot: 'Shoot', push: 'Push', dash: 'Dash', sit: 'Sit', stick: 'Move' },
+  },
   /**
    * The result screen (b12-b16) and its online rematch panel. Strings from the spec's mockups and §7 (award pool and the loss
    * line rotation). NOT from the spec, flagged for the CD: DRAW, the SPONGE description verb, and the rematch timer showing
@@ -63,14 +79,26 @@ export const FD_COPY = {
     changeFighter: 'CHANGE FIGHTER',
     accuracy: (n: number) => `${n}% accuracy`,
     bestStreak: (n: number) => `best streak ${n}`,
-    /** One is picked per match, after "4 – 5 ·". */
-    lossLines: ['so close! · one more?', 'run it back?', "next one's yours"],
+    /**
+     * The pill line after "{a} – {b} ·", by margin (F-075, CD R-031): close = 1, clear = 2-3, big = 4+, shutout = a win with the
+     * loser on 0 KOs. Where a cell has two lines, one is picked per match (the result's random index, modulo the cell).
+     */
+    winLines: { shutout: ['flawless!'], big: ['total control'], clear: ['clean win'], close: ['by a whisker!'] },
+    lossLines: {
+      close: ['so close! · one more?', 'one KO short · run it back?'],
+      clear: ['run it back?', 'shake it off · go again?'],
+      big: ['tough one · go again?', 'try another fighter?'],
+    },
+    drawLine: 'all square · one more?',
     awards: {
       pinata: { title: 'PIÑATA', line: (who: string, n: number) => `${who} took ${n} ${n === 1 ? 'rocket' : 'rockets'}` },
       boomerang: { title: 'BOOMERANG', line: (who: string, n: number) => `${who} pushed back ${n} ${n === 1 ? 'bullet' : 'bullets'}` },
       bouncy: { title: 'BOUNCY CASTLE', line: (who: string, n: number) => `${who} jumped ${n} times` },
       sharpshooter: { title: 'SHARPSHOOTER', line: (who: string, n: number) => `${who} hit ${n}% of shots` },
       sponge: { title: 'IRON SPONGE', line: (who: string, n: number) => `${who} soaked up ${n} damage` },
+      hitter: { title: 'HEAVY HITTER', line: (who: string, n: number) => `${who} dealt ${n} damage` },
+      streak: { title: 'HOT STREAK', line: (who: string, n: number) => `${who} scored ${n} KOs in a row` },
+      ribbon: { title: 'BLUE RIBBON', line: (who: string, n: number) => `${who} took the field, ${n} ${n === 1 ? 'KO' : 'KOs'}` },
     },
     stats: { title: 'THIS MATCH', kos: 'KOs', damage: 'Damage dealt', accuracy: 'Accuracy', streak: 'Best streak', down: 'Times down' },
     rematchOnline: {

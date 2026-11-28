@@ -43,13 +43,14 @@ const BEATS = { cut: 0, impact: 0.3, land: 0.75, loser: 1.05, final: 1.4, choice
 const STEP_CLASS = ['r-cut', 'r-impact', 'r-land', 'r-loser', 'r-final', 'r-choice', 'r-idle'] as const;
 /** Input opens 0.6 s after the cut (spec section 4 item 5). Exported for the 2-player Shoot+Shoot rematch (ArenaGame). */
 export const INPUT_AT_MS = 600;
+/** 2P: Shoot+Shoot rematch opens when the REMATCH button and its P1 / P2 chips are up (R-030 2 / F-071), unless skipped. */
+export const SHOOT_REMATCH_AT_MS = BEATS.choice * 1000;
 const LAST_STEP = STEP_CLASS.length - 1;
 
 export interface ResultScreenProps {
   mode: ResultMode;
   fighters: [ResultFighter, ResultFighter];
   winner: number | null;
-  drawLine: string;
   /** The player colours (2-player), for the score tiles (the P1 / P2 tags are grape since R-028). */
   colours?: [string, string];
   /** Tonight's tally (2-player). */
@@ -67,6 +68,8 @@ export interface ResultScreenProps {
   onMenu: () => void;
   /** The game's invisible keyboard field: it must not steal focus from the buttons while this screen is up. */
   keyTrapRef: RefObject<HTMLInputElement | null>;
+  /** Called once when the buttons are on screen (the choice beat, a skip, or Reduced motion's final layout). */
+  onChoiceUp?: () => void;
 }
 
 export const ResultScreen = (props: ResultScreenProps) => {
@@ -135,10 +138,11 @@ const ResultBody = (p: ResultScreenProps) => {
   useFighterPortraits(p.fighters[0].character);
   useGamepadNav(true);
 
-  const [lossLine] = useState(() => Math.floor(Math.random() * C.lossLines.length));
+  // One random index per match: picks a line in a two-line pill cell (F-075).
+  const [lossLine] = useState(() => Math.floor(Math.random() * 2));
   const model = useMemo(
-    () => buildResult({ mode: p.mode, winner: p.winner, fighters: p.fighters, lossLine, drawLine: p.drawLine }),
-    [p.mode, p.winner, p.fighters, lossLine, p.drawLine],
+    () => buildResult({ mode: p.mode, winner: p.winner, fighters: p.fighters, lossLine }),
+    [p.mode, p.winner, p.fighters, lossLine],
   );
   const { outcome } = model;
   const isDraw = outcome === 'draw';
@@ -204,6 +208,12 @@ const ResultBody = (p: ResultScreenProps) => {
     setSkipped(true);
     setStep(LAST_STEP);
   }, []);
+  const choiceRef = useRef(p.onChoiceUp);
+  choiceRef.current = p.onChoiceUp;
+  const choiceUp = step >= 5;
+  useEffect(() => {
+    if (choiceUp) choiceRef.current?.();
+  }, [choiceUp]);
   const inputOpen = () => reduced || performance.now() - t0.current >= INPUT_AT_MS;
   const guarded = (fn: () => void) => () => {
     if (inputOpen()) fn();

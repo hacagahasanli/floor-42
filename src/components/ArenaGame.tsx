@@ -12,7 +12,7 @@ import {
 } from '~/components/TouchControls';
 import { readAim } from '~/components/AimChoice';
 import { FdHud } from '~/components/fieldday/hud/FdHud';
-import { useClearOf } from '~/components/fieldday/hud/useClearOf';
+import { STACK_STYLE, useCornerLayout } from '~/components/fieldday/hud/useClearOf';
 import { HowToScreen } from '~/components/fieldday/screens/HowToScreen';
 import { PauseScreen } from '~/components/fieldday/screens/PauseScreen';
 import { SettingsPanel } from '~/components/menu/SettingsPanel';
@@ -531,10 +531,24 @@ export const ArenaGame = ({
   const end = hud?.phase === 'over' && !bandHold ? END_TEXT(hud, demo, copy) : null;
   // The AIM / SHAKE pills step aside while the bottom key strip or hint would run into them (small windows, release QA item 1).
   const cornerRef = useRef<HTMLDivElement>(null);
-  const cornerClash = useClearOf(cornerRef, '[data-testid="key-strip"]:not([aria-hidden="true"]), [data-testid="hud-hint"]');
+  // R-030 3 / F-072: on desktop 1P they stack into a right-aligned column first (AIM on top) and hide only if that clashes too.
+  const cornerMode = useCornerLayout(
+    cornerRef,
+    '[data-testid="key-strip"]:not([aria-hidden="true"]), [data-testid="hud-hint"]',
+    !tp && !touch,
+  );
+  const cornerClash = cornerMode === 'hidden';
   // Results: rematch when both players press Shoot, counted only once the result screen is up and its input lock has passed
   // (release QA 2026-11-28 item 3: Shoot mashed through the final KO went straight to the next match).
-  const rematchTicks = useBothPress(peek2P, tp && !!end && !rivalLeft, () => rematch(), INPUT_AT_MS);
+  // R-030 2 / F-071: in 2P, Shoot+Shoot opens only once REMATCH and its P1 / P2 chips are up (2.2 s, or at once after an
+  // Enter / Space skip), never before 0.6 s; mashed and held presses before that are thrown away.
+  const [choiceUp, setChoiceUp] = useState(false);
+  const resultUp = !!end && !rivalLeft;
+  useEffect(() => {
+    if (!resultUp) setChoiceUp(false);
+  }, [resultUp]);
+  const onChoiceUp = useCallback(() => setChoiceUp(true), []);
+  const rematchTicks = useBothPress(peek2P, tp && resultUp, () => rematch(), INPUT_AT_MS, choiceUp);
 
   return (
     <main data-kick-root className="relative h-[100dvh] w-screen touch-none select-none overflow-hidden bg-ink-deep">
@@ -760,7 +774,6 @@ export const ArenaGame = ({
                 mode={demo ? 'demo' : tp ? 'twoPlayer' : online ? 'online' : 'solo'}
                 fighters={[hud.fighters[0], hud.fighters[1]]}
                 winner={hud.winner}
-                drawLine={copy.drawSub}
                 colours={tp ? colours : undefined}
                 tally={tp ? tally : undefined}
                 rematchAsked={rematchAsked}
@@ -772,6 +785,7 @@ export const ArenaGame = ({
                 onChangeFighter={onChangeFighter}
                 onMenu={exit}
                 keyTrapRef={keyTrapRef}
+                onChoiceUp={onChoiceUp}
               />
               <Support variant="results" className="absolute left-6 top-24 z-[31]" />
             </>
@@ -792,8 +806,9 @@ export const ArenaGame = ({
             ref={cornerRef}
             data-testid="corner-pills"
             data-hidden={cornerClash || undefined}
+            data-layout={cornerMode}
             className={`fd absolute z-[5] flex items-center gap-2 text-[12px] font-bold ${tp ? 'bottom-3 left-1/2 -translate-x-1/2' : touch ? 'right-3 top-20' : 'bottom-3 right-3'}`}
-            style={{ color: '#FFF3D6', visibility: cornerClash ? 'hidden' : undefined }}
+            style={{ color: '#FFF3D6', visibility: cornerClash ? 'hidden' : undefined, ...(cornerMode === 'stack' ? STACK_STYLE : {}) }}
           >
             {!demo && !touch && !tp && (
               <button

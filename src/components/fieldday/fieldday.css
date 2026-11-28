@@ -823,6 +823,28 @@
   }
 }
 
+/* 2P key card (R-030): a status bar turning READY! pops 160 ms; a held keycap presses in. */
+.fd-kc2 {
+  transition: background-color 75ms linear, box-shadow 75ms linear, transform 75ms linear;
+}
+.fd-kc2-pop {
+  animation: fd-kc2-pop 160ms ease-out both;
+}
+@keyframes fd-kc2-pop {
+  0% {
+    scale: 0.96;
+  }
+  60% {
+    scale: 1.04;
+  }
+  100% {
+    scale: 1;
+  }
+}
+.fd[data-reduced='1'] .fd-kc2-pop {
+  animation: none;
+}
+
 /* ---------- reduced motion: no bob, shine, spin, sway, confetti; static focus ring; 120 ms fades (spec 5) ---------- */
 .fd[data-reduced='1'] *,
 .fd[data-reduced='1'] *::before,

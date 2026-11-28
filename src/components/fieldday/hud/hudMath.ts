@@ -80,3 +80,12 @@ export const boxesClash = (a: Rect, b: Rect, gap = 0): boolean => {
   if (empty(a) || empty(b)) return false;
   return a.left < b.right + gap && b.left < a.right + gap && a.top < b.bottom + gap && b.top < a.bottom + gap;
 };
+
+export type CornerLayout = 'row' | 'stack' | 'hidden';
+
+/**
+ * The AIM / SHAKE corner group (R-030 3 / F-072): a row when the row is clear of the key strip and hint; else a right-aligned
+ * column (AIM on top) when the column is clear; hidden only when the column clashes too (or the layout cannot stack: touch, 2P).
+ */
+export const cornerLayout = (rowClash: boolean, stackClash: boolean, canStack: boolean): CornerLayout =>
+  !rowClash ? 'row' : canStack && !stackClash ? 'stack' : 'hidden';
