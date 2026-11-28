@@ -1,6 +1,6 @@
 # Assets
 
-Almost everything in Floor 42 is built in code: the office, the fighters, the guns, the effects and
+Almost everything in Pewfield is built in code: the office, the fighters, the guns, the effects and
 most sounds (synthesised with WebAudio in `src/game/sfx.ts`). The exceptions are listed here.
 
 | What | Source | Author | Licence | Files |

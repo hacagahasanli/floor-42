@@ -2,7 +2,8 @@
 
 import { forwardRef, useLayoutEffect, useRef, useState } from 'react';
 
-import { GAME_NAME, wordmarkParts } from './brand';
+import { GAME_NAME_TITLE } from './brand';
+import { WORDMARK_INNER, WORDMARK_VIEWBOX } from './wordmarkArt';
 import { fitScale } from './fit';
 import { Icon, RibbonTail } from './Icon';
 
@@ -266,46 +267,31 @@ export const StatRow = ({ label, n, color }: { label: string; n: number; color?:
 );
 
 /**
- * The wordmark slot (spec 3.1, R-023): box 420x118 at --s 1 (`scale` multiplies, 1.25 on the boot screen). Reads GAME_NAME from
- * brand.ts. A name wider than the slot scales down to fit, never wraps, never below 0.6. Pass `name` to override (the stress test).
- * The slot has the box's size, so the layout never moves when the font loads or the name changes.
+ * The wordmark slot (spec 3.1, R-023): box 420x118 at --s 1 (`scale` multiplies, 1.25 on the boot screen). It shows the logo artwork
+ * (concept A, wordmarkArt.ts) as one inline SVG, height-bound: about 272x118, left-aligned. The slot has the box's size and the art
+ * has no font to wait for, so nothing moves when it loads. The h1 carries the name for assistive tech.
  */
-export const Wordmark = ({ name = GAME_NAME, scale = 1, className = '', style }: { name?: string; scale?: number; className?: string; style?: CSSProperties }) => {
-  const parts = wordmarkParts(name);
-  const [ref, fit] = useFit(420 * scale, [name, scale], true);
-  const s = scale * fit;
-  const big = parts.length === 1 ? parts[0] : parts[1];
-  return (
-    <div className={className} style={{ width: 420 * scale, height: 104 * scale, position: 'relative', ...style }} data-testid="wordmark">
-      <h1
-        ref={ref as React.RefObject<HTMLHeadingElement>}
-        aria-label={name}
-        style={{
-          margin: 0,
-          display: 'flex',
-          whiteSpace: 'nowrap',
-          alignItems: 'flex-end',
-          gap: 10 * s,
-          transform: 'rotate(-3deg)',
-          transformOrigin: 'left bottom',
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: 'max-content',
-        }}
-      >
-        {parts.length === 2 && (
-          <span aria-hidden="true" className="fd-titan fd-ol" style={{ fontSize: 60 * s, ['--o' as string]: `${4 * s}px`, ['--d' as string]: `${6 * s}px`, paddingBottom: 8 * s }}>
-            {parts[0]}
-          </span>
-        )}
-        <span aria-hidden="true" className="fd-titan fd-ol fd-sun" style={{ fontSize: 104 * s, ['--o' as string]: `${5 * s}px`, ['--d' as string]: `${9 * s}px`, display: 'inline-block', transform: 'rotate(-4deg)' }}>
-          {big}
-        </span>
-      </h1>
-    </div>
-  );
-};
+/**
+ * The wordmark slot in design px (F-057 / colour-balance.md section 5): 420 x 160. The art is height-bound (1200:520), so it draws
+ * about 369 x 160, the width of the home menu column. The boot screen shows it at 1.25 (vite.portal.config.ts, portal/index.html).
+ */
+export const WORDMARK_SLOT = { w: 420, h: 160 } as const;
+export const WORDMARK_ART_ASPECT = 1200 / 520;
+
+export const Wordmark = ({ scale = 1, className = '', style }: { scale?: number; className?: string; style?: CSSProperties }) => (
+  <div className={className} style={{ width: WORDMARK_SLOT.w * scale, height: WORDMARK_SLOT.h * scale, position: 'relative', ...style }} data-testid="wordmark">
+    <h1 style={{ margin: 0, position: 'absolute', left: 0, top: 0, height: '100%', aspectRatio: '1200 / 520' }}>
+      <svg
+        viewBox={WORDMARK_VIEWBOX}
+        role="img"
+        aria-label={GAME_NAME_TITLE}
+        style={{ display: 'block', width: '100%', height: '100%' }}
+        // Static, generated markup (tools/brand/export-pewfield.mjs); no user input reaches it.
+        dangerouslySetInnerHTML={{ __html: WORDMARK_INNER }}
+      />
+    </h1>
+  </div>
+);
 
 /** The trait disc (R-026 11.1): the fighter's accent with the white trait icon. `size` is the disc, the icon is about 73 % of it. */
 export const TraitDisc = ({ id, accent, size = 22 }: { id: IconName; accent: string; size?: number }) => (

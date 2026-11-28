@@ -14,7 +14,7 @@ const iosBrowser = () => {
 };
 
 /**
- * iPhone browsers can't hide their bars for a web page. Installed on the home screen, Floor 42
+ * iPhone browsers can't hide their bars for a web page. Installed on the home screen, Pewfield
  * opens full screen: say how, once, and let it be dismissed.
  */
 export const InstallHint = ({ className = '' }: { className?: string }) => {
@@ -39,7 +39,7 @@ export const InstallHint = ({ className = '' }: { className?: string }) => {
     <div className={`panel-cut flex max-w-md items-start gap-3 bg-ink p-4 text-left text-sm text-cream/85 ${className}`} role="note">
       <div className="flex-1">
         <b className="text-gold">Full screen on iPhone:</b> tap <b>Share</b> (the square with the arrow), then{' '}
-        <b>Add to Home Screen</b>, and open Floor 42 from your home screen. It opens with no browser bars. To join a
+        <b>Add to Home Screen</b>, and open Pewfield from your home screen. It opens with no browser bars. To join a
         friend from there, paste their link on the Play online page.
       </div>
       <button type="button" onClick={close} aria-label="Got it" className="panel-cut bg-cream/10 px-3 py-1 text-xs font-bold uppercase">

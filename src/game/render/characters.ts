@@ -7,7 +7,7 @@ import type { Fx, Hang, PoseDef, ShowPose } from './rosterRigs';
 
 import type { CharacterId, GunKind } from '../sim/types';
 
-/** Floor 42's guns, plus empty hands. */
+/** Pewfield's guns, plus empty hands. */
 type WeaponKind = GunKind | 'fists';
 
 /**
@@ -851,7 +851,7 @@ export interface SidePose {
 const CROUCH_POSE = { thighL: -1.5, thighR: -1.25, kneeL: 2.75, kneeR: 2.8, lean: 0.6, head: 0.45 };
 
 /**
- * Floor 42's side-on animation, with the same body as the battle royale: two-bone arms that hold
+ * Pewfield's side-on animation, with the same body as the battle royale: two-bone arms that hold
  * the gun by the grip and fore-end and point it where you aim (up and down too), two-bone legs
  * with knees, a real run cycle (and back-pedalling when you run away from where you aim), a knee
  * drive on the jump, legs braced on a wall slide, the lean of a dash, a gun that kicks by its

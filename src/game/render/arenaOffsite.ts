@@ -455,18 +455,30 @@ const buildWaterTower = (x: number, z: number) => {
   g.add(put(mesh(new THREE.ConeGeometry(1.9, 0.9, 14), mat(P.timber), false), 0, tankY + 2.6 + 0.45, 0));
   for (const y of [0.55, 2.05]) g.add(put(mesh(new THREE.CylinderGeometry(1.74, 1.74, 0.1, 14), mat(P.timber), false), 0, tankY + y, 0));
   g.position.set(x, 0, z);
-  // The company's joke: "42" in gold on the tank. Redrawn once the display font has loaded.
+  // The town name, like a real water tower: PEWFIELD in sun with a grape outline (R-023), fitted to the 256 px canvas with 12 px
+  // margins. Redrawn once the display font has loaded.
   const draw = (gc: CanvasRenderingContext2D) => {
     gc.clearRect(0, 0, 256, 128);
-    gc.font = "400 110px Bungee, Impact, 'Arial Black', sans-serif";
     gc.textAlign = 'center';
     gc.textBaseline = 'middle';
-    gc.fillStyle = '#ffc93c';
-    gc.fillText('42', 128, 70);
+    gc.lineJoin = 'round';
+    let size = 64;
+    gc.font = `400 ${size}px "Titan One", Bungee, Impact, 'Arial Black', sans-serif`;
+    const room = 256 - 2 * 12 - 2 * 5; // margins, and the outline's half-width on each side
+    const w = gc.measureText('PEWFIELD').width;
+    if (w > room) {
+      size = Math.floor((size * room) / w);
+      gc.font = `400 ${size}px "Titan One", Bungee, Impact, 'Arial Black', sans-serif`;
+    }
+    gc.lineWidth = 10;
+    gc.strokeStyle = '#3B1F6B';
+    gc.strokeText('PEWFIELD', 128, 66);
+    gc.fillStyle = '#FFC83D';
+    gc.fillText('PEWFIELD', 128, 66);
   };
   const tex = canvasTexture(256, 128, draw);
   const canvas = tex.image as HTMLCanvasElement;
-  void document.fonts?.load?.("110px Bungee").then(() => {
+  void document.fonts?.load?.("64px 'Titan One'").then(() => {
     draw(canvas.getContext('2d')!);
     tex.needsUpdate = true;
   });

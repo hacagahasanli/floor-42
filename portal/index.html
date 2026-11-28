@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" sizes="180x180" />
     <title>%GAME_TITLE%</title>
     <link rel="preload" href="./menu-poster.webp" as="image" type="image/webp" />
-    <meta name="description" content="A two-player office shootout: settle it on floor 42, first to five KOs." />
+    <meta name="description" content="Pewfield is a 1v1 shootout. Pick a fighter, grab a gun, first to five KOs wins." />
     <!-- CrazyGames SDK v3. If it cannot load (offline, another portal), the game runs without it. -->
     <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
     <link rel="preload" as="font" type="font/woff2" crossorigin href="../src/components/fieldday/fonts/TitanOne-Regular.woff2" />
@@ -39,10 +39,8 @@
       @keyframes sw{from{rotate:-5deg}to{rotate:5deg}}
       #boot *{box-sizing:border-box}
       #boot .wmw{position:absolute;left:50%;top:196px;transform:translateX(-50%)}
-      #boot .wm{display:flex;align-items:flex-end;gap:12.5px;white-space:nowrap;transform:rotate(-3deg);transform-origin:left bottom;font-family:'Titan One',sans-serif;line-height:1;letter-spacing:.5px;color:#fff}
-      #boot .wm span{--o:5px;--d:7.5px;text-shadow:var(--o) 0 0 #3B1F6B,calc(-1*var(--o)) 0 0 #3B1F6B,0 var(--o) 0 #3B1F6B,0 calc(-1*var(--o)) 0 #3B1F6B,calc(.72*var(--o)) calc(.72*var(--o)) 0 #3B1F6B,calc(-.72*var(--o)) calc(-.72*var(--o)) 0 #3B1F6B,calc(.72*var(--o)) calc(-.72*var(--o)) 0 #3B1F6B,calc(-.72*var(--o)) calc(.72*var(--o)) 0 #3B1F6B,0 calc(var(--o) + var(--d)) 0 #3B1F6B,calc(.72*var(--o)) calc(.72*var(--o) + var(--d)) 0 #3B1F6B,calc(-.72*var(--o)) calc(.72*var(--o) + var(--d)) 0 #3B1F6B}
-      #boot .wm .a{font-size:75px;padding-bottom:10px}
-      #boot .wm .b{font-size:130px;color:#FFC83D;--o:6.25px;--d:11.25px;display:inline-block;transform:rotate(-4deg)}
+      #boot .wm{margin:0;height:200px;aspect-ratio:1200/520}
+      #boot .wm svg{position:static;width:100%;height:100%}
       #boot .bar{position:absolute;left:380px;top:452px;width:520px}
       #boot .track{height:36px;border:4px solid #3B1F6B;border-radius:999px;background:#fff;box-shadow:0 5px 0 #3B1F6B;padding:4px;overflow:hidden}
       #boot .fill{position:relative;width:0;height:100%;border-radius:999px;background:repeating-linear-gradient(-45deg,#FFC83D 0 14px,#FFD86B 14px 28px);box-shadow:inset 0 -4px 0 #E08A00;overflow:hidden;transition:width .3s ease-out}

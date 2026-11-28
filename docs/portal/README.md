@@ -1,7 +1,7 @@
 # CrazyGames portal build
 
 `npm run build:portal` builds `dist/portal` (one static folder, `index.html` at the root, relative paths), checks it
-(`scripts/portal-report.mjs`) and zips it to `dist/floor-42-crazygames.zip` (`scripts/portal-zip.mjs`).
+(`scripts/portal-report.mjs`) and zips it to `dist/pewfield-crazygames.zip` (`scripts/portal-zip.mjs`).
 `npm run dev:portal` serves it on port 3205; `node scripts/portal-serve.mjs 3215` serves the built folder under
 `/games/floor-42/`, as a portal would.
 

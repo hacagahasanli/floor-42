@@ -443,7 +443,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   };
   const share = () =>
     void navigator
-      .share?.({ title: 'Floor 42', text: 'Fight me on floor 42', url: inviteLink })
+      .share?.({ title: 'Pewfield', text: 'Fight me in Pewfield', url: inviteLink })
       .catch(() => {});
   const botHref = `/arena?p1=${character}&bot=normal`;
   const entry = ROSTER.find((r) => r.id === character)!;

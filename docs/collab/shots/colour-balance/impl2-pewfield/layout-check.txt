@@ -1,0 +1,10 @@
+home-pewfield @1280x720: 0 issues
+  OK-LOCKUP wordmark x arena-ribbon, vertical overlap 18.4 design px (<= 20)
+  geometry (design px, [left, top, w, h]): {"slot":[34,34,420,160],"art":[34,34,369.2,160],"ribbon":[63.1,175.6,324.3,60.8],"play":[56,248.2,372,96],"howto":[138,579,290,68]}
+boot-pewfield @1280x720: 0 issues
+  stage scale 1, wordmark [409,196,462,200] viewport px, 200 design px high, 56 design px above the loading bar
+home-pewfield @1920x1080: 0 issues
+  OK-LOCKUP wordmark x arena-ribbon, vertical overlap 18.4 design px (<= 20)
+  geometry (design px, [left, top, w, h]): {"slot":[34,34,420,160],"art":[34,34,369.2,160],"ribbon":[63.1,175.6,324.3,60.8],"play":[56,248.1,372,96],"howto":[138,579,290,68]}
+boot-pewfield @1920x1080: 0 issues
+  stage scale 1.5, wordmark [614,294,692,300] viewport px, 200 design px high, 56 design px above the loading bar

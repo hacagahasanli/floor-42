@@ -1,4 +1,4 @@
-# Floor 42: weapon balance
+# Pewfield: weapon balance
 
 Every gun has one job, and no gun is best everywhere. The numbers live in `GUNS` (`src/game/sim/constants.ts`).
 `src/game/sim/balance.ts` computes time to kill (TTK) from them, and `src/game/sim/balance.test.ts` fails if a
