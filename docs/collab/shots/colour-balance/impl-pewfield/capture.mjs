@@ -1,71 +1,24 @@
 // F-057 (colour-balance.md section 5): PEWFIELD wordmark on home and the boot screen, real GPU (Chromium 1255, ANGLE Metal) at
-// 1280x720 and 1920x1080, with the layout check from traits-menus/capture.mjs (safe area, overflow, clipping, overlap) plus the
+// 1280x720 and 1920x1080, with the shared layout check (../layout-check.mjs: safe area, overflow, clipping, overlap, F-060 whitelist) plus the
 // wordmark / ribbon / menu-column geometry in design px. Needs, in floor-42-rename:
 //   npx vite --config vite.portal.config.ts --port 3252        (home)
 //   npm run build:portal && node scripts/portal-serve.mjs 3253 (boot: the built page, with the main bundle held so it stays up)
 // Usage: node capture.mjs
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
+
+import { check, issuesOf, notesOf } from '../layout-check.mjs';
 const require = createRequire(process.env.HOME + '/.npm/_npx/e41f203b7505f1fb/package.json');
 const { chromium } = require('playwright-core');
-const OUT = new URL('.', import.meta.url).pathname;
+const OUT = process.env.OUT || new URL('.', import.meta.url).pathname; // OUT=<dir>/ to keep these frames for comparison
 const B = process.env.B || 'http://localhost:3252';
 const BUILT = process.env.BUILT || 'http://localhost:3253/games/floor-42/';
 const browser = await chromium.launch({
   executablePath: process.env.HOME + '/Library/Caches/ms-playwright/chromium-1255/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
   args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
 });
-const check = () => {
-  const out = [];
-  const W = innerWidth, H = innerHeight;
-  const s = parseFloat(getComputedStyle(document.querySelector('.fd')).getPropertyValue('--s')) || 1;
-  const safe = 12 * s;
-  const name = (e) => `${e.getAttribute('data-testid') || e.className.toString().slice(0, 24)} "${(e.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24)}"`;
-  const UI = [...document.querySelectorAll('.fd-btn,.fd-card,.fd-panel,.fd-pill,.fd-hints,.fd-ribbon,.fd-bubble,.fd-chip,h2,[data-testid="wordmark"]')];
-  for (const e of UI) {
-    const r = e.getBoundingClientRect();
-    if (!r.width) continue;
-    const ring = e === document.activeElement ? 12 * s : 0;
-    if (r.left - ring < safe - 1 || r.top - ring < safe - 1 || r.right + ring > W - safe + 1 || r.bottom + ring > H - safe + 1) {
-      if (e.closest('.fd-card') && e.closest('.fd-card') !== e) continue;
-      out.push('SAFE-AREA ' + name(e) + ` [${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.right)},${Math.round(r.bottom)}]`);
-    }
-  }
-  for (const e of document.querySelectorAll('.fd-btn,.fd-chip,.fd-kc,.fd-pill,.fd-hints,.fd-ribbon')) {
-    const b = e.getBoundingClientRect(), bw = (parseFloat(getComputedStyle(e).borderLeftWidth) || 0) * s;
-    const rects = [];
-    const tw = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
-    for (let n; (n = tw.nextNode());) { if (!n.textContent.trim()) continue; const r = document.createRange(); r.selectNodeContents(n); rects.push(r.getBoundingClientRect()); }
-    for (const k of e.querySelectorAll('svg:not(.fd-tail):not(.fd-ptr)')) { if (k.closest('.fd-ptr')) continue; rects.push(k.getBoundingClientRect()); }
-    if (!rects.length) continue;
-    const L = Math.min(...rects.map((r) => r.left)) - b.left - bw, R = b.right - bw - Math.max(...rects.map((r) => r.right));
-    if (L < -0.5 || R < -0.5) out.push('OVERFLOW ' + name(e));
-    const min = e.classList.contains('fd-btn') && !e.classList.contains('fd-icon') ? 12 * s : 0;
-    if (min && (L < min - 1 || R < min - 1)) out.push(`TIGHT ${name(e)} ${Math.round(L / s)}/${Math.round(R / s)}px`);
-  }
-  for (const stage of document.querySelectorAll('.fd-stage')) {
-    const tw = document.createTreeWalker(stage, NodeFilter.SHOW_TEXT);
-    for (let n; (n = tw.nextNode());) {
-      if (!n.textContent.trim()) continue;
-      const r = document.createRange(); r.selectNodeContents(n); const t = r.getBoundingClientRect();
-      for (let a = n.parentElement; a && !a.classList.contains('fd-stage'); a = a.parentElement) {
-        if (getComputedStyle(a).overflow === 'hidden' && !a.classList.contains('fd-confetti')) {
-          const b = a.getBoundingClientRect();
-          if (t.left < b.left - 1 || t.right > b.right + 1 || t.top < b.top - 1 || t.bottom > b.bottom + 1) out.push('CLIPPED "' + n.textContent.trim().slice(0, 24) + '" by ' + name(a));
-        }
-      }
-    }
-  }
-  const boxes = UI.filter((e) => e.getBoundingClientRect().width);
-  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
-    const a = boxes[i], b = boxes[j];
-    if (a.contains(b) || b.contains(a)) continue;
-    const A = a.getBoundingClientRect(), B = b.getBoundingClientRect();
-    const ox = Math.min(A.right, B.right) - Math.max(A.left, B.left), oy = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
-    if (ox > 3 * s && oy > 3 * s) out.push('OVERLAP ' + name(a) + ' x ' + name(b));
-  }
-  return out;
-};
+// The layout check is shared with portal-build's impl2/ (../layout-check.mjs): the traits-menus check plus the F-060 whitelist
+// (home wordmark x arena-ribbon only, vertical overlap <= 20 design px). OK- lines are notes, not issues.
 
 // Geometry in design px (rect / --s, relative to the 1280x720 frame).
 const geom = () => {
@@ -100,8 +53,9 @@ for (const [w, h] of [[1280, 720], [1920, 1080]]) {
   await page.waitForSelector('[data-testid=home]', { timeout: 30000 });
   await page.waitForTimeout(3000);
   await page.screenshot({ path: `${OUT}home-pewfield-${w}.png` });
-  const issues = [...new Set(await page.evaluate(check))];
-  report.push(`home-pewfield @${w}x${h}: ${issues.length ? issues.length + ' issue(s)\n  ' + issues.join('\n  ') : '0 issues'}\n  geometry (design px, [left, top, w, h]): ${JSON.stringify(await page.evaluate(geom))}`);
+  const all = [...new Set(await page.evaluate(check))];
+  const issues = issuesOf(all), notes = notesOf(all);
+  report.push(`home-pewfield @${w}x${h}: ${issues.length ? issues.length + ' issue(s)\n  ' + issues.join('\n  ') : '0 issues'}${notes.length ? '\n  ' + notes.join('\n  ') : ''}\n  geometry (design px, [left, top, w, h]): ${JSON.stringify(await page.evaluate(geom))}`);
   await ctx.close();
 
   ctx = await browser.newContext({ viewport: { width: w, height: h } });
