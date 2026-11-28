@@ -83,6 +83,8 @@ export interface MatchDeps<R> {
   sleep: (ms: number) => Promise<void>;
   /** The search was cancelled (the player pressed Cancel): stop and leave. */
   cancelled?: () => boolean;
+  /** When the player pressed Quick match (deps.now() clock): the bot is due BOT_DUE_MS after it, probes included. */
+  startedAt?: number;
   /** Each leg as it starts, for the lobby's status line. */
   onLeg?: (leg: Leg) => void;
 }
@@ -103,7 +105,7 @@ export class SearchCancelled extends Error {
  * a player is never left with nothing because one region is down). Throws the last error if no leg could connect.
  */
 export const runQuickMatch = async <R>(legs: Leg[], deps: MatchDeps<R>): Promise<MatchResult<R>> => {
-  const t0 = deps.now();
+  const t0 = deps.startedAt ?? deps.now();
   const elapsed = () => deps.now() - t0;
   let lastError: unknown = new Error('no region to search');
   const worked: Region[] = [];

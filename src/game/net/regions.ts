@@ -52,7 +52,8 @@ type Fetch = (url: string, init?: { cache?: 'no-store'; signal?: AbortSignal }) 
  * Round trip to each region, measured (never a geo guess): one warm-up request (DNS, TLS, and on Fly the machine
  * start), then the MEDIAN of `samples`. All regions are probed at once; one region's samples go one after the other
  * on the warm connection (parallel requests to one host would open new TLS connections and time the handshakes).
- * A region that does not answer within `timeoutMs` is out.
+ * A region that does not answer within `timeoutMs` is out; the warm-up gets `warmupMs`, because a Fly machine that was
+ * stopped (autostop) needs "about 2 seconds or more" to start (docs.fly.io/launch/autostop-autostart).
  */
 export const probeRegions = async (
   regions: Region[],
@@ -60,12 +61,13 @@ export const probeRegions = async (
   now: () => number = () => performance.now(),
   samples = 4,
   timeoutMs = 2500,
+  warmupMs = 6000,
 ): Promise<Probe[]> =>
   Promise.all(
     regions.map(async (r): Promise<Probe> => {
-      const once = async () => {
+      const once = async (limit = timeoutMs) => {
         const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), timeoutMs);
+        const timer = setTimeout(() => ctl.abort(), limit);
         const t0 = now();
         try {
           const res = await fetchFn(`${httpUrl(r.url)}/ping?t=${Math.random().toString(36).slice(2)}`, { cache: 'no-store', signal: ctl.signal });
@@ -76,7 +78,7 @@ export const probeRegions = async (
           clearTimeout(timer);
         }
       };
-      if ((await once()) === Infinity) return { id: r.id, rtt: Infinity };
+      if ((await once(warmupMs)) === Infinity) return { id: r.id, rtt: Infinity };
       const got: number[] = [];
       for (let i = 0; i < samples; i++) got.push(await once());
       return { id: r.id, rtt: Math.round(median(got)) };

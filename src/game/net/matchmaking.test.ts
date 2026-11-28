@@ -195,6 +195,14 @@ describe('runQuickMatch: the state machine', () => {
     expect(res.room.bot).toBe(true);
   });
 
+  it('the bot is due from the press, so a slow region probe (cold start) does not add to the wait', async () => {
+    const h = harness({});
+    h.deps.startedAt = -3_000; // the probe took 3 s before the search began
+    const res = await h.run(runQuickMatch(planSearch([fra]), h.deps));
+    expect(res.room.bot).toBe(true);
+    expect(h.log[1]).toBe(`join fra bot=${MATCH_TIMING.BOT_DUE_MS - 3_000} @0`);
+  });
+
   it('every region down: the error comes back (the lobby shows "can\'t reach the game server")', async () => {
     const h = harness({ down: ['fra'] });
     await expect(h.run(runQuickMatch(planSearch([fra]), h.deps))).rejects.toThrow('fra down');

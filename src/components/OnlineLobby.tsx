@@ -313,11 +313,13 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
     try {
       if (mode.kind === 'quick') {
         // Own region, then the nearest other one, then the server bot (matchmaking.ts). Never more than ~9 s.
+        const pressedAt = performance.now();
         const regions = gameRegions();
         const legs = planSearch(regions, await regionProbes(regions));
         const matchedOf = new WeakMap<Room, Promise<void>>();
         await runQuickMatch<Room>(legs, {
           now: () => performance.now(),
+          startedAt: pressedAt,
           sleep: (ms) => new Promise((r) => window.setTimeout(r, ms)),
           cancelled: () => !live(),
           onLeg: (leg) => {
