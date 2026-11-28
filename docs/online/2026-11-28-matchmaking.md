@@ -103,6 +103,36 @@ How to read it:
   moves by 0-17 ms.
 - **Visible snaps (> 50 cm)**: 0.5-16 per minute before, 0-4.4 after.
 
+## 0c. First run against the real Fly servers (2026-11-28, after the coordinator's deploy)
+
+The coordinator deployed fra (`floor42-game`) and iad (`floor42-game-iad`), one `shared-cpu-1x` 256 MB machine each,
+with autostop. Tested from the owner's machine with a local Next dev (`NEXT_PUBLIC_ONLINE=1`,
+`NEXT_PUBLIC_GAME_REGIONS` = both regions). Raw data: `data/fly-e2e-2026-11-28.json`.
+
+**Problems first**
+1. **A ghost seat ate a player (fixed in code, needs a redeploy).** A player who closed the tab while searching or on
+   standby kept their quick-match seat for the 20 s reconnection window. The next player joined that room and waited
+   for nothing. In the first Fly run, two humans ended up in different rooms.
+   - Fix in `DuelRoom.onDrop`: no reconnection window in a public room with no match running.
+   - Test: `duelRoom.server.test.ts`. It fails without the fix.
+   - **The Fly servers still run the old code.**
+2. **Round trip from this machine is high, and the edge sets it, not the region.**
+   - TCP connect to Fly's edge alone takes 120-140 ms for either host, so this machine reaches Fly's edge far away.
+   - WebSocket ping: fra p50 136 ms (min 126), iad p50 211 ms. Browser `/ping` median: fra 140 ms, iad 223 ms.
+   - iad is +83 ms over fra, beyond the +60 cap, so quick match here plans fra only (bot at home), as designed.
+   - The very first fra request took 6.8 s (cold start after autostop). The probe's 6 s warm-up nearly runs out.
+3. **The ping pill's 4 ms / 9 ms in the pair tests is the direct line between two browsers on one machine.** Two
+   players in different homes on server mode from here would see about 136 ms each to fra.
+
+**What worked on Fly**
+- **Lone player:** A BOT STEPS IN 8.9 s after the press, doors YOU vs BOT · NORMAL 1.3 s later, and the result BOT chip.
+- **Two humans:** matched in 4.2 s. Found frame: `A player from Europe is in.` Doors YOU vs RIVAL. **The direct line
+  formed** (pill `9 MS`, title `direct line`). Rematch started 127 ms after both pressed.
+- **Invite:** code `ZQWK5`, typed as `zqwk5` by the friend, joined in 2.9 s.
+- **Server tick on `shared-cpu-1x`:** one room in server mode (`tools/netlab/flyprobe.mts`) runs at 59.9-60.1
+  snapshots/s, gap p50 16.5 ms, p99 26-35 ms, max 86-120 ms, about 49 KB/s per client. Throttling with several rooms
+  is still not measured.
+
 ## 0b. Online screens (R-032) and room codes (R-033), same day
 
 The Creative Director's spec (`docs/collab/CREATIVE/ui/direction-b/online/spec.md`) is built. Review is requested in R-034.

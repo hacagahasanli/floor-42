@@ -51,6 +51,11 @@ export const ONLINE_COPY = {
     hints: { join: 'Join', close: 'Close' },
     joiningRibbon: 'JOINING…',
     joiningLine: "Getting you into your friend's room.",
+    // F-085: the joining frame's code well and rival card.
+    joiningCheck: 'Checking…',
+    joiningRole: 'KNOCKING…',
+    // F-087: the slot the capitals line left under the field.
+    caseNote: '5 letters or numbers. Small letters work too.',
   },
   connecting: {
     title: 'QUICK MATCH',
@@ -90,9 +95,8 @@ export const ONLINE_COPY = {
     ribbon: 'YOUR ROOM IS OPEN',
     line: 'Send this to your friend. The match starts the moment they open it.',
     codeLabel: 'ROOM CODE',
-    // Spec: `Read it out` / `with the capitals`. R-033 made codes case-free, so the second line would be false: dropped
-    // (the spec says to delete the capitals line when case-free codes land); flagged back to the Creative Director.
-    readOut: 'Read it out',
+    // F-087 (after R-033's case-free codes).
+    readOut: ['Read it out', 'or send the link'] as const,
     copy: 'COPY LINK',
     copied: 'COPIED!',
     copiedSr: 'Link copied',

@@ -161,3 +161,17 @@ describe('R-032 acceptance (static)', () => {
     expect(arena).not.toMatch(/NetBadge|Connection unstable/);
   });
 });
+
+describe('R-034 review follow-ups (F-085, F-086, F-087)', () => {
+  it('copy after case-free codes and the joining frame', () => {
+    expect(ONLINE_COPY.code.caseNote).toBe('5 letters or numbers. Small letters work too.');
+    expect(ONLINE_COPY.invite.readOut).toEqual(['Read it out', 'or send the link']);
+    expect(ONLINE_COPY.code.joiningCheck).toBe('Checking…');
+    expect(ONLINE_COPY.code.joiningRole).toBe('KNOCKING…');
+    expect(ONLINE_COPY.code.friendRole).toBe('WAITING FOR A CODE');
+  });
+  it('the VS doors ribbon draws the on-dark flag; other flags stay', () => {
+    expect(read('src/components/VsDoors.tsx')).toMatch(/<Icon name="flagOnDark" size=\{24\} \/>/);
+    expect(read('src/components/VsDoors.tsx')).not.toMatch(/<Icon name="flag" /);
+  });
+});

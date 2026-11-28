@@ -34,6 +34,7 @@ const next = <T,>(room: Room, type: string, ms = 4000) =>
       res(m);
     });
   });
+const next2 = <T,>(room: Room, type: string, ms = 4000) => next<T>(room, type, ms);
 const quiet = (room: Room) => {
   for (const t of ['waiting', 'peer', 'start', 'snap', 'pauseState', 'left', 'dropped', 'back', 'signal']) room.onMessage(t, () => {});
 };
@@ -213,6 +214,26 @@ describe('DuelRoom on a real server', () => {
     quiet(b);
     await a.leave();
     await b.leave();
+  }, 10_000);
+
+  it('a dropped searcher (closed tab, no match yet) frees the quick-match seat at once: the next player never meets a ghost', async () => {
+    const ghost = await new Client(url).joinOrCreate(ROOM_NAME, opts());
+    quiet(ghost);
+    await wait(200);
+    const id = ghost.roomId;
+    // An unconsented close, as when a tab is closed or the network drops.
+    await ghost.leave(false);
+    await wait(300);
+    const next = await new Client(url).joinOrCreate(ROOM_NAME, opts({ character: 'legacy' }));
+    const waiting = next2(next, 'waiting');
+    let peer = false;
+    next.onMessage('peer', () => (peer = true));
+    expect(await waiting).toBeTruthy();
+    await wait(300);
+    expect(peer).toBe(false);
+    expect(next.roomId).not.toBe(id);
+    quiet(next);
+    await next.leave();
   }, 10_000);
 
   it('refuses a client of another protocol version', async () => {

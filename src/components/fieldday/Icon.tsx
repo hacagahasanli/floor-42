@@ -66,6 +66,13 @@ const ICONS = {
       <path d="M16 14l5 5M21 14l-5 5" fill="none" />
     </g>
   ),
+  // F-086: the flag on a grape surface (the VS doors' arena ribbon): white pole and outline, sun cloth.
+  flagOnDark: (
+    <g stroke="#FFFFFF" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M5.5 21.5V3" />
+      <path d="M5.5 4h13l-3 4.5 3 4.5h-13z" fill="#FFC83D" />
+    </g>
+  ),
   globeOnDark: (
     <g fill="none" stroke="#fff" strokeWidth="2.4">
       <circle cx="12" cy="12" r="9" />

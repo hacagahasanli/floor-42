@@ -154,8 +154,10 @@ const FaceOff = ({ ui, me }: { ui: LobbyUi; me: CharacterId }) => {
       rival = <MysteryCard name={T.menu.rivalName} role={T.menu.rivalRole} />;
       break;
     case 'code':
-    case 'joining':
       rival = <MysteryCard name={T.code.friendName} role={T.code.friendRole} />;
+      break;
+    case 'joining':
+      rival = <MysteryCard name={T.code.friendName} role={T.code.joiningRole} searching />;
       break;
     case 'connecting':
       rival = <MysteryCard name={T.menu.rivalName} role={T.connecting.rivalRole} />;
@@ -289,7 +291,10 @@ const CodeEntry = ({ h }: { h: LobbyHandlers }) => {
           }
         }}
       />
-      {/* Spec 3.1 `Codes care about capital letters.` is deleted: R-033 codes are case-free. */}
+      {/* F-087: the old capitals line's slot (R-033 codes are case-free). */}
+      <div className="on-small" style={{ left: 30, top: 180 }}>
+        {T.code.caseNote}
+      </div>
       <FdButton tone="sun" size="md" style={{ position: 'absolute', left: 28, top: 222, width: 240 }} disabled={!text.trim()} data-nav data-testid="code-join" after={<Keycap k="ENTER" />} onClick={join}>
         {T.code.join}
       </FdButton>
@@ -358,15 +363,25 @@ const Left = ({ ui, h }: { ui: LobbyUi; h: LobbyHandlers }) => {
       return <CodeEntry h={h} />;
     case 'joining':
       return (
-        <div className="on-panel" style={{ left: 64, top: 150, width: 452, height: 250 }} data-testid="joining-panel">
+        // F-085: the panel hugs its content; the typed code in the invite frame's code well; CANCEL 16 px under it.
+        <div className="on-panel" style={{ left: 64, top: 150, width: 452, height: 287 }} data-testid="joining-panel">
           <PanelRibbon icon="globeOnDark">{T.code.joiningRibbon}</PanelRibbon>
           <div className="on-line" style={{ left: 28, right: 28, top: 52 }}>
             {T.code.joiningLine}
           </div>
-          <div className="on-small" style={{ left: 28, right: 28, top: 86, color: 'var(--gray-ink)' }}>
-            {ui.code}
+          <div className="on-codewell" style={{ left: 28, right: 28, top: 98 }}>
+            <span>
+              <span className="on-hlabel">{T.invite.codeLabel}</span>
+              <br />
+              <span className="on-code" data-testid="joining-code">
+                {ui.code}
+              </span>
+            </span>
+            <span className="on-small" style={{ position: 'static', textAlign: 'right' }}>
+              {T.code.joiningCheck}
+            </span>
           </div>
-          <FdButton tone="white" size="sm" sound="back" data-nav data-nav-pref data-testid="cancel" style={{ position: 'absolute', left: 28, top: 180 }} after={<Keycap k="ESC" />} onClick={h.onCancel}>
+          <FdButton tone="white" size="sm" sound="back" data-nav data-nav-pref data-testid="cancel" style={{ position: 'absolute', left: 28, top: 204 }} after={<Keycap k="ESC" />} onClick={h.onCancel}>
             {T.connecting.cancel}
           </FdButton>
         </div>
@@ -459,7 +474,9 @@ const Left = ({ ui, h }: { ui: LobbyUi; h: LobbyHandlers }) => {
               </span>
             </span>
             <span className="on-small" style={{ position: 'static', textAlign: 'right' }}>
-              {T.invite.readOut}
+              {T.invite.readOut[0]}
+              <br />
+              {T.invite.readOut[1]}
             </span>
           </div>
           <input

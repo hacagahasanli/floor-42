@@ -271,6 +271,10 @@ export class DuelRoom extends Room {
     const seat = this.seatOf(client);
     if (!seat) return;
     this.clearBotTimer();
+    // A public room with no match running (searching, or on standby during a browser-bot match): a closed tab must not keep its
+    // seat for 20 s, or the next quick-match player lands next to a ghost and waits for nothing (seen on Fly, 2026-11-28).
+    // Not holding the seat lets the drop end in onLeave. Invite rooms and running matches keep the reconnection window.
+    if (!this.auth && !this.handshake && !this.privateRoom) return;
     const slot = this.seats.indexOf(seat);
     if (this.auth) this.auth.state.paused = true;
     this.sendPause(); // the other client must stop predicting too

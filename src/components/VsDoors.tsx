@@ -145,7 +145,7 @@ const VsInner = ({ info, phase, shut, stampOn, opening, note }: { info: VsInfo; 
           <div className="fd-abs" style={{ left: '50%', top: 24, transform: 'translateX(-50%)', animation: 'fd-fade 200ms linear both' }}>
             <Ribbon height={56} tilt={0}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }} data-testid="vs-arena">
-                <Icon name="flag" size={24} />
+                <Icon name="flagOnDark" size={24} />
                 {ARENA_COPY[info.arena ?? DEFAULT_ARENA].name}
               </span>
             </Ribbon>

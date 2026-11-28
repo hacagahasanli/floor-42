@@ -1,0 +1,119 @@
+{
+  "note": "E2E against the REAL Fly servers (fra floor42-game, iad floor42-game-iad) from a local Next dev (NEXT_PUBLIC_ONLINE=1, NEXT_PUBLIC_GAME_REGIONS=fra,iad), 2026-11-28 ~12:35-12:42 local. Real-GPU Chromium on the owner machine.",
+  "lone": {
+    "botAt": 8907,
+    "doorsAt": 10249,
+    "holdMs": 1342,
+    "searchLine": "Looking for a player. Nobody by about 0:09? A BOT steps in.",
+    "botLine": "Nobody free yet, so you're playing a BOT.",
+    "botChip": "BOT · NORMAL",
+    "doorTags": [
+      "THE JAMMER · YOU",
+      "THE TINY COACH · BOT · NORMAL"
+    ],
+    "hud": [
+      "YOU",
+      "BOT · NORMAL"
+    ],
+    "netPillInBotMatch": false,
+    "resultBotTag": "BOT · NORMAL"
+  },
+  "pair": {
+    "matchedMs": 4184,
+    "foundText": "QUICK MATCH RIVAL FOUND! 0:04 A player from Europe is in. Shaking hands… NEAR YOU · EUROPE Matched. Doors close in a moment. BRIX THE JAMMER YOU BRIX THE JAMMER",
+    "doorTags": [
+      "THE JAMMER · YOU",
+      "THE JAMMER · RIVAL"
+    ],
+    "hud": [
+      [
+        "YOU",
+        "RIVAL"
+      ],
+      [
+        "YOU",
+        "RIVAL"
+      ]
+    ],
+    "pill": "9 MS",
+    "pillTitle": "Round trip 9 ms · direct line",
+    "botTagOnHuman": false,
+    "rematchMs": 127
+  },
+  "invite": {
+    "code": "ZQWK5",
+    "typed": "zqwk5",
+    "joinMs": 2892,
+    "hud": [
+      [
+        "YOU",
+        "RIVAL",
+        "YOU",
+        "RIVAL"
+      ],
+      [
+        "YOU",
+        "RIVAL",
+        "YOU",
+        "RIVAL"
+      ]
+    ]
+  },
+  "pingFetchFromBrowser": {
+    "fra": {
+      "region": "fra",
+      "first": 604,
+      "median": 140,
+      "min": 136,
+      "max": 153
+    },
+    "iad": {
+      "region": "iad",
+      "first": 739,
+      "median": 223,
+      "min": 214,
+      "max": 309
+    }
+  },
+  "curlConnect": {
+    "fra_time_connect_s": [
+      0.31,
+      0.142,
+      0.126,
+      0.143,
+      0.132
+    ],
+    "iad_time_connect_s": [
+      0.302,
+      0.134,
+      0.133,
+      0.12,
+      0.133
+    ],
+    "fra_cold_first_total_s": 6.81
+  },
+  "flyprobeServerMode": [
+    {
+      "url": "wss://floor42-game.fly.dev",
+      "pingP50": 136.0,
+      "pingMin": 126.0,
+      "pingP95": 150.0,
+      "snapsPerSec": 59.9,
+      "gapP50": 16.5,
+      "gapP99": 25.9,
+      "gapMax": 86.2,
+      "bytesPerSec": 48520
+    },
+    {
+      "url": "wss://floor42-game-iad.fly.dev",
+      "pingP50": 211.0,
+      "pingMin": 204.0,
+      "pingP95": 226.0,
+      "snapsPerSec": 60.1,
+      "gapP50": 16.5,
+      "gapP99": 35.3,
+      "gapMax": 120.4,
+      "bytesPerSec": 50259
+    }
+  ]
+}
