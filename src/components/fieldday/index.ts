@@ -5,7 +5,7 @@ export { GAME_NAME, wordmarkParts } from './brand';
 export { Bunting } from './Bunting';
 export { FdButton } from './Button';
 export { Confetti } from './Confetti';
-export { CONFETTI, confettiAllowed, confettiPlan } from './confettiRules';
+export { CONFETTI, confettiAllowed, confettiColors, confettiPlan } from './confettiRules';
 export { Segmented, Slider, Toggle } from './Controls';
 export { FD_COPY } from './copy';
 export { fitScale, MIN_FIT } from './fit';

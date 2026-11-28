@@ -52,17 +52,16 @@ export interface AwardView {
   title: string;
   line: string;
   holder: 0 | 1;
-  /** A CSS colour (a Field Day token) and the sticker. */
-  colour: string;
+  /** The sticker. The disc is white with a ring in the holder's accent (R-027), so an award carries no colour of its own. */
   icon: { kind: 'icon'; name: IconName } | { kind: 'weapon'; name: WeaponName };
 }
 
-const AWARD_LOOK: Record<AwardId, Pick<AwardView, 'colour' | 'icon'>> = {
-  pinata: { colour: 'var(--tang)', icon: { kind: 'icon', name: 'burst' } },
-  boomerang: { colour: 'var(--teal)', icon: { kind: 'icon', name: 'again' } },
-  bouncy: { colour: 'var(--sky)', icon: { kind: 'icon', name: 'jump' } },
-  sharpshooter: { colour: 'var(--sun)', icon: { kind: 'weapon', name: 'pistol' } },
-  sponge: { colour: 'var(--tomato)', icon: { kind: 'icon', name: 'fighter' } },
+const AWARD_LOOK: Record<AwardId, Pick<AwardView, 'icon'>> = {
+  pinata: { icon: { kind: 'icon', name: 'burst' } },
+  boomerang: { icon: { kind: 'icon', name: 'again' } },
+  bouncy: { icon: { kind: 'icon', name: 'jump' } },
+  sharpshooter: { icon: { kind: 'weapon', name: 'pistol' } },
+  sponge: { icon: { kind: 'icon', name: 'fighter' } },
 };
 
 export interface ResultModel {

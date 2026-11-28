@@ -52,15 +52,14 @@ export interface PlayerKeys {
   ready: string;
 }
 
-const lo = (accent: string) => `color-mix(in srgb, ${accent} 72%, #3b1f6b)`;
-
 const PlayerPanel = ({ player, index, ready, keys, pad, onPick, onReady, popKey }: { player: 0 | 1; index: number; ready: boolean; keys: PlayerKeys; pad: boolean; onPick: (i: number) => void; onReady: () => void; popKey: number }) => {
   const id = FIGHTER_IDS[index];
   const v = fighterView(id);
   const t = FD_COPY.twoPlayer;
   return (
     <Panel style={{ position: 'relative', width: 556, height: 474, overflow: 'hidden', flex: 'none' }} data-testid={`panel-p${player + 1}`} data-ready={ready}>
-      <div style={{ height: 58, background: v.accent, borderBottom: '4px solid var(--grape)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', boxShadow: `inset 0 -5px 0 ${lo(v.accent)}` }}>
+      {/* R-027: the header is grape (structure); the fighter owns only the 6 px foot strip. */}
+      <div style={{ height: 58, background: 'var(--grape)', borderBottom: '4px solid var(--grape)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', boxShadow: `inset 0 -6px 0 ${v.accent}` }} data-testid={`head-p${player + 1}`}>
         <span className="fd-titan fd-ol" style={{ fontSize: 26, ['--o' as string]: '2.5px', ['--d' as string]: '3px' }}>
           {t.player(player + 1)}
         </span>
@@ -84,10 +83,10 @@ const PlayerPanel = ({ player, index, ready, keys, pad, onPick, onReady, popKey 
             {'×'} JUMP
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 6 }}>
-            <StatRow label={FD_COPY.select.stats.health} n={v.stats.health} color={v.accent} />
-            <StatRow label={FD_COPY.select.stats.speed} n={v.stats.speed} color={v.accent} />
-            <StatRow label={FD_COPY.select.stats.jump} n={v.stats.jump} color={v.accent} />
-            <StatRow label={FD_COPY.select.stats.weight} n={v.stats.weight} color={v.accent} />
+            <StatRow label={FD_COPY.select.stats.health} n={v.stats.health} />
+            <StatRow label={FD_COPY.select.stats.speed} n={v.stats.speed} />
+            <StatRow label={FD_COPY.select.stats.jump} n={v.stats.jump} />
+            <StatRow label={FD_COPY.select.stats.weight} n={v.stats.weight} />
           </div>
           <div role="radiogroup" aria-label={t.player(player + 1)} style={{ display: 'flex', gap: 9, marginTop: 14 }}>
             {FIGHTER_IDS.map((fid, i) => {
@@ -146,7 +145,7 @@ const PlayerPanel = ({ player, index, ready, keys, pad, onPick, onReady, popKey 
           gap: 10,
           ['--rr' as string]: '18px',
           ['--ring-inset' as string]: '-10px',
-          ...(ready ? { background: 'var(--teal)', boxShadow: 'inset 0 -6px 0 var(--teal-lo)' } : { background: '#fff', boxShadow: 'inset 0 -6px 0 #d9cfee' }),
+          ...(ready ? { background: 'var(--sun)', boxShadow: 'inset 0 -6px 0 var(--sun-lo)' } : { background: 'var(--btn2)', boxShadow: 'inset 0 -6px 0 var(--btn2-lo)' }),
         }}
       >
         {ready ? (
@@ -188,7 +187,7 @@ export const TwoPlayerView = (p: TwoPlayerViewProps) => {
     <>
       <SoftBackdrop arena={p.arena} tint={0.42} />
       <Frame>
-        <Confetti kind="ready" burst={p.celebrate} width={w} height={720} />
+        <Confetti kind="ready" burst={p.celebrate} width={w} height={720} accents={[fighterView(FIGHTER_IDS[p.cursor[0]]).accent, fighterView(FIGHTER_IDS[p.cursor[1]]).accent]} />
         <div className="fd-enter" style={{ position: 'absolute', inset: 0 }} data-testid="select-2p">
           <FdButton tone="white" size="sm" icon="back" iconSize={20} sound="back" data-testid="back" style={{ position: 'absolute', left: 24, top: 24 }} onClick={p.onBack} after={<Keycap k="ESC" />}>
             {FD_COPY.select.back}
@@ -205,7 +204,7 @@ export const TwoPlayerView = (p: TwoPlayerViewProps) => {
           </div>
           <div
             className="fd-abs"
-            style={{ left: '50%', top: 312, width: 72, height: 72, marginLeft: -36, borderRadius: '50%', background: 'var(--sun)', border: '4px solid var(--grape)', boxShadow: 'inset 0 -5px 0 var(--sun-lo), 0 5px 0 var(--grape)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ left: '50%', top: 312, width: 72, height: 72, marginLeft: -36, borderRadius: '50%', background: 'var(--btn2)', border: '4px solid var(--grape)', boxShadow: 'inset 0 -5px 0 var(--btn2-lo), 0 5px 0 var(--grape)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             aria-hidden="true"
           >
             <span className="fd-titan fd-ol" style={{ fontSize: 30, ['--o' as string]: '2.5px', ['--d' as string]: '3px' }}>

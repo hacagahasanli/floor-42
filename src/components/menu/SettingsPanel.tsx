@@ -465,7 +465,7 @@ const AccessTab = ({ onCredits, onDone }: { onCredits: () => void; onDone: () =>
       </Card>
       <Card title="Reset all settings" note="Keys, volumes, graphics and the rest back to their defaults">
         <FdButton
-          tone={confirm ? 'tang' : 'white'}
+          tone={confirm ? 'warn' : 'white'}
           height={44}
           fontSize={16}
           icon="again"

@@ -261,7 +261,9 @@ const ResultBody = (p: ResultScreenProps) => {
   const fb: 0 | 1 = model.winner === null ? 1 : model.loser === 0 ? 0 : 1;
   const colourOf = (i: 0 | 1) => (p.mode === 'twoPlayer' && p.colours ? p.colours[i] : fighterView(p.fighters[i].character).accent);
   const loss = outcome === 'loss';
-  const balloon = loss ? '#FFB27A' : '#9AD9FF';
+  // R-027: the balloon is mist for a win and a loss (decor stays calm; the winner owns the colour).
+  const balloon = '#E6DEF5';
+  const accentOf = (i: 0 | 1) => fighterView(p.fighters[i].character).accent;
   const raysLight = loss ? { light: '#FFE9B0', dark: '#FFD978', opacity: 0.55 } : { light: undefined, dark: undefined, opacity: 0.8 };
   const colLeft = Math.max(0, (stageW - 1280) / 2);
   const slots = slotsFor(model.awards.length);
@@ -278,8 +280,8 @@ const ResultBody = (p: ResultScreenProps) => {
         </div>
       </div>
       <div className="fd-res-track" />
-      {outcome === 'win' && step >= 1 && <Confetti kind="cannon" burst={1} outcome="win" width={stageW} height={720} seed={3} />}
-      {outcome === 'win' && step >= 6 && <Confetti kind="rain" burst={1} outcome="win" width={stageW} height={720} seed={11} />}
+      {outcome === 'win' && step >= 1 && <Confetti kind="cannon" burst={1} outcome="win" width={stageW} height={720} seed={3} accents={[accentOf(fa)]} />}
+      {outcome === 'win' && step >= 6 && <Confetti kind="rain" burst={1} outcome="win" width={stageW} height={720} seed={11} accents={[accentOf(fa)]} />}
 
       <div ref={rootRef} className="fd-res-col fd-res-main" style={{ left: colLeft }} {...(asked ? { inert: true } : {})}>
         <svg className="fd-res-burst" viewBox="-110 -110 220 220" aria-hidden="true">
@@ -385,7 +387,7 @@ const ResultBody = (p: ResultScreenProps) => {
         {(loss || p.mode === 'twoPlayer') && model.loser !== null && (
           <Chip
             className="fd-res-you"
-            color={p.mode === 'twoPlayer' ? colourOf(model.loser) : 'var(--sun)'}
+            color={p.mode === 'twoPlayer' ? colourOf(model.loser) : undefined}
             height={24}
             fontSize={12}
             data-testid="you-chip"
@@ -446,7 +448,7 @@ const ResultBody = (p: ResultScreenProps) => {
               key={a.id}
               className="fd-res-medal"
               data-testid={`award-${a.id}`}
-              style={{ left: slot.x, top: slot.y, rotate: `${slot.rot}deg`, ['--i' as string]: i, ['--c' as string]: a.colour } as CSSProperties}
+              style={{ left: slot.x, top: slot.y, rotate: `${slot.rot}deg`, ['--i' as string]: i, ['--ring' as string]: accentOf(a.holder) } as CSSProperties}
             >
               <div className="fd-res-drop">
                 <div className="fd-res-disc" aria-hidden="true">
@@ -497,7 +499,7 @@ const ResultBody = (p: ResultScreenProps) => {
           </div>
           {p.canNextArena && (
             <div className="fd-res-b" style={{ ['--i' as string]: 1 } as CSSProperties}>
-              <FdButton tone="sky" size="md" fontSize={22} icon="flag" data-nav data-testid="next-arena" onClick={guarded(p.onNextArena)}>
+              <FdButton tone="white" size="md" fontSize={22} icon="flag" data-nav data-testid="next-arena" onClick={guarded(p.onNextArena)}>
                 {C.nextArena}
               </FdButton>
             </div>
@@ -606,9 +608,9 @@ const RematchPanel = ({
   return (
     <div className="fd-res-col" style={{ left: colLeft, zIndex: 6 }} data-testid="rematch-panel" role="dialog" aria-label={C.title}>
       <div className="fd-panel fd-res-modal-enter" style={{ left: 340, top: 150, width: 600, height: 400 }}>
-        <div className="fd-ribbon fd-rm-head" style={{ ['--c' as string]: 'var(--sun)' }}>
-          <RibbonTail fill="#E08A00" className="fd-tail fd-l" />
-          <RibbonTail fill="#E08A00" className="fd-tail fd-r" />
+        <div className="fd-ribbon fd-rm-head" style={{ ['--c' as string]: 'var(--grape)', ['--lo' as string]: 'var(--grape-deep)' }}>
+          <RibbonTail fill="#26124A" className="fd-tail fd-l" />
+          <RibbonTail fill="#26124A" className="fd-tail fd-r" />
           <Icon name="again" size={30} style={{ marginRight: 12 }} />
           <span className="fd-titan fd-ol" style={{ fontSize: 36 }}>
             {C.title}
@@ -619,7 +621,7 @@ const RematchPanel = ({
           <span className="fd-titan" style={{ fontSize: 22 }}>
             {C.you}
           </span>
-          <Chip color="var(--teal)" icon="check" style={{ color: '#fff', textShadow: '0 1px 0 var(--grape)' }}>
+          <Chip color="var(--sun)" icon="check">
             {C.ready}
           </Chip>
         </div>
@@ -628,7 +630,7 @@ const RematchPanel = ({
           <span className="fd-titan" style={{ fontSize: 22 }}>
             {C.rival}
           </span>
-          <Chip color="var(--sun)" icon="clock" iconClassName="fd-clock-turn" data-testid="rival-status" aria-label={still ? C.stillDeciding : C.deciding}>
+          <Chip icon="clock" iconClassName="fd-clock-turn" data-testid="rival-status" aria-label={still ? C.stillDeciding : C.deciding}>
             <span aria-hidden="true">
               {word}
               {'.'.repeat(dots)}

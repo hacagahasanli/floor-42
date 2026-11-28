@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { confettiAllowed, confettiPlan, CONFETTI } from './confettiRules';
+import { confettiAllowed, confettiColors, confettiPlan, CONFETTI } from './confettiRules';
 import { useStage } from './Stage';
 
 import type { ConfettiKind } from './confettiRules';
@@ -23,6 +23,7 @@ export const Confetti = ({
   width,
   height,
   seed,
+  accents,
   className = '',
   style,
 }: {
@@ -33,6 +34,8 @@ export const Confetti = ({
   width: number;
   height: number;
   seed?: number;
+  /** The accent(s) of the fighter(s) it celebrates (R-027: sun, white and these only). */
+  accents?: readonly string[];
   className?: string;
   style?: CSSProperties;
 }) => {
@@ -45,7 +48,9 @@ export const Confetti = ({
     const t = window.setTimeout(() => setLive(0), (CONFETTI[kind].stopAt + 3) * 1000);
     return () => window.clearTimeout(t);
   }, [burst, allowed, kind]);
-  const pieces = useMemo(() => (live ? confettiPlan(kind, width, height, seed ?? live * 7919) : []), [live, kind, width, height, seed]);
+  const key = accents?.join(',') ?? '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const pieces = useMemo(() => (live ? confettiPlan(kind, width, height, seed ?? live * 7919, confettiColors(accents)) : []), [live, kind, width, height, seed, key]);
   if (!pieces.length) return null;
   return (
     <div className={`fd-confetti ${className}`} style={style} aria-hidden="true" data-testid={`confetti-${kind}`}>

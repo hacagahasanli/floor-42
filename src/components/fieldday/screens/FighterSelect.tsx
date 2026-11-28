@@ -134,15 +134,15 @@ export const FighterSelect = (p: FighterSelectProps) => {
                         {'×'} JUMP
                       </span>
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <StatRow label={t.stats.health} n={v.stats.health} color={v.accent} />
-                        <StatRow label={t.stats.speed} n={v.stats.speed} color={v.accent} />
-                        <StatRow label={t.stats.jump} n={v.stats.jump} color={v.accent} />
-                        <StatRow label={t.stats.weight} n={v.stats.weight} color={v.accent} />
+                        <StatRow label={t.stats.health} n={v.stats.health} />
+                        <StatRow label={t.stats.speed} n={v.stats.speed} />
+                        <StatRow label={t.stats.jump} n={v.stats.jump} />
+                        <StatRow label={t.stats.weight} n={v.stats.weight} />
                       </span>
                     </span>
                   </span>
                   {on && (
-                    <Chip color="var(--sun)" icon="check" style={{ position: 'absolute', left: '50%', top: -26, transform: 'translateX(-50%)', zIndex: 4 }}>
+                    <Chip icon="check" style={{ position: 'absolute', left: '50%', top: -26, transform: 'translateX(-50%)', zIndex: 4 }}>
                       {t.yourPick}
                     </Chip>
                   )}
@@ -187,7 +187,7 @@ export const FighterSelect = (p: FighterSelectProps) => {
             <FdButton tone="sun" height={84} fontSize={42} primary data-nav data-testid="fight" style={{ ['--o' as string]: '3px', ['--d' as string]: '4px' }} after={<Keycap k="ENTER" />} disabled={p.busy} onClick={p.onFight}>
               {t.fight}
             </FdButton>
-            <FdButton tone="sky" size="md" fontSize={20} icon="flag" iconSize={22} data-nav data-testid="select-arena" onClick={p.onArena}>
+            <FdButton tone="white" size="md" fontSize={20} icon="flag" iconSize={22} data-nav data-testid="select-arena" onClick={p.onArena}>
               {p.arenaName}
             </FdButton>
           </div>

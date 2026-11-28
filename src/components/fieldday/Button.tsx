@@ -9,8 +9,9 @@ import type { IconName } from './Icon';
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
 
 /**
- * The Field Day button (spec 2.4): candy plastic with a thick grape outline. Colour carries meaning (yellow = do it now, sky =
- * move on, white = back or change, orange = local, teal = online or ready). All states are CSS (fieldday.css): hover, pressed,
+ * The Field Day button (spec 2.4): candy plastic with a thick grape outline. Colour carries meaning (R-027 colour balance):
+ * `sun` = the ONE action of the screen (exactly one per screen), `white` = every other button, `warn` = tang, only for a
+ * destructive confirm (Settings "Reset all settings" in its confirm state). All states are CSS (fieldday.css): hover, pressed,
  * disabled (grey, grape label, padlock; a press wobbles and says "nuh-uh"), and the keyboard / pad focus double ring.
  *
  * - `primary`: the ONE button of a screen that bobs and shines.
@@ -19,7 +20,7 @@ import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
  * - `sound`: which voice a press makes ('confirm' default, 'back', or 'none' when the parent plays its own).
  * - The label is always wrapped in its own element so it renders above the gloss; pass text or nodes as children.
  */
-export type ButtonTone = 'sun' | 'tang' | 'teal' | 'sky' | 'white';
+export type ButtonTone = 'sun' | 'white' | 'warn';
 export type ButtonSize = 'lg' | 'md' | 'sm';
 
 export interface FdButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'type'> {

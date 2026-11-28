@@ -111,9 +111,7 @@ export const HomeScreen = (p: HomeProps) => {
           <Wordmark />
         </div>
         <Ribbon
-          color="var(--tang)"
-          lip="var(--tang-lo)"
-          tail="#C2410C"
+          labelColor="var(--sun)"
           height={44}
           tilt={-3}
           maxWidth={340}
@@ -147,21 +145,21 @@ export const HomeScreen = (p: HomeProps) => {
           </div>
           <div style={{ display: 'flex', gap: 14 }}>
             {p.onTwoPlayer && (
-              <FdButton tone="tang" size="md" icon="2p" fontSize={21} data-entry="2p" data-testid="open-2p" style={{ flex: '1 1 0', minWidth: 0, padding: '0 12px' }} {...focusProps('2p')} onClick={p.onTwoPlayer}>
+              <FdButton tone="white" size="md" icon="2p" fontSize={21} data-entry="2p" data-testid="open-2p" style={{ flex: '1 1 0', minWidth: 0, padding: '0 12px' }} {...focusProps('2p')} onClick={p.onTwoPlayer}>
                 {h.twoPlayer}
               </FdButton>
             )}
             {p.onOnline && (
-              <FdButton tone="teal" size="md" icon="globe" fontSize={21} data-entry="online" style={{ flex: '1 1 0', minWidth: 0, padding: '0 12px' }} {...focusProps('online')} onClick={p.onOnline}>
+              <FdButton tone="white" size="md" icon="globe" fontSize={21} data-entry="online" style={{ flex: '1 1 0', minWidth: 0, padding: '0 12px' }} {...focusProps('online')} onClick={p.onOnline}>
                 {h.online}
               </FdButton>
             )}
           </div>
           <div style={{ display: 'flex', gap: 14 }}>
-            <FdButton tone="sky" size="md" icon="fighter" fontSize={21} data-entry="fighter" data-testid="open-fighter" style={{ flex: '1 1 0', minWidth: 0, padding: '0 12px' }} {...focusProps('fighter')} onClick={p.onFighterSelect}>
+            <FdButton tone="white" size="md" icon="fighter" fontSize={21} data-entry="fighter" data-testid="open-fighter" style={{ flex: '1 1 0', minWidth: 0, padding: '0 12px' }} {...focusProps('fighter')} onClick={p.onFighterSelect}>
               {h.fighter}
             </FdButton>
-            <FdButton tone="sky" size="md" icon="flag" fontSize={21} data-entry="arena" data-testid="cycle-arena" style={{ flex: '1 1 0', minWidth: 0, padding: '0 12px' }} {...focusProps('arena')} onClick={p.onArena}>
+            <FdButton tone="white" size="md" icon="flag" fontSize={21} data-entry="arena" data-testid="cycle-arena" style={{ flex: '1 1 0', minWidth: 0, padding: '0 12px' }} {...focusProps('arena')} onClick={p.onArena}>
               {h.arena}
             </FdButton>
           </div>
@@ -176,7 +174,7 @@ export const HomeScreen = (p: HomeProps) => {
         {/* The fighter cluster, anchored to the right edge: disc 372, card 252x356, bubble, pager. */}
         <div className="fd-abs" style={{ right: 82, top: 0, width: 372, height: 720 }}>
           <div className="fd-abs" style={{ left: 0, top: 62, width: 372, height: 372, borderRadius: '50%', overflow: 'hidden', border: '5px solid var(--grape)', boxShadow: '0 8px 0 var(--grape)' }}>
-            <Sunburst size={492} left={-60} top={-60} soft={false} />
+            <Sunburst size={492} left={-60} top={-60} opacity={0.75} />
           </div>
           <Card className="fd-sway" style={{ position: 'absolute', left: 61, top: 92, width: 252, height: 356, transform: 'rotate(3deg)' }} data-testid="home-card" key={p.fighter}>
             <Portrait id={p.fighter} w={244} h={226} head={0.3} card style={{ borderBottom: '4px solid var(--grape)', width: '100%' }} />
@@ -185,7 +183,7 @@ export const HomeScreen = (p: HomeProps) => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '8px 6px', marginTop: 10 }}>
               {v.traits.map((t) => (
-                <Chip key={t.text} color={`var(--${t.tone})`} height={26} fontSize={12}>
+                <Chip key={t.text} height={26} fontSize={12}>
                   {t.text}
                 </Chip>
               ))}
@@ -206,11 +204,11 @@ export const HomeScreen = (p: HomeProps) => {
             </div>
           )}
           <div className="fd-abs" style={{ left: 54, top: 486, width: 266, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <FdButton tone="sky" size="sm" iconOnly icon="left" iconSize={24} aria-label="Previous fighter" {...focusProps('prev')} data-entry="prev" onClick={() => step(-1)} />
+            <FdButton tone="white" size="sm" iconOnly icon="left" iconSize={24} aria-label="Previous fighter" {...focusProps('prev')} data-entry="prev" onClick={() => step(-1)} />
             <Pill style={{ fontSize: 15, padding: '6px 16px 5px' }} data-testid="pager">
               {v.role} {'·'} {index + 1} / {FIGHTER_IDS.length}
             </Pill>
-            <FdButton tone="sky" size="sm" iconOnly icon="right" iconSize={24} aria-label="Next fighter" {...focusProps('next')} data-entry="next" onClick={() => step(1)} />
+            <FdButton tone="white" size="sm" iconOnly icon="right" iconSize={24} aria-label="Next fighter" {...focusProps('next')} data-entry="next" onClick={() => step(1)} />
           </div>
         </div>
 

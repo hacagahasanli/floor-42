@@ -42,10 +42,9 @@ export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToW
       <Keycap k={label(side.dash).toUpperCase()} />
     </>
   );
-  const cards: { title: string; tone: string; keys: ReactNode; text: string; note: string | null }[] = [
+  const cards: { title: string; keys: ReactNode; text: string; note: string | null }[] = [
     {
       title: 'MOVE & JUMP',
-      tone: 'var(--sky)',
       keys: touch ? (
         <Big k="STICK" />
       ) : (
@@ -63,7 +62,6 @@ export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToW
     },
     {
       title: 'SHOOT & GRAB',
-      tone: 'var(--tang)',
       keys: touch ? (
         <KeyRow>
           <Big k="FIRE" />
@@ -84,7 +82,6 @@ export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToW
     },
     {
       title: 'DASH & PUSH',
-      tone: 'var(--teal)',
       keys: (
         <KeyRow>
           <Big k={touch ? 'DASH' : k('dash')} />
@@ -113,7 +110,8 @@ export const HowToScreen = ({ onClose, touch = false, z = 60, kos = RULES.kosToW
         <div className="fd-abs" style={{ left: 0, right: 0, top: L.cardsTop, display: 'flex', justifyContent: 'center', gap: 28 }}>
           {cards.map((c) => (
             <Card key={c.title} style={{ position: 'relative', width: 340, height: L.cardH }} data-testid="howto-card">
-              <div className="fd-howhead" style={{ background: c.tone, height: L.head }}>
+              {/* R-027: every header is grape; the cards differ by keys and text, not hue. */}
+              <div className="fd-howhead" style={{ background: 'var(--grape)', height: L.head }}>
                 <div>{c.keys}</div>
               </div>
               <div style={{ padding: '16px 22px 0' }}>

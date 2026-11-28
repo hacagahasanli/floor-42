@@ -79,6 +79,15 @@ describe('result model: awards wording', () => {
     expect(m.awards.find((a) => a.id === 'pinata')?.line).toBe('P1 took 1 rocket');
   });
 
+  it('carries no colour of its own: the medal is white with the holder accent ring (R-027)', () => {
+    const m = buildResult(input({ fighters: [f(0, 5, {}, tally), f(1, 2, {}, { rocketsTaken: 3 })] }));
+    expect(m.awards.length).toBeGreaterThan(0);
+    for (const a of m.awards) {
+      expect(a).not.toHaveProperty('colour');
+      expect([0, 1]).toContain(a.holder);
+    }
+  });
+
   it('never shows more than three, and the slots match the count', () => {
     const m = buildResult(input({ fighters: [f(0, 5, {}, { jumps: 90, pushedBack: 9, rocketsTaken: 4, damageTaken: 500 }), f(1, 2, {}, { jumps: 1 })] }));
     expect(m.awards.length).toBeLessThanOrEqual(3);

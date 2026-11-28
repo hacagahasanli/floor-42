@@ -41,14 +41,18 @@
   --sun: #ffc83d;
   --sun-hi: #ffe38a;
   --sun-lo: #e08a00;
+  /* R-027 colour balance: sun is the ONE action colour; tang is brand decor (bunting, wordmark) and the warn confirm only. */
   --tang: #ff7a2f;
   --tang-lo: #c2410c;
-  --teal: #22c3a6;
-  --teal-lo: #0e8a74;
-  --sky: #4cb8ff;
-  --sky-lo: #1f7bc8;
+  /* Tiny status marks only (net-good dot, key-saved note). Never a fill for a control. */
+  --ok: #0e8a74;
+  /* KO tag and errors only. */
   --tomato: #f0533a;
-  --track: #e0603f;
+  --track: #c9765c;
+  --track-lane: #f1d9bf;
+  /* Every secondary button reads from these. */
+  --btn2: #ffffff;
+  --btn2-lo: #d9cfee;
   --cream: #fff3d6;
   --paper: #fffbf0;
   --mist: #e6def5;
@@ -225,21 +229,13 @@
   --c: var(--sun);
   --lo: var(--sun-lo);
 }
-.fd-btn.fd-t-tang {
+.fd-btn.fd-t-warn {
   --c: var(--tang);
   --lo: var(--tang-lo);
 }
-.fd-btn.fd-t-teal {
-  --c: var(--teal);
-  --lo: var(--teal-lo);
-}
-.fd-btn.fd-t-sky {
-  --c: var(--sky);
-  --lo: var(--sky-lo);
-}
 .fd-btn.fd-t-white {
-  --c: #fff;
-  --lo: #d9cfee;
+  --c: var(--btn2);
+  --lo: var(--btn2-lo);
   color: var(--grape);
   text-shadow: none;
 }
@@ -424,6 +420,12 @@
   white-space: nowrap;
   letter-spacing: 0.3px;
 }
+/* R-027: a cooling HUD chip (DASH / PUSH): lilac-grey fill, grey text and border; ready is the plain white chip. */
+.fd-chip.fd-cool {
+  background: #d9d3e6;
+  color: var(--gray-lo);
+  border-color: var(--gray-lo);
+}
 .fd-chip .fd-ic {
   width: 15px;
   height: 15px;
@@ -510,7 +512,7 @@
   background: #fff;
 }
 .fd-pips i.fd-on {
-  background: var(--c, var(--sun));
+  background: var(--c, var(--grape));
 }
 .fd-stat {
   display: grid;
@@ -552,7 +554,7 @@
   transition: transform 180ms var(--ease-spring);
 }
 .fd-toggle[aria-checked='true'] {
-  background: var(--teal);
+  background: var(--sun);
 }
 .fd-toggle[aria-checked='true'] i {
   transform: translateX(28px);
@@ -1303,7 +1305,7 @@
   top: 556px;
   bottom: -400px;
   border-top: 4px solid var(--grape);
-  background: repeating-linear-gradient(180deg, var(--track) 0 30px, #ffe8c9 30px 34px);
+  background: repeating-linear-gradient(180deg, var(--track) 0 30px, var(--track-lane) 30px 34px);
   transition:
     top 300ms var(--ease-out),
     transform 250ms var(--ease-out);
@@ -1819,10 +1821,13 @@
   width: 92px;
   height: 92px;
   border-radius: 50%;
-  background: var(--c);
+  /* R-027: white medal, grape icon, a 6 px ring in the award holder's accent (--ring, set per medal). */
+  background: #fff;
+  color: var(--grape);
   border: 4px solid var(--grape);
   box-shadow:
-    inset 0 -7px 0 rgba(0, 0, 0, 0.18),
+    inset 0 0 0 6px var(--ring, var(--grape-2)),
+    inset 0 -9px 0 rgba(59, 31, 107, 0.12),
     0 6px 0 var(--grape);
   display: flex;
   align-items: center;

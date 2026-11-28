@@ -30,7 +30,16 @@ export const CONFETTI = {
   ready: { count: 18, life: [1.2, 2] as const, stopAt: 2 },
 } as const;
 
-export const CONFETTI_COLORS = ['#FFC83D', '#22C3A6', '#FF7A2F', '#4CB8FF', '#FFFFFF', '#FF5D8F'];
+/**
+ * R-027 colour balance: confetti is sun, white and the accent of the fighter it celebrates, never the whole rainbow.
+ * One accent (a win, a KO puff): sun, white, that accent, sun-hi. Two accents (a draw, 2P both ready): sun, white, both accents.
+ * No accent: sun, white, sun-hi, white.
+ */
+export const confettiColors = (accents: readonly string[] = []): string[] => {
+  if (accents.length >= 2) return ['#FFC83D', '#FFFFFF', accents[0], accents[1]];
+  if (accents.length === 1) return ['#FFC83D', '#FFFFFF', accents[0], '#FFE38A'];
+  return ['#FFC83D', '#FFFFFF', '#FFE38A', '#FFFFFF'];
+};
 
 export interface Piece {
   /** Start position inside the layer (px, design units). */
@@ -56,13 +65,13 @@ export const seeded = (seed: number) => {
 };
 
 /** The pieces for a burst in a layer of `w` x `h` design px. */
-export const confettiPlan = (kind: ConfettiKind, w: number, h: number, seed = 1): Piece[] => {
+export const confettiPlan = (kind: ConfettiKind, w: number, h: number, seed = 1, colors: readonly string[] = confettiColors()): Piece[] => {
   const r = seeded(seed);
   const { count, life } = CONFETTI[kind];
   const out: Piece[] = [];
   for (let i = 0; i < count; i++) {
     const dur = life[0] + r() * (life[1] - life[0]);
-    const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    const color = colors[i % colors.length];
     const sign = r() > 0.5 ? 1 : -1;
     const rot = sign * (360 + r() * 400);
     const base = { w: kind === 'puff' ? 9 : 12, h: kind === 'puff' ? 14 : 20, color, dur, rot };

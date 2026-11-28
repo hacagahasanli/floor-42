@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { COPY, healthLine } from '~/game/copy';
 import { ROSTER } from '~/game/roster';
@@ -9,7 +9,8 @@ import { RULES } from '~/game/sim/constants';
 import { TRAIT_HP } from '~/game/sim/traits';
 
 import { GAME_NAME, wordmarkParts } from './brand';
-import { CONFETTI, confettiAllowed, confettiPlan, seeded } from './confettiRules';
+import { BUNTING_COLORS } from './Bunting';
+import { CONFETTI, confettiAllowed, confettiColors, confettiPlan, seeded } from './confettiRules';
 import { cardCrop, fighterView, FIGHTER_IDS, HEAD_ANCHOR, portraitCrop } from './fighters';
 import { fitScale, MIN_FIT } from './fit';
 import { buntingPennants, stageMetrics } from './geometry';
@@ -17,6 +18,7 @@ import { pickNext } from './nav';
 import { ICON_NAMES } from './Icon';
 import { healthPips, jumpPips, speedPips, statsOf, traitsOf, weightPips } from './stats';
 
+import type { ButtonTone } from './Button';
 import type { Box } from './nav';
 
 const box = (left: number, top: number, w: number, h: number): Box => ({ left, top, right: left + w, bottom: top + h });
@@ -81,6 +83,9 @@ describe('pips map the four current fighters to the CD table (spec 3, b03)', () 
   it('trait chips are speed and jumps (the trait is the third chip)', () => {
     expect(traitsOf('hotfix').map((t) => t.text)).toEqual(['FAST', '2× JUMP']);
     expect(traitsOf('standup')[1].text).toBe('3× JUMP');
+  });
+  it('trait chips carry no tone: they render white (R-027)', () => {
+    for (const id of FIGHTER_IDS) for (const t of traitsOf(id)) expect(Object.keys(t)).toEqual(['text']);
   });
 });
 
@@ -257,5 +262,48 @@ describe('no developer copy on the Field Day screens', () => {
       const hit = text.match(banned);
       expect(hit?.[0], f).toBeUndefined();
     }
+  });
+});
+
+describe('colour balance (R-027, colour-balance.md sections 3-4)', () => {
+  const css = readFileSync(resolve(__dirname, 'fieldday.css'), 'utf8');
+  const SUN = '#FFC83D';
+  const WHITE = '#FFFFFF';
+  it('button tones are sun, white and warn only', () => {
+    expectTypeOf<ButtonTone>().toEqualTypeOf<'sun' | 'white' | 'warn'>();
+    expect(css).not.toMatch(/fd-t-(tang|teal|sky)\b/);
+    expect(css).toMatch(/\.fd-btn\.fd-t-warn\s*\{[^}]*--c: var\(--tang\)/);
+  });
+  it('tokens: sky and teal are gone, --ok is the dark teal, the track is muted terracotta, --btn2 is the secondary button', () => {
+    expect(css).not.toMatch(/--(sky|teal)(-lo)?\s*:/);
+    expect(css).toMatch(/--ok: #0e8a74;/);
+    expect(css).toMatch(/--track: #c9765c;/);
+    expect(css).toMatch(/--track-lane: #f1d9bf;/);
+    expect(css).toMatch(/--btn2: #ffffff;/);
+    expect(css).toMatch(/--btn2-lo: #d9cfee;/);
+  });
+  it('the bunting is sun, cream, tang, cream: no fighter hues in decor', () => {
+    expect(BUNTING_COLORS).toEqual(['#FFC83D', '#FFF3D6', '#FF7A2F', '#FFF3D6']);
+  });
+  it('the boot screen bunting uses the same four colours', () => {
+    const html = readFileSync(resolve(__dirname, '../../../portal/index.html'), 'utf8');
+    expect(html).toContain("c=['#FFC83D','#FFF3D6','#FF7A2F','#FFF3D6']");
+    expect(html).not.toMatch(/#22C3A6|#4CB8FF|#FF5D8F/i);
+  });
+  it('win confetti is sun, white, the winner accent and sun-hi; a draw or both-ready is sun, white and both accents', () => {
+    expect(confettiColors(['#E5392F'])).toEqual([SUN, WHITE, '#E5392F', '#FFE38A']);
+    expect(confettiColors(['#E5392F', '#F25CB8'])).toEqual([SUN, WHITE, '#E5392F', '#F25CB8']);
+    expect(confettiColors()).toEqual([SUN, WHITE, '#FFE38A', WHITE]);
+  });
+  it('a burst only uses the colours it is given', () => {
+    const allowed = confettiColors(['#E5392F']);
+    const used = new Set(confettiPlan('cannon', 1280, 720, 3, allowed).map((p) => p.color));
+    expect([...used].every((c) => allowed.includes(c))).toBe(true);
+    expect(used.has('#E5392F')).toBe(true);
+    for (const p of confettiPlan('rain', 1280, 720, 3)) expect(['#FFC83D', '#FFFFFF', '#FFE38A']).toContain(p.color);
+  });
+  it('stat pips are grape by default and the HUD cooling chip is #d9d3e6 with grey text', () => {
+    expect(css).toMatch(/\.fd-pips i\.fd-on \{\s*background: var\(--c, var\(--grape\)\)/);
+    expect(css).toMatch(/\.fd-chip\.fd-cool \{\s*background: #d9d3e6;\s*color: var\(--gray-lo\);\s*border-color: var\(--gray-lo\);/);
   });
 });

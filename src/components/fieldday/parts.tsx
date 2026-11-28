@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useLayoutEffect, useRef, useState } from 'react';
 
 import { GAME_NAME, wordmarkParts } from './brand';
 import { fitScale } from './fit';
@@ -63,29 +63,27 @@ export const KeyLabel = ({ k }: { k: string }) => {
   );
 };
 
-/** A status chip (HUD and traits): pill, 3 px grape border, grape text. `color` is any CSS colour (default white). */
-export const Chip = ({
-  children,
-  color,
-  icon,
-  iconClassName,
-  height,
-  fontSize,
-  className = '',
-  style,
-  ...rest
-}: {
-  children: ReactNode;
-  color?: string;
-  icon?: IconName;
-  iconClassName?: string;
-  height?: number;
-  fontSize?: number;
-  className?: string;
-  style?: CSSProperties;
-} & Omit<HTMLAttributes<HTMLSpanElement>, 'color'>) => (
+/**
+ * A status chip (HUD and traits): pill, 3 px grape border, grape text. `color` is any CSS colour (default white; R-027: leave it
+ * white unless the chip IS the action / event (sun) or belongs to a fighter (that fighter's accent)).
+ */
+export const Chip = forwardRef<
+  HTMLSpanElement,
+  {
+    children: ReactNode;
+    color?: string;
+    icon?: IconName;
+    iconClassName?: string;
+    height?: number;
+    fontSize?: number;
+    className?: string;
+    style?: CSSProperties;
+  } & Omit<HTMLAttributes<HTMLSpanElement>, 'color'>
+>(function Chip({ children, color, icon, iconClassName, height, fontSize, className = '', style, ...rest }, ref) {
+  return (
   <span
     {...rest}
+    ref={ref}
     className={`fd-chip ${className}`}
     style={{
       ...(color ? { ['--c' as string]: color } : null),
@@ -97,7 +95,8 @@ export const Chip = ({
     {icon && <Icon name={icon} className={iconClassName} />}
     {children}
   </span>
-);
+  );
+});
 
 /** The info pill: cream on grape-deep at 86 % (15:1). */
 export const Pill = ({ children, className = '', style, ...rest }: HTMLAttributes<HTMLSpanElement>) => (
@@ -173,14 +172,17 @@ export const useFit = (max: number, deps: unknown[], followsScale = false) => {
 };
 
 /**
- * A ribbon (spec 2.4): sun by default, notched tails, tilted. Sized by its content; `maxWidth` auto-fits it (never wraps).
- * `height` 62 for modal titles, 44 for the home arena ribbon. `tilt` in degrees. Position it with `style`.
+ * A ribbon (spec 2.4): grape by default (R-027: a sun ribbon must be a celebration), notched tails, tilted. Sized by its
+ * content; `maxWidth` auto-fits it (never wraps). `height` 62 for modal titles, 44 for the home arena ribbon. `tilt` in
+ * degrees. `labelColor` sets a plain label colour with no outline (the home arena ribbon's sun label); without it the label is
+ * outlined white. Position it with `style`.
  */
 export const Ribbon = ({
   children,
-  color = 'var(--sun)',
-  lip = 'var(--sun-lo)',
-  tail = '#E08A00',
+  color = 'var(--grape)',
+  lip = 'var(--grape-deep)',
+  tail = '#26124A',
+  labelColor,
   height = 62,
   tilt = -1.5,
   maxWidth,
@@ -192,6 +194,7 @@ export const Ribbon = ({
   color?: string;
   lip?: string;
   tail?: string;
+  labelColor?: string;
   height?: number;
   tilt?: number;
   maxWidth?: number;
@@ -215,16 +218,20 @@ export const Ribbon = ({
     >
       <RibbonTail fill={tail} className="fd-tail fd-l" style={tailStyle('left')} />
       <RibbonTail fill={tail} className="fd-tail fd-r" style={tailStyle('right')} />
-      <span ref={ref} className="fd-titan fd-ol" style={{ fontSize: small ? 20 : 30, ['--o' as string]: small ? '2px' : '2.5px', ['--d' as string]: small ? '3px' : '3px', letterSpacing: small ? 1 : undefined }}>
+      <span
+        ref={ref}
+        className={labelColor ? 'fd-titan' : 'fd-titan fd-ol'}
+        style={{ fontSize: small ? 20 : 30, ['--o' as string]: small ? '2px' : '2.5px', ['--d' as string]: small ? '3px' : '3px', letterSpacing: small ? 1 : undefined, ...(labelColor ? { color: labelColor } : null) }}
+      >
         {children}
       </span>
     </div>
   );
 };
 
-/** Pips (1-5) in the fighter's colour: speed, jump, weight. */
-export const Pips = ({ n, color, label }: { n: number; color: string; label: string }) => (
-  <span className="fd-pips" style={{ ['--c' as string]: color }} role="img" aria-label={`${label} ${n} of 5`}>
+/** Pips (1-5): speed, jump, weight. Filled pips are grape for every fighter (R-027: four accent pip blocks were noise); `color` overrides. */
+export const Pips = ({ n, color, label }: { n: number; color?: string; label: string }) => (
+  <span className="fd-pips" style={color ? { ['--c' as string]: color } : undefined} role="img" aria-label={`${label} ${n} of 5`}>
     {[1, 2, 3, 4, 5].map((i) => (
       <i key={i} className={i <= n ? 'fd-on' : ''} />
     ))}
@@ -232,7 +239,7 @@ export const Pips = ({ n, color, label }: { n: number; color: string; label: str
 );
 
 /** The SPEED / JUMP / WEIGHT row under a fighter card. */
-export const StatRow = ({ label, n, color }: { label: string; n: number; color: string }) => (
+export const StatRow = ({ label, n, color }: { label: string; n: number; color?: string }) => (
   <div className="fd-stat">
     <span>{label}</span>
     <Pips n={n} color={color} label={label.toLowerCase()} />

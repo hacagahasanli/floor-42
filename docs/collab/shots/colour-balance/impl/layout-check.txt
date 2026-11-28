@@ -1,0 +1,56 @@
+home @1280x720: [traits-menus check] 0 issues
+  sun buttons: ["PLAY"]
+select @1280x720: [traits-menus check] 0 issues
+  sun buttons: ["FIGHT!ENTER"]
+select-2p @1280x720: [traits-menus check] 0 issues
+  sun buttons: []
+hud-offsite @1280x720: [p2a check, scope [data-testid="fd-hud"]] 0 issues
+  sun buttons: []
+  chips: ["dash-l ready=true bg=rgb(255, 255, 255)","push-l ready=false bg=rgb(217, 211, 230)","dash-r ready=true bg=rgb(255, 255, 255)","push-r ready=true bg=rgb(255, 255, 255)"]
+hud-office @1280x720: [p2a check, scope [data-testid="fd-hud"]] 0 issues
+  sun buttons: []
+  chips: ["dash-l ready=true bg=rgb(255, 255, 255)","push-l ready=false bg=rgb(217, 211, 230)","dash-r ready=true bg=rgb(255, 255, 255)","push-r ready=true bg=rgb(255, 255, 255)"]
+result @1280x720: [p2b result check] 0 issues
+  sun buttons: ["REMATCHENTER"]
+result-loss @1280x720: [p2b result check] 0 issues
+  sun buttons: ["REMATCHENTER"]
+result-2p @1280x720: [p2b result check] 0 issues
+  sun buttons: ["REMATCHP1 ✓P2"]
+result-online-rematch @1280x720: [p2b result check] 0 issues
+  sun buttons: ["REMATCHENTER"]
+pause @1280x720: [p2a check, scope [data-testid="pause-menu"]] 0 issues
+  sun buttons: ["RESUME"]
+settings @1280x720: [traits-menus check] 9 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x edit-2p "EDIT"
+  OVERLAP fd-panel "" x reset-keys "RESET KEYS"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["CONTROLS","DONE"]
+settings-reset-confirm @1280x720: [traits-menus check] 9 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x settings-credits "CREDITS"
+  OVERLAP fd-panel "" x reset-all "PRESS AGAIN TO RESET ALL"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["ACCESSIBILITY","DONE"]
+howto @1280x720: [traits-menus check] 0 issues
+  sun buttons: ["GOT IT!ENTER"]
+credits @1280x720: [traits-menus check] 2 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "CREDITS"
+  OVERLAP fd-panel "" x credits-back "BACKESC"
+  sun buttons: []
+flash-probe @1280x720:
+  sun buttons: []
+  flash: {"readyAfterMs":2680,"animations":1,"samples":["1ms rgb(255, 200, 61)","51ms rgb(255, 210, 95)","101ms rgb(255, 223, 142)","151ms rgb(255, 234, 182)","201ms rgb(255, 244, 215)","252ms rgb(255, 251, 240)","301ms rgb(255, 255, 254)","351ms rgb(255, 255, 255)","399ms rgb(255, 255, 255)"]}
+flash-probe-reduced @1280x720:
+  sun buttons: []
+  flash: {"readyAfterMs":2730,"animations":6,"samples":["1ms rgb(217, 211, 230)","50ms rgb(255, 255, 255)","100ms rgb(255, 255, 255)","150ms rgb(255, 255, 255)","200ms rgb(255, 255, 255)","253ms rgb(255, 255, 255)","300ms rgb(255, 255, 255)","349ms rgb(255, 255, 255)","403ms rgb(255, 255, 255)"]}

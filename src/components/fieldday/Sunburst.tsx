@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 /**
  * The sunburst (spec 2.4, 5): a conic fan of rays that turns. `spin` seconds per turn (60 on menus and the result, 20 on the VS
  * doors; 0 = still). `soft` fades the rays to nothing at the edge (the select screen's halo behind the picked card); without it
- * the rays fill the disc (the home fighter disc clips it with a ring). Never on a match. Reduced motion stops the spin (CSS).
+ * the rays fill the disc (R-027: the home fighter disc now uses the soft fade at 0.75). Never on a match. Reduced motion stops the spin (CSS).
  * Place and size it with `left/top/size`; it is decorative (aria-hidden) and ignores the pointer.
  */
 export const Sunburst = ({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { ROSTER } from '~/game/roster';
 import { useKeyLabel } from '~/components/twoPlayer/shared';
@@ -13,7 +13,7 @@ import { Icon, WeaponIcon } from '../Icon';
 import { Chip, HintStrip, Keycap } from '../parts';
 import { Portrait, useFighterPortraits } from '../Portrait';
 import { capLabel } from '../screens/howToKeys';
-import { Stage } from '../Stage';
+import { Stage, useStage } from '../Stage';
 
 import { TpKeyStrip } from './TpKeyStrips';
 import { TraitBadge, useFired } from './TraitBadge';
@@ -68,6 +68,21 @@ export interface FdHudProps {
 
 const nameOf = (f: HudFighter) => fighterView(f.character);
 
+/**
+ * R-027: DASH / PUSH ready is white (cooling is #d9d3e6 with grey text, `.fd-cool`); the frame a chip becomes ready it flashes
+ * sun for 300 ms, easing back to white (sun as an event, not a state). Edge-detected, so a HUD that mounts mid-match does not
+ * flash; no flash under Reduced motion.
+ */
+const useReadyFlash = (ready: boolean, reduced: boolean) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const prev = useRef(ready);
+  useLayoutEffect(() => {
+    if (ready && !prev.current && !reduced) ref.current?.animate?.([{ backgroundColor: '#ffc83d' }, { backgroundColor: '#ffffff' }], { duration: 300, easing: 'ease-out' });
+    prev.current = ready;
+  }, [ready, reduced]);
+  return ref;
+};
+
 /** One side's plate (b06). */
 const Plate = ({
   side,
@@ -92,6 +107,9 @@ const Plate = ({
   const ready = (n: number) => n >= 1;
   const dash = ready(f.dash);
   const push = ready(f.push);
+  const { reduced } = useStage();
+  const dashRef = useReadyFlash(dash, reduced);
+  const pushRef = useReadyFlash(push, reduced);
   const ammo = ammoText(f.mag, f.reserve);
   const edge = right ? 'right' : 'left';
   const dir: CSSProperties = right ? { flexDirection: 'row-reverse' } : {};
@@ -149,14 +167,14 @@ const Plate = ({
           )}
         </Chip>
         {f.bombs > 0 && (
-          <Chip height={24} fontSize={12} color="var(--tang)" data-testid="bomb-badge">
+          <Chip height={24} fontSize={12} icon="bomb" data-testid="bomb-badge">
             BOMB {bombKey && <Keycap k={bombKey} style={{ minWidth: 18, height: 18, fontSize: 11, padding: '0 4px', boxShadow: '0 2px 0 var(--grape)', borderWidth: 2 }} />}
           </Chip>
         )}
-        <Chip key={f.trait?.id === 'leapfrog' ? fired : 0} className={f.trait?.id === 'leapfrog' && fired ? 'fd-tb-pop' : ''} height={24} fontSize={12} color={dash ? 'var(--sun)' : 'var(--gray)'} data-testid={`dash-${side}`} data-ready={dash}>
+        <Chip ref={dashRef} key={f.trait?.id === 'leapfrog' ? fired : 0} className={`${f.trait?.id === 'leapfrog' && fired ? 'fd-tb-pop' : ''} ${dash ? '' : 'fd-cool'}`} height={24} fontSize={12} data-testid={`dash-${side}`} data-ready={dash}>
           DASH{dash ? '' : ` ${dashLeft(f.dash)}s`}
         </Chip>
-        <Chip height={24} fontSize={12} color={push ? 'var(--sun)' : 'var(--gray)'} data-testid={`push-${side}`} data-ready={push}>
+        <Chip ref={pushRef} className={push ? '' : 'fd-cool'} height={24} fontSize={12} data-testid={`push-${side}`} data-ready={push}>
           PUSH{push ? '' : ` ${pushLeft(f.push)}s`}
         </Chip>
         {f.trait && <TraitBadge t={f.trait} fires={f.traitFires} color={color} />}
@@ -189,6 +207,7 @@ const Tile = ({ side, value, color }: { side: 'l' | 'r'; value: number; color: s
       <Confetti
         kind="puff"
         burst={pops}
+        accents={[color]}
         width={110}
         height={80}
         style={{ position: 'absolute', [right ? 'right' : 'left']: -118, top: -6, width: 110, height: 80, inset: 'auto', transform: right ? undefined : 'scaleX(-1)' }}
@@ -352,7 +371,7 @@ export const FdHud = (p: FdHudProps) => {
             {timer}
           </span>
         </div>
-        <Chip color={matchPoint ? 'var(--tang)' : 'var(--sun)'} height={22} fontSize={12} style={{ position: 'absolute', left: '50%', top: 80, transform: 'translateX(-50%)', zIndex: 3 }}>
+        <Chip color={matchPoint ? 'var(--sun)' : undefined} height={22} fontSize={12} style={{ position: 'absolute', left: '50%', top: 80, transform: 'translateX(-50%)', zIndex: 3 }}>
           {matchPoint ? 'MATCH POINT' : `FIRST TO ${hud.kosToWin}`}
         </Chip>
       </div>

@@ -40,10 +40,8 @@ export const statsOf = (id: CharacterId): FighterStats => {
 };
 
 /** The two stat chips of the home card, speed and jumps, derived from the real stats. The third chip is the trait (`fighterView().trait`). */
-export const traitsOf = (id: CharacterId): { text: string; tone: 'sky' | 'teal' | 'sun' }[] => {
+export const traitsOf = (id: CharacterId): { text: string }[] => {
   const c = CHARACTERS[id];
-  return [
-    { text: c.speed >= 9.3 ? 'FAST' : c.speed <= 8 ? 'SLOW' : 'MID SPEED', tone: 'sky' },
-    { text: `${c.airJumps + 1}× JUMP`, tone: 'teal' },
-  ];
+  // R-027: no tone; the chips render white (colour is for the action and for fighters, not for stat labels).
+  return [{ text: c.speed >= 9.3 ? 'FAST' : c.speed <= 8 ? 'SLOW' : 'MID SPEED' }, { text: `${c.airJumps + 1}× JUMP` }];
 };

@@ -70,7 +70,7 @@ export const Modal = ({
   );
 };
 
-/** A modal title ribbon (62 high, sun, tilted) with an icon, centred at `top`, overlapping the panel's top edge. */
+/** A modal title ribbon (62 high, grape, tilted) with an icon, centred at `top`, overlapping the panel's top edge. */
 export const TitleRibbon = ({ icon, children, top, tilt = -1.5 }: { icon?: ReactNode; children: ReactNode; top: number; tilt?: number }) => (
   <div className="fd-abs" style={{ left: '50%', top, transform: 'translateX(-50%)', zIndex: 3 }}>
     <Ribbon tilt={tilt}>

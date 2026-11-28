@@ -6,7 +6,9 @@ import { useStage } from './Stage';
  * stagger per pennant); the string never moves. Menu screens only (boot, home, credits). `variant` rotates the colour order so
  * two screens do not look identical. The width follows the stage, so a wider window gets more pennants, not bigger ones.
  */
-const COLORS = ['#FFC83D', '#FF7A2F', '#22C3A6', '#4CB8FF', '#FFF3D6', '#FF5D8F'];
+// R-027: sun, cream, tang, cream only (no fighter hues in decor).
+export const BUNTING_COLORS = ['#FFC83D', '#FFF3D6', '#FF7A2F', '#FFF3D6'];
+const COLORS = BUNTING_COLORS;
 export const Bunting = ({ variant = 0, height = 80 }: { variant?: number; height?: number }) => {
   const { w } = useStage();
   const width = w + 20;
