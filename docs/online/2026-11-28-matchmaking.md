@@ -96,9 +96,12 @@ the real session, authority and timeline code.
 | fight | 150 | 2% | 233.5 / 483.5 | 100 / 200 | 100.5/217 · 83.5/133.5 | 125.9 / 11.28 | 65.9 / 2.31 | 121 | 24 |
 
 
-Read it as: with no loss the direct line halves the rival delay (only one one-way trip, no server hop). With 1-2 %
-loss the server path's median grows by 50-120 ms while the direct line's does not move, and visible snaps (> 50 cm)
-drop from 0.8-11 per minute to under 1-4.
+How to read it:
+- **No loss**: the direct line roughly halves the rival delay (one one-way trip, no server hop): p50 33-100 ms vs
+  67-200 ms.
+- **1-2 % loss**: the server path's median grows by 33-67 ms and its p95 by up to 250 ms. The direct line's median
+  moves by 0-17 ms.
+- **Visible snaps (> 50 cm)**: 0.5-16 per minute before, 0-4.4 after.
 
 ## 1. Problems first
 
