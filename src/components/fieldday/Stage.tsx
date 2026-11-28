@@ -62,9 +62,10 @@ export const Stage = ({
   testId?: string;
 }) => {
   const box = useRef<HTMLDivElement>(null);
-  const [m, setM] = useState(() =>
-    typeof window === 'undefined' ? stageMetrics(DESIGN_W, DESIGN_H) : stageMetrics(window.innerWidth, window.innerHeight),
-  );
+  // Start at the design size on the server AND the client: the site hydrates server HTML, and React does not patch a style
+  // that differs at hydration, so a client-only first value (the window size) left the stage stuck at 1280x720 on any other
+  // window. The layout effect below measures the real box before the first paint and re-renders at the right scale.
+  const [m, setM] = useState(() => stageMetrics(DESIGN_W, DESIGN_H));
   const [kbd, setKbd] = useState(true);
   const reduced = useReducedMotion();
 
