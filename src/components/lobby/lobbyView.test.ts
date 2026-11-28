@@ -151,6 +151,10 @@ describe('room input', () => {
   it('takes the room of an invite link', () => {
     expect(parseRoomInput('https://floor42.nalbakigames.com/play?room=AbC12')).toBe('AbC12');
   });
+  it('takes the room of a link on the new host, and old floor42 links still parse (growth E-8)', () => {
+    expect(parseRoomInput('https://pewfield.nalbakigames.com/play?room=AbC12')).toBe('AbC12');
+    expect(parseRoomInput('https://floor42.nalbakigames.com/play?room=Xy9_z')).toBe('Xy9_z');
+  });
   it('a link without a room is empty, so Join does nothing', () => {
     expect(parseRoomInput('https://floor42.nalbakigames.com/play')).toBe('');
   });

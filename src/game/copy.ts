@@ -39,8 +39,8 @@ export const healthLine = (traits: boolean): string => {
 };
 
 export const COPY = {
-  /** Under the logo on the main menu, and the page description. */
-  tagline: 'Two coworkers. One grudge. No mercy.',
+  /** The one-line pitch: the start of the site's meta description (F-066, crazygames-store.md section 6). */
+  tagline: 'Two fighters. One field. First to five KOs.',
   /** The win condition, short (menu entry, online lobby). */
   goal: `First to ${K} KOs wins`,
   /** The sub-label under PLAY on the home screen (R-013 4.2, F-026); `{name}` is the current fighter, `{level}` the bot level. */

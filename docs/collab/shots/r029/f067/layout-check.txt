@@ -1,0 +1,16 @@
+site-home @1280x720: errors 0
+  layout: 0 issue(s); notes 1
+  wordmark svg box: 353x160 at 34,34
+site-home-1920 @1920x1080: errors 0
+  layout: 0 issue(s); notes 1
+  wordmark svg box: 353x160 at 34,34
+site-play @1280x720: errors 0
+site-arena @1280x720: errors 1
+  pageerror Minified React error #418; visit https://react.dev/errors/418?args[]=text&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+site-characters @1280x720: errors 0
+portal-home @1280x720: errors 0
+  layout: 0 issue(s); notes 1
+  wordmark svg box: 353x160 at 34,34
+portal-home-1920 @1920x1080: errors 0
+  layout: 0 issue(s); notes 1
+  wordmark svg box: 529x240 at 51,51

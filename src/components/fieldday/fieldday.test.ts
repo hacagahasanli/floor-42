@@ -61,9 +61,10 @@ describe('wordmark slot (R-023)', () => {
     expect(GAME_NAME).toBe('PEWFIELD');
     expect(GAME_NAME_TITLE).toBe('Pewfield');
   });
-  it('F-057: the slot is 420x160 and the art (height-bound) is at least 360 px wide', () => {
+  it('F-057/F-067: the slot is 420x160 and the art (height-bound, 1200:544) is at least 350 px wide', () => {
     expect(WORDMARK_SLOT).toEqual({ w: 420, h: 160 });
-    expect(WORDMARK_SLOT.h * WORDMARK_ART_ASPECT).toBeGreaterThanOrEqual(360);
+    // F-067 grew the viewBox 520 -> 544 so the burst is not clipped; the CD accepted the ~4 % smaller art (369 -> 353 px).
+    expect(WORDMARK_SLOT.h * WORDMARK_ART_ASPECT).toBeGreaterThanOrEqual(350);
     expect(WORDMARK_SLOT.h * WORDMARK_ART_ASPECT).toBeLessThanOrEqual(WORDMARK_SLOT.w);
   });
   it('the boot screen draws the wordmark at 1.25 of the slot', () => {

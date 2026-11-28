@@ -1,6 +1,11 @@
 import { MainMenu } from '~/components/menu/MainMenu';
 import { isCharacterId } from '~/game/roster';
 import { parseLength } from '~/game/twoPlayer';
+import { pageUrlMeta } from '~/lib/siteMeta';
+
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = pageUrlMeta('/');
 
 interface Props {
   searchParams: Promise<{ select?: string; '2p'?: string; p1?: string; p2?: string; n?: string; keep?: string }>;

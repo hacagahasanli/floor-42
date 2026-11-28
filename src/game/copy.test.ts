@@ -56,7 +56,8 @@ describe('copy table', () => {
       }
     }
     for (const r of ROSTER) for (const line of [r.name, r.personality, r.trait, r.traitLine]) expect(line, r.id).not.toMatch(JARGON);
-    expect(copyFor().tagline).toBe('Two coworkers. One grudge. No mercy.');
+    // F-066: the office tagline is retired; the pitch is the field-day one (same as the README).
+    expect(copyFor().tagline).toBe('Two fighters. One field. First to five KOs.');
   });
 
   it('a saved audience answer from an old build is dropped: one voice for everyone', () => {

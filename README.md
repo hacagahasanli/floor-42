@@ -6,7 +6,7 @@
 
 A game by **[Nalbaki Games](https://nalbakigames.com)**.
 
-### [▶ Play now](https://floor42.nalbakigames.com/play) · [Pick a fighter](https://floor42.nalbakigames.com/characters) · [Studio](https://nalbakigames.com) · [Last Commit Standing](https://lastcommit.nalbakigames.com)
+### [▶ Play now](https://pewfield.nalbakigames.com/play) · [Pick a fighter](https://pewfield.nalbakigames.com/characters) · [Studio](https://nalbakigames.com) · [Hazefall](https://hazefall.nalbakigames.com)
 
 **A fast side-on 1v1 shootout in the browser, set at a sun-baked company OFFSITE and in the office after hours.**<br>
 Your gun **aims itself**, so the whole game is moving, jumping and timing your shots.
@@ -156,6 +156,6 @@ Pewfield is free. If you enjoyed it, you can [☕ support the studio](https://na
 | Single player against a bot, desktop keyboard | ✅ playable |
 | Four fighters with signature traits, five guns, two arenas (OFFSITE and FLOOR 42) | ✅ |
 | Online 1v1: invite link, quick match, rematch (Colyseus on Fly.io, server-authoritative, client prediction) | ✅ |
-| Public deploy of the pages | ✅ live at [floor42.nalbakigames.com](https://floor42.nalbakigames.com) |
+| Public deploy of the pages | ✅ live at [pewfield.nalbakigames.com](https://pewfield.nalbakigames.com) (formerly floor42.nalbakigames.com) |
 | Mobile and touch: on-screen stick and buttons, landscape, follow camera | ✅ |
 | Local 2 player on one keyboard (and up to two gamepads) | ✅ |

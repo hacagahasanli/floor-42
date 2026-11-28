@@ -272,15 +272,16 @@ export const StatRow = ({ label, n, color }: { label: string; n: number; color?:
  * has no font to wait for, so nothing moves when it loads. The h1 carries the name for assistive tech.
  */
 /**
- * The wordmark slot in design px (F-057 / colour-balance.md section 5): 420 x 160. The art is height-bound (1200:520), so it draws
- * about 369 x 160, the width of the home menu column. The boot screen shows it at 1.25 (vite.portal.config.ts, portal/index.html).
+ * The wordmark slot in design px (F-057 / colour-balance.md section 5): 420 x 160. The art is height-bound (1200:544 since F-067, so
+ * the burst's bottom point and its drop are not cut off), so it draws about 353 x 160. The boot screen shows it at 1.25
+ * (vite.portal.config.ts, portal/index.html).
  */
 export const WORDMARK_SLOT = { w: 420, h: 160 } as const;
-export const WORDMARK_ART_ASPECT = 1200 / 520;
+export const WORDMARK_ART_ASPECT = 1200 / 544;
 
 export const Wordmark = ({ scale = 1, className = '', style }: { scale?: number; className?: string; style?: CSSProperties }) => (
   <div className={className} style={{ width: WORDMARK_SLOT.w * scale, height: WORDMARK_SLOT.h * scale, position: 'relative', ...style }} data-testid="wordmark">
-    <h1 style={{ margin: 0, position: 'absolute', left: 0, top: 0, height: '100%', aspectRatio: '1200 / 520' }}>
+    <h1 style={{ margin: 0, position: 'absolute', left: 0, top: 0, height: '100%', aspectRatio: '1200 / 544' }}>
       <svg
         viewBox={WORDMARK_VIEWBOX}
         role="img"

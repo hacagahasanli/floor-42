@@ -5,7 +5,8 @@ import { parseLength } from '~/game/twoPlayer';
 import type { CharacterId } from '~/game/sim/types';
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Arena' };
+// Endless ?p1=&p2=&bot= variants with no content of their own: keep them out of the index (growth E-5).
+export const metadata: Metadata = { title: 'Arena', robots: { index: false, follow: true } };
 
 interface Props {
   searchParams: Promise<{ p1?: string; p2?: string; demo?: string; bot?: string; mode?: string; n?: string; arena?: string }>;
