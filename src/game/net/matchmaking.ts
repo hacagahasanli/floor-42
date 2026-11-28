@@ -33,13 +33,24 @@ export const MATCH_TIMING = {
 
 export type LegKind = 'home' | 'fallback' | 'bot';
 
+/**
+ * Where the bot runs (owner, 2026-11-28: minimum felt latency). 'client' (default): at the bot step the browser starts
+ * a local match against the same bot code (zero network) and stays in the quick-match room on standby, so a human who
+ * turns up is offered for the NEXT match. 'server': the server seats its bot in the room (the first build; kept behind
+ * NEXT_PUBLIC_SERVER_BOT=1).
+ */
+export type BotMode = 'client' | 'server';
+export const BOT_MODE: BotMode = process.env.NEXT_PUBLIC_SERVER_BOT === '1' ? 'server' : 'client';
+
 export interface Leg {
   kind: LegKind;
   region: Region;
   /** End this leg (leave the room, go on) this long after the SEARCH started; null = stay (the bot leg). */
   untilMs: number | null;
-  /** Ask the server for a bot (the bot leg only). */
+  /** Ask the server for a bot (the bot leg in 'server' mode only). */
   bot: boolean;
+  /** 'client' mode bot leg: when `untilMs` passes, keep the room (standby) and hand over to the local bot. */
+  stay?: boolean;
 }
 
 /**
@@ -47,7 +58,7 @@ export interface Leg {
  * region, nothing measured) the first region is home. Regions that did not answer are left out; if none answered, the
  * first listed is still tried (the probe route may be what failed).
  */
-export const planSearch = (regions: Region[], probes: Probe[] = [], timing = MATCH_TIMING): Leg[] => {
+export const planSearch = (regions: Region[], probes: Probe[] = [], timing = MATCH_TIMING, mode: BotMode = BOT_MODE): Leg[] => {
   if (!regions.length) return [];
   const rtt = (id: string) => probes.find((p) => p.id === id)?.rtt ?? (probes.length ? Infinity : 0);
   const ranked = regions
@@ -57,11 +68,15 @@ export const planSearch = (regions: Region[], probes: Probe[] = [], timing = MAT
   const home = ranked[0]?.region ?? regions[0];
   const homeRtt = ranked[0]?.rtt ?? 0;
   const next = ranked.find((r) => r.region.id !== home.id && r.rtt <= homeRtt + timing.FALLBACK_RTT_CAP_MS)?.region;
-  if (!next) return [{ kind: 'bot', region: home, untilMs: null, bot: true }];
+  const botLeg: Leg =
+    mode === 'server'
+      ? { kind: 'bot', region: home, untilMs: null, bot: true }
+      : { kind: 'bot', region: home, untilMs: timing.BOT_DUE_MS, bot: false, stay: true };
+  if (!next) return [botLeg];
   return [
     { kind: 'home', region: home, untilMs: timing.HOME_WAIT_MS, bot: false },
     { kind: 'fallback', region: next, untilMs: timing.HOME_WAIT_MS + timing.FALLBACK_WAIT_MS, bot: false },
-    { kind: 'bot', region: home, untilMs: null, bot: true },
+    botLeg,
   ];
 };
 
@@ -92,6 +107,8 @@ export interface MatchDeps<R> {
 export interface MatchResult<R> {
   room: R;
   leg: Leg;
+  /** 'client' mode: nobody came by the bot time; `room` is kept on standby and the local bot match starts. */
+  botTime?: boolean;
 }
 
 export class SearchCancelled extends Error {
@@ -120,7 +137,7 @@ export const runQuickMatch = async <R>(legs: Leg[], deps: MatchDeps<R>): Promise
     } catch (e) {
       lastError = e;
       // The bot leg's region is down: try it in a region that answered earlier in this search.
-      if (leg.bot && worked.length && !queue.length) {
+      if (leg.kind === 'bot' && worked.length && !queue.length) {
         const alt = worked.find((r) => r.id !== leg.region.id);
         if (alt) queue.push({ ...leg, region: alt });
       }
@@ -142,6 +159,7 @@ export const runQuickMatch = async <R>(legs: Leg[], deps: MatchDeps<R>): Promise
     });
     await Promise.race([match, deps.sleep(left)]);
     if (found) return { room, leg };
+    if (leg.stay) return { room, leg, botTime: true };
     deps.leave(room);
   }
   throw lastError;

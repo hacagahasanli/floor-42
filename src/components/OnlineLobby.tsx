@@ -36,7 +36,7 @@ import { menuSound } from '~/components/menu/menuSound';
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useMenuTelemetry } from '~/components/useTelemetry';
 import { createOnlineSession, gameRegions, joinRoom, regionProbes } from '~/game/net/client';
-import { planSearch, runQuickMatch, SearchCancelled } from '~/game/net/matchmaking';
+import { BOT_MODE, planSearch, runQuickMatch, SearchCancelled } from '~/game/net/matchmaking';
 import { PORTAL } from '~/lib/portal';
 import { createHostSession } from '~/game/net/host';
 import { connectPeer } from '~/game/net/peer';
@@ -75,9 +75,14 @@ type Stage =
       /** The rival is the server's bot (shown as BOT · LEVEL, never as a human). */
       bot?: BotLevel;
     }
+  /** No human in time: a match against the bot in this browser, on standby in the quick-match room (if any). */
+  | { kind: 'localBot'; opponent: CharacterId; level: BotLevel; run: number }
   | ({ kind: 'error' } & ErrorInfo);
 
-type ShownStage = Exclude<Stage, { kind: 'playing' }>;
+type ShownStage = Exclude<Stage, { kind: 'playing' } | { kind: 'localBot' }>;
+
+/** The browser bot's level in online quick match (the server bot's default too). */
+const LOCAL_BOT_LEVEL: BotLevel = 'normal';
 
 /** The dev-only `?lobbyState=` switch: the stage (and clock, and network) to show for design review. */
 const forcedStage = (f: ForcedState): { stage: ShownStage; elapsed: number; online: boolean } => {
@@ -207,6 +212,10 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
   }, []);
 
   const sessionRef = useRef<OnlineSession | null>(null);
+  const stageRef = useRef(stage);
+  stageRef.current = stage;
+  /** Standby: a human is free for the next match (server `offer`). */
+  const [offer, setOffer] = useState(false);
   const linkRef = useRef<PeerLink | null>(null);
   /** Bumped by every new attempt and by Cancel: callbacks of an older attempt ignore what they hear. */
   const runRef = useRef(0);
@@ -245,6 +254,10 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
       lost = rej;
     });
     matched.catch(() => {});
+    room.onMessage('offer', (msg: { on: boolean }) => {
+      if (mine()) setOffer(!!msg?.on);
+    });
+    room.onMessage('stateOk', () => {});
     room.onMessage('waiting', (msg: { roomId: string }) => {
       if (mine() && mode.kind !== 'quick') setStage({ kind: 'waiting', roomId: msg.roomId, invite: mode.kind === 'private', region });
     });
@@ -283,6 +296,9 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
       if (session || !mine()) return;
       linkRef.current?.close();
       linkRef.current = null;
+      setOffer(false);
+      // Playing the browser bot on standby: the other player left; stay in the room, the bot match goes on.
+      if (stageRef.current.kind === 'localBot') return;
       if (mode.kind === 'quick') {
         roomRef.current = null;
         void room.leave();
@@ -292,6 +308,12 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
     room.onLeave((code: number) => {
       lost(new Error(`left ${code}`));
       // 4409: the bot took the seat while this join was on its way; the search starts again (catch below).
+      // During a browser-bot match the standby room is optional: losing it just ends the standby.
+      if (stageRef.current.kind === 'localBot' && mine()) {
+        roomRef.current = null;
+        setOffer(false);
+        return;
+      }
       if (!session && mine() && code !== 4409) {
         setStage({
           kind: 'error',
@@ -302,6 +324,12 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
       }
     });
     return { matched };
+  };
+
+  const startLocalBot = (run: number) => {
+    const pool = ROSTER.map((r) => r.id).filter((id) => id !== character);
+    setOffer(false);
+    setStage({ kind: 'localBot', opponent: pool[Math.floor(Math.random() * pool.length)] ?? 'legacy', level: LOCAL_BOT_LEVEL, run });
   };
 
   const go = async (mode: JoinMode) => {
@@ -317,7 +345,7 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
         const regions = gameRegions();
         const legs = planSearch(regions, await regionProbes(regions));
         const matchedOf = new WeakMap<Room, Promise<void>>();
-        await runQuickMatch<Room>(legs, {
+        const res = await runQuickMatch<Room>(legs, {
           now: () => performance.now(),
           startedAt: pressedAt,
           sleep: (ms) => new Promise((r) => window.setTimeout(r, ms)),
@@ -342,6 +370,21 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
             void room.leave();
           },
         });
+        if (res.botTime && live()) {
+          // Nobody in time. Tell the room we are busy (a human who arrives now waits for our next match); if the server
+          // says a human match is already starting, take it instead.
+          const room = res.room;
+          const human = matchedOf.get(room)!.then(() => 'human' as const, () => 'gone' as const);
+          let off = () => {};
+          const busy = new Promise<'busy' | 'human'>((res2) => {
+            off = room.onMessage('stateOk', (m: { ok: boolean }) => res2(m?.ok ? 'busy' : 'human'));
+          });
+          room.send('state', { busy: true });
+          const r = await Promise.race([human, busy, new Promise<'busy'>((r2) => window.setTimeout(() => r2('busy'), 1500))]);
+          off();
+          if (!live() || r === 'human') return;
+          startLocalBot(run);
+        }
         return;
       }
       const { room, region } = await joinRoom(mode, character);
@@ -356,6 +399,12 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
       if (!live() || e instanceof SearchCancelled) return;
       if (mode.kind === 'quick' && e instanceof Error && e.message === 'left 4409') {
         void go(mode);
+        return;
+      }
+      // Browser bot: no server reachable is no reason to leave the player with nothing (no standby room then).
+      if (mode.kind === 'quick' && BOT_MODE === 'client') {
+        roomRef.current = null;
+        startLocalBot(run);
         return;
       }
       const detail = e instanceof Error ? e.message : String(e);
@@ -399,7 +448,7 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
     }
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shown: ShownStage = stage.kind === 'playing' ? { kind: 'menu' } : stage;
+  const shown: ShownStage = stage.kind === 'playing' || stage.kind === 'localBot' ? { kind: 'menu' } : stage;
   const force = process.env.NODE_ENV !== 'production' && forced ? forcedStage(forced) : null;
   const view_stage = force ? force.stage : shown;
   const isQuick = view_stage.kind === 'waiting' && !view_stage.invite;
@@ -506,6 +555,24 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
     if (view.rivalFound && !wasFound.current) menuSound.confirm();
     wasFound.current = view.rivalFound;
   }, [view.rivalFound]);
+
+  if (stage.kind === 'localBot') {
+    return (
+      <ArenaGame
+        key={stage.run}
+        player={character}
+        opponent={stage.opponent}
+        arena="offsite"
+        onlineBot={stage.level}
+        localBot={{
+          offer,
+          onAvailable: (available) => roomRef.current?.send('state', { busy: !available }),
+          onAccept: () => roomRef.current?.send('state', { accept: true }),
+          onExit: cancel,
+        }}
+      />
+    );
+  }
 
   if (stage.kind === 'playing') {
     const { online: net, characters, bot } = stage;

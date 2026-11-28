@@ -37,6 +37,14 @@ interface Seat {
   pause: boolean;
   /** Reported after the WebRTC handshake: null = not answered yet. */
   direct: boolean | null;
+  /**
+   * Standby (browser bot): false while this player is in a local bot match. A human match starts only when both seats
+   * are available AND accepted; a player searching is both, a player on a bot match's result screen must accept.
+   */
+  available: boolean;
+  accepted: boolean;
+  /** The last `offer` state sent to this seat. */
+  offered: boolean;
 }
 
 const isCharacter = (v: unknown): v is CharacterId => typeof v === 'string' && v in CHARACTERS;
@@ -107,6 +115,24 @@ export class DuelRoom extends Room {
       if (this.seats.every((x) => x && x.direct !== null)) this.finishHandshake();
     });
 
+    // Browser bot standby: `busy` while this player is in a local bot match, `accept` to take the offered human next.
+    this.onMessage('state', (client: Client, msg: { busy?: unknown; accept?: unknown }) => {
+      const seat = this.seatOf(client);
+      if (!seat) return;
+      // A human match is already starting or running: too late to go busy, the player gets that match.
+      if (this.auth || this.handshake) {
+        client.send('stateOk', { ok: false });
+        return;
+      }
+      if (msg?.busy === true) {
+        seat.available = false;
+        seat.accepted = false;
+      } else if (msg?.busy === false) seat.available = true;
+      if (msg?.accept === true && seat.available) seat.accepted = true;
+      client.send('stateOk', { ok: true });
+      this.pairCheck();
+    });
+
     this.onMessage('rematch', (client: Client) => {
       const seat = this.seatOf(client);
       // In direct mode the host's browser knows when the match is over, not this room.
@@ -172,14 +198,14 @@ export class DuelRoom extends Room {
       rematch: false,
       pause: false,
       direct: null,
+      available: true,
+      accepted: true,
+      offered: false,
     };
     if (this.seats.every(Boolean)) {
       this.clearBotTimer();
       void this.lock();
-      // First try to connect the two browsers directly; start in any case within 6 seconds.
-      // Clients that don't know about direct play never answer and simply get server mode.
-      this.seats.forEach((x, slot) => x!.client?.send('peer', { slot }));
-      this.handshake = setTimeout(() => this.finishHandshake(), 6000);
+      this.pairCheck();
     } else {
       client.send('waiting', { roomId: this.roomId });
       // Quick match, last leg of the search: no human within the delay -> the bot sits down and the match starts.
@@ -213,7 +239,17 @@ export class DuelRoom extends Room {
     const pool = (Object.keys(CHARACTERS) as CharacterId[]).filter((c) => c !== human.character);
     const character = pool[Math.floor(Math.random() * pool.length)] ?? 'legacy';
     const think = createBot(slot, (Math.random() * 1e9) | 0, SERVER_BOT_LEVEL);
-    this.seats[slot] = { client: null, bot: think, character, rematch: true, pause: true, direct: false };
+    this.seats[slot] = {
+      client: null,
+      bot: think,
+      character,
+      rematch: true,
+      pause: true,
+      direct: false,
+      available: true,
+      accepted: true,
+      offered: false,
+    };
     this.startGame();
   }
 
@@ -256,6 +292,7 @@ export class DuelRoom extends Room {
     this.direct = false;
     if (this.handshake) clearTimeout(this.handshake);
     this.handshake = null;
+    for (const x of this.seats) if (x) x.offered = false;
     this.broadcast('left', {});
     void this.unlock();
   }
@@ -266,6 +303,31 @@ export class DuelRoom extends Room {
     this.handshake = null;
     this.direct = this.seats.every((x) => x?.direct === true);
     this.startGame();
+  }
+
+  /**
+   * Two humans are seated and no match runs: start them (direct-line attempt first) when both are available and both
+   * accepted; otherwise tell each player whether a human is ready for their NEXT match (`offer`). Never mid-match.
+   */
+  private pairCheck() {
+    if (this.auth || this.handshake || !this.seats.every((x) => x?.client)) return;
+    const [a, b] = this.seats as Seat[];
+    if (a.available && b.available && a.accepted && b.accepted) {
+      for (const x of [a, b]) x.offered = false;
+      // First try to connect the two browsers directly; start in any case within 6 seconds.
+      // Clients that don't know about direct play never answer and simply get server mode.
+      this.seats.forEach((x, slot) => x!.client?.send('peer', { slot }));
+      this.handshake = setTimeout(() => this.finishHandshake(), 6000);
+      return;
+    }
+    for (const [x, o] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const on = x.available && o.available && !x.accepted;
+      if (on !== x.offered) x.client?.send('offer', { on });
+      x.offered = on;
+    }
   }
 
   private other(client: Client) {

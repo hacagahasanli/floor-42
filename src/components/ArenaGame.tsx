@@ -101,6 +101,16 @@ const NetBadge = ({ net }: { net: NetStatus }) => {
   );
 };
 
+export interface LocalBotHooks {
+  /** A human is free for the next match. */
+  offer: boolean;
+  /** False while a round is on (countdown / fight), true on the result screen. */
+  onAvailable: (available: boolean) => void;
+  onAccept: () => void;
+  /** Menu / change fighter: back to the online lobby (leaves the standby room). */
+  onExit: () => void;
+}
+
 export const ArenaGame = ({
   player,
   opponent,
@@ -109,6 +119,7 @@ export const ArenaGame = ({
   arena: requestedArena,
   online,
   onlineBot,
+  localBot,
   twoPlayer,
 }: {
   player: CharacterId;
@@ -120,6 +131,12 @@ export const ArenaGame = ({
   online?: { session: OnlineSession; room: Room };
   /** Online vs the server's bot (no human was free): its level, shown as BOT · LEVEL like offline. */
   onlineBot?: BotLevel;
+  /**
+   * Online quick match found no human in time, so this is a match against the bot in the browser (zero network) while the
+   * player stays on standby in the quick-match room. A human who becomes free is offered on the result screen, for the
+   * next match only. `onlineBot` gives the level.
+   */
+  localBot?: LocalBotHooks;
   /** Local 2-player on one keyboard: `player` is P1's fighter, `opponent` P2's; first to `kosToWin`. */
   twoPlayer?: { kosToWin: number };
 }) => {
@@ -192,7 +209,19 @@ export const ArenaGame = ({
   const [tag1, tag2] = vsTags(tp ? '2p' : '1p', level);
   const vsInfo = { p1: player, p2: opponent, tag1, tag2, kosToWin: kosToWin ?? RULES.kosToWin, arena: arenaId };
   // Anonymous usage events: a no-op unless the site started counting (never on a portal build).
-  useRoundTelemetry(hud, { demo, online: !!online, twoPlayer: tp });
+  const isLocalBot = !!localBot && !online;
+  const localBotRef = useRef(localBot);
+  localBotRef.current = localBot;
+  useRoundTelemetry(hud, { demo, online: !!online, twoPlayer: tp, onlineBot: isLocalBot });
+  // Standby: busy while a round is on, available on the result screen (the server offers a free human only then).
+  const roundOn = hud ? hud.phase !== 'over' : true;
+  useEffect(() => {
+    if (isLocalBot) localBotRef.current?.onAvailable(!roundOn);
+  }, [roundOn, isLocalBot]);
+  const [acceptedOffer, setAcceptedOffer] = useState(false);
+  useEffect(() => {
+    if (roundOn) setAcceptedOffer(false);
+  }, [roundOn]);
 
   // The lift ride up: real loading steps, shown until the first frame of the office is on screen.
   const [loaded, setLoaded] = useState({ fonts: false, office: false });
@@ -225,6 +254,7 @@ export const ArenaGame = ({
           onHud: setHud,
           onContextLost: () => setGlLost(true),
           online: online?.session,
+          traits: !isLocalBot,
           ...(tp && kosToWin
             ? {
                 twoPlayer: { kosToWin },
@@ -322,6 +352,7 @@ export const ArenaGame = ({
   };
 
   const exit = () => {
+    if (isLocalBot) return localBotRef.current?.onExit();
     if (online) void online.room.leave();
     // Leaving a 2-player session for the main menu ends tonight's tally.
     if (tp) resetTally(sessionStore());
@@ -345,6 +376,7 @@ export const ArenaGame = ({
   /** Result: CHANGE FIGHTER. 2-player: the split select; vs bot: the fighter select; online: the next fighter in the roster for the next round. */
   const onChangeFighter = () => {
     if (tp) return changeFighters();
+    if (isLocalBot) return localBotRef.current?.onExit();
     if (!online) return navigate('/characters');
     const cur = hudRef.current?.nextCharacter ?? hudRef.current?.character;
     const i = ROSTER.findIndex((r) => r.id === cur);
@@ -783,7 +815,7 @@ export const ArenaGame = ({
                 tally={tp ? tally : undefined}
                 rematchAsked={rematchAsked}
                 rematchTicks={tp ? [rematchTicks[0], rematchTicks[1]] : undefined}
-                canNextArena={!online}
+                canNextArena={!online && !isLocalBot}
                 nextCharacter={online ? (hud.nextCharacter ?? hud.character) : undefined}
                 onRematch={rematch}
                 onNextArena={nextArena}
@@ -793,6 +825,26 @@ export const ArenaGame = ({
                 onChoiceUp={onChoiceUp}
               />
               <Support variant="results" className="absolute left-6 top-24 z-[31]" />
+              {/* Placeholder look (R-032): a human became free while you played the browser bot. Next match only. */}
+              {isLocalBot && localBot?.offer && (
+                <div className="absolute inset-x-0 top-6 z-[32] flex justify-center" role="status">
+                  <div className="panel-cut flex items-center gap-3 bg-ink-deep/90 px-4 py-2 text-cream">
+                    <span className="font-bold uppercase tracking-wider">A player is free</span>
+                    <button
+                      type="button"
+                      data-testid="fight-player"
+                      disabled={acceptedOffer}
+                      onClick={() => {
+                        setAcceptedOffer(true);
+                        localBotRef.current?.onAccept();
+                      }}
+                      className="panel-cut bg-gold px-4 py-1 font-bold uppercase tracking-wider text-ink-deep"
+                    >
+                      {acceptedOffer ? 'Connecting…' : 'Fight them'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

@@ -110,6 +110,8 @@ export interface ArenaOptions {
   aimMode?: AimMode;
   /** Online match: the server owns the game, this client predicts. */
   online?: OnlineSession;
+  /** Signature traits (offline default: on). The browser bot of online quick match plays without, like online. */
+  traits?: boolean;
   /** A backdrop (the home page): no sound, no keyboard. */
   backdrop?: boolean;
   /**
@@ -162,7 +164,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       false,
       tp ? { kosToWin: tp.kosToWin, assist: true } : undefined,
       // Offline only (never `online`): the shorter countdown is opt-in, so the shared sim default stays 3.6 s.
-      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS, arena: arenaId, traits: !online },
+      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS, arena: arenaId, traits: !online && (opts.traits ?? true) },
     );
   let hold = !!opts.hold;
   let padsSeen = 0;

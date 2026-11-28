@@ -35,12 +35,13 @@ const nextRoundNumber = (): number => {
 };
 
 interface Open {
-  mode: 'bot' | 'online' | 'local2p';
+  /** online_bot: the browser bot that quick match starts when no human is free (still counted apart from plain 'bot'). */
+  mode: 'bot' | 'online' | 'online_bot' | 'local2p';
 }
 
 /** The arena: loading ends with the first frame; a match runs from the end of the countdown to the result card. */
 /** `twoPlayer`: a local 2-player round is its own mode (`local2p`); win / lose then read from P1's side. */
-export const useRoundTelemetry = (hud: HudState | null, o: { demo: boolean; online: boolean; twoPlayer?: boolean }): void => {
+export const useRoundTelemetry = (hud: HudState | null, o: { demo: boolean; online: boolean; twoPlayer?: boolean; onlineBot?: boolean }): void => {
   const open = useRef<Open | null>(null);
   const hudRef = useRef(hud);
   hudRef.current = hud;
@@ -71,7 +72,7 @@ export const useRoundTelemetry = (hud: HudState | null, o: { demo: boolean; onli
   useEffect(() => {
     if (o.demo) return;
     if (phase === 'fight' && !open.current) {
-      open.current = { mode: o.online ? 'online' : o.twoPlayer ? 'local2p' : 'bot' };
+      open.current = { mode: o.online ? 'online' : o.onlineBot ? 'online_bot' : o.twoPlayer ? 'local2p' : 'bot' };
       startedAt.current = performance.now();
       track('round_start', { mode: open.current.mode, character: hudRef.current?.character, n_in_session: nextRoundNumber() });
     }

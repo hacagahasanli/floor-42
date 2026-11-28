@@ -7,9 +7,9 @@ const fra: Region = { id: 'fra', url: 'wss://fra.example' };
 const iad: Region = { id: 'iad', url: 'wss://iad.example' };
 const sin: Region = { id: 'sin', url: 'wss://sin.example' };
 
-describe('planSearch: region order', () => {
+describe('planSearch: region order (server bot mode)', () => {
   it('one region (today): a single leg in it, with the bot', () => {
-    expect(planSearch([fra])).toEqual([{ kind: 'bot', region: fra, untilMs: null, bot: true }]);
+    expect(planSearch([fra], [], MATCH_TIMING, 'server')).toEqual([{ kind: 'bot', region: fra, untilMs: null, bot: true }]);
   });
 
   it('home is the nearest region, then the nearest other one, then back home for the bot', () => {
@@ -17,7 +17,7 @@ describe('planSearch: region order', () => {
       { id: 'fra', rtt: 110 },
       { id: 'iad', rtt: 35 },
       { id: 'sin', rtt: 80 },
-    ]);
+    ], MATCH_TIMING, 'server');
     expect(legs.map((l) => [l.kind, l.region.id, l.untilMs, l.bot])).toEqual([
       ['home', 'iad', MATCH_TIMING.HOME_WAIT_MS, false],
       ['fallback', 'sin', MATCH_TIMING.HOME_WAIT_MS + MATCH_TIMING.FALLBACK_WAIT_MS, false],
@@ -26,7 +26,7 @@ describe('planSearch: region order', () => {
   });
 
   it('a region that did not answer is never home or fallback', () => {
-    expect(planSearch([fra, iad], [{ id: 'fra', rtt: Infinity }, { id: 'iad', rtt: 40 }]).map((l) => [l.kind, l.region.id])).toEqual([
+    expect(planSearch([fra, iad], [{ id: 'fra', rtt: Infinity }, { id: 'iad', rtt: 40 }], MATCH_TIMING, 'server').map((l) => [l.kind, l.region.id])).toEqual([
       ['bot', 'iad'],
     ]);
   });
@@ -34,21 +34,21 @@ describe('planSearch: region order', () => {
   it('latency first: a fallback more than FALLBACK_RTT_CAP_MS over home is skipped, the bot comes at home instead', () => {
     const cap = MATCH_TIMING.FALLBACK_RTT_CAP_MS;
     // Baku-like: fra 75 ms, iad 165 ms -> no cross-Atlantic human, bot in fra.
-    expect(planSearch([fra, iad], [{ id: 'fra', rtt: 75 }, { id: 'iad', rtt: 165 }]).map((l) => [l.kind, l.region.id])).toEqual([['bot', 'fra']]);
+    expect(planSearch([fra, iad], [{ id: 'fra', rtt: 75 }, { id: 'iad', rtt: 165 }], MATCH_TIMING, 'server').map((l) => [l.kind, l.region.id])).toEqual([['bot', 'fra']]);
     // Exactly at the cap is allowed; one ms over is not.
-    expect(planSearch([fra, iad], [{ id: 'fra', rtt: 40 }, { id: 'iad', rtt: 40 + cap }]).map((l) => l.kind)).toEqual(['home', 'fallback', 'bot']);
-    expect(planSearch([fra, iad], [{ id: 'fra', rtt: 40 }, { id: 'iad', rtt: 41 + cap }]).map((l) => l.kind)).toEqual(['bot']);
+    expect(planSearch([fra, iad], [{ id: 'fra', rtt: 40 }, { id: 'iad', rtt: 40 + cap }], MATCH_TIMING, 'server').map((l) => l.kind)).toEqual(['home', 'fallback', 'bot']);
+    expect(planSearch([fra, iad], [{ id: 'fra', rtt: 40 }, { id: 'iad', rtt: 41 + cap }], MATCH_TIMING, 'server').map((l) => l.kind)).toEqual(['bot']);
   });
 
   it('nothing answered the probe: still try the first region (the probe route may be what is down)', () => {
-    expect(planSearch([fra, iad], [{ id: 'fra', rtt: Infinity }, { id: 'iad', rtt: Infinity }])).toEqual([
+    expect(planSearch([fra, iad], [{ id: 'fra', rtt: Infinity }, { id: 'iad', rtt: Infinity }], MATCH_TIMING, 'server')).toEqual([
       { kind: 'bot', region: fra, untilMs: null, bot: true },
     ]);
     expect(planSearch([])).toEqual([]);
   });
 
   it('ties go to the region listed first', () => {
-    expect(planSearch([fra, iad], [{ id: 'fra', rtt: 50 }, { id: 'iad', rtt: 50 }])[0].region.id).toBe('fra');
+    expect(planSearch([fra, iad], [{ id: 'fra', rtt: 50 }, { id: 'iad', rtt: 50 }], MATCH_TIMING, 'server')[0].region.id).toBe('fra');
   });
 });
 
@@ -133,7 +133,7 @@ const harness = (opts: {
 describe('runQuickMatch: the state machine', () => {
   it('a lone player in one region gets the bot at BOT_DUE_MS (<= 10 s)', async () => {
     const h = harness({});
-    const res = await h.run(runQuickMatch(planSearch([fra]), h.deps));
+    const res = await h.run(runQuickMatch(planSearch([fra], [], MATCH_TIMING, 'server'), h.deps));
     expect(res.leg.kind).toBe('bot');
     expect(res.room.bot).toBe(true);
     expect(h.time()).toBe(MATCH_TIMING.BOT_DUE_MS + 100);
@@ -142,7 +142,7 @@ describe('runQuickMatch: the state machine', () => {
 
   it('a human waiting in the home region is matched at once, no other region is tried', async () => {
     const h = harness({ humanAt: { fra: 0 } });
-    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }]), h.deps));
+    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }], MATCH_TIMING, 'server'), h.deps));
     expect(res.leg.kind).toBe('home');
     expect(res.room.bot).toBe(false);
     expect(h.log.filter((l) => l.startsWith('join'))).toEqual(['join fra @0']);
@@ -150,7 +150,7 @@ describe('runQuickMatch: the state machine', () => {
 
   it('home is empty: after HOME_WAIT_MS it leaves and finds the human in the nearest other region', async () => {
     const h = harness({ humanAt: { iad: 0 } });
-    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }]), h.deps));
+    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }], MATCH_TIMING, 'server'), h.deps));
     expect(res.leg.kind).toBe('fallback');
     expect(res.room.region).toBe('iad');
     expect(h.log).toEqual(['leg home', 'join fra @0', `leave fra @${MATCH_TIMING.HOME_WAIT_MS}`, 'leg fallback', `join iad @${MATCH_TIMING.HOME_WAIT_MS}`]);
@@ -158,7 +158,7 @@ describe('runQuickMatch: the state machine', () => {
 
   it('nobody anywhere: home, fallback, then the bot at home, due at BOT_DUE_MS overall', async () => {
     const h = harness({});
-    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }]), h.deps));
+    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }], MATCH_TIMING, 'server'), h.deps));
     expect(res.leg.kind).toBe('bot');
     expect(res.room.region).toBe('fra');
     expect(res.room.bot).toBe(true);
@@ -169,14 +169,14 @@ describe('runQuickMatch: the state machine', () => {
 
   it('a human who arrives at home during the fallback still beats the bot on the way back', async () => {
     const h = harness({ humanAt: { fra: MATCH_TIMING.HOME_WAIT_MS + 500 } });
-    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }]), h.deps));
+    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }], MATCH_TIMING, 'server'), h.deps));
     expect(res.leg.kind).toBe('bot');
     expect(res.room.bot).toBe(false);
   });
 
   it('the fallback region is down: skipped, the bot still comes on time', async () => {
     const h = harness({ down: ['iad'] });
-    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }]), h.deps));
+    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }], MATCH_TIMING, 'server'), h.deps));
     expect(res.room.bot).toBe(true);
     expect(h.time()).toBeLessThanOrEqual(10_000);
   });
@@ -190,7 +190,7 @@ describe('runQuickMatch: the state machine', () => {
       fraUp = false; // up for the first join only
       return join(r, b);
     };
-    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }]), h.deps));
+    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }], MATCH_TIMING, 'server'), h.deps));
     expect(res.room.region).toBe('iad');
     expect(res.room.bot).toBe(true);
   });
@@ -198,14 +198,14 @@ describe('runQuickMatch: the state machine', () => {
   it('the bot is due from the press, so a slow region probe (cold start) does not add to the wait', async () => {
     const h = harness({});
     h.deps.startedAt = -3_000; // the probe took 3 s before the search began
-    const res = await h.run(runQuickMatch(planSearch([fra]), h.deps));
+    const res = await h.run(runQuickMatch(planSearch([fra], [], MATCH_TIMING, 'server'), h.deps));
     expect(res.room.bot).toBe(true);
     expect(h.log[1]).toBe(`join fra bot=${MATCH_TIMING.BOT_DUE_MS - 3_000} @0`);
   });
 
   it('every region down: the error comes back (the lobby shows "can\'t reach the game server")', async () => {
     const h = harness({ down: ['fra'] });
-    await expect(h.run(runQuickMatch(planSearch([fra]), h.deps))).rejects.toThrow('fra down');
+    await expect(h.run(runQuickMatch(planSearch([fra], [], MATCH_TIMING, 'server'), h.deps))).rejects.toThrow('fra down');
   });
 
   it('cancel: leaves the room it just joined and stops', async () => {
@@ -218,7 +218,48 @@ describe('runQuickMatch: the state machine', () => {
       cancel = true;
       return room;
     };
-    await expect(h.run(runQuickMatch(planSearch([fra]), h.deps))).rejects.toBeInstanceOf(SearchCancelled);
+    await expect(h.run(runQuickMatch(planSearch([fra], [], MATCH_TIMING, 'server'), h.deps))).rejects.toBeInstanceOf(SearchCancelled);
     expect(h.log.some((l) => l.startsWith('leave fra'))).toBe(true);
+  });
+});
+
+describe('client bot mode (default): the bot runs in the browser, the room stays on standby', () => {
+  it('is the default', async () => {
+    const { BOT_MODE } = await import('./matchmaking');
+    expect(BOT_MODE).toBe('client');
+  });
+
+  it('the last leg waits until BOT_DUE_MS, asks the server for no bot and keeps the room', () => {
+    expect(planSearch([fra])).toEqual([{ kind: 'bot', region: fra, untilMs: MATCH_TIMING.BOT_DUE_MS, bot: false, stay: true }]);
+    const legs = planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }]);
+    expect(legs.map((l) => [l.kind, l.region.id, l.untilMs, l.bot, !!l.stay])).toEqual([
+      ['home', 'fra', MATCH_TIMING.HOME_WAIT_MS, false, false],
+      ['fallback', 'iad', MATCH_TIMING.HOME_WAIT_MS + MATCH_TIMING.FALLBACK_WAIT_MS, false, false],
+      ['bot', 'fra', MATCH_TIMING.BOT_DUE_MS, false, true],
+    ]);
+  });
+
+  it('a lone player: at BOT_DUE_MS the search hands over to the local bot and the room is NOT left (standby)', async () => {
+    const h = harness({});
+    const res = await h.run(runQuickMatch(planSearch([fra]), h.deps));
+    expect(res.botTime).toBe(true);
+    expect(res.room.left).toBe(false);
+    expect(h.time()).toBe(MATCH_TIMING.BOT_DUE_MS);
+    expect(h.log.filter((l) => l.startsWith('join'))).toEqual(['join fra @0']); // no server bot asked for
+  });
+
+  it('a human before the bot time is a normal human match', async () => {
+    const h = harness({ humanAt: { fra: 3_000 } });
+    const res = await h.run(runQuickMatch(planSearch([fra]), h.deps));
+    expect(res.botTime).toBeUndefined();
+    expect(h.time()).toBe(3_000);
+  });
+
+  it('two regions, nobody anywhere: home, fallback, then standby at home until BOT_DUE_MS', async () => {
+    const h = harness({});
+    const res = await h.run(runQuickMatch(planSearch([fra, iad], [{ id: 'fra', rtt: 30 }, { id: 'iad', rtt: 80 }]), h.deps));
+    expect(res.botTime).toBe(true);
+    expect(res.room.region).toBe('fra');
+    expect(h.time()).toBe(MATCH_TIMING.BOT_DUE_MS);
   });
 });

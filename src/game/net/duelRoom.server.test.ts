@@ -151,6 +151,67 @@ describe('DuelRoom on a real server', () => {
     await expect(new Client(url).joinById(id, opts())).rejects.toBeTruthy();
   }, 10_000);
 
+  it('browser-bot standby: a human who arrives while you play the bot is offered for your NEXT match, never mid-match', async () => {
+    const a = await new Client(url).joinOrCreate(ROOM_NAME, opts());
+    a.onMessage('waiting', () => {});
+    const okBusy = next<{ ok: boolean }>(a, 'stateOk');
+    a.send('state', { busy: true }); // A's search timed out: A plays the local bot
+    expect((await okBusy)?.ok).toBe(true);
+    const offers: boolean[] = [];
+    let aPeer = false;
+    a.onMessage('offer', (m: { on: boolean }) => offers.push(m.on));
+    a.onMessage('peer', () => (aPeer = true));
+    // B searches and lands in A's room: no match starts while A is busy.
+    const b = await new Client(url).joinOrCreate(ROOM_NAME, opts({ character: 'legacy' }));
+    expect(b.roomId).toBe(a.roomId);
+    let bPeer = false;
+    const bOffers: boolean[] = [];
+    b.onMessage('peer', () => (bPeer = true));
+    b.onMessage('offer', (m: { on: boolean }) => bOffers.push(m.on));
+    await wait(400);
+    expect(aPeer || bPeer).toBe(false);
+    expect(offers).toEqual([]);
+    // A's bot match ends (result screen): A is offered B, nothing starts until A accepts.
+    a.send('state', { busy: false });
+    await wait(300);
+    expect(offers).toEqual([true]);
+    expect(aPeer || bPeer).toBe(false);
+    expect(bOffers).toEqual([]); // B is searching (accepted already)
+    // A accepts: both get the direct-line handshake, i.e. the match starts.
+    a.send('state', { accept: true });
+    await wait(300);
+    expect(aPeer && bPeer).toBe(true);
+    // Too late to go busy now: the server says so.
+    const late = next<{ ok: boolean }>(b, 'stateOk');
+    b.send('state', { busy: true });
+    expect((await late)?.ok).toBe(false);
+    quiet(a);
+    quiet(b);
+    await a.leave();
+    await b.leave();
+  }, 10_000);
+
+  it('standby: the offer is withdrawn when the other player starts a bot match first', async () => {
+    const a = await new Client(url).joinOrCreate(ROOM_NAME, opts());
+    a.onMessage('waiting', () => {});
+    a.send('state', { busy: true });
+    const b = await new Client(url).joinOrCreate(ROOM_NAME, opts({ character: 'legacy' }));
+    expect(b.roomId).toBe(a.roomId);
+    const offers: boolean[] = [];
+    a.onMessage('offer', (m: { on: boolean }) => offers.push(m.on));
+    b.onMessage('stateOk', () => {});
+    a.onMessage('stateOk', () => {});
+    a.send('state', { busy: false });
+    await wait(300);
+    b.send('state', { busy: true }); // B's own search timed out: B plays its bot
+    await wait(300);
+    expect(offers).toEqual([true, false]);
+    quiet(a);
+    quiet(b);
+    await a.leave();
+    await b.leave();
+  }, 10_000);
+
   it('refuses a client of another protocol version', async () => {
     await expect(new Client(url).joinOrCreate(ROOM_NAME, { character: 'hotfix', v: 3 })).rejects.toBeTruthy();
   });
