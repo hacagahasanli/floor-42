@@ -28,7 +28,7 @@ export const CreditsPanel = ({ onClose }: { onClose: () => void }) => (
     <Bunting variant={4} />
     <Frame>
       <div className="fd-panel" style={{ left: '50%', marginLeft: -350, top: 118, width: 700, height: 478 }} />
-      <TitleRibbon top={86} tilt={-2} icon={<Icon name="pennant" size={30} />}>
+      <TitleRibbon top={86} tilt={-2} icon={<Icon name="pennantOnDark" size={30} />}>
         CREDITS
       </TitleRibbon>
       <div className="fd-abs" style={{ left: '50%', marginLeft: -310, top: 186, width: 620, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center' }}>

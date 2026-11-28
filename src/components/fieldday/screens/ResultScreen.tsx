@@ -11,7 +11,7 @@ import { FD_COPY } from '../copy';
 import { fighterView } from '../fighters';
 import { Icon, RibbonTail, WeaponIcon } from '../Icon';
 import { useSpatialNav } from '../nav';
-import { Chip, Keycap, Pill } from '../parts';
+import { Chip, Keycap, Pill, PlayerTag } from '../parts';
 import { Portrait, useFighterPortraits } from '../Portrait';
 import { buildResult, slotsFor } from '../resultModel';
 import { fdSound } from '../sound';
@@ -49,7 +49,7 @@ export interface ResultScreenProps {
   fighters: [ResultFighter, ResultFighter];
   winner: number | null;
   drawLine: string;
-  /** The player colours (2-player), for the score tiles and the P1 / P2 chips. */
+  /** The player colours (2-player), for the score tiles (the P1 / P2 tags are grape since R-028). */
   colours?: [string, string];
   /** Tonight's tally (2-player). */
   tally?: { p1: number; p2: number };
@@ -316,7 +316,8 @@ const ResultBody = (p: ResultScreenProps) => {
         </Pill>
         {p.mode === 'twoPlayer' && p.tally && (
           <Pill className="fd-res-pill fd-tally" data-testid="tally">
-            Tonight: <b style={{ color: p.colours?.[0] }}>P1</b> {p.tally.p1} – {p.tally.p2} <b style={{ color: p.colours?.[1] }}>P2</b>
+            {/* R-028 (8.5): P1 / P2 white, the score digits sun; no player colours in UI chrome. */}
+            Tonight: <b style={{ color: '#fff' }}>P1</b> <b style={{ color: 'var(--sun)' }}>{p.tally.p1} – {p.tally.p2}</b> <b style={{ color: '#fff' }}>P2</b>
           </Pill>
         )}
 
@@ -385,20 +386,16 @@ const ResultBody = (p: ResultScreenProps) => {
           </>
         )}
         {(loss || p.mode === 'twoPlayer') && model.loser !== null && (
-          <Chip
-            className="fd-res-you"
-            color={p.mode === 'twoPlayer' ? colourOf(model.loser) : undefined}
-            height={24}
-            fontSize={12}
-            data-testid="you-chip"
-          >
-            {p.mode === 'twoPlayer' ? `P${model.loser + 1}` : C.you}
-          </Chip>
+          p.mode === 'twoPlayer' ? (
+            <PlayerTag index={model.loser} onWorld className="fd-res-you" height={24} fontSize={12} data-testid="you-chip" />
+          ) : (
+            <Chip className="fd-res-you" height={24} fontSize={12} data-testid="you-chip">
+              {C.you}
+            </Chip>
+          )
         )}
         {p.mode === 'twoPlayer' && model.winner !== null && (
-          <Chip className="fd-res-chip" color={colourOf(model.winner)} style={{ left: 552, top: 178, rotate: '-6deg' }}>
-            P{model.winner + 1}
-          </Chip>
+          <PlayerTag index={model.winner} onWorld className="fd-res-chip" style={{ left: 552, top: 178, rotate: '-6deg' }} data-testid="winner-tag" />
         )}
 
         {!isDraw && (
@@ -453,7 +450,7 @@ const ResultBody = (p: ResultScreenProps) => {
               <div className="fd-res-drop">
                 <div className="fd-res-disc" aria-hidden="true">
                   <i />
-                  {a.icon.kind === 'icon' ? <Icon name={a.icon.name} /> : <WeaponIcon name={a.icon.name} className="fd-wide" />}
+                  {a.icon.kind === 'icon' ? <Icon name={a.icon.name} /> : <WeaponIcon name={a.icon.name} size={28} className="fd-wide" />}
                 </div>
                 <div className="fd-card fd-res-label">
                   <b>{a.title}</b>
@@ -483,7 +480,7 @@ const ResultBody = (p: ResultScreenProps) => {
                 p.mode === 'twoPlayer' ? (
                   <span style={{ display: 'inline-flex', gap: 6 }} data-testid="rematch-ticks">
                     {[0, 1].map((i) => (
-                      <Chip key={i} height={26} fontSize={12} color={p.rematchTicks?.[i] ? p.colours?.[i] : '#fff'} data-ticked={!!p.rematchTicks?.[i]}>
+                      <Chip key={i} height={26} fontSize={12} className={`fd-rtick ${p.rematchTicks?.[i] ? 'fd-on' : ''}`} data-ticked={!!p.rematchTicks?.[i]}>
                         P{i + 1} {p.rematchTicks?.[i] ? '✓' : ''}
                       </Chip>
                     ))}
@@ -538,9 +535,7 @@ const ResultBody = (p: ResultScreenProps) => {
             {[0, 1].map((i) =>
               p.mode === 'twoPlayer' ? (
                 <span key={i}>
-                  <Chip height={24} fontSize={12} color={p.colours?.[i]}>
-                    P{i + 1}
-                  </Chip>
+                  <PlayerTag index={i as 0 | 1} height={24} fontSize={12} />
                 </span>
               ) : (
                 <span key={i}>

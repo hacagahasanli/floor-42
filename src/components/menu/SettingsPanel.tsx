@@ -6,14 +6,15 @@ import { FdButton } from '~/components/fieldday/Button';
 import { Segmented, Slider, Toggle } from '~/components/fieldday/Controls';
 import { fdSound } from '~/components/fieldday/sound';
 import { Frame } from '~/components/fieldday/Stage';
-import { Chip, HintStrip, KeyLabel } from '~/components/fieldday/parts';
+import { HintStrip, KeyLabel, PlayerTag } from '~/components/fieldday/parts';
+import { FD_COPY } from '~/components/fieldday/copy';
 import { Icon } from '~/components/fieldday/Icon';
 import { Modal, TitleRibbon } from '~/components/fieldday/screens/Modal';
 import { isTouchDevice } from '~/game/input';
 import { deviceFacts, resolveTier } from '~/game/render/quality';
 import { ACTIONS, getSettings, keyLabel, unboundActions } from '~/game/settings';
 
-import { useKeyLabel, usePlayerColours } from '~/components/twoPlayer/shared';
+import { useKeyLabel } from '~/components/twoPlayer/shared';
 import { ACTIONS_2P, unbound2P } from '~/game/twoPlayer';
 
 import { CreditsPanel } from './Credits';
@@ -135,7 +136,6 @@ const KeyTable = ({ two, note, setNote }: { two: boolean; note: { text: string; 
   const s = useSettings();
   const store = getSettings();
   const label2 = useKeyLabel();
-  const colours = usePlayerColours();
   const [capture, setCapture] = useState<{ action: string; slot: number } | null>(null);
   useEffect(() => setCapture(null), [two]);
 
@@ -207,9 +207,7 @@ const KeyTable = ({ two, note, setNote }: { two: boolean; note: { text: string; 
           <span className="fd-sec">ACTION</span>
           {(['p1', 'p2'] as Player[]).map((p, i) => (
             <span key={p} style={{ display: 'flex', justifyContent: 'center' }}>
-              <Chip color={colours[i]} height={22} fontSize={12}>
-                P{i + 1}
-              </Chip>
+              <PlayerTag index={i as 0 | 1} height={22} fontSize={12} />
             </span>
           ))}
         </div>
@@ -483,7 +481,7 @@ const AccessTab = ({ onCredits, onDone }: { onCredits: () => void; onDone: () =>
             fdSound.back();
           }}
         >
-          {confirm ? 'PRESS AGAIN TO RESET ALL' : 'RESET ALL'}
+          {confirm ? FD_COPY.settings.resetConfirm : 'RESET ALL'}
         </FdButton>
       </Card>
     </Grid>
@@ -553,12 +551,12 @@ export const SettingsPanel = ({ onClose, initialTab = 'controls' }: { onClose: (
                 return (
                   <FdButton
                     key={t.id}
-                    tone={on ? 'sun' : 'white'}
+                    tone="white"
                     size="sm"
                     height={48}
                     fontSize={on ? 19 : 18}
                     sound="none"
-                    className="fd-tab"
+                    className={on ? 'fd-tab fd-sel' : 'fd-tab'}
                     role="tab"
                     id={`tab-${t.id}`}
                     aria-selected={on}

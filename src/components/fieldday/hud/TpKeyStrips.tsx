@@ -17,18 +17,19 @@ const PARTS: { keys: Action2P[]; text: string }[] = [
   { keys: ['push'], text: 'push' },
 ];
 
-/** One player's key strip (sheet 8): a grape-deep pill, the P1 / P2 tag on the player colour, keycaps and verbs. */
+/**
+ * One player's key strip (sheet 8): a grape-deep pill, the P1 / P2 tag, keycaps and verbs. The tag is grape with white text and
+ * a 2 px white border (R-028, colour-balance.md 8.5, supersedes the player-colour tag of spec 11.5.9).
+ */
 export const TpKeyStrip = ({
   player,
   bindings,
-  colour,
   label,
   shown,
   align,
 }: {
   player: Player;
   bindings: Bindings2P;
-  colour: string;
   label: (code: string) => string;
   shown: boolean;
   align: 'left' | 'right';
@@ -37,7 +38,7 @@ export const TpKeyStrip = ({
     className="fd-abs fd-tp"
     data-testid={`strip-${player}`}
     aria-hidden={!shown}
-    style={{ bottom: 24, [align]: 24, opacity: shown ? 1 : 0, ['--c' as string]: colour } as CSSProperties}
+    style={{ bottom: 24, [align]: 24, opacity: shown ? 1 : 0 } as CSSProperties}
   >
     <b className="fd-tp-tag">{player === 'p1' ? 'P1' : 'P2'}</b>
     {PARTS.map((part) => (

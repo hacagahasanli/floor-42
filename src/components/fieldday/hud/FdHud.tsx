@@ -345,7 +345,6 @@ export const FdHud = (p: FdHudProps) => {
   const matchPoint = Math.max(a.kos, b.kos) === hud.kosToWin - 1;
   const stripOn = !p.demo && !p.touch && !p.tp && p.keyHints && hud.phase !== 'over' && !p.covered;
   const stripShown = stripOn && !down && kos < 2;
-  const [c1, c2] = p.colours;
   const tpStrips = p.tp && !p.demo && p.keyHints && hud.phase !== 'over' && !p.covered && kos < 2;
   const timer = clock(hud.phase === 'countdown' ? RULES.roundSeconds : hud.time);
   // The arena card is the title card: once somebody has been KO'd the feed takes its place under the score.
@@ -420,8 +419,8 @@ export const FdHud = (p: FdHudProps) => {
       </div>
       {p.tp && !p.demo && (
         <>
-          <TpKeyStrip player="p1" bindings={p.bindings2p} colour={c1} label={label} shown={tpStrips} align="left" />
-          <TpKeyStrip player="p2" bindings={p.bindings2p} colour={c2} label={label} shown={tpStrips} align="right" />
+          <TpKeyStrip player="p1" bindings={p.bindings2p} label={label} shown={tpStrips} align="left" />
+          <TpKeyStrip player="p2" bindings={p.bindings2p} label={label} shown={tpStrips} align="right" />
         </>
       )}
       {hint && (

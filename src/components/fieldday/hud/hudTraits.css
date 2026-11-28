@@ -172,10 +172,11 @@
   display: inline-flex;
   align-items: center;
   padding: 3px 7px 1px;
-  border: 2.5px solid var(--grape);
+  /* R-028 (colour-balance.md 8.5): grape and white, 2 px white border (the strip sits on the 3D scene); no player colour. */
+  border: 2px solid #fff;
   border-radius: 7px;
-  background: var(--c);
-  color: var(--grape);
+  background: var(--grape);
+  color: #fff;
   font: 400 13px/1 'Titan One', sans-serif;
 }
 .fd-tp > span {

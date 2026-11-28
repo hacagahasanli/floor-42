@@ -1,0 +1,147 @@
+home @1280x720: [traits-menus check] 0 issues
+  sun buttons: ["PLAY"]
+  sun marks (own sun fill): 1 ["play \"PLAY\""]; sun text: ["fd-titan \"OFFSITE FIELD DAY\""]; sun in icons: ["fd-titan \"OFFSITE FIELD DAY\"","fd-titan \"OFFSITE FIELD DAY\"","play \"PLAY\""]
+  pennants: ["25x25","25x25"]
+select @1280x720: [traits-menus check] 0 issues
+  sun buttons: ["FIGHT!ENTER"]
+  sun marks (own sun fill): 1 ["fight \"FIGHT!ENTER\""]; sun text: ["b \"TEA BREAK\""]; sun in icons: []
+select-2p @1280x720: [traits-menus check] 0 issues
+  sun buttons: []
+  sun marks (own sun fill): 1 ["ready-p1 \"READY!\""]; sun text: ["b \"LEAPFROG\"","b \"TEA BREAK\""]; sun in icons: []
+  tags: ["READY! bg=rgb(255, 200, 61) fg=rgb(59, 31, 107) border=4px rgb(59, 31, 107)","Press;when ready bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=4px rgb(59, 31, 107)"]
+settings-controls @1280x720: [traits-menus check] 9 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x edit-2p "EDIT"
+  OVERLAP fd-panel "" x reset-keys "RESET KEYS"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["DONE"]
+  sun marks (own sun fill): 1 ["settings-done \"DONE\""]; sun text: []; sun in icons: []
+  controls: {"tab":["CONTROLS SELECTED bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"segOn":["AUTO bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"togglesOn":["rgb(90, 53, 150)"],"togglesOff":[],"sliderFills":[]}
+settings-camera @1280x720: [traits-menus check] 7 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["DONE"]
+  sun marks (own sun fill): 1 ["settings-done \"DONE\""]; sun text: []; sun in icons: []
+  controls: {"tab":["CAMERA SELECTED bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"segOn":[],"togglesOn":["rgb(90, 53, 150)"],"togglesOff":[],"sliderFills":[]}
+settings-graphics @1280x720: [traits-menus check] 7 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["DONE"]
+  sun marks (own sun fill): 1 ["settings-done \"DONE\""]; sun text: []; sun in icons: []
+  controls: {"tab":["GRAPHICS SELECTED bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"segOn":["HIGH bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"togglesOn":["rgb(90, 53, 150)"],"togglesOff":["rgb(185, 179, 201)"],"sliderFills":["rgb(90, 53, 150)"]}
+settings-audio @1280x720: [traits-menus check] 7 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["DONE"]
+  sun marks (own sun fill): 1 ["settings-done \"DONE\""]; sun text: []; sun in icons: []
+  controls: {"tab":["AUDIO SELECTED bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"segOn":[],"togglesOn":[],"togglesOff":["rgb(185, 179, 201)"],"sliderFills":["rgb(90, 53, 150)","rgb(90, 53, 150)","rgb(90, 53, 150)","rgb(90, 53, 150)"]}
+settings-access @1280x720: [traits-menus check] 9 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x settings-credits "CREDITS"
+  OVERLAP fd-panel "" x reset-all "RESET ALL"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["DONE"]
+  sun marks (own sun fill): 1 ["settings-done \"DONE\""]; sun text: []; sun in icons: []
+  controls: {"tab":["ACCESSIBILITY SELECTED bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"segOn":[],"togglesOn":[],"togglesOff":["rgb(185, 179, 201)","rgb(185, 179, 201)","rgb(185, 179, 201)"],"sliderFills":[]}
+settings-2p-keys @1280x720: [traits-menus check] 11 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x fd-chip fd-ptag   "P1"
+  OVERLAP fd-panel "" x fd-chip fd-ptag   "P2"
+  OVERLAP fd-panel "" x edit-2p "1 PLAYER"
+  OVERLAP fd-panel "" x reset-keys "RESET KEYS"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["DONE"]
+  sun marks (own sun fill): 1 ["settings-done \"DONE\""]; sun text: []; sun in icons: []
+  controls: {"tab":["CONTROLS SELECTED bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"segOn":["AUTO bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"togglesOn":["rgb(90, 53, 150)"],"togglesOff":[],"sliderFills":[]}
+  tags: ["P1 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=3px rgb(59, 31, 107)","P2 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=3px rgb(59, 31, 107)"]
+settings-reset-confirm @1280x720: [traits-menus check] 9 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "SETTINGS"
+  OVERLAP fd-panel "" x tab-controls "CONTROLS"
+  OVERLAP fd-panel "" x tab-camera "CAMERA"
+  OVERLAP fd-panel "" x tab-graphics "GRAPHICS"
+  OVERLAP fd-panel "" x tab-audio "AUDIO"
+  OVERLAP fd-panel "" x tab-access "ACCESSIBILITY"
+  OVERLAP fd-panel "" x settings-credits "CREDITS"
+  OVERLAP fd-panel "" x reset-all "PRESS AGAIN TO RESET"
+  OVERLAP fd-panel "" x settings-done "DONE"
+  sun buttons: ["DONE"]
+  sun marks (own sun fill): 1 ["settings-done \"DONE\""]; sun text: []; sun in icons: []
+  controls: {"tab":["ACCESSIBILITY SELECTED bg=rgb(90, 53, 150) fg=rgb(255, 255, 255)"],"segOn":[],"togglesOn":[],"togglesOff":["rgb(185, 179, 201)","rgb(185, 179, 201)","rgb(185, 179, 201)"],"sliderFills":[]}
+  reset label: {"text":"PRESS AGAIN TO RESET","button":273,"clearLeft":46.4,"clearRight":18.5,"labelBox":200}
+credits @1280x720: [traits-menus check] 2 issue(s)
+  OVERLAP fd-panel "" x fd-ribbon  "CREDITS"
+  OVERLAP fd-panel "" x credits-back "BACKESC"
+  sun buttons: []
+  sun marks (own sun fill): 0 []; sun text: []; sun in icons: ["span \"CREDITS\""]
+  pennant: ["31x31"]
+keycard-2p @1280x720: [traits-menus check] 0 issues
+  sun buttons: []
+  sun marks (own sun fill): 0 []; sun text: ["b \"OFFSITE\""]; sun in icons: []
+  tags: ["P1 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(255, 255, 255)","P2 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(255, 255, 255)","P1 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(255, 255, 255)","P2 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(255, 255, 255)","P1 bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=2px rgb(59, 31, 107)","P2 bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=2px rgb(59, 31, 107)"]
+hud-2p @1280x720: [p2a check, scope [data-testid="fd-hud"]] 0 issues
+  sun buttons: []
+  sun marks (own sun fill): 0 []; sun text: ["b \"OFFSITE\""]; sun in icons: []
+  tags: ["P1 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(255, 255, 255)","P2 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(255, 255, 255)"]
+  strips: ["strip-p1 opacity=1","strip-p2 opacity=1"]
+hud-offsite @1280x720: [p2a check, scope [data-testid="fd-hud"]] 0 issues
+  sun buttons: []
+  sun marks (own sun fill): 0 []; sun text: []; sun in icons: []
+  chips: ["dash-l ready=true bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=rgb(59, 31, 107)","push-l ready=false bg=rgb(217, 211, 230) fg=rgb(90, 82, 116) border=rgb(140, 132, 163)","dash-r ready=true bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=rgb(59, 31, 107)","push-r ready=true bg=rgb(255, 219, 127) fg=rgb(59, 31, 107) border=rgb(59, 31, 107)"]
+  cooling chip text from pixels: {"fill":"#d9d3e6","text":"#5a5274","ratio":4.98,"textPixels":275}
+result @1280x720: [p2b result check] 0 issues
+  sun buttons: ["REMATCHENTER"]
+  sun marks (own sun fill): 1 ["rematch \"REMATCHENTER\""]; sun text: []; sun in icons: ["fd-res-disc \"\""]
+  tags: []
+result-sharpshooter @1280x720: [p2b result check] 0 issues
+  sun buttons: ["REMATCHENTER"]
+  sun marks (own sun fill): 1 ["rematch \"REMATCHENTER\""]; sun text: []; sun in icons: ["fd-res-disc \"\""]
+  medals: ["0 0 40 20 58x32 centre offset 0,0 disc 98","0 0 24 24 49x49 centre offset 0,0 disc 93","0 0 24 24 49x49 centre offset 0,0 disc 95"]
+result-2p @1280x720: [p2b result check] 0 issues
+  sun buttons: ["REMATCHP1 ✓P2"]
+  sun marks (own sun fill): 1 ["rematch \"REMATCHP1 ✓P2\""]; sun text: ["b \"3 – 2\""]; sun in icons: ["fd-res-disc \"\""]
+  tags: ["P2 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(255, 255, 255)","P1 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(255, 255, 255)","P1 ✓ bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=2px rgb(59, 31, 107)","P2 bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=2px rgb(59, 31, 107)","P1 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=3px rgb(59, 31, 107)","P2 bg=rgb(59, 31, 107) fg=rgb(255, 255, 255) border=3px rgb(59, 31, 107)"]
+home-1920 @1920x1080: [traits-menus check] 0 issues
+  sun buttons: ["PLAY"]
+  sun marks (own sun fill): 1 ["play \"PLAY\""]; sun text: ["fd-titan \"OFFSITE FIELD DAY\""]; sun in icons: ["fd-titan \"OFFSITE FIELD DAY\"","fd-titan \"OFFSITE FIELD DAY\"","play \"PLAY\""]
+select-1920 @1920x1080: [traits-menus check] 0 issues
+  sun buttons: ["FIGHT!ENTER"]
+  sun marks (own sun fill): 1 ["fight \"FIGHT!ENTER\""]; sun text: ["b \"TEA BREAK\""]; sun in icons: []
+hud-offsite-1920 @1920x1080: [p2a check, scope [data-testid="fd-hud"]] 0 issues
+  sun buttons: []
+  sun marks (own sun fill): 0 []; sun text: []; sun in icons: []
+  chips: ["dash-l ready=true bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=rgb(59, 31, 107)","push-l ready=false bg=rgb(217, 211, 230) fg=rgb(90, 82, 116) border=rgb(140, 132, 163)","dash-r ready=true bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=rgb(59, 31, 107)","push-r ready=true bg=rgb(255, 255, 255) fg=rgb(59, 31, 107) border=rgb(59, 31, 107)"]
+  cooling chip text from pixels: {"fill":"#d9d3e6","text":"#5a5274","ratio":4.98,"textPixels":518}
+result-1920 @1920x1080: [p2b result check] 0 issues
+  sun buttons: ["REMATCHENTER"]
+  sun marks (own sun fill): 1 ["rematch \"REMATCHENTER\""]; sun text: []; sun in icons: ["fd-res-disc \"\""]
+  medals: ["0 0 40 20 87x48 centre offset 0,0 disc 148","0 0 24 24 73x73 centre offset 0,0 disc 140","0 0 24 24 74x74 centre offset 0,0 disc 142"]

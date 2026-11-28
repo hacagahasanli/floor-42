@@ -155,6 +155,17 @@ const ICONS = {
       <path d="M13.2 8l7-1.6-2.4 11.2z" />
     </g>
   ),
+  /**
+   * The pennant on a grape surface (R-028, CREATIVE/ui/direction-b/traits/icons/ui-pennant-on-dark.svg): cream string, sun and cream
+   * flags, no grape stroke. Home arena ribbon and the Credits title ribbon; the sticker pennant stays on white.
+   */
+  pennantOnDark: (
+    <>
+      <path d="M1.8 5.2Q12 9.4 22.2 5.2" fill="none" stroke="#FFF3D6" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M3.4 6.2l7.8 1.8-5.1 10.4z" fill="#FFC83D" stroke="#FFC83D" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M12.8 8l7.8-1.8-2.7 12z" fill="#FFF3D6" stroke="#FFF3D6" strokeWidth="1.2" strokeLinejoin="round" />
+    </>
+  ),
   /** The award burst (sun fill) and the jump arrow. */
   burst: <path d="M12 1.8l2.2 5 5.2-1.7-1.8 5.1 4.8 2.5-5 2 1.4 5.3-5-1.9L12 23l-1.8-4.9-5 1.9 1.4-5.3-5-2 4.8-2.5L4.6 5.1l5.2 1.7z" fill="#FFC83D" stroke={G} strokeWidth="2" strokeLinejoin="round" />,
   jump: (

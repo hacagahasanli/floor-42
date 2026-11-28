@@ -118,7 +118,7 @@ export const HomeScreen = (p: HomeProps) => {
           style={{ position: 'absolute', left: 62, top: 170 }}
           data-testid="arena-ribbon"
         >
-          <Icon name="pennant" /> {h.ribbon(p.arenaName)} <Icon name="pennant" />
+          <Icon name="pennantOnDark" size={24} /> {h.ribbon(p.arenaName)} <Icon name="pennantOnDark" size={24} />
         </Ribbon>
 
         <div className="fd-abs" style={{ left: 56, top: 244, width: 372, display: 'flex', flexDirection: 'column', gap: 18 }}>

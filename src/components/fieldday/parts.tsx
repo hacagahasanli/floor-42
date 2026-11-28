@@ -98,6 +98,25 @@ export const Chip = forwardRef<
   );
 });
 
+/**
+ * The `P1` / `P2` tag in UI chrome (R-028, colour-balance.md 8.5): grape fill, white text (13.17:1), never the player colour.
+ * `onWorld` adds the 2 px white border for a tag that sits on the 3D scene or a photo. The player colours stay on the in-world
+ * over-head tags only (render/game.ts).
+ */
+export const PlayerTag = ({
+  index,
+  onWorld,
+  height,
+  fontSize,
+  className = '',
+  style,
+  ...rest
+}: { index: 0 | 1; onWorld?: boolean; height?: number; fontSize?: number } & Omit<HTMLAttributes<HTMLSpanElement>, 'children'>) => (
+  <Chip {...rest} className={`fd-ptag ${onWorld ? 'fd-on-world' : ''} ${className}`} height={height} fontSize={fontSize} style={style}>
+    P{index + 1}
+  </Chip>
+);
+
 /** The info pill: cream on grape-deep at 86 % (15:1). */
 export const Pill = ({ children, className = '', style, ...rest }: HTMLAttributes<HTMLSpanElement>) => (
   <span className={`fd-pill ${className}`} style={style} {...rest}>

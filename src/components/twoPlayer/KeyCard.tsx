@@ -6,7 +6,7 @@ import { menuSound } from '~/components/menu/menuSound';
 import { ROSTER } from '~/game/roster';
 import { padPlayers } from '~/game/twoPlayer';
 
-import { BigKeycap, PlayerChip, useKeyLabel, usePlayerColours } from './shared';
+import { BigKeycap, PlayerChip, TAG_GRAPE, useKeyLabel } from './shared';
 
 import type { Action2P, Bindings2P, Player } from '~/game/twoPlayer';
 import type { CharacterId, InputState } from '~/game/sim/types';
@@ -146,7 +146,6 @@ export const KeyCard = ({
 };
 
 const StartLine = ({ ready }: { ready: [boolean, boolean] }) => {
-  const colours = usePlayerColours();
   return (
     <div className="flex flex-col items-center gap-2">
       <span className="font-display text-2xl text-gold [@media(max-height:560px)]:text-xl">
@@ -160,9 +159,11 @@ const StartLine = ({ ready }: { ready: [boolean, boolean] }) => {
             data-ready={ready[i]}
             className="px-2 py-0.5 font-display text-base transition"
             style={
+              // R-028 (8.5, the rematch-chip rule): ready = grape, white text and check (white border on the dark card);
+              // not ready = white, grape text, grape border.
               ready[i]
-                ? { background: colours[i], color: '#0a0d18' }
-                : { color: 'rgba(230,235,245,0.4)', border: '1px solid rgba(230,235,245,0.2)' }
+                ? { background: TAG_GRAPE, color: '#fff', border: '2px solid #fff' }
+                : { background: '#fff', color: TAG_GRAPE, border: `2px solid ${TAG_GRAPE}` }
             }
           >
             P{i + 1} {ready[i] ? '✓' : ''}
@@ -230,12 +231,10 @@ const Half = ({
   tester: boolean;
 }) => {
   const label = useKeyLabel();
-  const colours = usePlayerColours();
-  const colour = colours[index];
   const r = ROSTER.find((x) => x.id === fighter)!;
   const b = bindings[player];
   const cap = (a: Action2P, text?: string) => (
-    <BigKeycap colour={colour} lit={held.has(b[a])} label={text}>
+    <BigKeycap lit={held.has(b[a])} label={text}>
       {ARROW_TURN[b[a]] !== undefined ? <ArrowGlyph turn={ARROW_TURN[b[a]]} /> : label(b[a])}
     </BigKeycap>
   );
@@ -269,10 +268,11 @@ const Half = ({
     <section
       data-testid={`key-half-${player}`}
       className="panel-cut flex flex-col items-center gap-3 border-t-4 bg-ink/90 px-3 py-4 sm:px-6 [@media(max-height:560px)]:gap-1.5 [@media(max-height:560px)]:py-2"
-      style={{ borderColor: colour }}
+      // R-028: the top band is this half's fighter (accent), not the player colour (8.5: no player hue in UI chrome).
+      style={{ borderColor: r.accent }}
     >
       <div className="flex items-center gap-2">
-        <PlayerChip index={index} colour={colour} />
+        <PlayerChip index={index} />
         <span className="font-display text-xl leading-none" style={{ color: r.accent }}>
           {r.name.toUpperCase()}
         </span>
@@ -284,7 +284,7 @@ const Half = ({
               !!input &&
               (row.action === 'left' ? input.left || input.right || input.down : input[row.action]);
             return (
-              <BigKeycap key={row.label} colour={colour} lit={lit} label={row.label}>
+              <BigKeycap key={row.label} lit={lit} label={row.label}>
                 <span className="text-sm">{row.glyph}</span>
               </BigKeycap>
             );

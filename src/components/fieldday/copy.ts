@@ -28,6 +28,8 @@ export const FD_COPY = {
     hint: { choose: 'Choose', fight: 'Fight', back: 'Back' },
   },
   howTo: { signature: 'SIGNATURE MOVES' },
+  /** Settings: the reset button in its confirm state (R-028 / F-064: the row title already says "Reset all settings"). */
+  settings: { resetConfirm: 'PRESS AGAIN TO RESET' },
   twoPlayer: {
     title: '2 PLAYER',
     player: (n: number) => `PLAYER ${n}`,

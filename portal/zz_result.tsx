@@ -1,6 +1,6 @@
 /**
  * Dev-only visual harness for the Field Day result screen (never built: Vite's portal build only has index.html). Open
- * `/zz_result.html?case=win|loss|draw|2p|online&size=...` on `npm run dev:portal`. The match canvas is replaced by the arena poster,
+ * `/zz_result.html?case=win|win-sharp|loss|draw|2p|online&size=...` on `npm run dev:portal`. The match canvas is replaced by the arena poster,
  * and the numbers are the spec's sample data (b12-b16), so the screen can be compared with the mockups frame by frame.
  */
 import { useRef, useState } from 'react';
@@ -28,7 +28,9 @@ const draw: [ResultFighter, ResultFighter] = [
   { ...win[0], kos: 3 },
   { ...win[1], kos: 3 },
 ];
-const data = kase === 'loss' ? loss : kase === 'draw' ? draw : win;
+// `win-sharp`: the win with the winner at 90 % accuracy, so SHARPSHOOTER (the pistol medal, F-062) is one of the three awards.
+const winSharp: [ResultFighter, ResultFighter] = [{ ...win[0], stats: { ...win[0].stats, accuracy: 90 } }, win[1]];
+const data = kase === 'loss' ? loss : kase === 'draw' ? draw : kase === 'win-sharp' ? winSharp : win;
 
 const App = () => {
   const trap = useRef<HTMLInputElement>(null);

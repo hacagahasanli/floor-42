@@ -10,6 +10,7 @@ import { TRAIT_HP } from '~/game/sim/traits';
 
 import { GAME_NAME, wordmarkParts } from './brand';
 import { BUNTING_COLORS } from './Bunting';
+import { FD_COPY } from './copy';
 import { CONFETTI, confettiAllowed, confettiColors, confettiPlan, seeded } from './confettiRules';
 import { cardCrop, fighterView, FIGHTER_IDS, HEAD_ANCHOR, portraitCrop } from './fighters';
 import { fitScale, MIN_FIT } from './fit';
@@ -302,8 +303,96 @@ describe('colour balance (R-027, colour-balance.md sections 3-4)', () => {
     expect(used.has('#E5392F')).toBe(true);
     for (const p of confettiPlan('rain', 1280, 720, 3)) expect(['#FFC83D', '#FFFFFF', '#FFE38A']).toContain(p.color);
   });
-  it('stat pips are grape by default and the HUD cooling chip is #d9d3e6 with grey text', () => {
+  it('stat pips are grape by default and the HUD cooling chip is #d9d3e6 with --gray-ink text and a --gray-lo border', () => {
     expect(css).toMatch(/\.fd-pips i\.fd-on \{\s*background: var\(--c, var\(--grape\)\)/);
-    expect(css).toMatch(/\.fd-chip\.fd-cool \{\s*background: #d9d3e6;\s*color: var\(--gray-lo\);\s*border-color: var\(--gray-lo\);/);
+    expect(css).toMatch(/\.fd-chip\.fd-cool \{\s*background: #d9d3e6;\s*color: var\(--gray-ink\);\s*border-color: var\(--gray-lo\);/);
+  });
+});
+
+/** WCAG 2.x contrast ratio of two sRGB hex colours. */
+const contrast = (a: string, b: string) => {
+  const lum = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+describe('colour balance follow-ups (R-028, colour-balance.md section 8)', () => {
+  const css = readFileSync(resolve(__dirname, 'fieldday.css'), 'utf8');
+  const hudCss = readFileSync(resolve(__dirname, 'hud/hudTraits.css'), 'utf8');
+  const rule = (sel: string) => {
+    const m = css.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}'));
+    expect(m, sel).not.toBeNull();
+    return m![1];
+  };
+  it('8.2: selected tab, segment, toggle ON and slider fill are grape-2 with white, never sun', () => {
+    expect(rule(".fd-tab.fd-btn.fd-sel")).toMatch(/--c: var\(--grape-2\);[\s\S]*color: #fff;[\s\S]*text-shadow: none;[\s\S]*box-shadow: inset 0 -5px 0 var\(--grape-deep\);/);
+    expect(rule(".fd-tab.fd-btn.fd-sel")).not.toMatch(/0 4px 0/);
+    expect(rule(".fd-seg button[aria-checked='true']")).toMatch(/background: var\(--grape-2\);\s*color: #fff;\s*box-shadow: inset 0 -3px 0 var\(--grape-deep\);/);
+    expect(rule(".fd-toggle[aria-checked='true']")).toMatch(/background: var\(--grape-2\);/);
+    expect(rule('.fd-slider b')).toMatch(/background: var\(--grape-2\);/);
+    for (const sel of [".fd-seg button[aria-checked='true']", ".fd-toggle[aria-checked='true']", '.fd-slider b', '.fd-tab.fd-btn.fd-sel']) expect(rule(sel), sel).not.toMatch(/--sun/);
+    // sun stays on the listening keycap (a momentary event)
+    expect(rule('.fd-kc.fd-listening')).toMatch(/background: var\(--sun\);/);
+    expect(css).toMatch(/--grape-2: #5a3596;/);
+    expect(contrast('#ffffff', '#5a3596')).toBeCloseTo(8.81, 2);
+    expect(contrast('#5a3596', '#b9b3c9')).toBeCloseTo(4.34, 2);
+  });
+  it('8.2: the Settings panel never asks for a sun tab (only DONE is sun)', () => {
+    const src = readFileSync(resolve(__dirname, '../menu/SettingsPanel.tsx'), 'utf8');
+    expect(src).not.toMatch(/tone=\{on \? 'sun'/);
+    expect(src).toMatch(/className=\{on \? 'fd-tab fd-sel' : 'fd-tab'\}/);
+    const suns = src.match(/tone="sun"/g) ?? [];
+    const dones = src.match(/tone="sun"[^>]*data-testid="settings-done"/g) ?? [];
+    expect(suns.length).toBe(dones.length);
+  });
+  it('8.3: --gray-ink is the grey text; --gray-lo is never a text colour', () => {
+    expect(css).toMatch(/--gray-ink: #5a5274;/);
+    expect(rule('.fd-kc.fd-empty')).toMatch(/color: var\(--gray-ink\);/);
+    expect(css).not.toMatch(/(^|[^-])color:\s*var\(--gray-lo\)/m);
+    expect(contrast('#5a5274', '#d9d3e6')).toBeCloseTo(4.98, 2);
+    expect(contrast('#5a5274', '#ffffff')).toBeCloseTo(7.26, 2);
+    expect(contrast('#5a5274', '#d9d3e6')).toBeGreaterThanOrEqual(4.5);
+  });
+  it('8.5: P1 / P2 tags in UI chrome are grape with white text; the HUD strip tag has a white border and no player colour', () => {
+    expect(rule('.fd-chip.fd-ptag')).toMatch(/--c: var\(--grape\);\s*color: #fff;/);
+    expect(rule('.fd-chip.fd-ptag.fd-on-world')).toMatch(/border: 2px solid #fff;/);
+    expect(rule('.fd-chip.fd-rtick')).toMatch(/--c: #fff;\s*color: var\(--grape\);\s*border: 2px solid var\(--grape\);/);
+    expect(rule('.fd-chip.fd-rtick.fd-on')).toMatch(/--c: var\(--grape\);\s*color: #fff;/);
+    const tag = hudCss.match(/\.fd-tp-tag\s*\{([^}]*)\}/)![1];
+    expect(tag).toMatch(/background: var\(--grape\);/);
+    expect(tag).toMatch(/color: #fff;/);
+    expect(tag).toMatch(/border: 2px solid #fff;/);
+    expect(tag).not.toMatch(/var\(--c\)/);
+    expect(contrast('#ffffff', '#3b1f6b')).toBeCloseTo(13.17, 2);
+    expect(contrast('#ffc83d', '#3b1f6b')).toBeCloseTo(8.52, 2);
+  });
+  it('8.5: no UI-chrome tag reads the player colours; the in-world tags in render/game.ts still do', () => {
+    const read = (p: string) => readFileSync(resolve(__dirname, p), 'utf8');
+    const result = read('screens/ResultScreen.tsx');
+    expect(result).not.toMatch(/color=\{p\.colours/);
+    expect(result).not.toMatch(/colour=\{p\.colours|color: p\.colours/);
+    expect(result).not.toMatch(/Chip[^>]*color=\{colourOf/);
+    expect(read('hud/TpKeyStrips.tsx')).not.toMatch(/colour[:=?]|'--c'/);
+    expect(read('../menu/SettingsPanel.tsx')).not.toMatch(/usePlayerColours/);
+    expect(read('../twoPlayer/KeyCard.tsx')).not.toMatch(/usePlayerColours/);
+    expect(read('../../game/render/game.ts')).toMatch(/playerColour\(i as 0 \| 1, settings\.colourBlind\)/);
+  });
+  it('8.6: the on-dark pennant exists and sits on both grape ribbons; the white Credits button keeps the sticker pennant', () => {
+    expect(ICON_NAMES).toContain('pennantOnDark');
+    const read = (p: string) => readFileSync(resolve(__dirname, p), 'utf8');
+    expect(read('screens/HomeScreen.tsx')).toMatch(/<Icon name="pennantOnDark" size=\{24\} \/>.*<Icon name="pennantOnDark" size=\{24\} \/>/);
+    expect(read('../menu/Credits.tsx')).toMatch(/<Icon name="pennantOnDark" size=\{30\} \/>/);
+    expect(read('../menu/SettingsPanel.tsx')).toMatch(/icon="pennant" data-nav data-testid="settings-credits"/);
+  });
+  it('8.6: a weapon icon in a medal is 56 x 28 (the inline size agrees with .fd-wide)', () => {
+    expect(rule('.fd-res-disc .fd-ic.fd-wide')).toMatch(/width: 56px;\s*height: 28px;/);
+    expect(readFileSync(resolve(__dirname, 'screens/ResultScreen.tsx'), 'utf8')).toMatch(/<WeaponIcon name=\{a\.icon\.name\} size=\{28\} className="fd-wide" \/>/);
+  });
+  it('8.7: the reset confirm says PRESS AGAIN TO RESET', () => {
+    expect(FD_COPY.settings.resetConfirm).toBe('PRESS AGAIN TO RESET');
+    expect(readFileSync(resolve(__dirname, '../menu/SettingsPanel.tsx'), 'utf8')).not.toMatch(/RESET ALL'\s*:/);
   });
 });

@@ -54,34 +54,31 @@ export const usePlayerColours = (): [string, string] => {
 
 export const playerIndex = (p: Player): 0 | 1 => (p === 'p1' ? 0 : 1);
 
-/** The `P1` / `P2` chip: player colour fill, ink text. */
-export const PlayerChip = ({
-  index,
-  colour,
-  className = '',
-}: {
-  index: 0 | 1;
-  colour: string;
-  className?: string;
-}) => (
+/** UI-chrome tag colours (R-028, colour-balance.md 8.5): grape and white, never the player colour (that stays in-world). */
+export const TAG_GRAPE = '#3b1f6b';
+
+/** The `P1` / `P2` chip: grape fill, white text, 2 px white border (it sits on the dark key card over the match). */
+export const PlayerChip = ({ index, className = '' }: { index: 0 | 1; className?: string }) => (
   <span
-    className={`inline-flex items-center justify-center px-1.5 font-display text-sm leading-5 text-ink-deep ${className}`}
-    style={{ background: colour }}
+    className={`inline-flex items-center justify-center px-1.5 font-display text-sm leading-5 ${className}`}
+    style={{ background: TAG_GRAPE, color: '#fff', border: '2px solid #fff' }}
+    data-testid={`player-chip-${index}`}
   >
     P{index + 1}
   </span>
 );
 
-/** The existing keycap look at 44 px; `lit` fills it with the player colour (the key tester). */
+/**
+ * The existing keycap look at 44 px; `lit` fills it with sun while the key is held (the key tester: a momentary event, so sun
+ * is allowed, colour-balance.md 8.2; it used to be the player colour).
+ */
 export const BigKeycap = ({
   children,
   lit,
-  colour,
   label,
 }: {
   children: ReactNode;
   lit?: boolean;
-  colour: string;
   label?: string;
 }) => (
   <span className="flex flex-col items-center gap-1">
@@ -89,9 +86,9 @@ export const BigKeycap = ({
       className="inline-flex h-11 min-w-11 items-center justify-center border border-b-[3px] px-2 font-display text-lg leading-none transition-colors duration-75"
       style={
         {
-          borderColor: lit ? colour : 'rgba(230,235,245,0.3)',
-          background: lit ? colour : 'rgba(230,235,245,0.1)',
-          color: lit ? '#0a0d18' : '#e6ebf5',
+          borderColor: lit ? '#ffc83d' : 'rgba(230,235,245,0.3)',
+          background: lit ? '#ffc83d' : 'rgba(230,235,245,0.1)',
+          color: lit ? TAG_GRAPE : '#e6ebf5',
         } as CSSProperties
       }
     >

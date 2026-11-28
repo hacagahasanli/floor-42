@@ -57,7 +57,10 @@
   --paper: #fffbf0;
   --mist: #e6def5;
   --gray: #b9b3c9;
+  /* --gray-lo is for borders, lips and dashed outlines only, never text (R-028 / colour-balance.md 8.3). */
   --gray-lo: #8c84a3;
+  /* Grey text: the cooling chip (4.98:1 on #d9d3e6) and the empty keycap "+ ADD" (7.26:1 on white). */
+  --gray-ink: #5a5274;
   /* Fighter accents are NOT tokens here: screens read them from roster.ts (fighterView().accent). */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -402,7 +405,7 @@
   animation: fd-ring 0.6s ease-in-out infinite;
 }
 .fd-kc.fd-empty {
-  color: var(--gray-lo);
+  color: var(--gray-ink);
   border-style: dashed;
   box-shadow: none;
 }
@@ -420,11 +423,31 @@
   white-space: nowrap;
   letter-spacing: 0.3px;
 }
-/* R-027: a cooling HUD chip (DASH / PUSH): lilac-grey fill, grey text and border; ready is the plain white chip. */
+/* R-027 / R-028: a cooling HUD chip (DASH / PUSH): lilac-grey fill, grey border, --gray-ink text; ready is the plain white chip. */
 .fd-chip.fd-cool {
   background: #d9d3e6;
-  color: var(--gray-lo);
+  color: var(--gray-ink);
   border-color: var(--gray-lo);
+}
+/* R-028 (colour-balance.md 8.5): the P1 / P2 tag in UI chrome is grape with white text, never the player colour. On a 3D or
+   photo background (result card tags, HUD key strips, the 2P key card) it gets a 2 px white border. */
+.fd-chip.fd-ptag {
+  --c: var(--grape);
+  color: #fff;
+  border-color: var(--grape);
+}
+.fd-chip.fd-ptag.fd-on-world {
+  border: 2px solid #fff;
+}
+/* The rematch chip inside the sun REMATCH: ready = grape with white text and check, not ready = white with grape text. */
+.fd-chip.fd-rtick {
+  --c: #fff;
+  color: var(--grape);
+  border: 2px solid var(--grape);
+}
+.fd-chip.fd-rtick.fd-on {
+  --c: var(--grape);
+  color: #fff;
 }
 .fd-chip .fd-ic {
   width: 15px;
@@ -553,8 +576,9 @@
   border: 3px solid var(--grape);
   transition: transform 180ms var(--ease-spring);
 }
+/* R-028 (colour-balance.md 8.2): a persistent selected state is grape-2, not sun (sun = DONE only). */
 .fd-toggle[aria-checked='true'] {
-  background: var(--sun);
+  background: var(--grape-2);
 }
 .fd-toggle[aria-checked='true'] i {
   transform: translateX(28px);
@@ -575,7 +599,7 @@
   top: 2px;
   bottom: 2px;
   border-radius: 999px;
-  background: var(--sun);
+  background: var(--grape-2);
   pointer-events: none;
 }
 .fd-slider i {
@@ -607,8 +631,9 @@
   outline: none;
 }
 .fd-seg button[aria-checked='true'] {
-  background: var(--sun);
-  box-shadow: inset 0 -3px 0 var(--sun-lo);
+  background: var(--grape-2);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 var(--grape-deep);
 }
 
 /* ---------- sunburst, bunting, clouds, confetti ---------- */
@@ -1056,10 +1081,19 @@
   --fs: 18px;
   height: var(--h);
 }
-.fd-tab.fd-btn:not(.fd-t-sun) {
+.fd-tab.fd-btn:not(.fd-sel) {
   box-shadow:
     inset 0 -5px 0 #d9cfee,
     0 4px 0 var(--grape);
+}
+/* R-028 (colour-balance.md 8.2): the selected tab is grape-2 with plain white Titan text (no outline), a grape-deep inset lip
+   and no drop. Built on the white tone, so it has no gloss (a gloss would lower the 8.81:1 text contrast). */
+.fd-tab.fd-btn.fd-sel {
+  --c: var(--grape-2);
+  --lo: var(--grape-deep);
+  color: #fff;
+  text-shadow: none;
+  box-shadow: inset 0 -5px 0 var(--grape-deep);
 }
 .fd-well {
   background: var(--mist);
