@@ -103,6 +103,34 @@ How to read it:
   moves by 0-17 ms.
 - **Visible snaps (> 50 cm)**: 0.5-16 per minute before, 0-4.4 after.
 
+## 0b. Online screens (R-032) and room codes (R-033), same day
+
+The Creative Director's spec (`docs/collab/CREATIVE/ui/direction-b/online/spec.md`) is built. Review is requested in R-034.
+
+**Problems first**
+- No phone check: the lobby is designed at 1280x720. It was checked at 1280x720, 1920x1080, 907x510 and 800x450 only.
+- The old iPhone install hint was removed with the old lobby.
+
+**Hand-off** (spec 4)
+- A human match: `peer` now carries both fighters, so RIVAL FOUND! shows the rival at once.
+- Server down (no server answers): the bot-offline frame says `Online isn't answering, so it's you vs a BOT.` and is held 1.6 s.
+- Then the VS doors close over the lobby (`useVsInline`) and the arena mounts behind them. Its `VsRun` carries on the same clock.
+- Online never mounts `LiftLoading` any more.
+
+**Doors and in-match labels**
+- Door tags: `YOU` vs `RIVAL` for a person, `YOU` vs `BOT · NORMAL` for any bot.
+- In-match: a ping pill with signal bars, on a 2 s median with 10 ms hysteresis. It is absent in browser-bot matches.
+- `SHAKY CONNECTION · MOVES MAY LAG` shows after 300 ms of trouble and stays at least 2 s. It has no ms and no mode.
+
+**Room codes**
+- A 5-character upper-case code, without 0/O/1/I/L, is the invite room's id. Entry is case-free.
+- Old 9-character links still parse.
+
+**Evidence**
+- Shots: `docs/online/shots/r032-impl/`, including `compare-sheet.jpg` of mockup vs build.
+- Flows: `tools/netlab/online-r032-e2e.mjs`.
+- Layout check and captures: `tools/netlab/online-r032-capture.mjs`.
+
 ## 1. Problems first
 
 1. **Packet loss, not our code, is the biggest source of lag.** WebSocket is TCP: one lost packet holds back every

@@ -1,0 +1,67 @@
+{
+  "pair": {
+    "matchedMs": 1554,
+    "foundText": "QUICK MATCH RIVAL FOUND! 0:01 A player is in. Shaking hands… NEAR YOU Matched. Doors close in a moment. BRIX THE JAMMER YOU BRIX THE JAMMER RIVAL VS",
+    "doorTags": [
+      "THE JAMMER · YOU",
+      "THE JAMMER · RIVAL"
+    ],
+    "hud": [
+      [
+        "YOU",
+        "RIVAL"
+      ],
+      [
+        "YOU",
+        "RIVAL"
+      ]
+    ],
+    "pill": "4 MS",
+    "pillTitle": "Round trip 4 ms · direct line",
+    "botTagOnHuman": false,
+    "rematchMs": 18
+  },
+  "invite": {
+    "code": "UA8RG",
+    "typed": "ua8rg",
+    "joinMs": 1418,
+    "hud": [
+      [
+        "YOU",
+        "RIVAL",
+        "YOU",
+        "RIVAL"
+      ],
+      [
+        "YOU",
+        "RIVAL",
+        "YOU",
+        "RIVAL"
+      ]
+    ]
+  },
+  "standby": {
+    "offeredMs": 58,
+    "rematchWhite": true,
+    "focusStaysOn": "rematch",
+    "bothInHumanMatch": [
+      true,
+      true
+    ],
+    "matchedMs": 2006,
+    "hud": [
+      [
+        "YOU",
+        "RIVAL",
+        "YOU",
+        "RIVAL"
+      ],
+      [
+        "YOU",
+        "RIVAL",
+        "YOU",
+        "RIVAL"
+      ]
+    ]
+  }
+}

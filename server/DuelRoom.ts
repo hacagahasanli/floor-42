@@ -3,6 +3,7 @@ import { Room, ServerError } from '@colyseus/core';
 import { createAuthority } from '../src/game/net/authority';
 import { createFixedStep, createTickStats } from '../src/game/net/fixedStep';
 import { clampBotDelay } from '../src/game/net/matchmaking';
+import { uniqueRoomCode } from '../src/game/net/roomCode';
 import { PROTOCOL_VERSION, SNAPSHOT_EVERY_TICKS } from '../src/game/net/protocol';
 import { snapshotMessage } from '../src/game/net/serverSnapshot';
 import { createBot } from '../src/game/sim/bot';
@@ -47,6 +48,9 @@ interface Seat {
   offered: boolean;
 }
 
+/** Invite codes held by rooms alive in this process (R-033: the code IS the room id). */
+const LIVE_CODES = new Set<string>();
+
 const isCharacter = (v: unknown): v is CharacterId => typeof v === 'string' && v in CHARACTERS;
 
 /**
@@ -86,7 +90,12 @@ export class DuelRoom extends Room {
 
   onCreate(options: JoinOptions) {
     this.privateRoom = !!options?.private;
-    if (options?.private) void this.setPrivate(true);
+    if (options?.private) {
+      // A short code to read out loud (5 characters, no 0/O/1/I/L), used as the room id so joinById takes it as it is.
+      this.roomId = uniqueRoomCode((c) => LIVE_CODES.has(c));
+      LIVE_CODES.add(this.roomId);
+      void this.setPrivate(true);
+    }
 
     this.onMessage('input', (client: Client, inputs: WireInput[]) => {
       const seat = this.seatOf(client);
@@ -214,6 +223,10 @@ export class DuelRoom extends Room {
     }
   }
 
+  onDispose() {
+    LIVE_CODES.delete(this.roomId);
+  }
+
   private armBot(delay: number | undefined) {
     this.clearBotTimer();
     if (delay !== undefined) this.botTimer = this.clock.setTimeout(() => this.seatBot(), delay);
@@ -316,7 +329,9 @@ export class DuelRoom extends Room {
       for (const x of [a, b]) x.offered = false;
       // First try to connect the two browsers directly; start in any case within 6 seconds.
       // Clients that don't know about direct play never answer and simply get server mode.
-      this.seats.forEach((x, slot) => x!.client?.send('peer', { slot }));
+      // The fighters travel with `peer`, so the lobby can show who was found while the direct line is tried.
+      const characters = [a.character, b.character];
+      this.seats.forEach((x, slot) => x!.client?.send('peer', { slot, characters }));
       this.handshake = setTimeout(() => this.finishHandshake(), 6000);
       return;
     }

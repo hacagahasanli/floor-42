@@ -18,6 +18,61 @@ const ICONS = {
       <path d="M10.5 20c0-4 2.7-6.3 6-6.3s6 2.3 6 6.3z" />
     </g>
   ),
+  // R-032 online screens (online/index.html symbols).
+  bolt: <path d="M13.5 2.5 L4.5 13.5 H11 L9.5 21.5 L19.5 9.5 H13 Z" fill="#fff" stroke={G} strokeWidth="2.4" strokeLinejoin="round" />,
+  link: (
+    <g fill="none" stroke={G} strokeWidth="2.6" strokeLinecap="round">
+      <path d="M10 14a4.2 4.2 0 0 0 6 0l3-3a4.2 4.2 0 0 0-6-6l-1.2 1.2" />
+      <path d="M14 10a4.2 4.2 0 0 0-6 0l-3 3a4.2 4.2 0 0 0 6 6l1.2-1.2" />
+    </g>
+  ),
+  ticket: (
+    <>
+      <path d="M3 7.5a1.5 1.5 0 0 1 1.5-1.5h15A1.5 1.5 0 0 1 21 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5V14a2 2 0 0 0 0-4z" fill="#fff" stroke={G} strokeWidth="2.3" strokeLinejoin="round" />
+      <path d="M9 10h6M9 14h4" stroke={G} strokeWidth="2.2" strokeLinecap="round" />
+    </>
+  ),
+  bot: (
+    <>
+      <g stroke={G} strokeWidth="2.3" strokeLinejoin="round">
+        <path d="M12 3.5v3" strokeLinecap="round" />
+        <circle cx="12" cy="3" r="1.4" fill={G} />
+        <rect x="4" y="6.5" width="16" height="12.5" rx="3.5" fill="#fff" />
+        <path d="M2 11v4M22 11v4" strokeLinecap="round" />
+      </g>
+      <circle cx="9" cy="12.5" r="1.7" fill={G} />
+      <circle cx="15" cy="12.5" r="1.7" fill={G} />
+      <path d="M9.5 16h5" stroke={G} strokeWidth="2" strokeLinecap="round" />
+    </>
+  ),
+  checkOnDark: <path d="M4.5 12.5l5 5 10-11" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />,
+  copy: (
+    <g fill="#fff" stroke={G} strokeWidth="2.3" strokeLinejoin="round">
+      <rect x="8" y="8" width="12.5" height="13" rx="2.5" />
+      <path d="M16 8V5.5A2 2 0 0 0 14 3.5H6A2.5 2.5 0 0 0 3.5 6v8.5a2 2 0 0 0 2 2H8" />
+    </g>
+  ),
+  share: (
+    <g fill="none" stroke={G} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 15V3.5M7.5 8 12 3.5 16.5 8" />
+      <path d="M5 12v6.5A2 2 0 0 0 7 20.5h10a2 2 0 0 0 2-2V12" />
+    </g>
+  ),
+  plug: (
+    <g fill="#fff" stroke={G} strokeWidth="2.3" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M7 3.5v4M12 3.5v4" />
+      <path d="M4.5 7.5h10v3.5a5 5 0 0 1-10 0z" />
+      <path d="M9.5 16v4.5" />
+      <path d="M16 14l5 5M21 14l-5 5" fill="none" />
+    </g>
+  ),
+  globeOnDark: (
+    <g fill="none" stroke="#fff" strokeWidth="2.4">
+      <circle cx="12" cy="12" r="9" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <path d="M3.5 9h17M3.5 15h17" />
+    </g>
+  ),
   globe: (
     <g fill="none" stroke={G} strokeWidth="2.4">
       <circle cx="12" cy="12" r="9" fill="#fff" />

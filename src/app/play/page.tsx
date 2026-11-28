@@ -1,5 +1,6 @@
 import { MainMenu } from '~/components/menu/MainMenu';
 import { OnlineLobby } from '~/components/OnlineLobby';
+import { roomFromQuery } from '~/game/net/roomCode';
 import { ONLINE_ENABLED } from '~/lib/features';
 import { pageUrlMeta } from '~/lib/siteMeta';
 
@@ -17,7 +18,8 @@ const PlayPage = async ({ searchParams }: Props) => {
   // Online parked (src/lib/features.ts): old invite links and bookmarks land on the menu, not on a lobby with no server.
   if (!ONLINE_ENABLED) return <MainMenu />;
   const { room, r } = await searchParams;
-  const roomId = room && /^[\w-]{4,32}$/.test(room) ? room : undefined;
+  // R-033: a 5-character code is case-free (normalised to upper case); an old Colyseus id is kept exactly.
+  const roomId = roomFromQuery(room);
   const region = r && /^[a-z0-9-]{2,12}$/.test(r) ? r : undefined;
   return <OnlineLobby roomId={roomId} region={region} />;
 };

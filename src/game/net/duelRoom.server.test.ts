@@ -127,13 +127,16 @@ describe('DuelRoom on a real server', () => {
 
   it('an invite room never gets a bot (the friend is on the way), and the link joins it', async () => {
     const host = await new Client(url).create(ROOM_NAME, opts({ private: true, bot: 100 }));
+    // R-033: an invite room's id is its 5-character code (no 0/O/1/I/L), so a code read out loud joins it.
+    expect(host.roomId).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{5}$/);
     const start = next<StartMessage>(host, 'start', 1200);
     host.onMessage('waiting', () => {});
     expect(await start).toBeNull();
     host.onMessage('peer', () => {});
     const friend = await new Client(url).joinById(host.roomId, opts({ character: 'standup' }));
-    const peer = next(friend, 'peer');
-    expect(await peer).toBeTruthy();
+    const peer = next<{ slot: number; characters: string[] }>(friend, 'peer');
+    // The fighters travel with `peer`, so the lobby shows who was found while the direct line is tried.
+    expect((await peer)?.characters).toEqual(['hotfix', 'standup']);
     quiet(host);
     quiet(friend);
     await friend.leave();
