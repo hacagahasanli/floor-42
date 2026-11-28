@@ -220,3 +220,14 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
   2. **Dishonest loss copy**: "1 – 5 · so close! · one more?" after a 1-5 loss. Give the copy table by margin (win big/close, lose close/big, draw) for 1P and 2P.
 - Out of scope today (post-upload, logged in the playtest report): bot difficulty curve, KO stamp moment, first-minute text.
 - Expected: exact rules/strings as F-items. Priority: P0 (upload today). Status: done (2026-11-28, Creative Director): F-074 (award rule), F-075 (pill copy by margin + new award strings)
+
+## R-032 — Online is coming back (quick match + server bot): lobby look, search copy, bot label, ping readout
+- Context: Reis (2026-11-28) approved online with matchmaking that never leaves a player waiting: own region, then the nearest other region, then a server bot within ~8.5 s (branch `online-bots`, design `docs/online/2026-11-28-matchmaking.md`). Engineering kept the existing online screens functional and invented no look. Everything player-facing below is a placeholder.
+- Asks:
+  1. **Online lobby** (`/play`, `src/components/OnlineLobby.tsx` + `components/lobby/*`) is still the old dark developer theme (navy panels, office lobby scene). Spec it in Field Day + the colour-balance rules: menu, searching, invite, rival found, error. Shots: run `NEXT_PUBLIC_ONLINE=1 npm run dev` on `online-bots`, `/play?lobbyState=quick|invite|linking|error` (dev review switch).
+  2. **Search status copy** (placeholders in `legLine`, OnlineLobby.tsx): "Looking for a player near you…", "Nobody near you yet. Trying the next region…", "Nobody free right now. A bot joins in a few seconds." One region today: "Looking for a player. If nobody comes, a bot joins in a few seconds." Rewrite in the game's voice; it must stay honest that a bot is coming.
+  3. **Bot label online**: the HUD tags the server bot `BOT · NORMAL` (same chip as offline, never `RIVAL`). Approve or specify; also whether the lobby/VS moment should say "VS BOT" before the countdown (today the match just starts).
+  4. **Online loading screen**: online still uses the old `LiftLoading` (office tips like "Desks and the meeting table stop bullets") while online now plays OFFSITE. Engineering changed only the step label to the arena name. Decide: the offline VS doors (`VsRun`) for online too, and the tips.
+  5. **Ping readout** (was R-011 on `net-latency`, renumbered here): the badge "SERVER · 64 MS" bottom right is unstyled engineering text. Position, colour bands (engineering suggests <= 60 good, 61-100 ok, > 100 poor), whether "Server / Direct" is shown to players, and the "Connection unstable" look.
+- Priority: P1 (online ships only after Reis deploys the Fly server; nothing here blocks the CrazyGames build, which has no online).
+- Status: open

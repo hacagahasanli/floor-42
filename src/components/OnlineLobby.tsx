@@ -211,16 +211,20 @@ export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string;
   /** Bumped by every new attempt and by Cancel: callbacks of an older attempt ignore what they hear. */
   const runRef = useRef(0);
   const lastMode = useRef<JoinMode | null>(null);
-  // Leave the room only when the page goes away.
-  useEffect(
-    () => () => {
-      runRef.current += 1;
-      sessionRef.current?.dispose();
-      linkRef.current?.close();
-      void roomRef.current?.leave();
-    },
-    [],
-  );
+  // Leave the room only when the page goes away. Deferred one task: React's development StrictMode unmounts and mounts
+  // again at once, and leaving then cancelled an invite-link join that had just started (the guest never got in).
+  const pendingLeave = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    window.clearTimeout(pendingLeave.current);
+    return () => {
+      pendingLeave.current = window.setTimeout(() => {
+        runRef.current += 1;
+        sessionRef.current?.dispose();
+        linkRef.current?.close();
+        void roomRef.current?.leave();
+      }, 0);
+    };
+  }, []);
 
   const pick = (id: CharacterId) => {
     setCharacter(id);

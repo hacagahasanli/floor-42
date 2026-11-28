@@ -28,6 +28,7 @@ import { KnockoutBand, useKeyStrip } from '~/components/FightStamps';
 import { Stamp } from '~/components/Stamp';
 import { INPUT_AT_MS, ResultScreen } from '~/components/fieldday/screens/ResultScreen';
 import { Support } from '~/components/SupportLink';
+import { titleCase } from '~/components/fieldday/resultModel';
 import { ARENA_COPY, resolveArena } from '~/game/arenaChoice';
 import { botLevelFor, readFinishedMatch, saveFinishedMatch } from '~/game/firstMatch';
 import { isTouchDevice } from '~/game/input';
@@ -856,7 +857,8 @@ export const ArenaGame = ({
           steps={[
             { label: 'The game', done: true },
             { label: 'Fonts', done: loaded.fonts },
-            { label: 'The office', done: loaded.office },
+            // Online rooms play OFFSITE now: name the arena actually loading (existing arena copy), not always the office.
+            { label: arenaId === 'office' ? 'The office' : titleCase(ARENA_COPY[arenaId].name), done: loaded.office },
             { label: 'First frame', done: hud !== null },
           ]}
           onDone={endLift}
