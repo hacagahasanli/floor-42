@@ -26,7 +26,7 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 ## READY FOR CRAZYGAMES (2026-11-28 13:10)
 - Upload kit: `~/Desktop/projects/games-studio/crazygames/upload/pewfield-2026-11-28/` (zip from d5650ad, 3 covers, 2 videos, STORE-COPY.md, CHROME-PROMPT.md for the Chrome Claude). Final zip: 0 page errors on QA s1/s2/s7, 737 tests.
 - Done today after QA: B1 boot TypeError, online hidden (ONLINE_ENABLED), HUD pills stack, 2P key card Field Day (F-070), rematch lock 2.2 s (F-071), copy F-073, awards/result honesty (F-074/F-075), portal mute icon, OFL licences.
-- Post-upload backlog (from playtest/QA): bot difficulty curve (normal too soft), KO stamp moment, first-minute text, 1P gamepad, portrait video wide KO, covers AI repaint, hitches only seen under contention (docs/perf), Hazefall clip artefacts, store voice-rule conflict ("offsite/team-building"), Co-Authored-By trailers on ~25 pushed commits (repo rule says none; Reis decides on history rewrite).
+- Post-upload backlog (from playtest/QA): bot difficulty curve (normal too soft), KO stamp moment, first-minute text, 1P gamepad, portrait video wide KO, covers AI repaint, hitches only seen under contention (docs/perf), Hazefall clip artefacts, store voice-rule conflict ("offsite/team-building"), Co-Authored-By trailers: REMOVED 2026-11-28 by history rewrite (floor-42 55 commits, nalbaki-games 11; trees identical; force-pushed by Reis). Commit hashes quoted in docs before 13:30 that day are stale. Local backups: refs/heads/backup/pre-trailer-fix/*.
 - Measure: snapshot CG metrics before the update (CHROME-PROMPT step 2); compare 7 days after (docs/playtest/2026-11-28-old-vs-new.md §7).
 
 ## Deploys (learned 2026-11-28)
