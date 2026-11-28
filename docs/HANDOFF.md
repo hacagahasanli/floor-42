@@ -23,6 +23,13 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 - Running: CD R-029 covers + store copy (`crazygames/covers/pewfield/`, `CREATIVE/brand/crazygames-store.md`); release QA report `docs/release-qa/2026-11-28-crazygames.md`.
 - Cleanup approved by Reis: archive (not delete) to `games-studio/_archive/2026-11/`: floor-42-crazy worktree (done), old Floor 42 covers/videos/brand/upwork shots AFTER new covers exist. Folder rename floor-42 -> pewfield only AFTER the upload.
 
+## LIVE 2026-11-28 evening
+- Site pewfield.nalbakigames.com runs portal-build 0a6e482: smart bot (983f59d), ZUZU 82 HP, online (matchmaking + browser bot + Field Day online screens + room codes), aim-fix (no bullet through walkways/boxes, splash needs clear line, auto-aim to rival).
+- Vercel env (production+preview): NEXT_PUBLIC_ONLINE=1, NEXT_PUBLIC_GAME_REGIONS=fra=wss://floor42-game.fly.dev,iad=wss://floor42-game-iad.fly.dev.
+- Fly: floor42-game (fra, min 1 machine, always warm ~$2.19/mo) and floor42-game-iad (autostop). Org limit 3 machines (third = old lcs-game, stopped). Redeploy: `flyctl deploy -c fly.toml --ha=false --remote-only`, then `flyctl deploy -c fly.iad.toml --ha=false --image <fra image>`.
+- Live check: lone -> bot 9.2 s, pair -> rival 3.4 s (direct line), 0 page errors.
+- Next: F-090..F-099 (weapon feel, KO moment, first minute), R-036 (weapon numbers, bot difficulty ladder, rebalance after aim-fix: office BRIX 44 / ORMO 55), TURN relay for strict NAT, real human playtest.
+
 ## Portals status (2026-11-28 14:45)
 - CrazyGames: account submissions PAUSED until 2026-12-09 15:46 (Hazefall, Last Commit Standing, Parking Lot all rejected: "overall quality ... does not yet meet the expectations"). Floor 42 is still a DRAFT (never submitted, no stats). Kit stays ready in crazygames/upload/pewfield-2026-11-28/; drafts can be edited/previewed meanwhile. One more rejection likely extends the pause: submit only a strong build.
 - Poki: application submitted 2026-11-28 via developers.poki.com/guide/share (Hajagha Hasanli, hacagahasanli@gmail.com, Nalbaki Games, no registered company, AZ, solo, build link https://pewfield.nalbakigames.com, 3 press shots, released elsewhere: No). Awaiting email. Poki publishing requires desktop+mobile+tablet, Poki SDK, no external requests; standard deal reportedly web-exclusive (verify in their T&C before signing; conflicts with CrazyGames).
