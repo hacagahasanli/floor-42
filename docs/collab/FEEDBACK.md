@@ -620,3 +620,21 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
 - Why it matters: the strip is up exactly when a player is learning; the AIM pill (with its T hint) is part of that.
 - What should change: when the row would clash, switch the corner group to a right-aligned column (`flex-direction: column; align-items: flex-end; gap: 6px`, AIM on top); hide only if the column still clashes. Measured on the real build: column clears the strip by 87 / 68 / 63 px at the three sizes (`shots/r030/pills-*-stacked.png`). Spec: `r030-2p-polish.md` section 3.
 - Expected result: s9 rerun: pills visible and stacked with the strip up, back to a row after 2 KOs, 0 overlaps; 1280x720 unchanged. Status: open
+
+## F-073 — Office-joke copy left on the default arena and one fighter role (P1, R-030 follow-up)
+- What is wrong: spec section 7 bans office and developer jokes, but the default arena still shows them. "Mandatory team-building." is the OFFSITE intro card line (HUD arena card, `ArenaGame.tsx:567`). "{NAME} WINS THE OFFSITE" is the final-KO band line (`ArenaGame.tsx:603`). "The Office Dad" is ORMO's role on home, select, 2P select and the VS doors. Checked: `src/game/arenaChoice.ts`, `src/components/fieldday/copy.ts` (clean, nothing to change), plus `src/game/copy.ts` (where the KO band and the roles live).
+- Why it matters: the CrazyGames build opens on OFFSITE, so these are the first and last lines a new player reads. They carry the retired office tone that F-066 removed from the store copy.
+- What should change (exact strings):
+
+| File:line | Now | New | Length |
+|---|---|---|---|
+| `src/game/arenaChoice.ts:15` `ARENA_COPY.offsite.line` | `Mandatory team-building. 41°C in the shade.` | `High noon on the planks. 41°C in the shade.` | 43 -> 43 |
+| `src/game/copy.ts:104` offsite `knockoutLine` | `{NAME} WINS THE OFFSITE` | `{NAME} TAKES THE FIELD` | 23 -> 22 |
+| `src/game/copy.ts:105` offsite `resultWin` | `You survived the offsite.` | `The field is yours.` | |
+| `src/game/copy.ts:106` offsite `resultLoss` | `The offsite got you.` | `They took the field.` | |
+| `src/game/copy.ts:107` offsite `resultDemo` | `{NAME} survived the offsite.` | `{NAME} took the field.` | |
+| `src/game/copy.ts:23` `legacy.role` (ORMO) | `The Office Dad` | `The Grandad` (fits the white hair and moustache, and the slow, wide, unshovable kit) | 14 -> 11 |
+
+  Lines 105-107 may no longer be rendered by the Field Day result. Change them anyway so the old copy cannot come back through a fallback. Update `arenaChoice.test.ts:50` and any copy test that pins these strings.
+- Kept on purpose (setting, not a joke): the arena name `OFFSITE` and the `OFFSITE FIELD DAY` ribbon (renaming an arena is out of scope today), and the office arena's `FLOOR 42` / `The office, after hours.` / `open office` / `One floor of guns`. That arena IS an office, so describing it is world-building. The fighter ids (`hotfix`, `legacy`, ...) are internal and never shown.
+- Expected result: `grep -rn "team-building\|WINS THE OFFSITE\|survived the offsite\|offsite got you\|Office Dad" src` returns nothing; the OFFSITE intro card and the final KO band show the new lines (screenshot one of each); the role reads `THE GRANDAD · 2× JUMP` on select. Status: open
