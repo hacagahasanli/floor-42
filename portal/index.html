@@ -76,12 +76,12 @@
          the first screen has painted (100, then the boot screen fades). window.__boot(pct) is called by portal/main.tsx and App.tsx. */
       (function(){
         var boot=document.getElementById('boot'),stage=document.getElementById('boot-stage'),frame=document.getElementById('boot-frame');
-        function fit(){var vw=window.innerWidth,vh=window.innerHeight,s=Math.min(vw/1280,vh/720)||1,w=vw/s,h=vh/s;
+        function fit(){var b=document.getElementById('boot-bunting');if(!b||!stage.isConnected){window.removeEventListener('resize',fit);return;}var vw=window.innerWidth,vh=window.innerHeight,s=Math.min(vw/1280,vh/720)||1,w=vw/s,h=vh/s;
           stage.style.width=w+'px';stage.style.height=h+'px';stage.style.transform='scale('+s+')';frame.style.top=((h-720)/2)+'px';
           var n=Math.max(1,Math.round((w+20-40)/54.5)+1),W=w+20,c=['#FFC83D','#FFF3D6','#FF7A2F','#FFF3D6'],g='<path d="M0 4 Q'+(W/2)+' 54 '+W+' 4" fill="none" stroke="#3B1F6B" stroke-width="3"/>';
           for(var i=0;i<n;i++){var x=20+i*54.5,t=x/W,y=4+(1-Math.pow(2*t-1,2))*25;
             g+='<g class="pen" style="animation-delay:'+(-((i*0.37)%2.6))+'s"><path d="M'+(x-15)+' '+y+' L'+(x+15)+' '+(y+1.5)+' L'+x+' '+(y+34)+'Z" fill="'+c[(i+2)%4]+'" stroke="#3B1F6B" stroke-width="3" stroke-linejoin="round"/></g>';}
-          var b=document.getElementById('boot-bunting');b.setAttribute('width',W);b.setAttribute('viewBox','0 0 '+W+' 80');b.innerHTML=g;}
+          b.setAttribute('width',W);b.setAttribute('viewBox','0 0 '+W+' 80');b.innerHTML=g;}
         fit();window.addEventListener('resize',fit);
         var fill=document.getElementById('boot-fill'),pct=document.getElementById('boot-pct'),shown=0;
         window.__boot=function(p){if(p<=shown)return;shown=p;fill.style.width=p+'%';pct.textContent=p+'%';boot.setAttribute('aria-valuenow',p);};
