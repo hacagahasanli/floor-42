@@ -568,3 +568,37 @@ Spec: `CREATIVE/ui/direction-b/spec.md` §11; sheet `CREATIVE/ui/direction-b/tra
 - What should change: label `PRESS AGAIN TO RESET` (the row title already says "Reset all settings"); keep the 12 px clear space rule.
 - Expected result: label with >= 12 px clear space each side at 1280x720.
 - Related spec: colour-balance.md 8.7. Status: open
+
+---
+
+# R-029: PEWFIELD CrazyGames covers + store copy (2026-11-28)
+
+Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in `CREATIVE/brand/crazygames-store.md`, site art in `~/Desktop/projects/games-studio/brand/pewfield/site/` (INTEGRATE.md). Capture kit and source frames: `shots/r029/`. F-065 blocks today's zip; the rest can ship after.
+
+## F-065 — Portal meta description: replace; title suffix approved (P0, R-029)
+- What is wrong: `portal/index.html` 14: "Pewfield is a 1v1 shootout. Pick a fighter, grab a gun, first to five KOs wins." It leaves out what people search for (bot, 2 players) and the four fighters.
+- What should change: content = `Pewfield is a fast 1v1 shootout. Pick one of four fighters, grab guns off the field and race to five KOs against the bot or a friend on one keyboard.` (149 characters). Title suffix in `vite.portal.config.ts` 53 ("Pewfield — 1v1 shootout") is approved as is.
+- Expected result: built `dist` index has the new description; `fieldday.test.ts` still finds `%GAME_TITLE%` in the source.
+- Related spec: `CREATIVE/brand/crazygames-store.md` section 6. Status: open
+
+## F-066 — Retire the office tagline (P1, R-029)
+- What is wrong: `COPY.tagline` (`src/game/copy.ts`) is "Two coworkers. One grudge. No mercy." and feeds the Next site's `<meta description>` (`src/app/layout.tsx` 19). It sells the office story; the game is now a field-day duel and the README already says "Two fighters. One field. First to five KOs."
+- What should change: `tagline: 'Two fighters. One field. First to five KOs.'`; layout description = `${COPY.tagline} A fast 1v1 shootout from ${STUDIO_NAME}: play the bot or a friend on one keyboard.` Keep the office lines that belong to the FLOOR 42 arena (`introTitle`, `resultWin` etc.).
+- Expected result: no "coworkers"/"grudge" in player-facing or meta text; copy tests updated.
+- Related spec: crazygames-store.md sections 6 and 8. Status: open
+
+## F-067 — Wordmark SVG viewBox clips the burst's bottom point (P2, R-029)
+- What is wrong: `public/brand/logo.svg`, `logo-light.svg`, `logo-mono.svg` and the `portal/static/brand/` copies use `viewBox="0 0 1200 520"`; the grape drop under the burst's lowest point runs past y=520 by about 12 units, so it is cut flat (rendered at 2400 px wide the art touches the bottom row; with a 544 viewBox it ends at 531.5). Same in my source `CREATIVE/brand/svg/a-wordmark.svg` (my fault: I will fix `build.mjs` next CD turn).
+- What should change: `width="1200" height="544" viewBox="0 0 1200 544"` on all brand logo SVGs (the site copy in `brand/pewfield/site/logo.svg` already uses the tight `2 14 1178 524`). The home wordmark slot is height-bound, so the art shrinks about 4 %: re-run the F-060 layout check at 1280 and 1920.
+- Expected result: the burst's bottom point and its drop are whole in every logo use; home layout check unchanged.
+- Related spec: `CREATIVE/brand/README.md` section 2. Status: open
+
+## F-068 — Portal theme-color is the old dark theme (P3, R-029)
+- What is wrong: `portal/index.html` 6 `<meta name="theme-color" content="#0B0F1E">` (developer-era navy); the boot screen and the brand are sky and grape.
+- What should change: `#3B1F6B` (grape) in the portal and the Next layout/manifest if they carry #0B0F1E.
+- Expected result: mobile browser chrome matches the brand. Status: open
+
+## F-069 — Shotgun damage numbers stack into an unreadable smear (P3, R-029)
+- What is wrong: one shotgun blast spawns one "-16" per pellet at the same spot; four overlap into "-1166"-like mush (`shots/r029/f069-floater-overlap-crop.png`, from `src-HUD-038.jpg`, a real 1P match).
+- What should change: pellets of one blast that hit the same target within 50 ms add into ONE number (e.g. "-64"), spawned once; the number scale tier follows the summed damage.
+- Expected result: every shotgun hit shows one readable number. Status: open
