@@ -607,19 +607,19 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
 - What is wrong: `KeyCard.tsx` / `BigKeycap` use navy panels, translucent grey keycaps, cream-on-navy text and the fighter name in accent text (`shots/colour-balance/impl2/keycard-2p.png`). It is the only old-theme screen in the 2P flow, between Field Day select and the Field Day HUD, and the ready line never shows which key is each player's Shoot.
 - Why it matters: the theme flips dark for the 5-20 s before every 2P match, and a new pair has to hunt for their Shoot key on the cards.
 - What should change: rebuild it to `CREATIVE/ui/direction-b/r030-2p-polish.md` section 1 (exact values, copy, motion, testids): `.fd-veil`, Titan title `BOTH PRESS SHOOT TO FIGHT`, select-2p style cards (grape header + fighter foot strip, paper body, white grape keycaps, sun when held), per-card status bar `Press [<Shoot key>] to fight` -> sun `READY!`, warning pill, hint strip `[ENTER] start now [ESC] back`; view mode titled `2 PLAYER KEYS`; 250 ms hold after both ready.
-- Expected result: matches `CREATIVE/ui/direction-b/keycard/keycard.png` at 1280x720; layout check 0 issues at 1280x720, 821x462, 800x450. Status: open
+- Expected result: matches `CREATIVE/ui/direction-b/keycard/keycard.png` at 1280x720; layout check 0 issues at 1280x720, 821x462, 800x450. Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)
 
 ## F-071 — 2P Shoot+Shoot rematch skips the result (P0, R-030)
 - What is wrong: the 0.6 s lock lets mashing players leave at ~0.86 s (QA s8), before the winner lands and long before the awards (1.4-1.8 s).
 - Why it matters: in 2P the result screen, the reward of every match, is almost never seen.
 - What should change: Shoot+Shoot opens at 2.2 s (`BEATS.choice`, when REMATCH and its P1/P2 chips are up) or at once after Enter/Space skips the reveal, never before 0.6 s. Presses before opening are thrown away; a held Shoot needs a fresh press. 1P, online and Enter unchanged. Spec: `r030-2p-polish.md` section 2.
-- Expected result: QA s8 rerun shows the three medallions before the rematch; no rematch before 2.2 s without a skip. Status: open
+- Expected result: QA s8 rerun shows the three medallions before the rematch; no rematch before 2.2 s without a skip. Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)
 
 ## F-072 — AIM/SHAKE pills: stack instead of hide at small sizes (P1, R-030)
 - What is wrong: at 907x510, 821x462 and 800x450 the pills are hidden while the key strip or hint is up, so new players lose the aim-mode pill in their first matches.
 - Why it matters: the strip is up exactly when a player is learning; the AIM pill (with its T hint) is part of that.
 - What should change: when the row would clash, switch the corner group to a right-aligned column (`flex-direction: column; align-items: flex-end; gap: 6px`, AIM on top); hide only if the column still clashes. Measured on the real build: column clears the strip by 87 / 68 / 63 px at the three sizes (`shots/r030/pills-*-stacked.png`). Spec: `r030-2p-polish.md` section 3.
-- Expected result: s9 rerun: pills visible and stacked with the strip up, back to a row after 2 KOs, 0 overlaps; 1280x720 unchanged. Status: open
+- Expected result: s9 rerun: pills visible and stacked with the strip up, back to a row after 2 KOs, 0 overlaps; 1280x720 unchanged. Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)
 
 ## F-073 — Office-joke copy left on the default arena and one fighter role (P1, R-030 follow-up)
 - What is wrong: spec section 7 bans office and developer jokes, but the default arena still shows them. "Mandatory team-building." is the OFFSITE intro card line (HUD arena card, `ArenaGame.tsx:567`). "{NAME} WINS THE OFFSITE" is the final-KO band line (`ArenaGame.tsx:603`). "The Office Dad" is ORMO's role on home, select, 2P select and the VS doors. Checked: `src/game/arenaChoice.ts`, `src/components/fieldday/copy.ts` (clean, nothing to change), plus `src/game/copy.ts` (where the KO band and the roles live).
@@ -637,7 +637,7 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
 
   Lines 105-107 may no longer be rendered by the Field Day result. Change them anyway so the old copy cannot come back through a fallback. Update `arenaChoice.test.ts:50` and any copy test that pins these strings.
 - Kept on purpose (setting, not a joke): the arena name `OFFSITE` and the `OFFSITE FIELD DAY` ribbon (renaming an arena is out of scope today), and the office arena's `FLOOR 42` / `The office, after hours.` / `open office` / `One floor of guns`. That arena IS an office, so describing it is world-building. The fighter ids (`hotfix`, `legacy`, ...) are internal and never shown.
-- Expected result: `grep -rn "team-building\|WINS THE OFFSITE\|survived the offsite\|offsite got you\|Office Dad" src` returns nothing; the OFFSITE intro card and the final KO band show the new lines (screenshot one of each); the role reads `THE GRANDAD · 2× JUMP` on select. Status: open
+- Expected result: `grep -rn "team-building\|WINS THE OFFSITE\|survived the offsite\|offsite got you\|Office Dad" src` returns nothing; the OFFSITE intro card and the final KO band show the new lines (screenshot one of each); the role reads `THE GRANDAD · 2× JUMP` on select. Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)
 
 ## F-074 — Awards: the winner always gets at least one, and never fewer than the loser (P0, R-031)
 - What is wrong: `chooseAwards` (`src/game/awards.ts`) picks the three highest-scoring awards with a 2-per-player cap, then a second pass fills any free slot even if it all goes to one player. Two of the five awards reward being hit (PIÑATA = rockets taken, IRON SPONGE = damage taken), and nothing in the pool rewards hitting. So the player who lost usually wins most categories. Playtest evidence: after a 5–3 player win all three awards went to the bot ("Zuzu jumped 62 times", "soaked up 456 damage", "hit 40% of shots"); at 907, 2 of 2 went to the bot (`docs/playtest/2026-11-28-old-vs-new.md` R2).
@@ -667,7 +667,7 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
   - The winner holds no pool award: winner gets exactly `[ribbon (w)]` plus at most 1 for the loser.
   - The loser never gets more than 1 award in a decisive match; the winner never gets 0 in a decisive match (test both slot indices, so 2P is checked both ways).
   - A draw with every candidate held by one player shows at most 2 awards.
-- Strings for the new awards are in F-075. Related: `CREATIVE/ui/direction-b/spec.md` b12–b15 and section 7 (award pool). This supersedes the "up to three most remarkable" rule there. Status: open
+- Strings for the new awards are in F-075. Related: `CREATIVE/ui/direction-b/spec.md` b12–b15 and section 7 (award pool). This supersedes the "up to three most remarkable" rule there. Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)
 
 ## F-075 — Result pill copy by margin, and the new award strings (P0, R-031)
 - What is wrong: the loss pill picks a random line from `FD_COPY.result.lossLines` whatever the score, so a 1–5 loss can say "1 – 5 · so close! · one more?" (playtest R3, `shots/new-normal-result2.png`). The win pill is a stat list with no line, and the draw pill uses `copy.drawSub` ("Time ran out with the score level."), which is sentence case and off-voice next to the others.
@@ -700,4 +700,4 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
   | `ribbon` | `BLUE RIBBON` | `` `${who} took the field, ${n} KOs` `` (n is never 1 on a first-to-5 win; if it is, write `1 KO`) |
 
   The titles fit the 224 px label card at Titan 18 (HEAVY HITTER is 12 characters, one fewer than BOUNCY CASTLE).
-- Expected result: `resultModel.test.ts` cases: 1–5 loss → a big-band line, never "so close"; 4–5 loss → a close-band line; 5–0 win → `5 – 0 · flawless!`; 5–3 win → `5 – 3 · clean win`; 2P 5–4 → `5 – 4 · by a whisker!` with title `P1 WINS!` (or P2); 3–3 draw → `3 – 3 · all square · one more?`. A screenshot of a real 1P big loss and a real 1P win at 1280 shows the pill on one line (the longest pill, `1 – 5 · tough one · go again?`, is 30 characters, shorter than today's `5 – 2 · 57% accuracy · best streak 3` at 36). Related: `CREATIVE/ui/direction-b/spec.md` b15 and section 7 (the loss rotation there is superseded by this table). Status: open
+- Expected result: `resultModel.test.ts` cases: 1–5 loss → a big-band line, never "so close"; 4–5 loss → a close-band line; 5–0 win → `5 – 0 · flawless!`; 5–3 win → `5 – 3 · clean win`; 2P 5–4 → `5 – 4 · by a whisker!` with title `P1 WINS!` (or P2); 3–3 draw → `3 – 3 · all square · one more?`. A screenshot of a real 1P big loss and a real 1P win at 1280 shows the pill on one line (the longest pill, `1 – 5 · tough one · go again?`, is 30 characters, shorter than today's `5 – 2 · 57% accuracy · best streak 3` at 36). Related: `CREATIVE/ui/direction-b/spec.md` b15 and section 7 (the loss rotation there is superseded by this table). Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)

@@ -1,0 +1,742 @@
+{
+  "errors": {
+    "keycard-start-none-1280x720": [],
+    "keycard-start-none-821x462": [],
+    "keycard-start-none-800x450": [],
+    "pad": [],
+    "pills-907x510": [],
+    "pills-821x462": [],
+    "pills-800x450": [],
+    "pills-1280x720": [],
+    "pillsAfter2Kos": [],
+    "result2p": [],
+    "result-w53-1280x720": [],
+    "result-w53-907x510": [],
+    "result-l15-1280x720": [],
+    "result-l15-907x510": [],
+    "result-l45-1280x720": [],
+    "result-l45-907x510": [],
+    "result-2p54-1280x720": [],
+    "result-2p54-907x510": []
+  },
+  "keycard-start-none-1280x720": {
+    "info": {
+      "s": 1,
+      "title": "BOTH PRESS SHOOT TO FIGHT",
+      "halves": [
+        {
+          "id": "key-half-p1",
+          "box": [
+            100,
+            134,
+            620,
+            554
+          ]
+        },
+        {
+          "id": "key-half-p2",
+          "box": [
+            660,
+            134,
+            1180,
+            554
+          ]
+        }
+      ],
+      "ready": [
+        "ready-0=false \"PressFto fight\"",
+        "ready-1=false \"Press;to fight\""
+      ],
+      "lit": [],
+      "outside": 0
+    },
+    "issues": []
+  },
+  "keycard-start-p1ready-held-1280x720": {
+    "info": {
+      "s": 1,
+      "title": "BOTH PRESS SHOOT TO FIGHT",
+      "halves": [
+        {
+          "id": "key-half-p1",
+          "box": [
+            100,
+            134,
+            620,
+            554
+          ]
+        },
+        {
+          "id": "key-half-p2",
+          "box": [
+            660,
+            134,
+            1180,
+            554
+          ]
+        }
+      ],
+      "ready": [
+        "ready-0=true \"READY!\"",
+        "ready-1=false \"Press;to fight\""
+      ],
+      "lit": [
+        "F"
+      ],
+      "outside": 0
+    },
+    "issues": []
+  },
+  "bothReadyHold": {
+    "cardStillUpAt120ms": true,
+    "closedAfterMs": 304
+  },
+  "keycard-view-1280x720": {
+    "info": {
+      "s": 1,
+      "title": "2 PLAYER KEYS",
+      "halves": [
+        {
+          "id": "key-half-p1",
+          "box": [
+            100,
+            134,
+            620,
+            434
+          ]
+        },
+        {
+          "id": "key-half-p2",
+          "box": [
+            660,
+            134,
+            1180,
+            434
+          ]
+        }
+      ],
+      "ready": [],
+      "lit": [],
+      "outside": 0
+    },
+    "issues": []
+  },
+  "viewEscCloses": true,
+  "keycard-start-none-821x462": {
+    "info": {
+      "s": 0.64140625,
+      "title": "BOTH PRESS SHOOT TO FIGHT",
+      "halves": [
+        {
+          "id": "key-half-p1",
+          "box": [
+            64,
+            86,
+            398,
+            355
+          ]
+        },
+        {
+          "id": "key-half-p2",
+          "box": [
+            423,
+            86,
+            757,
+            355
+          ]
+        }
+      ],
+      "ready": [
+        "ready-0=false \"PressFto fight\"",
+        "ready-1=false \"Press;to fight\""
+      ],
+      "lit": [],
+      "outside": 0
+    },
+    "issues": []
+  },
+  "keycard-start-none-800x450": {
+    "info": {
+      "s": 0.625,
+      "title": "BOTH PRESS SHOOT TO FIGHT",
+      "halves": [
+        {
+          "id": "key-half-p1",
+          "box": [
+            63,
+            84,
+            388,
+            346
+          ]
+        },
+        {
+          "id": "key-half-p2",
+          "box": [
+            413,
+            84,
+            738,
+            346
+          ]
+        }
+      ],
+      "ready": [
+        "ready-0=false \"PressFto fight\"",
+        "ready-1=false \"Press;to fight\""
+      ],
+      "lit": [],
+      "outside": 0
+    },
+    "issues": []
+  },
+  "keycard-pad-1280x720": {
+    "info": {
+      "s": 1,
+      "title": "BOTH PRESS SHOOT TO FIGHT",
+      "halves": [
+        {
+          "id": "key-half-p1",
+          "box": [
+            100,
+            134,
+            620,
+            554
+          ]
+        },
+        {
+          "id": "key-half-p2",
+          "box": [
+            660,
+            134,
+            1180,
+            554
+          ]
+        }
+      ],
+      "ready": [
+        "ready-0=false \"PressFto fight\"",
+        "ready-1=false \"PressXto fight\""
+      ],
+      "lit": [],
+      "outside": 0
+    },
+    "issues": []
+  },
+  "keycard-pad-x-held-1280x720": {
+    "info": {
+      "s": 1,
+      "title": "BOTH PRESS SHOOT TO FIGHT",
+      "halves": [
+        {
+          "id": "key-half-p1",
+          "box": [
+            100,
+            134,
+            620,
+            554
+          ]
+        },
+        {
+          "id": "key-half-p2",
+          "box": [
+            660,
+            134,
+            1180,
+            554
+          ]
+        }
+      ],
+      "ready": [
+        "ready-0=false \"PressFto fight\"",
+        "ready-1=true \"READY!\""
+      ],
+      "lit": [
+        "X"
+      ],
+      "outside": 0
+    }
+  },
+  "pills-907x510": {
+    "layout": "stack",
+    "hidden": null,
+    "visibility": "visible",
+    "strip": [
+      203,
+      472,
+      704,
+      500
+    ],
+    "hint": null,
+    "pills": [
+      791,
+      440,
+      895,
+      498
+    ],
+    "kids": [
+      [
+        791,
+        440,
+        895,
+        466
+      ],
+      [
+        808,
+        472,
+        895,
+        498
+      ]
+    ],
+    "texts": [
+      "Aim: auto (T)",
+      "Shake: on"
+    ],
+    "overlaps": 0,
+    "gapToStrip": 87
+  },
+  "pills-821x462": {
+    "layout": "stack",
+    "hidden": null,
+    "visibility": "visible",
+    "strip": [
+      184,
+      428,
+      637,
+      453
+    ],
+    "hint": null,
+    "pills": [
+      705,
+      392,
+      809,
+      450
+    ],
+    "kids": [
+      [
+        705,
+        392,
+        809,
+        418
+      ],
+      [
+        722,
+        424,
+        809,
+        450
+      ]
+    ],
+    "texts": [
+      "Aim: auto (T)",
+      "Shake: on"
+    ],
+    "overlaps": 0,
+    "gapToStrip": 68
+  },
+  "pills-800x450": {
+    "layout": "stack",
+    "hidden": null,
+    "visibility": "visible",
+    "strip": [
+      179,
+      417,
+      621,
+      441
+    ],
+    "hint": null,
+    "pills": [
+      684,
+      380,
+      788,
+      438
+    ],
+    "kids": [
+      [
+        684,
+        380,
+        788,
+        406
+      ],
+      [
+        701,
+        412,
+        788,
+        438
+      ]
+    ],
+    "texts": [
+      "Aim: auto (T)",
+      "Shake: on"
+    ],
+    "overlaps": 0,
+    "gapToStrip": 63
+  },
+  "pills-1280x720": {
+    "layout": "row",
+    "hidden": null,
+    "visibility": "visible",
+    "strip": [
+      286,
+      667,
+      994,
+      706
+    ],
+    "hint": null,
+    "pills": [
+      1069,
+      682,
+      1268,
+      708
+    ],
+    "kids": [
+      [
+        1069,
+        682,
+        1173,
+        708
+      ],
+      [
+        1181,
+        682,
+        1268,
+        708
+      ]
+    ],
+    "texts": [
+      "Aim: auto (T)",
+      "Shake: on"
+    ],
+    "overlaps": 0,
+    "gapToStrip": 75
+  },
+  "pillsAfter2Kos": {
+    "before": "stack",
+    "after": {
+      "layout": "row",
+      "strip": "true"
+    }
+  },
+  "result2p": {
+    "cut": true,
+    "at0900": {
+      "shotBetweenMs": [
+        911,
+        1061
+      ],
+      "resultUp": true,
+      "phase": "over",
+      "step": "3",
+      "medals": 1
+    },
+    "at2150": {
+      "shotBetweenMs": [
+        2168,
+        2303
+      ],
+      "resultUp": true,
+      "phase": "over",
+      "step": "5",
+      "medals": 1
+    },
+    "at2300": {
+      "shotBetweenMs": [
+        2307,
+        2461
+      ],
+      "resultUp": true,
+      "phase": "over",
+      "step": "5",
+      "medals": 1
+    },
+    "rematchFiredAtMs": 2526,
+    "inPage": {
+      "rematchAfterCutMs": 2662
+    }
+  },
+  "result-w53-1280x720": {
+    "title": "ZUZU WINS!",
+    "pill": "5 \u2013 3 \u00b7 clean win",
+    "pillLines": 1,
+    "pillBox": [
+      567,
+      102,
+      713,
+      132
+    ],
+    "pillLineHeight": 19.2,
+    "awards": [
+      {
+        "title": "HEAVY HITTER",
+        "line": "You dealt 520 damage",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "HOT STREAK",
+        "line": "You scored 2 KOs in a row",
+        "cardW": 226,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "BOUNCY CASTLE",
+        "line": "Brix jumped 62 times",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      }
+    ],
+    "sr": "ZUZU WINS! 5 \u2013 3 \u00b7 clean win. HEAVY HITTER: You dealt 520 damage. HOT STREAK: You scored 2 KOs in a row. BOUNCY CASTLE: Brix jumped 62 times."
+  },
+  "result-w53-907x510": {
+    "title": "ZUZU WINS!",
+    "pill": "5 \u2013 3 \u00b7 clean win",
+    "pillLines": 1,
+    "pillBox": [
+      402,
+      72,
+      505,
+      94
+    ],
+    "pillLineHeight": 19.2,
+    "awards": [
+      {
+        "title": "HEAVY HITTER",
+        "line": "You dealt 520 damage",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "HOT STREAK",
+        "line": "You scored 2 KOs in a row",
+        "cardW": 226,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "BOUNCY CASTLE",
+        "line": "Brix jumped 62 times",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      }
+    ],
+    "sr": "ZUZU WINS! 5 \u2013 3 \u00b7 clean win. HEAVY HITTER: You dealt 520 damage. HOT STREAK: You scored 2 KOs in a row. BOUNCY CASTLE: Brix jumped 62 times."
+  },
+  "result-l15-1280x720": {
+    "title": "ZUZU WINS!",
+    "pill": "1 \u2013 5 \u00b7 tough one \u00b7 go again?",
+    "pillLines": 1,
+    "pillBox": [
+      527,
+      102,
+      753,
+      132
+    ],
+    "pillLineHeight": 19.2,
+    "awards": [
+      {
+        "title": "HOT STREAK",
+        "line": "Zuzu scored 4 KOs in a row",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "HEAVY HITTER",
+        "line": "Zuzu dealt 520 damage",
+        "cardW": 226,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "IRON SPONGE",
+        "line": "You soaked up 520 damage",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      }
+    ],
+    "sr": "ZUZU WINS! 1 \u2013 5 \u00b7 tough one \u00b7 go again?. HOT STREAK: Zuzu scored 4 KOs in a row. HEAVY HITTER: Zuzu dealt 520 damage. IRON SPONGE: You soaked up 520 damage."
+  },
+  "result-l15-907x510": {
+    "title": "ZUZU WINS!",
+    "pill": "1 \u2013 5 \u00b7 try another fighter?",
+    "pillLines": 1,
+    "pillBox": [
+      376,
+      72,
+      531,
+      94
+    ],
+    "pillLineHeight": 19.2,
+    "awards": [
+      {
+        "title": "HOT STREAK",
+        "line": "Zuzu scored 4 KOs in a row",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "HEAVY HITTER",
+        "line": "Zuzu dealt 520 damage",
+        "cardW": 226,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "IRON SPONGE",
+        "line": "You soaked up 520 damage",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      }
+    ],
+    "sr": "ZUZU WINS! 1 \u2013 5 \u00b7 try another fighter?. HOT STREAK: Zuzu scored 4 KOs in a row. HEAVY HITTER: Zuzu dealt 520 damage. IRON SPONGE: You soaked up 520 damage."
+  },
+  "result-l45-1280x720": {
+    "title": "ZUZU WINS!",
+    "pill": "4 \u2013 5 \u00b7 one KO short \u00b7 run it back?",
+    "pillLines": 1,
+    "pillBox": [
+      507,
+      102,
+      773,
+      132
+    ],
+    "pillLineHeight": 19.2,
+    "awards": [
+      {
+        "title": "SHARPSHOOTER",
+        "line": "Zuzu hit 61% of shots",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "HEAVY HITTER",
+        "line": "Zuzu dealt 402 damage",
+        "cardW": 226,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "BOOMERANG",
+        "line": "You pushed back 6 bullets",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      }
+    ],
+    "sr": "ZUZU WINS! 4 \u2013 5 \u00b7 one KO short \u00b7 run it back?. SHARPSHOOTER: Zuzu hit 61% of shots. HEAVY HITTER: Zuzu dealt 402 damage. BOOMERANG: You pushed back 6 bullets."
+  },
+  "result-l45-907x510": {
+    "title": "ZUZU WINS!",
+    "pill": "4 \u2013 5 \u00b7 one KO short \u00b7 run it back?",
+    "pillLines": 1,
+    "pillBox": [
+      360,
+      72,
+      547,
+      94
+    ],
+    "pillLineHeight": 19.2,
+    "awards": [
+      {
+        "title": "SHARPSHOOTER",
+        "line": "Zuzu hit 61% of shots",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "HEAVY HITTER",
+        "line": "Zuzu dealt 402 damage",
+        "cardW": 226,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "BOOMERANG",
+        "line": "You pushed back 6 bullets",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      }
+    ],
+    "sr": "ZUZU WINS! 4 \u2013 5 \u00b7 one KO short \u00b7 run it back?. SHARPSHOOTER: Zuzu hit 61% of shots. HEAVY HITTER: Zuzu dealt 402 damage. BOOMERANG: You pushed back 6 bullets."
+  },
+  "result-2p54-1280x720": {
+    "title": "P1 WINS!",
+    "pill": "5 \u2013 4 \u00b7 by a whisker!",
+    "pillLines": 1,
+    "pillBox": [
+      553,
+      102,
+      727,
+      132
+    ],
+    "pillLineHeight": 19.2,
+    "awards": [
+      {
+        "title": "HEAVY HITTER",
+        "line": "P1 dealt 470 damage",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "BOOMERANG",
+        "line": "P1 pushed back 2 bullets",
+        "cardW": 226,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "BOUNCY CASTLE",
+        "line": "P2 jumped 55 times",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      }
+    ],
+    "sr": "P1 WINS! 5 \u2013 4 \u00b7 by a whisker!. HEAVY HITTER: P1 dealt 470 damage. BOOMERANG: P1 pushed back 2 bullets. BOUNCY CASTLE: P2 jumped 55 times."
+  },
+  "result-2p54-907x510": {
+    "title": "P1 WINS!",
+    "pill": "5 \u2013 4 \u00b7 by a whisker!",
+    "pillLines": 1,
+    "pillBox": [
+      392,
+      72,
+      515,
+      94
+    ],
+    "pillLineHeight": 19.2,
+    "awards": [
+      {
+        "title": "HEAVY HITTER",
+        "line": "P1 dealt 470 damage",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "BOOMERANG",
+        "line": "P1 pushed back 2 bullets",
+        "cardW": 226,
+        "titleW": 193,
+        "titleOverflow": false
+      },
+      {
+        "title": "BOUNCY CASTLE",
+        "line": "P2 jumped 55 times",
+        "cardW": 227,
+        "titleW": 193,
+        "titleOverflow": false
+      }
+    ],
+    "sr": "P1 WINS! 5 \u2013 4 \u00b7 by a whisker!. HEAVY HITTER: P1 dealt 470 damage. BOOMERANG: P1 pushed back 2 bullets. BOUNCY CASTLE: P2 jumped 55 times."
+  }
+}
