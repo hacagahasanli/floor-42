@@ -23,6 +23,12 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 - Running: CD R-029 covers + store copy (`crazygames/covers/pewfield/`, `CREATIVE/brand/crazygames-store.md`); release QA report `docs/release-qa/2026-11-28-crazygames.md`.
 - Cleanup approved by Reis: archive (not delete) to `games-studio/_archive/2026-11/`: floor-42-crazy worktree (done), old Floor 42 covers/videos/brand/upwork shots AFTER new covers exist. Folder rename floor-42 -> pewfield only AFTER the upload.
 
+## READY FOR CRAZYGAMES (2026-11-28 13:10)
+- Upload kit: `~/Desktop/projects/games-studio/crazygames/upload/pewfield-2026-11-28/` (zip from d5650ad, 3 covers, 2 videos, STORE-COPY.md, CHROME-PROMPT.md for the Chrome Claude). Final zip: 0 page errors on QA s1/s2/s7, 737 tests.
+- Done today after QA: B1 boot TypeError, online hidden (ONLINE_ENABLED), HUD pills stack, 2P key card Field Day (F-070), rematch lock 2.2 s (F-071), copy F-073, awards/result honesty (F-074/F-075), portal mute icon, OFL licences.
+- Post-upload backlog (from playtest/QA): bot difficulty curve (normal too soft), KO stamp moment, first-minute text, 1P gamepad, portrait video wide KO, covers AI repaint, hitches only seen under contention (docs/perf), Hazefall clip artefacts, store voice-rule conflict ("offsite/team-building"), Co-Authored-By trailers on ~25 pushed commits (repo rule says none; Reis decides on history rewrite).
+- Measure: snapshot CG metrics before the update (CHROME-PROMPT step 2); compare 7 days after (docs/playtest/2026-11-28-old-vs-new.md §7).
+
 ## Deploys (learned 2026-11-28)
 - GitHub repo renamed to hacagahasanli/pewfield. Vercel project `floor-42` is Git-connected: **every push to `main` deploys production to floor42.nalbakigames.com** (no GitHub deployments API entries, so it looks unlinked — it is not).
 - 2026-11-28 ~11:23 push of main deployed PEWFIELD to the site; /play and /arena 500'd (module-level `new Path2D` in traitCallout.ts ran in SSR). Fixed eee024c, verified live (all routes 200, no console errors).
