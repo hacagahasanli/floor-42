@@ -4,7 +4,7 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 
 ## Where things are
 - Main checkout: `~/Desktop/projects/games-studio/floor-42`, branch `portal-build`, last commit `51eacbf` (local only, nothing pushed).
-- Rename branch: `rename-pewfield` in worktree `~/Desktop/projects/games-studio/floor-42-rename` (5 commits on top of 51eacbf: logo A, favicons, titles, water tower, README). **Not merged** — waits for Reis's trademark search.
+- Rename branch: `rename-pewfield` in worktree `~/Desktop/projects/games-studio/floor-42-rename` (5 commits, rebased onto `2a8b766` on 2026-11-28: logo A, favicons, titles, water tower, README). **Not merged** — waits for Reis's trademark search.
 - Online latency branch: `net-latency` in worktree `~/Desktop/projects/games-studio/floor-42-net` (snapshots every tick, compact wire format, real-time server tick, multi-region code off by default). Online is PARKED (no server spend) — see memory `floor42-online-parked`.
 - CrazyGames: the first desktop build was handed over 2026-11-27 (zip from ab70691). Everything after is an UPDATE to ship only after the full test pass.
 
@@ -18,7 +18,7 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 - Name PEWFIELD + logo A chosen (CD R-023); IP check done (ORMO/BRIX redesigned to avoid Wario / Roller Brawl likeness).
 
 ## In flight when the chat was cleared
-- **R-027 colour balance** (Creative Director): Reis said it is nice but "too many colours, balance lost, messy". Spec will land in `docs/collab/CREATIVE/ui/direction-b/colour-balance.md`; then one engineer applies it (both `portal-build` and the rename branch, or merge rename first). Also judge: PEWFIELD wordmark on home is too small (~272x118).
+- **R-027 colour balance** (Creative Director; first run died with the chat clear after the BEFORE captures, restarted 2026-11-28 10:03): Reis said it is nice but "too many colours, balance lost, messy". Spec will land in `docs/collab/CREATIVE/ui/direction-b/colour-balance.md`; then one engineer applies it (both `portal-build` and the rename branch, or merge rename first). Also judge: PEWFIELD wordmark on home is too small (~272x118).
 
 ## Waiting on Reis
 1. Manual trademark search for PEWFIELD (+ BRIX, ZUZU): USPTO tmsearch.uspto.gov, EUIPO eSearch + TMview, WIPO branddb (classes 9, 28, 41); open serials 86532387, 87322281, 98774422, reg 4893686; Google Lens/TinEye on `docs/collab/CREATIVE/brand/png/a-icon-512.png`. Clean -> merge `rename-pewfield`. Problem -> backup name Duelfield.
@@ -32,9 +32,10 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 5. Backlog: two new arenas after this ships.
 
 ## Open F-items worth knowing
+- KING OF THE HILL award: needs CD copy, icon and a definition of "one platform" per arena before engineering can track it (raise as an R- item after R-027).
 - F-054 partially done; result screen: KING OF THE HILL award not tracked; old docs images (demo.gif, home.png, characters.png) still old.
 - Office arena: ZUZU 55-56 % (slightly over the band).
-- Wall-splat `sinceHit` bug noted by the traits engineer, not fixed.
+- Wall-splat `sinceHit` bug: fixed in `2a8b766` (test + balance re-run, no shift).
 
 ## Rules that bit us
 - `docs/collab/CREATIVE/` belongs to the Creative Director; engineering never edits it.
