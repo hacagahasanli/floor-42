@@ -190,3 +190,13 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
 - Expected deliverable: CREATIVE/ui/direction-b/colour-balance.md: (1) diagnosis with screenshots of where it gets noisy (home, select, HUD in a fight, result); (2) a colour hierarchy rule (e.g. 60/30/10: calm base, one structural colour, ONE action colour; fighter colours reserved for fighters only; how many saturated hues may appear at once per screen); (3) a reduced palette and exact token changes (which button variants collapse into neutral, bunting reduced to 2-3 hues or muted, chips/badges neutral with accent only where it means something); (4) before/after mockups at 1280x720 for home, select, HUD, result rendered from the real build screenshots or the direction-b index.html; (5) keep the fun Field Day energy — calmer, not dull. Also judge the PEWFIELD wordmark size on home (currently ~272x118, feels small). Exact values for engineering.
 - Priority: P0
 - Status: done (2026-11-28, CD): `CREATIVE/ui/direction-b/colour-balance.md`, sheet `shots/colour-balance/before-after-sheet.png`; implementation tracked as F-056 / F-057
+
+## R-028 — Colour balance follow-ups after F-056/F-057 engineering
+- Context: F-056 (portal-build 11b6915) and F-057 (rename-pewfield 3a4a61d) are implemented; captures in `shots/colour-balance/impl/` and `floor-42-rename/docs/collab/shots/colour-balance/impl-pewfield/`. Engineering LOG entry 2026-11-28 lists deviations. Four decisions need the director:
+  1. **Settings shows 4 sun marks** (selected tab, AUTO segmented, ON toggle, DONE) — see `impl/settings.png`. Spec says one sun per screen but "picked thing is sun". Decide the treatment for selected tabs / segmented / toggles (e.g. grape fill + white text for selected states, sun only for DONE).
+  2. **Cooling DASH/PUSH chip text** #8c84a3 on #d9d3e6 = 2.42:1 contrast (WCAG text 4.5:1). Give values that pass while keeping ready vs cooling distinct in greyscale.
+  3. **Home wordmark vs ribbon**: per section 5 numbers the ribbon (top 184) sits 10 px inside the wordmark slot (34-194); the strict layout check flags it. Confirm the tuck is intended (we then whitelist it) or move the ribbon.
+  4. Review all `impl/*.png` against `after/*.png` and the engineering deviations (toggles sun, VS lip, how-to titles, online rematch chips, KO/2P-ready confetti, grape default ribbon on pause/settings/credits/VS doors). Also: SHARPSHOOTER pistol icon ~32x16 in the 92 px medal (pre-existing) and the pennant icon on grape ribbons reading as two white marks.
+- Expected deliverable: decisions with exact values in colour-balance.md (new section) + F-items for anything engineering must change.
+- Priority: P1
+- Status: open
