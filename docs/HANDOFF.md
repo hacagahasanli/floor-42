@@ -23,6 +23,11 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 - Running: CD R-029 covers + store copy (`crazygames/covers/pewfield/`, `CREATIVE/brand/crazygames-store.md`); release QA report `docs/release-qa/2026-11-28-crazygames.md`.
 - Cleanup approved by Reis: archive (not delete) to `games-studio/_archive/2026-11/`: floor-42-crazy worktree (done), old Floor 42 covers/videos/brand/upwork shots AFTER new covers exist. Folder rename floor-42 -> pewfield only AFTER the upload.
 
+## Portals status (2026-11-28 14:45)
+- CrazyGames: account submissions PAUSED until 2026-12-09 15:46 (Hazefall, Last Commit Standing, Parking Lot all rejected: "overall quality ... does not yet meet the expectations"). Floor 42 is still a DRAFT (never submitted, no stats). Kit stays ready in crazygames/upload/pewfield-2026-11-28/; drafts can be edited/previewed meanwhile. One more rejection likely extends the pause: submit only a strong build.
+- Poki: application submitted 2026-11-28 via developers.poki.com/guide/share (Hajagha Hasanli, hacagahasanli@gmail.com, Nalbaki Games, no registered company, AZ, solo, build link https://pewfield.nalbakigames.com, 3 press shots, released elsewhere: No). Awaiting email. Poki publishing requires desktop+mobile+tablet, Poki SDK, no external requests; standard deal reportedly web-exclusive (verify in their T&C before signing; conflicts with CrazyGames).
+- Reis approved online with bot fallback (Fly, ~$1-3/region/month): find a rival in-region, then nearby region, else a server bot joins.
+
 ## READY FOR CRAZYGAMES (2026-11-28 13:10)
 - Upload kit: `~/Desktop/projects/games-studio/crazygames/upload/pewfield-2026-11-28/` (zip from d5650ad, 3 covers, 2 videos, STORE-COPY.md, CHROME-PROMPT.md for the Chrome Claude). Final zip: 0 page errors on QA s1/s2/s7, 737 tests.
 - Done today after QA: B1 boot TypeError, online hidden (ONLINE_ENABLED), HUD pills stack, 2P key card Field Day (F-070), rematch lock 2.2 s (F-071), copy F-073, awards/result honesty (F-074/F-075), portal mute icon, OFL licences.
