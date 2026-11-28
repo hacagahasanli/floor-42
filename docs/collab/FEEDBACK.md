@@ -746,3 +746,29 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
 - Why it matters: this is the moment a bot match turns into a real online match; it must be the most inviting thing on screen without hijacking a mashed Enter.
 - What should change: spec §6 and mockup `o18`: white card at (872, 384), `A PLAYER IS FREE!` / `Fight them next instead of the BOT.` / sun `FIGHT THEM [F]`; REMATCH turns white while the card shows (focus and Enter unchanged); `CONNECTING…`, gone (`They just got snapped up.` / `Rematch the BOT or search again.` / `SEARCH AGAIN`) and withdrawn states.
 - Expected result: frames of offer shown, connecting, and gone; Enter still triggers REMATCH when it has focus; F triggers FIGHT THEM. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
+## F-085 — JOINING… frame: show the code, hug the content, right card says what is happening (P2, R-034 e)
+- What is wrong (`lobby-joining-1280x720.jpg`): the panel keeps the code row's height, so ~70 px of empty cream sits between the line and CANCEL; the code the player typed is a 13 px grey `K7P2Q` that reads like a debug label; the rival card still says `WAITING FOR A CODE` although the code is in.
+- Why it matters: this is the half-second where a player checks "did I type the right code?". The frame should answer that, and the card must not contradict the panel.
+- What should change:
+  1. Panel height = content (padding 24 top under the ribbon, 24 bottom), no min-height from the code row.
+  2. Under the line, the **code well from the invite frame** (o09), same values: mist fill, radius 18, padding 12/18, label `ROOM CODE` Baloo 800 12 tracking 2 grape-2, code Baloo 800 44 tracking 7 grape. Right side small: `Checking…` (no second line). When the player pasted a link, show the code extracted from it.
+  3. Rival card role `KNOCKING…` (replaces `WAITING FOR A CODE` in this state only; `onlineCopy.ts` `friendRole` stays for the code row). No chip.
+  4. CANCEL `[ESC]` white sm under the well, 16 px gap. Ribbon `JOINING…` and line unchanged.
+- Expected result: at 1280x720 the panel bottom sits ≤ 24 px below CANCEL; the code reads at the same size as on the invite frame; no frame of the join flow shows `WAITING FOR A CODE` after JOIN is pressed. On failure the existing `THAT ROOM IS GONE` frame follows (unchanged).
+- Related: `CREATIVE/ui/direction-b/online/spec.md` 3.3 (joining row) and 3.4 (code well). Status: open
+
+## F-086 — VS doors: the arena flag is invisible on the grape ribbon (P1, R-034, offline too)
+- What is wrong (`e2e-lone-3-doors.jpg`): `VsDoors.tsx` draws `<Icon name="flag">`, whose pole and outline are grape (`G`) on the grape ribbon, so only a white smudge shows before `OFFSITE`. Offline and online.
+- Why it matters: the doors are the most screenshotted frame of the match; a broken mark next to the arena name looks like a rendering bug.
+- What should change: on the doors ribbon only, draw the flag with **stroke #FFFFFF** (pole and outline, width 2.4 as today) and **cloth fill `--sun` #FFC83D**, size 24, gap 10 (unchanged). This matches the HUD arena pill, where the arena name is sun on grape. Suggested: an optional `stroke` / `fill` override on `Icon` for this one icon, or a `flagOnDark` glyph; every other `flag` use (HOT STREAK medallion on white) stays as is.
+- Expected result: in the doors shot at 1280x720 the pole and the sun cloth are clearly visible left of the arena name, on both arenas, offline and online.
+- Related: `CREATIVE/ui/direction-b/spec.md` (VS doors). Status: open
+
+## F-087 — Copy after case-free codes (R-033): the two gaps the cut left (P2, R-034 b)
+- What is wrong: R-033 rightly cut `Codes care about capital letters.` and `with the capitals`. The cuts left (1) an empty ~50 px band between the code field and JOIN (`lobby-code-1280x720.jpg`), and (2) a lone `Read it out` beside the code on the invite frame.
+- What should change (`onlineCopy.ts`):
+  - Code row small line (same slot and style as the old capitals line: small, grape-2, under the field): `5 letters or numbers. Small letters work too.`
+  - Invite code well, right side, two small lines: `Read it out` / `or send the link`.
+- Expected result: no empty band under the code field at 1280x720; the invite well's right side has two lines, as the mockup's.
+- Related: spec 3.3, 3.4 (updated in R-034). Status: open

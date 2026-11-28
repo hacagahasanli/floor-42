@@ -65,7 +65,7 @@ One sun per frame (checked on every render): o01 QUICK MATCH · o02 JOIN · o03 
 | Element | Copy |
 |---|---|
 | Title | `PLAY ONLINE` |
-| Sun button (lg, 96 high, Titan 38, bolt icon, `[ENTER]`) | `QUICK MATCH` |
+| Sun button (lg, 96 high, Titan 36 (R-034: 38 did not clear the ENTER keycap in 452 px), bolt icon, `[ENTER]`) | `QUICK MATCH` |
 | Promise pill under it (`.pill`, BOT in sun) | `A player near you. Nobody free? A BOT steps in.` |
 | White md button 1 (two lines: Titan 24 + Baloo 800 13 grape-2) | `INVITE A FRIEND` / `Send a link. No bot, ever.` |
 | White md button 2 | `JOIN WITH A CODE` / `Got a code or link from a friend?` |
@@ -75,10 +75,10 @@ One sun per frame (checked on every render): o01 QUICK MATCH · o02 JOIN · o03 
 | Code row (replaces the 3 buttons in place; ribbon) | `JOIN WITH A CODE` |
 | Line | `Type the code or paste the link your friend sent.` |
 | Field (52 high, 3 px grape, radius 14, Baloo 800 28, tracking 5; focus = white + grape double ring) placeholder | `Code or link` |
-| Small line | `Codes care about capital letters.` (delete if R-033's case-free codes land) |
+| Small line (R-034, F-087; codes are case-free since R-033) | `5 letters or numbers. Small letters work too.` |
 | Sun | `JOIN` `[ENTER]` (disabled grey until the field has text) |
 | White sm | `CLOSE` |
-| Joining (panel line while connecting with a code) | ribbon `JOINING…`, line `Getting you into your friend's room.` |
+| Joining (panel line while connecting with a code) | ribbon `JOINING…`, line `Getting you into your friend's room.`; full frame in F-085 (code well, hug height, rival card role `KNOCKING…`) |
 
 ### 3.2 Connecting (o03)
 
@@ -116,7 +116,7 @@ Fuse bar at (28, 312), right 46: 20 high, 3 px grape, radius 999, track mist, fi
 
 Title `INVITE A FRIEND`. Back = `CANCEL [ESC]` (closes the room). Ribbon `YOUR ROOM IS OPEN`.
 - Line: `Send this to your friend. The match starts the moment they open it.`
-- Code well (mist, radius 18, padding 12/18): label `ROOM CODE` (Baloo 800 12, tracking 2, grape-2) over the code Baloo 800 44, tracking 7, grape; right side small `Read it out` / `with the capitals`.
+- Code well (mist, radius 18, padding 12/18): label `ROOM CODE` (Baloo 800 12, tracking 2, grape-2) over the code Baloo 800 44, tracking 7, grape; right side small `Read it out` / `or send the link` (R-034, F-087).
 - Link field (read-only, 52 high, Baloo 700 15 grape-2, ellipsis; selects all on focus).
 - Sun md `COPY LINK` (copy icon, 220 wide, Titan 22) → for 1.5 s: `COPIED!` with the check icon, same sun; `aria-live` says `Link copied`.
 - White md `SHARE` (share icon, 160 wide), only when `navigator.share` exists; share text `Fight me in PEWFIELD`.
@@ -179,7 +179,7 @@ Same panel shape. Invite rooms (link exists):
 - Still not back (asking): ribbon `STILL NOT BACK`; line `Keep the room open another minute?` (last: `One more minute? After that the link closes.`); sun `KEEP WAITING` (last: `WAIT ONE LAST MINUTE`); white `LEAVE` `[ESC]`.
 - Expired: tomato ribbon `LINK EXPIRED`; line `Your rival didn't come back, so the room is closed.`; small `Open a new room and send a fresh link, or find someone new.`; sun `NEW ROOM`; white `QUICK MATCH`.
 - Portal build (no links): drop the link lines/buttons; left = `YOUR RIVAL LEFT` / `Waiting a moment in case they come back.` + white `LEAVE`.
-- Quick-match room (no link to share): ribbon `YOUR RIVAL LEFT`; line `They're gone. Find someone new?`; sun `QUICK MATCH`; white `BACK TO MENU`. (If engineering keeps the wait for quick rooms, use the portal wording.)
+- Quick-match room (no link to share): ribbon `YOUR RIVAL LEFT`; line `They're gone. Find someone new?`; sun `QUICK MATCH`; white `BACK TO MENU`. (Built this way, accepted in R-034.)
 
 ### 5.6 Graphics lost (`glLost`, all modes)
 Not online-only, but the same dark slab: paper panel, grape ribbon `GRAPHICS PAUSED`, line `Your browser stopped drawing the game. Reload to jump back in.`, small `This match starts over.`, sun `RELOAD`.
