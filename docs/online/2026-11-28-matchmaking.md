@@ -3,6 +3,103 @@
 Branch `online-bots` (from `portal-build` + `net-latency` merged). Local only: nothing pushed, nothing deployed.
 Owner decisions: online comes back; quick match never leaves a player waiting; latency comes first.
 
+## 0. Update, same day: the bot runs in the browser; human pairs on the unreliable direct line
+
+The owner's top priority is minimum felt latency. Two changes followed (commit `f251b2a` and after).
+
+**Problems first**
+
+1. **Item 2 needed no transport change, and that is the finding.** The browser-to-browser path already used an
+   unordered `game` channel with `maxRetransmits: 0`, already resent the last 8 inputs in every packet and already
+   kept a reliable `ctl` channel (`peer.ts`, `client.ts`). Every quick-match or invite pair tries it first. The table
+   below compares that path against WebSocket server mode, where packet loss blocks the line.
+   - The "after" column shows what human pairs get **when the direct line forms**.
+   - Where it does not form (strict NAT), the match falls back to the WebSocket server path, the "before" column.
+2. **Server-side WebRTC on Fly is not built.**
+   - Fly UDP needs a dedicated IPv4 ($2/month per app). The app must bind the `fly-global-services` address on the
+     same single port used externally. Fly has "no per-flow load balancing for UDP", says "Don't assume a particular
+     MTU" (https://docs.fly.io/networking/udp-and-tcp), and its docs do not mention WebRTC.
+   - This means a native WebRTC stack in the server (e.g. node-datachannel), an ICE-lite single-port setup, and
+     testing on Fly, which we cannot do without deploying. [Estimate: 2-4 days.]
+   - **Recommended instead: a TURN relay over UDP for strict-NAT pairs.** `peer.ts` already supports TURN
+     (`NEXT_PUBLIC_TURN_URL`, link mode `turn`), and a TURN relay keeps the unreliable channel. Cloudflare TURN costs
+     "$0.05/real-time GB outbound" and serves UDP on 3478/443 (https://developers.cloudflare.com/realtime/turn/).
+   - Blocker before using it: today's TURN credentials are static public env vars. Cloudflare needs short-lived
+     credentials, which the game server should mint from a Fly secret. Not built.
+3. **Direct play is asymmetric.** The inviter's browser runs the game, so the host sees the guest's turn in 33-83 ms
+   while the guest sees the host in 33-100 ms, and the host's hits are judged locally. This was already true; it is
+   now worth a playtest question.
+4. **The offer banner overlaps the result title** at 1280x720 (`shots/standby-1-offer.png`). It is placeholder UI,
+   added to R-032 for the Creative Director.
+5. **Direct-line timeline underruns stay high at exactly RTT 100 ms** (61-119 per 2 min, vs 8-24 at 150 ms). Not
+   explained; the latency percentiles at that point are fine.
+6. **Small corrections in a constant firefight are not reduced** by the direct line (each hit's knockback still
+   comes from the authority). Visible snaps over 50 cm drop sharply.
+
+**Browser bot (item 1): built, default on.**
+- At the bot step (8.5 s after pressing Quick match, `MATCH_TIMING.BOT_DUE_MS`) the browser starts a local match
+  against the same `createBot` with zero network: OFFSITE, no traits (like online), label `BOT · NORMAL`.
+- The player stays on **standby** in the quick-match room. The server records `busy` while a round is on and
+  `available` on the result screen.
+- A human who joins the room starts nothing. If both players are available and this player has not accepted, the
+  server sends `offer`, and the result screen shows "A player is free · FIGHT THEM". Accepting starts the human
+  match (direct-line handshake). Next match only; there is no swap mid-match.
+- If the server cannot be reached at all, the player still gets the browser bot, with no standby.
+- The server bot stays behind `NEXT_PUBLIC_SERVER_BOT=1`.
+- Analytics: rounds report mode `online_bot`. Checked with a local capture endpoint: `round_start` and `round_end`
+  arrive with `"mode":"online_bot"`.
+
+Evidence (real-GPU Chromium, `tools/netlab/online-e2e-localbot.mjs`, `data/e2e-localbot.json`, `shots/localbot-*`,
+`shots/standby-*`):
+- Lone player: in the bot match 9.0 s after pressing Quick match. `__mc.net()` is false (no network in the match;
+  only the idle standby socket stays open). Arena `offsite`, traits off, HUD `YOU` vs `BOT · NORMAL`.
+- Full match (first to 5) to the result: 4-5 after 42 s of fight. REMATCH restarted in 176 ms, still `BOT · NORMAL`.
+- Standby: A finishes a bot match, then B presses Quick match. A sees the offer 112 ms later; B is not in a match
+  yet. A clicks Fight them, and both are in a human match (`RIVAL`, direct line) 0.8 s after B's press.
+- Server tests: the offer only appears on a result screen, it is withdrawn when the other player starts a bot match,
+  and `busy` is refused once a human match is starting (`duelRoom.server.test.ts`, 8 tests).
+- vitest 45 files, 782 tests pass (5 new for the browser-bot plan and standby). tsc clean.
+
+**Input → rival screen, before vs after** (`tools/netlab/sim.mts` = server mode over WebSocket/TCP;
+`tools/netlab/simdirect.mts` = direct line, unordered, `maxRetransmits: 0`). 120 s per cell, jitter 10 ms, OFFSITE,
+the real session, authority and timeline code.
+- RTT is player↔server for "before" and browser↔browser for "after". For two players in the same region the direct
+  RTT is at most the sum of their two one-way trips to the server, so the comparison does not flatter "after".
+- The values include the fighter's own acceleration: about 33 ms even at RTT 0.
+- Bot matches now skip this table: they are local, so 0 ms network and no corrections.
+
+| players | RTT | loss | BEFORE server/TCP rival p50 / p95 | AFTER direct/unreliable p50 / p95 | after: guest sees host · host sees guest | before corr >5cm / >50cm per min | after corr | before underruns /2 min | after |
+|---|---|---|---|---|---|---|---|---|---|
+| move | 20 | 0% | 67 / 167 | 33.5 / 150 | 50/200 · 33.5/133.5 | 0.5 / 0.51 | 0.3 / 0.26 | 0 | 0 |
+| move | 50 | 0% | 100 / 183.5 | 50 / 150 | 67/150 · 50/83.5 | 1 / 0.51 | 0 / 0 | 2 | 0 |
+| move | 100 | 0% | 150 / 233.5 | 83.5 / 183.5 | 83.5/217 · 67/100.5 | 1.5 / 0.51 | 0 / 0 | 1 | 0 |
+| move | 150 | 0% | 183.5 / 233.5 | 100 / 200 | 100/217 · 83.5/100 | 2.1 / 0.51 | 0.3 / 0.26 | 1 | 0 |
+| move | 20 | 1% | 117 / 250 | 33.5 / 150 | 33.5/200 · 33.5/133.5 | 6.7 / 1.03 | 0.3 / 0.26 | 64 | 24 |
+| move | 50 | 1% | 133.5 / 267 | 50 / 167 | 50/217 · 50/133.5 | 9 / 0.77 | 0.3 / 0.26 | 68 | 13 |
+| move | 100 | 1% | 183.5 / 317 | 83.5 / 183.5 | 83.5/217 · 67/150 | 12.1 / 0.77 | 0 / 0 | 64 | 61 |
+| move | 150 | 1% | 200 / 383.5 | 100 / 217 | 100/267 · 83.5/133.5 | 29.5 / 1.79 | 0.3 / 0.26 | 65 | 12 |
+| move | 20 | 2% | 133.5 / 300 | 50 / 150 | 50/183.5 · 33.5/133.5 | 15.6 / 1.79 | 0 / 0 | 122 | 41 |
+| move | 50 | 2% | 150 / 317 | 50 / 167 | 50/217 · 50/133.5 | 21 / 2.05 | 0.3 / 0.26 | 122 | 17 |
+| move | 100 | 2% | 200 / 367 | 83.5 / 183.5 | 83.5/183.5 · 67/150 | 29.7 / 2.82 | 0.3 / 0.26 | 121 | 119 |
+| move | 150 | 2% | 217 / 483.5 | 100 / 217 | 100/267 · 83.5/133.5 | 60.5 / 5.38 | 0.3 / 0.26 | 121 | 23 |
+| fight | 20 | 0% | 100 / 217 | 33.5 / 150 | 33.5/150 · 33.5/133.5 | 655.6 / 1.28 | 0.8 / 0.77 | 0 | 0 |
+| fight | 50 | 0% | 117 / 233.5 | 50 / 150 | 50/167 · 33.5/83.5 | 484.9 / 3.85 | 0.8 / 0.77 | 2 | 0 |
+| fight | 100 | 0% | 167 / 317 | 83.5 / 183.5 | 83.5/183.5 · 67/100.5 | 351.5 / 13.33 | 5.4 / 2.05 | 1 | 0 |
+| fight | 150 | 0% | 200 / 317 | 100 / 200 | 100/217 · 83.5/150 | 305.9 / 15.9 | 91.8 / 4.36 | 1 | 0 |
+| fight | 20 | 1% | 117 / 266.5 | 50 / 200 | 50/200 · 33.5/183.5 | 449 / 4.36 | 524.4 / 0.77 | 64 | 20 |
+| fight | 50 | 1% | 133.5 / 300 | 50 / 167 | 50/167 · 67/167 | 419.2 / 8.72 | 519.7 / 2.82 | 68 | 11 |
+| fight | 100 | 1% | 150 / 350 | 83.5 / 183.5 | 83.5/183.5 · 100/267 | 99.7 / 7.69 | 65.1 / 3.59 | 64 | 69 |
+| fight | 150 | 1% | 200 / 400 | 100 / 217 | 100.5/267 · 83.5/100 | 94.9 / 6.67 | 2.1 / 0.26 | 65 | 8 |
+| fight | 20 | 2% | 133.5 / 333.5 | 33.5 / 150 | 33.5/200 · 50/133.5 | 334.9 / 7.95 | 1 / 0.77 | 122 | 46 |
+| fight | 50 | 2% | 150 / 333.5 | 50 / 183.5 | 50/217 · 67/133.5 | 258.2 / 8.97 | 136.7 / 1.28 | 122 | 24 |
+| fight | 100 | 2% | 200 / 400 | 83.5 / 267 | 83.5/183.5 · 67/700 | 163.6 / 11.54 | 99.2 / 2.56 | 121 | 117 |
+| fight | 150 | 2% | 233.5 / 483.5 | 100 / 200 | 100.5/217 · 83.5/133.5 | 125.9 / 11.28 | 65.9 / 2.31 | 121 | 24 |
+
+
+Read it as: with no loss the direct line halves the rival delay (only one one-way trip, no server hop). With 1-2 %
+loss the server path's median grows by 50-120 ms while the direct line's does not move, and visible snaps (> 50 cm)
+drop from 0.8-11 per minute to under 1-4.
+
 ## 1. Problems first
 
 1. **Packet loss, not our code, is the biggest source of lag.** WebSocket is TCP: one lost packet holds back every
@@ -29,7 +126,7 @@ Owner decisions: online comes back; quick match never leaves a player waiting; l
    written by engineering, an old loading screen with office tips (online now plays OFFSITE), and the unstyled ping
    badge. All are filed as **R-032** for the Creative Director, and no look was invented. The CD turn was not run
    (left to the coordinator / Reis).
-6. **Bot matches would feel better client-side** (section 8). The server bot works and is honest, but it carries the
+6. *(Resolved in section 0: bot matches now run in the browser by default.)* **Bot matches would feel better client-side** (section 8). The server bot works and is honest, but it carries the
    network delay.
 7. **Docker image not built locally.** `docker build` stopped at a macOS keychain prompt (the credential helper,
    needed to pull `node:20-alpine`). Instead, I ran the server from a folder that holds only the files the
@@ -173,7 +270,7 @@ Both include the fighter's acceleration (about 17-33 ms even with no network). R
 - Bandwidth per hour of play: ~170-210 MB per connected client. A bot room has one client; a human room has two.
 - Tool: `npx tsx tools/netlab/botload.mts ws://localhost:2567 <server pid> <rooms> <secs>`.
 
-## 8. Should bot matches run fully in the browser instead? Recommendation: yes, after launch measurements
+## 8. Should bot matches run fully in the browser instead? Done (section 0): browser bot is the default
 
 | | Server bot (built) | Client bot (offline engine, online rules) |
 |---|---|---|
@@ -274,6 +371,11 @@ Both would need SDK work: invite links through their APIs, our `/play?room=` rep
 on Poki.
 
 ## 13. NOT verified
+
+- Browser bot + standby: the 4409 race and a standby room dropping mid-bot-match were never hit in a browser. The
+  offer while both players sit on result screens was tested only in the server test.
+- TURN with short-lived credentials (not built). Server-side WebRTC (not built). Direct-line numbers on real NATs and
+  phones (sim plus local browsers only).
 
 - Anything on Fly: cold start time, `shared-cpu-1x` throttling under a real match, WebSocket over shared IPv4, real
   RTTs, whether internal checks keep machines awake. Docker image build (keychain prompt).

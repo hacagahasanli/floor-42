@@ -701,3 +701,48 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
 
   The titles fit the 224 px label card at Titan 18 (HEAVY HITTER is 12 characters, one fewer than BOUNCY CASTLE).
 - Expected result: `resultModel.test.ts` cases: 1–5 loss → a big-band line, never "so close"; 4–5 loss → a close-band line; 5–0 win → `5 – 0 · flawless!`; 5–3 win → `5 – 3 · clean win`; 2P 5–4 → `5 – 4 · by a whisker!` with title `P1 WINS!` (or P2); 3–3 draw → `3 – 3 · all square · one more?`. A screenshot of a real 1P big loss and a real 1P win at 1280 shows the pill on one line (the longest pill, `1 – 5 · tough one · go again?`, is 30 characters, shorter than today's `5 – 2 · 57% accuracy · best streak 3` at 36). Related: `CREATIVE/ui/direction-b/spec.md` b15 and section 7 (the loss rotation there is superseded by this table). Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)
+
+## F-076 — Online lobby is the old dark developer theme: rebuild on the Field Day face-off frame (P1, R-032)
+- What is wrong: `/play` (`OnlineLobby.tsx`, `components/lobby/*`, `lobby.css`) shows the office 3D scene, the old `▲ 42` logo, navy panels and old type; online now plays OFFSITE. At 1280x720 the invite panel overflows (the Cancel row is cut at the panel's bottom edge, `CREATIVE/ui/direction-b/online/before/lobby-invite.png`). Raw `WebSocket connection failed` is shown to players (`before/lobby-error.png`).
+- Why it matters: online is the first screen after HOME's ONLINE button; it reads as a different, older game, and the error text reads as broken.
+- What should change: build every lobby state from `CREATIVE/ui/direction-b/online/spec.md` sections 2 and 3 (frame, face-off cards, fighter picker, aim segment, code row, invite panel, errors) with the exact values and strings there; mockups `online/png/o01`-`o11`. Drop `LobbyScene` on this route. Remove "Play vs bot" from the menu (decision D3); it stays in errors and the invite wait.
+- Expected result: built frames at 1280x720 match `o01`-`o11` within a few px; one sun per frame as listed in spec section 2; layout check 0 issues at 1280x720, 907x510, 800x450; screenshots of each `?lobbyState=` sent back for review.
+- Related: `online/spec.md` §2, §3.1, §3.2, §3.4, §3.5. Optional follow-up for engineering: case-free 5-character room codes (spec §0 item 5), file as R-033 if you agree. Status: open
+
+## F-077 — Search status: 3-step tracker, fuse bar, final copy; delete the dead 30 s "quiet" branch (P1, R-032)
+- What is wrong: `legLine` placeholders; one line of text and a clock is the only feedback; `isQuiet(elapsed)` (30 s) can never fire because the bot comes at 8.5 s.
+- Why it matters: the player must see that a bot is a backup, and roughly when, without reading a paragraph.
+- What should change: spec §3.3 table (status line + row subs per `LegKind`, one-region and multi-region variants), step-dot states, region display names, fuse bar = elapsed / `BOT_DUE_MS` (read from `MATCH_TIMING`, the `0:09` in copy is `ceil(BOT_DUE_MS/1000)`). Delete `isQuiet` and its UI.
+- Expected result: unit tests on the new line builder for home / fallback / bot × one / many regions return the exact strings; frames match `o04`-`o06`. Status: open
+
+## F-078 — Bot honesty: the silent "server down → browser bot" path, VS tags, lobby card and result chip (P0, R-032)
+- What is wrong: f251b2a starts the browser bot with no message when no server answers (`go()` catch, `BOT_MODE === 'client'`): the player believes they are online. The lobby never shows who the bot is before the doors; the result screen vs a bot says only `ZUZU WINS!`.
+- Why it matters: a bot presented as online play is the one thing that would make players distrust every online match.
+- What should change: show `A BOT STEPS IN` (o08) for 900 ms on a normal bot fallback and the `bot-offline` copy (spec §3.3, last paragraph) for 1600 ms when the server did not answer; bot card role `PLAYED BY A BOT` + chip `BOT · NORMAL`; result: `BOT · NORMAL` chip on the bot's card (o17), online and (recommended) offline. HUD `BOT · NORMAL` chip: approved as built, never `RIVAL`.
+- Expected result: a forced server-down quick match (no `NEXT_PUBLIC_GAME_SERVER` reachable) shows the bot-offline frame before the doors; every frame of a bot match (lobby card, VS doors, HUD, result) contains `BOT`. Status: open
+
+## F-079 — Online loading: retire `LiftLoading` (office tips), use the VS doors; `vsTags` for online (P1, R-032)
+- What is wrong: online human matches mount `LiftLoading` with office tips ("Desks and the meeting table stop bullets") while the match plays on OFFSITE.
+- What should change: spec §4. Online human matches use `useVsTo` + `VsRun mode="load"` like offline, tags `['YOU', 'RIVAL']` (add an `'online'` kind to `vsTags`); browser bot keeps `['YOU', 'BOT · NORMAL']`. No tips online. After 4 s with the doors shut and the first frame not in: pill `Syncing with your rival…`.
+- Expected result: no `LiftLoading` mount on any online path (test); screenshot of the doors for a human online match showing `YOU` / `RIVAL` and `OFFSITE`. Status: open
+
+## F-080 — Ping pill, shaky-connection chip, online pause request (P1, R-032; was R-011)
+- What is wrong: `NetBadge` is unstyled text `SERVER · 0 MS` with mode words players don't need; the unstable slab is tomato/orange with `direct · 0 ms` inside it (a red alarm next to a perfect number, `online/before/hud-unstable.png`); the pause request is a gold slab of the old theme.
+- What should change: spec §5.1-5.3 and mockups `o12`, `o13`: `.netpill` with 3/2/1 signal bars + `NN MS`, bands ≤ 60 / 61-100 / > 100 on a 2 s median with 10 ms hysteresis, no colour per band, mode only in `title`; no pill in browser-bot matches. `SHAKY CONNECTION · MOVES MAY LAG` white chip top 154, 1 tomato bar pulsing, ≥ 300 ms in / ≥ 2 s out, no ms. Pause request chip copy in §5.3.
+- Expected result: frames at 40 / 80 / 140 ms show 3 / 2 / 1 bars; a netlab run with loss shows the chip without numbers; no `Direct`, `Server`, `Relay`, `TURN` or `you host` visible on screen. Status: open
+
+## F-081 — In-match online overlays are the old dark slabs (P1, R-032)
+- What is wrong: rival dropped, rival left, still not back, link expired and graphics lost (`ArenaGame.tsx` ~640-790) use `bg-ink` / `text-gold` / `panel-cut` of the old theme.
+- What should change: spec §5.4-5.6, mockups `o14`-`o16`: paper panel 520 wide on the blurred match + 50 % grape tint, grape ribbon (tomato for LINK EXPIRED), Titan clocks, sun + white buttons, exact copy including the portal and quick-room variants.
+- Expected result: forced screenshots of each overlay match `o14`-`o16`; one sun each. Status: open
+
+## F-082 — `Support us` pill on the result uses tomato (P3, seen during R-032)
+- What is wrong: the result's `Support us` (`SupportLink`, variant results) has a tomato heart and tomato border (`online/_src/bot-3-full-match-result.png`). Tomato is reserved for KO and errors (`colour-balance.md` §3).
+- What should change: grape-deep 86 % pill like the `ESC Menu` pill, cream text, heart icon in cream. No tomato.
+- Expected result: the result screen has no tomato except a KO tag. Status: open
+
+## F-083 — Standby offer "A player is free" needs the Field Day look and copy (P1, R-032, f251b2a)
+- What is wrong: the offer is a placeholder `panel-cut bg-ink-deep` strip with `A player is free` / `Fight them` in gold at the top of the result screen, over the title.
+- Why it matters: this is the moment a bot match turns into a real online match; it must be the most inviting thing on screen without hijacking a mashed Enter.
+- What should change: spec §6 and mockup `o18`: white card at (872, 384), `A PLAYER IS FREE!` / `Fight them next instead of the BOT.` / sun `FIGHT THEM [F]`; REMATCH turns white while the card shows (focus and Enter unchanged); `CONNECTING…`, gone (`They just got snapped up.` / `Rematch the BOT or search again.` / `SEARCH AGAIN`) and withdrawn states.
+- Expected result: frames of offer shown, connecting, and gone; Enter still triggers REMATCH when it has focus; F triggers FIGHT THEM. Status: open
