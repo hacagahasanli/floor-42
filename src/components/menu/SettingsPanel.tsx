@@ -545,7 +545,7 @@ export const SettingsPanel = ({ onClose, initialTab = 'controls' }: { onClose: (
             <TitleRibbon top={44} icon={<Icon name="gear" size={30} />}>
               SETTINGS
             </TitleRibbon>
-            <div ref={tabRef} role="tablist" aria-label="Settings sections" className="fd-tabs fd-abs" style={{ left: 36, top: 134 }}>
+            <div ref={tabRef} role="tablist" aria-label="Settings sections" className="fd-tabs fd-abs" style={{ left: 36, top: 134, zIndex: 2 }}>
               {TABS.map((t) => {
                 const on = t.id === tab;
                 return (
