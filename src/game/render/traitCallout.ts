@@ -49,9 +49,14 @@ const ICON_PARTS: Record<TraitId, IconPart[]> = {
     { d: 'M12 15v4.4M9.8 17.2h4.4', fill: false },
   ],
 };
-const ICON_PATHS: Record<TraitId, { path: Path2D; fill: boolean }[]> = Object.fromEntries(
-  (Object.keys(ICON_PARTS) as TraitId[]).map((k) => [k, ICON_PARTS[k].map((p) => ({ path: new Path2D(p.d), fill: p.fill }))]),
-) as never;
+// Built on first use: Path2D is a browser API, and this module is also loaded by the server render (/play), where it does not exist.
+let iconPaths: Record<TraitId, { path: Path2D; fill: boolean }[]> | null = null;
+const iconPathsOf = (id: TraitId) => {
+  iconPaths ??= Object.fromEntries(
+    (Object.keys(ICON_PARTS) as TraitId[]).map((k) => [k, ICON_PARTS[k].map((p) => ({ path: new Path2D(p.d), fill: p.fill }))]),
+  ) as never;
+  return iconPaths![id];
+};
 
 export const accentOfTrait = (id: TraitId) => ROSTER.find((r) => r.traitId === id)?.accent ?? '#888888';
 
@@ -77,7 +82,7 @@ const drawIcon = (g: CanvasRenderingContext2D, id: TraitId, x: number, y: number
   g.lineCap = 'round';
   g.strokeStyle = GRAPE;
   g.fillStyle = '#fff';
-  for (const { path, fill } of ICON_PATHS[id]) {
+  for (const { path, fill } of iconPathsOf(id)) {
     if (fill) g.fill(path);
     g.stroke(path);
   }
