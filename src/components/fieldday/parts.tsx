@@ -131,7 +131,8 @@ export const HintStrip = ({
   className = '',
   style,
 }: {
-  items: { keys: string[]; label: string }[];
+  /** `range`: the keys are the ends of a range, drawn `1 - 4`. */
+  items: { keys: string[]; label: string; range?: boolean }[];
   className?: string;
   style?: CSSProperties;
 }) => (
@@ -139,7 +140,10 @@ export const HintStrip = ({
     {items.map((it) => (
       <span key={it.label}>
         {it.keys.map((k, i) => (
-          <Keycap key={i} k={k} />
+          <span key={i} style={{ display: 'contents' }}>
+            {it.range && i > 0 && '-'}
+            <Keycap k={k} />
+          </span>
         ))}
         {it.label}
       </span>

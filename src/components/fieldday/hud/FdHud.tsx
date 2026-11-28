@@ -44,6 +44,8 @@ export interface FdHudProps {
   demo: boolean;
   tp: boolean;
   online: boolean;
+  /** Online, but the rival is the server's bot: tagged BOT · LEVEL like offline, never RIVAL. */
+  onlineBot?: boolean;
   touch: boolean;
   /** The bot's level label for the rival's tag (`EASY`, `NORMAL`, `HARD`). */
   level: string;
@@ -336,7 +338,7 @@ export const FdHud = (p: FdHudProps) => {
   const label = useKeyLabel();
   const [a, b] = hud.fighters;
   const bright = p.arena !== 'office';
-  const tag = (i: 0 | 1) => (p.tp ? `P${i + 1}` : i === 0 ? (p.demo ? 'BOT' : 'YOU') : p.online ? 'RIVAL' : `BOT · ${p.level.toUpperCase()}`);
+  const tag = (i: 0 | 1) => (p.tp ? `P${i + 1}` : i === 0 ? (p.demo ? 'BOT' : 'YOU') : p.online && !p.onlineBot ? 'RIVAL' : `BOT · ${p.level.toUpperCase()}`);
   const accentOf = (i: 0 | 1) => (p.tp ? p.colours[i] : nameOf(hud.fighters[i]).accent);
   // Key caps are upper case (b06); the strip says SHIFT, not L-Shift.
   const k = (act: keyof Bindings) => capLabel(label(p.bindings[act][0] || p.bindings[act][1]));

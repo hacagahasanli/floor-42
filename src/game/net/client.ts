@@ -4,11 +4,13 @@ import { DT } from '../sim/constants';
 import { chooseCharacter, createGame, step } from '../sim/step';
 import { EMPTY_INPUT } from '../sim/types';
 
-import { decodeInput, decodeSnapshot, encodeInput, isNewer, PROTOCOL_VERSION, ROOM_NAME } from './protocol';
+import { decodeInput, decodeSnapshot, encodeInput, isNewer, LAG_COMP_VERSION, PROTOCOL_VERSION, ROOM_NAME } from './protocol';
+import { nearest, parseRegions, probeRegions } from './regions';
 import { createTimeline } from './timeline';
 
 import type { LinkMode, PeerLink } from './peer';
 import type { JoinOptions, Snapshot, StartMessage, WireInput } from './protocol';
+import type { Probe, Region } from './regions';
 import type { TimelineView } from './timeline';
 import type { CharacterId, GameEvent, GameState, InputState } from '../sim/types';
 import type { Room } from '@colyseus/sdk';
@@ -16,20 +18,76 @@ import type { Room } from '@colyseus/sdk';
 /** The Fly.io game server. Point it at a local one with NEXT_PUBLIC_GAME_SERVER=ws://localhost:2567. */
 export const GAME_SERVER = process.env.NEXT_PUBLIC_GAME_SERVER ?? 'wss://floor42-game.fly.dev';
 
-export type JoinMode = { kind: 'quick' } | { kind: 'private' } | { kind: 'join'; roomId: string };
+export type JoinMode =
+  | { kind: 'quick' }
+  | { kind: 'private' }
+  /** `region`: the region id from an invite link (`&r=`); missing = the first region. */
+  | { kind: 'join'; roomId: string; region?: string };
 
-/** Dev only: ?server=ws://localhost:2567 points this tab at a local game server. */
-const serverUrl = () => {
-  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return GAME_SERVER;
-  return new URLSearchParams(window.location.search).get('server') ?? GAME_SERVER;
+const devParam = (key: string) => {
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get(key);
 };
 
-export const joinRoom = async (mode: JoinMode, character: CharacterId): Promise<Room> => {
-  const client = new Client(serverUrl());
-  const options: JoinOptions = { character, private: mode.kind === 'private' };
-  if (mode.kind === 'join') return client.joinById(mode.roomId, options);
-  if (mode.kind === 'private') return client.create(ROOM_NAME, options);
-  return client.joinOrCreate(ROOM_NAME, options);
+/**
+ * The game server regions, nearest-first search order decided later by planSearch. Config only:
+ * NEXT_PUBLIC_GAME_REGIONS="fra=wss://a.fly.dev,iad=wss://b.fly.dev"; unset = one region, GAME_SERVER.
+ * Dev only: ?regions=fra=ws://localhost:2567,iad=ws://localhost:2568 or ?server=ws://localhost:2567 override it.
+ */
+export const gameRegions = (): Region[] => {
+  const devRegions = parseRegions(devParam('regions') ?? undefined);
+  if (devRegions.length) return devRegions;
+  const devServer = devParam('server');
+  if (devServer) return [{ id: 'dev', url: devServer }];
+  const env = parseRegions(process.env.NEXT_PUBLIC_GAME_REGIONS);
+  return env.length ? env : [{ id: 'fra', url: GAME_SERVER }];
+};
+
+let probed: { at: number; key: string; probes: Probe[] } | null = null;
+
+/** Round trips to every region, at most once a minute. One region: nothing to measure (no request, no delay). */
+export const regionProbes = async (regions: Region[] = gameRegions()): Promise<Probe[]> => {
+  if (regions.length < 2) return [];
+  const key = regions.map((r) => r.url).join(',');
+  if (!probed || probed.key !== key || performance.now() - probed.at > 60_000) {
+    probed = { at: performance.now(), key, probes: await probeRegions(regions) };
+  }
+  return probed.probes;
+};
+
+/** A region by id (invite links carry it); unknown or missing = the first region. */
+export const regionById = (id: string | undefined, regions: Region[] = gameRegions()): Region =>
+  regions.find((r) => r.id === id) ?? regions[0];
+
+/**
+ * Join a room. Quick match goes to `region` (matchmaking.ts picks it) and may ask for the bot after `botAfterMs`;
+ * an invite is created in the nearest region; a link joins the region it names.
+ */
+export const joinRoom = async (
+  mode: JoinMode,
+  character: CharacterId,
+  region?: Region,
+  botAfterMs?: number,
+): Promise<{ room: Room; region: Region }> => {
+  const options: JoinOptions = { character, private: mode.kind === 'private', v: PROTOCOL_VERSION };
+  let where = region;
+  if (!where) {
+    if (mode.kind === 'join') where = regionById(mode.region);
+    else {
+      const regions = gameRegions();
+      const best = nearest(await regionProbes(regions));
+      where = regionById(best?.id, regions);
+    }
+  }
+  if (mode.kind === 'quick' && botAfterMs !== undefined) options.bot = botAfterMs;
+  const client = new Client(where.url);
+  const room =
+    mode.kind === 'join'
+      ? await client.joinById(mode.roomId, options)
+      : mode.kind === 'private'
+        ? await client.create(ROOM_NAME, options)
+        : await client.joinOrCreate(ROOM_NAME, options);
+  return { room, region: where };
 };
 
 /** What the HUD shows about the connection. */
@@ -121,8 +179,9 @@ const TROUBLE_MS = 1500;
 export const createOnlineSession = (room: Room, start: StartMessage, link: PeerLink | null = null): OnlineSession => {
   const slot = start.slot;
   /** The authority speaks version 2: a direct host (same build) or an updated server. */
-  const v2 = !!link || (start.v ?? 1) >= PROTOCOL_VERSION;
-  let state: GameState = createGame(start.characters, 1, v2);
+  const v2 = !!link || (start.v ?? 1) >= LAG_COMP_VERSION;
+  const newGame = (msg: StartMessage) => createGame(msg.characters, 1, v2, undefined, msg.arena ? { arena: msg.arena } : undefined);
+  let state: GameState = newGame(start);
   let tick = 0;
   let history: WireInput[] = [];
   let pending: Snapshot | null = null;
@@ -303,7 +362,7 @@ export const createOnlineSession = (room: Room, start: StartMessage, link: PeerL
       return { view, events, correction };
     },
     restart: (msg: StartMessage) => {
-      state = createGame(msg.characters, 1, v2);
+      state = newGame(msg);
       history = [];
       pending = null;
       pauseRequests = [false, false];

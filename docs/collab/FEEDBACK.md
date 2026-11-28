@@ -702,6 +702,51 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
   The titles fit the 224 px label card at Titan 18 (HEAVY HITTER is 12 characters, one fewer than BOUNCY CASTLE).
 - Expected result: `resultModel.test.ts` cases: 1–5 loss → a big-band line, never "so close"; 4–5 loss → a close-band line; 5–0 win → `5 – 0 · flawless!`; 5–3 win → `5 – 3 · clean win`; 2P 5–4 → `5 – 4 · by a whisker!` with title `P1 WINS!` (or P2); 3–3 draw → `3 – 3 · all square · one more?`. A screenshot of a real 1P big loss and a real 1P win at 1280 shows the pill on one line (the longest pill, `1 – 5 · tough one · go again?`, is 30 characters, shorter than today's `5 – 2 · 57% accuracy · best streak 3` at 36). Related: `CREATIVE/ui/direction-b/spec.md` b15 and section 7 (the loss rotation there is superseded by this table). Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)
 
+## F-076 — Online lobby is the old dark developer theme: rebuild on the Field Day face-off frame (P1, R-032)
+- What is wrong: `/play` (`OnlineLobby.tsx`, `components/lobby/*`, `lobby.css`) shows the office 3D scene, the old `▲ 42` logo, navy panels and old type; online now plays OFFSITE. At 1280x720 the invite panel overflows (the Cancel row is cut at the panel's bottom edge, `CREATIVE/ui/direction-b/online/before/lobby-invite.png`). Raw `WebSocket connection failed` is shown to players (`before/lobby-error.png`).
+- Why it matters: online is the first screen after HOME's ONLINE button; it reads as a different, older game, and the error text reads as broken.
+- What should change: build every lobby state from `CREATIVE/ui/direction-b/online/spec.md` sections 2 and 3 (frame, face-off cards, fighter picker, aim segment, code row, invite panel, errors) with the exact values and strings there; mockups `online/png/o01`-`o11`. Drop `LobbyScene` on this route. Remove "Play vs bot" from the menu (decision D3); it stays in errors and the invite wait.
+- Expected result: built frames at 1280x720 match `o01`-`o11` within a few px; one sun per frame as listed in spec section 2; layout check 0 issues at 1280x720, 907x510, 800x450; screenshots of each `?lobbyState=` sent back for review.
+- Related: `online/spec.md` §2, §3.1, §3.2, §3.4, §3.5. Optional follow-up for engineering: case-free 5-character room codes (spec §0 item 5), file as R-033 if you agree. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
+## F-077 — Search status: 3-step tracker, fuse bar, final copy; delete the dead 30 s "quiet" branch (P1, R-032)
+- What is wrong: `legLine` placeholders; one line of text and a clock is the only feedback; `isQuiet(elapsed)` (30 s) can never fire because the bot comes at 8.5 s.
+- Why it matters: the player must see that a bot is a backup, and roughly when, without reading a paragraph.
+- What should change: spec §3.3 table (status line + row subs per `LegKind`, one-region and multi-region variants), step-dot states, region display names, fuse bar = elapsed / `BOT_DUE_MS` (read from `MATCH_TIMING`, the `0:09` in copy is `ceil(BOT_DUE_MS/1000)`). Delete `isQuiet` and its UI.
+- Expected result: unit tests on the new line builder for home / fallback / bot × one / many regions return the exact strings; frames match `o04`-`o06`. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
+## F-078 — Bot honesty: the silent "server down → browser bot" path, VS tags, lobby card and result chip (P0, R-032)
+- What is wrong: f251b2a starts the browser bot with no message when no server answers (`go()` catch, `BOT_MODE === 'client'`): the player believes they are online. The lobby never shows who the bot is before the doors; the result screen vs a bot says only `ZUZU WINS!`.
+- Why it matters: a bot presented as online play is the one thing that would make players distrust every online match.
+- What should change: show `A BOT STEPS IN` (o08) for 900 ms on a normal bot fallback and the `bot-offline` copy (spec §3.3, last paragraph) for 1600 ms when the server did not answer; bot card role `PLAYED BY A BOT` + chip `BOT · NORMAL`; result: `BOT · NORMAL` chip on the bot's card (o17), online and (recommended) offline. HUD `BOT · NORMAL` chip: approved as built, never `RIVAL`.
+- Expected result: a forced server-down quick match (no `NEXT_PUBLIC_GAME_SERVER` reachable) shows the bot-offline frame before the doors; every frame of a bot match (lobby card, VS doors, HUD, result) contains `BOT`. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
+## F-079 — Online loading: retire `LiftLoading` (office tips), use the VS doors; `vsTags` for online (P1, R-032)
+- What is wrong: online human matches mount `LiftLoading` with office tips ("Desks and the meeting table stop bullets") while the match plays on OFFSITE.
+- What should change: spec §4. Online human matches use `useVsTo` + `VsRun mode="load"` like offline, tags `['YOU', 'RIVAL']` (add an `'online'` kind to `vsTags`); browser bot keeps `['YOU', 'BOT · NORMAL']`. No tips online. After 4 s with the doors shut and the first frame not in: pill `Syncing with your rival…`.
+- Expected result: no `LiftLoading` mount on any online path (test); screenshot of the doors for a human online match showing `YOU` / `RIVAL` and `OFFSITE`. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
+## F-080 — Ping pill, shaky-connection chip, online pause request (P1, R-032; was R-011)
+- What is wrong: `NetBadge` is unstyled text `SERVER · 0 MS` with mode words players don't need; the unstable slab is tomato/orange with `direct · 0 ms` inside it (a red alarm next to a perfect number, `online/before/hud-unstable.png`); the pause request is a gold slab of the old theme.
+- What should change: spec §5.1-5.3 and mockups `o12`, `o13`: `.netpill` with 3/2/1 signal bars + `NN MS`, bands ≤ 60 / 61-100 / > 100 on a 2 s median with 10 ms hysteresis, no colour per band, mode only in `title`; no pill in browser-bot matches. `SHAKY CONNECTION · MOVES MAY LAG` white chip top 154, 1 tomato bar pulsing, ≥ 300 ms in / ≥ 2 s out, no ms. Pause request chip copy in §5.3.
+- Expected result: frames at 40 / 80 / 140 ms show 3 / 2 / 1 bars; a netlab run with loss shows the chip without numbers; no `Direct`, `Server`, `Relay`, `TURN` or `you host` visible on screen. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
+## F-081 — In-match online overlays are the old dark slabs (P1, R-032)
+- What is wrong: rival dropped, rival left, still not back, link expired and graphics lost (`ArenaGame.tsx` ~640-790) use `bg-ink` / `text-gold` / `panel-cut` of the old theme.
+- What should change: spec §5.4-5.6, mockups `o14`-`o16`: paper panel 520 wide on the blurred match + 50 % grape tint, grape ribbon (tomato for LINK EXPIRED), Titan clocks, sun + white buttons, exact copy including the portal and quick-room variants.
+- Expected result: forced screenshots of each overlay match `o14`-`o16`; one sun each. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
+## F-082 — `Support us` pill on the result uses tomato (P3, seen during R-032)
+- What is wrong: the result's `Support us` (`SupportLink`, variant results) has a tomato heart and tomato border (`online/_src/bot-3-full-match-result.png`). Tomato is reserved for KO and errors (`colour-balance.md` §3).
+- What should change: grape-deep 86 % pill like the `ESC Menu` pill, cream text, heart icon in cream. No tomato.
+- Expected result: the result screen has no tomato except a KO tag. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
+## F-083 — Standby offer "A player is free" needs the Field Day look and copy (P1, R-032, f251b2a)
+- What is wrong: the offer is a placeholder `panel-cut bg-ink-deep` strip with `A player is free` / `Fight them` in gold at the top of the result screen, over the title.
+- Why it matters: this is the moment a bot match turns into a real online match; it must be the most inviting thing on screen without hijacking a mashed Enter.
+- What should change: spec §6 and mockup `o18`: white card at (872, 384), `A PLAYER IS FREE!` / `Fight them next instead of the BOT.` / sun `FIGHT THEM [F]`; REMATCH turns white while the card shows (focus and Enter unchanged); `CONNECTING…`, gone (`They just got snapped up.` / `Rematch the BOT or search again.` / `SEARCH AGAIN`) and withdrawn states.
+- Expected result: frames of offer shown, connecting, and gone; Enter still triggers REMATCH when it has focus; F triggers FIGHT THEM. Status: done (engineering 2026-11-28, see LOG.md "R-032 implementation"; shots docs/online/shots/r032-impl/), awaiting CD review (R-034)
+
 ## F-084 — ZUZU 82 HP and easy-bot weights for the smart bot (P1, traits balance)
 - What is wrong: with the smart bot (it climbs), ZUZU at 85 HP wins 56.3 % vs the field at normal and hard on OFFSITE (800 matches per cell, `tools/balance/results/smartbot-roster-400.txt`); worst cells 8.3 / 7.5 points off 50. At easy she is 44.5 % and ORMO 56.2 %.
 - Why it matters: normal is the level most players meet, and humans who climb get what the bot gets. A fighter at 56 % becomes the "pick ZUZU" answer.
@@ -711,3 +756,29 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
   3. Re-run: `vs.ts --roster smart:{easy,normal,hard} --seeds 400 --arenas offsite,office`, plus `vs.ts --grid` for easy per bot fighter vs the masher.
 - Expected result (acceptance, `traits-balance.md` §10): normal/hard every cell 45-55 and vs field 47-53 on OFFSITE (measured at 82: 45.5-54.5 / 47.6-52.8 normal, 45.8-54.3 / 49.0-52.3 hard); office cells 44-56, vs field 46-54; easy OFFSITE vs field 44-56 and worst cell ≤ 8 off; easy bot wins ≤ 10 % vs the masher with each of the 4 fighters and the spread between fighters ≤ 6 points. If normal/hard fail, report and I pick 80 or 84; if only easy roster fails, ship and log it.
 - Related: `CREATIVE/characters/traits-balance.md` §1 (ZUZU row) and §10; `docs/systems/smart-bot.md` §0.3, §4, §7. Status: open
+
+## F-085 — JOINING… frame: show the code, hug the content, right card says what is happening (P2, R-034 e)
+- What is wrong (`lobby-joining-1280x720.jpg`): the panel keeps the code row's height, so ~70 px of empty cream sits between the line and CANCEL; the code the player typed is a 13 px grey `K7P2Q` that reads like a debug label; the rival card still says `WAITING FOR A CODE` although the code is in.
+- Why it matters: this is the half-second where a player checks "did I type the right code?". The frame should answer that, and the card must not contradict the panel.
+- What should change:
+  1. Panel height = content (padding 24 top under the ribbon, 24 bottom), no min-height from the code row.
+  2. Under the line, the **code well from the invite frame** (o09), same values: mist fill, radius 18, padding 12/18, label `ROOM CODE` Baloo 800 12 tracking 2 grape-2, code Baloo 800 44 tracking 7 grape. Right side small: `Checking…` (no second line). When the player pasted a link, show the code extracted from it.
+  3. Rival card role `KNOCKING…` (replaces `WAITING FOR A CODE` in this state only; `onlineCopy.ts` `friendRole` stays for the code row). No chip.
+  4. CANCEL `[ESC]` white sm under the well, 16 px gap. Ribbon `JOINING…` and line unchanged.
+- Expected result: at 1280x720 the panel bottom sits ≤ 24 px below CANCEL; the code reads at the same size as on the invite frame; no frame of the join flow shows `WAITING FOR A CODE` after JOIN is pressed. On failure the existing `THAT ROOM IS GONE` frame follows (unchanged).
+- Related: `CREATIVE/ui/direction-b/online/spec.md` 3.3 (joining row) and 3.4 (code well). Status: done (engineering 2026-11-28, see LOG.md "R-034 follow-ups"; shots docs/online/shots/r032-impl/lobby-joining-*, lobby-code-*, lobby-invite-*, f086-doors-*)
+
+## F-086 — VS doors: the arena flag is invisible on the grape ribbon (P1, R-034, offline too)
+- What is wrong (`e2e-lone-3-doors.jpg`): `VsDoors.tsx` draws `<Icon name="flag">`, whose pole and outline are grape (`G`) on the grape ribbon, so only a white smudge shows before `OFFSITE`. Offline and online.
+- Why it matters: the doors are the most screenshotted frame of the match; a broken mark next to the arena name looks like a rendering bug.
+- What should change: on the doors ribbon only, draw the flag with **stroke #FFFFFF** (pole and outline, width 2.4 as today) and **cloth fill `--sun` #FFC83D**, size 24, gap 10 (unchanged). This matches the HUD arena pill, where the arena name is sun on grape. Suggested: an optional `stroke` / `fill` override on `Icon` for this one icon, or a `flagOnDark` glyph; every other `flag` use (HOT STREAK medallion on white) stays as is.
+- Expected result: in the doors shot at 1280x720 the pole and the sun cloth are clearly visible left of the arena name, on both arenas, offline and online.
+- Related: `CREATIVE/ui/direction-b/spec.md` (VS doors). Status: done (engineering 2026-11-28, see LOG.md "R-034 follow-ups"; shots docs/online/shots/r032-impl/lobby-joining-*, lobby-code-*, lobby-invite-*, f086-doors-*)
+
+## F-087 — Copy after case-free codes (R-033): the two gaps the cut left (P2, R-034 b)
+- What is wrong: R-033 rightly cut `Codes care about capital letters.` and `with the capitals`. The cuts left (1) an empty ~50 px band between the code field and JOIN (`lobby-code-1280x720.jpg`), and (2) a lone `Read it out` beside the code on the invite frame.
+- What should change (`onlineCopy.ts`):
+  - Code row small line (same slot and style as the old capitals line: small, grape-2, under the field): `5 letters or numbers. Small letters work too.`
+  - Invite code well, right side, two small lines: `Read it out` / `or send the link`.
+- Expected result: no empty band under the code field at 1280x720; the invite well's right side has two lines, as the mockup's.
+- Related: spec 3.3, 3.4 (updated in R-034). Status: done (engineering 2026-11-28, see LOG.md "R-034 follow-ups"; shots docs/online/shots/r032-impl/lobby-joining-*, lobby-code-*, lobby-invite-*, f086-doors-*)

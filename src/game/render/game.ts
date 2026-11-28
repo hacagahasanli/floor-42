@@ -110,6 +110,8 @@ export interface ArenaOptions {
   aimMode?: AimMode;
   /** Online match: the server owns the game, this client predicts. */
   online?: OnlineSession;
+  /** Signature traits (offline default: on). The browser bot of online quick match plays without, like online. */
+  traits?: boolean;
   /** A backdrop (the home page): no sound, no keyboard. */
   backdrop?: boolean;
   /**
@@ -144,8 +146,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
-  // Online play is always the office (the protocol carries no arena); offline uses the pick or the default.
-  const arenaId: ArenaId = opts.online ? 'office' : (opts.arena ?? DEFAULT_ARENA);
+  // Online: the arena of the server's room (in the session's state; an older server: the office); offline the pick.
+  const arenaId: ArenaId = opts.online ? (opts.online.state.arena ?? 'office') : (opts.arena ?? DEFAULT_ARENA);
   const A = arenaOf({ arena: arenaId });
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 400);
   camera.position.set(0, A.ceiling / 2, 40);
@@ -162,7 +164,7 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
       false,
       tp ? { kosToWin: tp.kosToWin, assist: true } : undefined,
       // Offline only (never `online`): the shorter countdown is opt-in, so the shared sim default stays 3.6 s.
-      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS, arena: arenaId, traits: !online },
+      { ...(grace ? { gunGrace: { fighter: 1, ticks: EASY_GUN_GRACE_TICKS } } : {}), countdownSeconds: OFFLINE_COUNTDOWN_SECONDS, arena: arenaId, traits: !online && (opts.traits ?? true) },
     );
   let hold = !!opts.hold;
   let padsSeen = 0;

@@ -1,0 +1,65 @@
+{
+  "bot": {
+    "waitedMs": 8897,
+    "searching": "Back BRIX You · ready ▲ 42 Main menu Searching · 0:01 RIVAL Searching The Jammer BRIX Tallest, highest jumps, on skates. Speed 9.4 m/s Jump 2× jump Weight average Brix The Jammer 1 Ormo The Grandad 2 Zuzu The Tiny Coach ",
+    "tags": [
+      "YOU",
+      "BOT · NORMAL"
+    ],
+    "pings": [
+      {
+        "mode": "server",
+        "ping": 1,
+        "unstable": true,
+        "snapGapMs": 2,
+        "inputDelayMs": 17,
+        "delayMs": 84,
+        "underruns": 1
+      },
+      {
+        "mode": "server",
+        "ping": 1,
+        "unstable": true,
+        "snapGapMs": 5,
+        "inputDelayMs": 17,
+        "delayMs": 83,
+        "underruns": 1
+      },
+      {
+        "mode": "server",
+        "ping": 0,
+        "unstable": true,
+        "snapGapMs": 10,
+        "inputDelayMs": 17,
+        "delayMs": 64,
+        "underruns": 1
+      },
+      {
+        "mode": "server",
+        "ping": 0,
+        "unstable": false,
+        "snapGapMs": 12,
+        "inputDelayMs": 17,
+        "delayMs": 53,
+        "underruns": 1
+      },
+      {
+        "mode": "server",
+        "ping": 0,
+        "unstable": false,
+        "snapGapMs": 0,
+        "inputDelayMs": 17,
+        "delayMs": 47,
+        "underruns": 1
+      }
+    ],
+    "winner": 1,
+    "resultText": "Z U Z U W I N S ! 4 – 5 · so close! · one more? ESC Menu TAB Hold for stats 1 PARTICIPATION YOU HEAVY HITTER Zuzu dealt 500 damage BOUNCY CASTLE Zuzu jumped 33 times IRON SPONGE You soaked up 575 damage REMATCH ENTER CHANGE FIGHTER ZUZU WINS! 4 – 5 · so close! · one more?. HEAVY HITTER: Zuzu dealt 5",
+    "rematchMs": 3039,
+    "tagsAfterRematch": [
+      "YOU",
+      "BOT · NORMAL"
+    ],
+    "arena": "offsite"
+  }
+}

@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
+import { OFFER_COPY } from '~/components/online/onlineCopy';
 import { isTouchDevice } from '~/game/input';
+
+import '~/components/online/online.css';
 
 import { FdButton } from '../Button';
 import { Confetti } from '../Confetti';
@@ -70,6 +73,16 @@ export interface ResultScreenProps {
   keyTrapRef: RefObject<HTMLInputElement | null>;
   /** Called once when the buttons are on screen (the choice beat, a skip, or Reduced motion's final layout). */
   onChoiceUp?: () => void;
+  /** R-032 6 (o17): the rival (fighter 1) is a bot: its card carries this chip (`BOT · NORMAL`). Online and offline. */
+  botTag?: string;
+  /** R-032 6 (o18, F-083): a free human is offered for the next match (browser bot on standby). */
+  offer?: ResultOffer;
+}
+
+export interface ResultOffer {
+  state: 'shown' | 'connecting' | 'gone';
+  onFight: () => void;
+  onSearch: () => void;
 }
 
 export const ResultScreen = (props: ResultScreenProps) => {
@@ -268,6 +281,8 @@ const ResultBody = (p: ResultScreenProps) => {
   }, [step >= 5, asked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cls = STEP_CLASS.filter((_, i) => i <= step).join(' ');
+  // F-083: while a free player is offered, FIGHT THEM is the sun and REMATCH turns white (it keeps focus and Enter).
+  const offerUp = !!p.offer && p.offer.state !== 'gone';
   const fa = model.winner ?? 0;
   const fb: 0 | 1 = model.winner === null ? 1 : model.loser === 0 ? 0 : 1;
   const colourOf = (i: 0 | 1) => (p.mode === 'twoPlayer' && p.colours ? p.colours[i] : fighterView(p.fighters[i].character).accent);
@@ -408,6 +423,21 @@ const ResultBody = (p: ResultScreenProps) => {
         {p.mode === 'twoPlayer' && model.winner !== null && (
           <PlayerTag index={model.winner} onWorld className="fd-res-chip" style={{ left: 552, top: 178, rotate: '-6deg' }} data-testid="winner-tag" />
         )}
+        {/* o17: the bot's card says BOT (on the winner card at -4 deg, else where the loser's YOU chip would sit; a draw: the right card). */}
+        {p.botTag && (
+          <Chip
+            icon="bot"
+            className="fd-res-chip"
+            height={28}
+            fontSize={13}
+            data-testid="bot-tag"
+            style={
+              isDraw ? { left: 650, top: 178, rotate: '4deg' } : model.winner === 1 ? { left: 592, top: 178, rotate: '-4deg' } : { left: 724, top: 372, rotate: '-8deg' }
+            }
+          >
+            {p.botTag}
+          </Chip>
+        )}
 
         {!isDraw && (
           <svg className="fd-res-balloon" viewBox="0 0 70 210" aria-hidden="true">
@@ -477,12 +507,12 @@ const ResultBody = (p: ResultScreenProps) => {
           <div className="fd-res-b" style={{ ['--i' as string]: 0 } as CSSProperties}>
             <FdButton
               ref={rematchRef}
-              tone="sun"
+              tone={offerUp ? 'white' : 'sun'}
               height={88}
               fontSize={40}
               iconSize={36}
               icon="again"
-              primary
+              primary={!offerUp}
               data-nav
               data-nav-pref
               data-testid="rematch"
@@ -531,6 +561,8 @@ const ResultBody = (p: ResultScreenProps) => {
             </FdButton>
           </div>
         </div>
+
+        {p.offer && <OfferCard offer={p.offer} />}
 
         {/* what the screen says, for a screen reader (the visual reveal is aria-hidden) */}
         <div className="fd-sr" role="status" aria-live="polite" data-testid="result-sr">
@@ -651,6 +683,61 @@ const RematchPanel = ({
         </div>
       </div>
       <Pill style={{ position: 'absolute', left: '50%', top: 600, translate: '-50% 0', fontSize: 15, padding: '7px 18px 6px' }}>{C.info}</Pill>
+    </div>
+  );
+};
+
+/**
+ * o18 (R-032 6, F-083): a free player is offered while you played the bot. White paper card at (872, 384), tilted 2 deg, clear of
+ * the title, the buttons and the medals. F (or a click) takes it; Enter keeps doing what has focus (REMATCH by default), so a
+ * mashed Enter never pulls anyone into a human match.
+ */
+const OfferCard = ({ offer }: { offer: ResultOffer }) => {
+  const C = OFFER_COPY;
+  const fight = useRef(offer.onFight);
+  fight.current = offer.onFight;
+  const st = offer.state;
+  useEffect(() => {
+    fdSound.confirm();
+  }, []);
+  useEffect(() => {
+    if (st !== 'shown') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyF' || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      e.preventDefault();
+      fight.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [st]);
+  return (
+    <div className="on-panel on-offer" style={{ zIndex: 3 }} role="status" aria-live="polite" data-testid="offer-card" data-state={st}>
+        <div className="fd-titan" style={{ position: 'absolute', left: 22, top: 18, fontSize: st === 'gone' ? 21 : 24, color: 'var(--grape)' }}>
+          {st === 'gone' ? C.goneTitle : C.title}
+        </div>
+        <div className="on-small" style={{ left: 22, top: 48 }}>
+          {st === 'gone' ? C.goneSmall : C.small}
+        </div>
+        {st === 'gone' ? (
+          <FdButton tone="white" height={56} fontSize={22} icon="globe" data-nav data-testid="offer-search" style={{ position: 'absolute', left: 22, top: 76, width: 328 }} onClick={offer.onSearch}>
+            {C.search}
+          </FdButton>
+        ) : (
+          <FdButton
+            tone={st === 'connecting' ? 'white' : 'sun'}
+            height={56}
+            fontSize={22}
+            icon="bolt"
+            disabled={st === 'connecting'}
+            data-nav
+            data-testid="fight-player"
+            style={{ position: 'absolute', left: 22, top: 76, width: 328 }}
+            after={st === 'shown' ? <Keycap k="F" /> : undefined}
+            onClick={st === 'shown' ? offer.onFight : undefined}
+          >
+            {st === 'connecting' ? C.connecting : C.fight}
+          </FdButton>
+        )}
     </div>
   );
 };

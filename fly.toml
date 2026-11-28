@@ -1,16 +1,25 @@
-# Floor 42 game server on Fly.io. One small machine that stops when nobody plays.
+# Pewfield game server, region fra (Frankfurt). One small machine that stops when nobody plays.
+# Every region is its own app from this same image: copy this file as fly.<region>.toml, change `app` and
+# `primary_region` (see fly.iad.toml) and add the region to NEXT_PUBLIC_GAME_REGIONS on the site.
+# Deploy steps and costs: docs/online/2026-11-28-matchmaking.md. Do not deploy without Reis.
 app = "floor42-game"
 primary_region = "fra"
 
 [build]
   dockerfile = "server/Dockerfile"
 
+[env]
+  REGION = "fra"
+  BOT_LEVEL = "normal"
+  ONLINE_ARENA = "offsite"
+
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1 # fra stays warm: a cold start (~7 s) could miss the 6 s region probe; ~$2.19/month
+  # No health check on purpose: nothing should touch a stopped machine but players (autostop = near-zero idle cost).
 
 [[vm]]
   size = "shared-cpu-1x"

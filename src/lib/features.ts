@@ -6,7 +6,9 @@
  * the home ONLINE button is gone and /play shows the main menu instead of the lobby. The lobby, the net code and the server
  * stay in the repo untouched, so turning it back on is this one line.
  */
-export const ONLINE_ENABLED = false as boolean;
+// Off unless the build sets NEXT_PUBLIC_ONLINE=1 (online-bots local testing: `NEXT_PUBLIC_ONLINE=1 npm run dev`). Turning it on
+// for real is one env var on Vercel after the Fly server is deployed (docs/online/2026-11-28-matchmaking.md).
+export const ONLINE_ENABLED = process.env.NEXT_PUBLIC_ONLINE === '1';
 
 /** Online is offered only on the site, never in the portal build (portal is bot and same-keyboard play only). */
 export const onlineOffered = (portal: boolean, enabled: boolean = ONLINE_ENABLED): boolean => enabled && !portal;

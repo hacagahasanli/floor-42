@@ -1,6 +1,7 @@
 import { step } from '../sim/step';
 import { EMPTY_INPUT } from '../sim/types';
 
+import { cloneState } from './clone';
 import { decodeInput, encodeInput } from './protocol';
 
 import type { EventBatch, WireInput } from './protocol';
@@ -106,7 +107,7 @@ export const createAuthority = (initial: GameState, opts: AuthorityOptions) => {
   let dirtyFrom: number | null = null;
   /** Earliest tick whose events were not handed out yet (or were replaced by a rewind). */
   let eventsFrom = 1;
-  const copy = (s: GameState) => structuredClone(s);
+  const copy = (s: GameState) => cloneState(s);
   const counterAt = (t: number, seat: number) => ring.get(t)?.counter[seat] ?? -1;
 
   /** The tick that consumes counter n: a future tick, a tick still open to rewinds, or 'late'. */

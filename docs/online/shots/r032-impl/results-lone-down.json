@@ -1,0 +1,30 @@
+{
+  "lone": {
+    "botAt": 8569,
+    "doorsAt": 9913,
+    "holdMs": 1344,
+    "searchLine": "Looking for a player. Nobody by about 0:09? A BOT steps in.",
+    "botLine": "Nobody free yet, so you're playing a BOT.",
+    "botChip": "BOT · NORMAL",
+    "doorTags": [
+      "THE JAMMER · YOU",
+      "THE GRANDAD · BOT · NORMAL"
+    ],
+    "hud": [
+      "YOU",
+      "BOT · NORMAL"
+    ],
+    "netPillInBotMatch": false,
+    "resultBotTag": "BOT · NORMAL"
+  },
+  "down": {
+    "botFrameAfterMs": 44,
+    "heldMs": 1697,
+    "line": "Online isn't answering, so it's you vs a BOT.",
+    "offline": "true",
+    "doorTags": [
+      "THE JAMMER · YOU",
+      "THE TRAILBLAZER · BOT · NORMAL"
+    ]
+  }
+}

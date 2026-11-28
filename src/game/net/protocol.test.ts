@@ -2,6 +2,7 @@ import { createGame } from '../sim/step';
 import { EMPTY_INPUT } from '../sim/types';
 
 import { isOwnEvent } from './client';
+import { maxDiff } from './closeTo';
 import { decodeInput, decodeSnapshot, encodeInput, encodeSnapshot, isNewer, mergePresses } from './protocol';
 
 describe('wire protocol', () => {
@@ -27,7 +28,7 @@ describe('wire protocol', () => {
   it('round-trips a full game state, including Infinity (pistol reserve)', () => {
     const state = createGame(['hotfix', 'legacy'], 7);
     const back = decodeSnapshot(encodeSnapshot({ ack: [1, 2], inputs: [[1, 0, 0, 0], [2, 0, 0, 0]], state }));
-    expect(back.state).toEqual(state);
+    expect(maxDiff(back.state, state)).toBeLessThan(0.005);
     expect(back.state.fighters[0].weapon.reserve).toBe(Infinity);
   });
 

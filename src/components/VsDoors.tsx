@@ -41,9 +41,12 @@ export interface VsInfo {
   arena?: ArenaId;
 }
 
-/** The corner tags: a 1-player match is YOU against the bot at its level; 2-player is P1 and P2. */
-export const vsTags = (kind: '1p' | '2p', level: BotLevel = 'normal'): [string, string] =>
-  kind === '2p' ? ['P1', 'P2'] : ['YOU', `BOT · ${level.toUpperCase()}`];
+/**
+ * The corner tags: a 1-player match is YOU against the bot at its level; 2-player is P1 and P2; an online match against a
+ * person is YOU and RIVAL (R-032 4; an online bot match is '1p': it says BOT).
+ */
+export const vsTags = (kind: '1p' | '2p' | 'online', level: BotLevel = 'normal'): [string, string] =>
+  kind === '2p' ? ['P1', 'P2'] : kind === 'online' ? ['YOU', 'RIVAL'] : ['YOU', `BOT · ${level.toUpperCase()}`];
 
 /** The menu's clock for the doors, so the arena's `VsRun` continues the same timeline (and does not slam twice). */
 let clock: { t0: number; slammed: boolean } | null = null;
@@ -113,17 +116,17 @@ const Half = ({ side, id, tag, shut, phase, sk }: { side: 'l' | 'r'; id: Charact
  * Everything on the VS screen, in one Stage. `stampOn`: the VS medallion and its rays have landed. The ribbon and the "first to"
  * pill show while the doors are shut and leave as they open. Reduced motion: the doors do not slide (a 120 ms fade, see CSS).
  */
-const VsStage = ({ info, phase, shut, stampOn }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn: boolean }) => {
+const VsStage = ({ info, phase, shut, stampOn, note }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn: boolean; note?: string }) => {
   usePortraitTick([info.p1, info.p2]);
   const opening = phase === 'opening';
   return (
     <Stage testId="vs-stage">
-      <VsInner info={info} phase={phase} shut={shut} stampOn={stampOn} opening={opening} />
+      <VsInner info={info} phase={phase} shut={shut} stampOn={stampOn} opening={opening} note={note} />
     </Stage>
   );
 };
 
-const VsInner = ({ info, phase, shut, stampOn, opening }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn: boolean; opening: boolean }) => {
+const VsInner = ({ info, phase, shut, stampOn, opening, note }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn: boolean; opening: boolean; note?: string }) => {
   const { h, s } = useStage();
   // The seam leans 10 degrees: half the stage height times tan(10).
   const sk = Math.round(h * 0.0881);
@@ -142,7 +145,7 @@ const VsInner = ({ info, phase, shut, stampOn, opening }: { info: VsInfo; phase:
           <div className="fd-abs" style={{ left: '50%', top: 24, transform: 'translateX(-50%)', animation: 'fd-fade 200ms linear both' }}>
             <Ribbon height={56} tilt={0}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }} data-testid="vs-arena">
-                <Icon name="flag" size={24} />
+                <Icon name="flagOnDark" size={24} />
                 {ARENA_COPY[info.arena ?? DEFAULT_ARENA].name}
               </span>
             </Ribbon>
@@ -150,6 +153,12 @@ const VsInner = ({ info, phase, shut, stampOn, opening }: { info: VsInfo; phase:
           <div className="fd-abs" style={{ left: '50%', bottom: 22, transform: 'translateX(-50%)', animation: 'fd-fade 200ms linear both' }}>
             <Pill style={{ fontSize: 15, letterSpacing: 1.5 }}>{FD_COPY.twoPlayer.firstTo(info.kosToWin || RULES.kosToWin)}</Pill>
           </div>
+          {/* R-032 4: online, the first frame is late (the doors have been shut 4 s): one honest line, no tips, no percentage. */}
+          {note && (
+            <div className="fd-abs" style={{ left: '50%', bottom: 62, transform: 'translateX(-50%)', animation: 'fd-fade 200ms linear both' }} data-testid="vs-note">
+              <Pill style={{ fontSize: 14 }}>{note}</Pill>
+            </div>
+          )}
         </>
       )}
       {stampOn && !opening && (
@@ -186,9 +195,38 @@ const VsInner = ({ info, phase, shut, stampOn, opening }: { info: VsInfo; phase:
 };
 
 /** The two door halves with the seam, VS and names (what the menu shows while the doors slide in). */
-export const VsDoors = ({ info, phase, shut, stampOn = false }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn?: boolean }) => (
-  <VsStage info={info} phase={phase} shut={shut} stampOn={stampOn} />
+export const VsDoors = ({ info, phase, shut, stampOn = false, note }: { info: VsInfo; phase: 'closing' | 'closed' | 'opening'; shut?: number; stampOn?: boolean; note?: string }) => (
+  <VsStage info={info} phase={phase} shut={shut} stampOn={stampOn} note={note} />
 );
+
+/**
+ * `useVsTo` without a route change: the doors close over the current page and `then` runs when they are shut (the online lobby
+ * mounts the arena in place, whose `VsRun` carries on from this clock). Returns the doors to render while they close.
+ */
+export const useVsInline = () => {
+  const [info, setInfo] = useState<VsInfo | null>(null);
+  const busy = useRef(false);
+  const go = useCallback((next: VsInfo, then: () => void) => {
+    if (busy.current) return;
+    busy.current = true;
+    const slide = reducedMotion() ? 0 : 220;
+    clock = { t0: performance.now(), slammed: false };
+    setInfo(next);
+    window.setTimeout(() => {
+      if (clock) clock.slammed = true;
+      menuSound.doorSlam();
+      then();
+      busy.current = false;
+      setInfo(null);
+    }, slide);
+  }, []);
+  const doors = info ? (
+    <div aria-hidden className="f42-vs-root fixed inset-0 z-[90] overflow-hidden">
+      <VsDoors info={info} phase={reducedMotion() ? 'closed' : 'closing'} />
+    </div>
+  ) : null;
+  return { go, doors };
+};
 
 /** The menu side: the doors slide in over the menu, then the page moves to the arena, whose `VsRun` carries on. */
 export const useVsTo = () => {
@@ -232,9 +270,12 @@ export const VsRun = ({
   progress,
   onShut,
   onDone,
+  syncNote,
 }: {
   info: VsInfo;
   mode: 'load' | 'rematch';
+  /** Online: shown under FIRST TO when the doors have been shut 4 s and the match is still not ready. */
+  syncNote?: string;
   /** 0..1, the share of loading steps done; 1 when the match is ready to show. */
   progress: number;
   onShut?: () => void;
@@ -245,6 +286,12 @@ export const VsRun = ({
   const [phase, setPhase] = useState<'closing' | 'closed' | 'opening'>(() => (mode === 'rematch' && !reducedMotion() ? 'closing' : 'closed'));
   const [stampOn, setStampOn] = useState(false);
   const [floor, setFloor] = useState(1);
+  const [late, setLate] = useState(false);
+  useEffect(() => {
+    if (!syncNote) return;
+    const t = window.setTimeout(() => setLate(progressRef.current < 1), 4000);
+    return () => window.clearTimeout(t);
+  }, [syncNote]);
   const progressRef = useRef(progress);
   progressRef.current = progress;
   const cb = useRef({ onShut, onDone });
@@ -337,7 +384,7 @@ export const VsRun = ({
       data-phase={phase}
       data-floor={floor}
     >
-      <VsDoors info={info} phase={phase} shut={closeMs} stampOn={stampOn} />
+      <VsDoors info={info} phase={phase} shut={closeMs} stampOn={stampOn} note={late && progress < 1 ? syncNote : undefined} />
       {/* The old floor counter stays as a hidden readout, so tests and the screen-reader label keep a number to follow. */}
       <span className="sr-only" data-testid="vs-floor">
         {String(floor).padStart(2, '0')}

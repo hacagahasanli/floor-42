@@ -1,0 +1,55 @@
+{
+  "lone": {
+    "waitedMs": 9022,
+    "tags": [
+      "YOU",
+      "BOT · NORMAL"
+    ],
+    "net": false,
+    "arena": "offsite",
+    "traits": false,
+    "kosToWin": null,
+    "fightMs": 42156,
+    "result": {
+      "winner": 1,
+      "kos": [
+        4,
+        5
+      ],
+      "text": "T A V O W I N S ! 4 – 5 · so close! · one more? ESC Menu TAB Hold for stats 1 PARTICIPATION YOU HEAVY HITTER Tavo dealt "
+    },
+    "rematchMs": 176,
+    "tagsAfterRematch": [
+      "YOU",
+      "BOT · NORMAL"
+    ],
+    "sockets": [
+      "ws://localhost:3011/_next/hmr?id=ZOScMXDmBxa7k4lU88FAA",
+      "ws://localhost:2567/i9-ZhFBcd/wkGH0Q7BA?sessionId=mpkip5wwa"
+    ]
+  },
+  "standby": {
+    "offeredAfterMs": 112,
+    "bInMatchBeforeAccept": false,
+    "bothInHumanMatch": [
+      true,
+      true
+    ],
+    "matchedMs": 804,
+    "tags": [
+      [
+        "YOU",
+        "RIVAL"
+      ],
+      [
+        "YOU",
+        "RIVAL",
+        "YOU"
+      ]
+    ],
+    "modes": [
+      "direct",
+      "direct"
+    ]
+  }
+}

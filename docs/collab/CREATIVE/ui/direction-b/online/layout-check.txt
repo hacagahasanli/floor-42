@@ -1,0 +1,37 @@
+fonts loaded (Titan One, Baloo 2 800, 700): true, true, true
+
+[o01-menu] clean
+
+[o02-code] clean
+
+[o03-connecting] clean
+
+[o04-search-home] clean
+
+[o05-search-next] clean
+
+[o06-search-bot] clean
+
+[o07-found-rival] clean
+
+[o08-found-bot] clean
+
+[o09-invite] clean
+
+[o10-error-server] clean
+
+[o11-error-room] clean
+
+[o12-hud-net] clean
+
+[o13-net-sheet] clean
+
+[o14-rival-dropped] clean
+
+[o15-rival-left] clean
+
+[o16-link-expired] clean
+
+[o17-result-bot] clean
+
+[o18-result-offer] clean

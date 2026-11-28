@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
@@ -23,11 +22,17 @@ import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useSettings } from '~/components/menu/useSettings';
 import { LiftLoading } from '~/components/Elevator';
 import { VsRun, vsTags } from '~/components/VsDoors';
+import { NetPill, PauseAskChip, ShakyChip } from '~/components/online/NetHud';
+import { NET_COPY } from '~/components/online/onlineCopy';
+import { OnlineOverlay } from '~/components/online/OnlineOverlay';
+
+import type { OverlayUi } from '~/components/online/OnlineOverlay';
 import { useRoundTelemetry } from '~/components/useTelemetry';
 import { KnockoutBand, useKeyStrip } from '~/components/FightStamps';
 import { Stamp } from '~/components/Stamp';
 import { INPUT_AT_MS, ResultScreen } from '~/components/fieldday/screens/ResultScreen';
 import { Support } from '~/components/SupportLink';
+import { titleCase } from '~/components/fieldday/resultModel';
 import { ARENA_COPY, resolveArena } from '~/game/arenaChoice';
 import { botLevelFor, readFinishedMatch, saveFinishedMatch } from '~/game/firstMatch';
 import { isTouchDevice } from '~/game/input';
@@ -40,7 +45,7 @@ import { navigate, PORTAL } from '~/lib/portal';
 import { getPlatform } from '~/platform';
 
 import type { Copy } from '~/game/copy';
-import type { NetStatus, OnlineSession } from '~/game/net/client';
+import type { OnlineSession } from '~/game/net/client';
 import type { StartMessage } from '~/game/net/protocol';
 import type { Room } from '@colyseus/sdk';
 import type { HudState } from '~/game/render/game';
@@ -63,42 +68,18 @@ const END_TEXT = (hud: HudState, demo: boolean, copy: Copy) => {
   };
 };
 
-const NET_LABEL: Record<NetStatus['mode'], { label: string; title: string; dot: string }> = {
-  direct: { label: 'Direct', title: 'Playing over a direct line to your rival', dot: 'bg-green' },
-  turn: {
-    label: 'Relay (TURN)',
-    title: 'A direct line through a TURN relay: your networks block a straight one',
-    dot: 'bg-green',
-  },
-  relay: {
-    label: 'Server relay',
-    title: 'The direct line went quiet: messages go through the game server for now',
-    dot: 'bg-gold',
-  },
-  server: {
-    label: 'Server',
-    title: 'The game server runs this match (no direct line between you)',
-    dot: 'bg-gold',
-  },
-};
 
-/** How this match is connected and the round trip, always visible in an online match. */
-const NetBadge = ({ net }: { net: NetStatus }) => {
-  const m = NET_LABEL[net.mode];
-  const host = net.authority === 'here' ? ' · you host' : '';
-  return (
-    <span
-      title={`${m.title}. Round trip ${net.ping} ms.${net.authority === 'here' ? ' Your browser runs the game.' : ''}`}
-      className="panel-cut flex items-center gap-1.5 bg-cream/10 px-2 py-1 font-semibold uppercase tracking-wider text-cream/85"
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${net.unstable ? 'animate-pulse bg-orange' : m.dot}`}
-        aria-hidden
-      />
-      {m.label} · {net.ping} ms{host}
-    </span>
-  );
-};
+export interface LocalBotHooks {
+  /** A human is free for the next match. */
+  offer: boolean;
+  /** False while a round is on (countdown / fight), true on the result screen. */
+  onAvailable: (available: boolean) => void;
+  onAccept: () => void;
+  /** Menu / change fighter: back to the online lobby (leaves the standby room). */
+  onExit: () => void;
+  /** The offered player got snapped up: SEARCH AGAIN starts a new quick match. */
+  onSearch: () => void;
+}
 
 export const ArenaGame = ({
   player,
@@ -107,6 +88,10 @@ export const ArenaGame = ({
   level: requestedLevel = 'normal',
   arena: requestedArena,
   online,
+  onlineBot,
+  localBot,
+  onlineKind,
+  onOnlineExit,
   twoPlayer,
 }: {
   player: CharacterId;
@@ -116,16 +101,28 @@ export const ArenaGame = ({
   /** The `arena=` of the URL: which arena an offline match is played in (else the remembered pick, else the default). */
   arena?: string | null;
   online?: { session: OnlineSession; room: Room };
+  /** Online vs the server's bot (no human was free): its level, shown as BOT · LEVEL like offline. */
+  onlineBot?: BotLevel;
+  /**
+   * Online quick match found no human in time, so this is a match against the bot in the browser (zero network) while the
+   * player stays on standby in the quick-match room. A human who becomes free is offered on the result screen, for the
+   * next match only. `onlineBot` gives the level.
+   */
+  localBot?: LocalBotHooks;
+  /** Online: a quick-match room (no link to share) or an invite room. */
+  onlineKind?: 'quick' | 'invite';
+  /** Online: leave the match back to the lobby, optionally straight into a new quick match or a new invite room. */
+  onOnlineExit?: (next?: 'quick' | 'invite') => void;
   /** Local 2-player on one keyboard: `player` is P1's fighter, `opponent` P2's; first to `kosToWin`. */
   twoPlayer?: { kosToWin: number };
 }) => {
   const tp = !!twoPlayer && !online && !demo;
   // The very first match against the bot is always easy; after that the menu's choice stands.
   const [firstMatch] = useState(() => !readFinishedMatch());
-  const level = demo || online || tp ? requestedLevel : botLevelFor(requestedLevel, !firstMatch);
+  const level = onlineBot ?? (demo || online || tp ? requestedLevel : botLevelFor(requestedLevel, !firstMatch));
   const kosToWin = twoPlayer?.kosToWin;
   // Fixed for the life of the page: changing the pick in settings mid-match must not rebuild the arena.
-  const [arenaId] = useState(() => resolveArena({ online: !!online, query: requestedArena, saved: getSettings().get().arena }));
+  const [arenaId] = useState(() => resolveArena({ online: !!online, onlineArena: online?.session.state.arena, query: requestedArena, saved: getSettings().get().arena }));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<ReturnType<typeof startArena> | null>(null);
   const keyTrapRef = useRef<HTMLInputElement>(null);
@@ -185,10 +182,42 @@ export const ArenaGame = ({
   }, [touch, demo, tp, settings.touch.leftHanded, settings.touch.size]);
   const hudRef = useRef<HudState | null>(null);
   hudRef.current = hud;
-  const [tag1, tag2] = vsTags(tp ? '2p' : '1p', level);
+  // R-032 4: online against a person the doors say YOU vs RIVAL; against any bot (offline, browser bot, server bot) BOT · LEVEL.
+  const [tag1, tag2] = vsTags(tp ? '2p' : online && !onlineBot ? 'online' : '1p', level);
   const vsInfo = { p1: player, p2: opponent, tag1, tag2, kosToWin: kosToWin ?? RULES.kosToWin, arena: arenaId };
   // Anonymous usage events: a no-op unless the site started counting (never on a portal build).
-  useRoundTelemetry(hud, { demo, online: !!online, twoPlayer: tp });
+  const isLocalBot = !!localBot && !online;
+  const localBotRef = useRef(localBot);
+  localBotRef.current = localBot;
+  useRoundTelemetry(hud, { demo, online: !!online, twoPlayer: tp, onlineBot: isLocalBot });
+  // Standby: busy while a round is on, available on the result screen (the server offers a free human only then).
+  const roundOn = hud ? hud.phase !== 'over' : true;
+  useEffect(() => {
+    if (isLocalBot) localBotRef.current?.onAvailable(!roundOn);
+  }, [roundOn, isLocalBot]);
+  const [acceptedOffer, setAcceptedOffer] = useState(false);
+  // Dev review only (never in production): `?overlay=dropped|left|left-last|left-quick|asking|asking-last|expired|gl` shows one online overlay.
+  const [devOverlay, setDevOverlay] = useState<OverlayUi | null>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    const v = new URLSearchParams(window.location.search).get('overlay');
+    const map: Record<string, OverlayUi> = {
+      dropped: { k: 'dropped', seconds: 8 },
+      left: { k: 'left', waitLeft: 52, last: false, copied: false, link: true, quickRoom: false },
+      'left-last': { k: 'left', waitLeft: 52, last: true, copied: false, link: true, quickRoom: false },
+      'left-quick': { k: 'left', waitLeft: 52, last: false, copied: false, link: false, quickRoom: true },
+      asking: { k: 'asking', last: false },
+      'asking-last': { k: 'asking', last: true },
+      expired: { k: 'expired' },
+      gl: { k: 'gl' },
+    };
+    if (v && map[v]) setDevOverlay(map[v]);
+  }, []);
+  /** After FIGHT THEM, the offer went away: the player was snapped up (or left). */
+  const offerWithdrawn = acceptedOffer && !localBot?.offer;
+  useEffect(() => {
+    if (roundOn) setAcceptedOffer(false);
+  }, [roundOn]);
 
   // The lift ride up: real loading steps, shown until the first frame of the office is on screen.
   const [loaded, setLoaded] = useState({ fonts: false, office: false });
@@ -221,6 +250,7 @@ export const ArenaGame = ({
           onHud: setHud,
           onContextLost: () => setGlLost(true),
           online: online?.session,
+          traits: !isLocalBot,
           ...(tp && kosToWin
             ? {
                 twoPlayer: { kosToWin },
@@ -317,8 +347,14 @@ export const ArenaGame = ({
     setTimeout(() => setLinkCopied(false), 1500);
   };
 
-  const exit = () => {
+  const leaveOnline = (next?: 'quick' | 'invite') => {
     if (online) void online.room.leave();
+    if (onOnlineExit) onOnlineExit(next);
+    else navigate('/play');
+  };
+  const exit = () => {
+    if (isLocalBot) return localBotRef.current?.onExit();
+    if (online) return leaveOnline();
     // Leaving a 2-player session for the main menu ends tonight's tally.
     if (tp) resetTally(sessionStore());
     navigate(online ? '/play' : '/');
@@ -341,6 +377,7 @@ export const ArenaGame = ({
   /** Result: CHANGE FIGHTER. 2-player: the split select; vs bot: the fighter select; online: the next fighter in the roster for the next round. */
   const onChangeFighter = () => {
     if (tp) return changeFighters();
+    if (isLocalBot) return localBotRef.current?.onExit();
     if (!online) return navigate('/characters');
     const cur = hudRef.current?.nextCharacter ?? hudRef.current?.character;
     const i = ROSTER.findIndex((r) => r.id === cur);
@@ -431,8 +468,8 @@ export const ArenaGame = ({
 
   const rematch = () => {
     if (vsRematch) return;
-    // Only online waits for the rival; against the bot the rematch starts at once.
-    if (online) setRematchAsked(true);
+    // Only online waits for the rival; against the bot (offline, or the server's bot) the rematch starts at once.
+    if (online && !onlineBot) setRematchAsked(true);
     counted.current = false;
     if (!online && !demo) {
       setVsRematch(true);
@@ -575,6 +612,7 @@ export const ArenaGame = ({
             demo={demo}
             tp={tp}
             online={!!online}
+            onlineBot={!!onlineBot}
             touch={touch}
             level={level}
             colours={colours}
@@ -617,48 +655,11 @@ export const ArenaGame = ({
             line={copy.knockoutLine.replace('{NAME}', hud.fighters[hud.winner === 1 ? 1 : 0].name.toUpperCase())}
             delayMs={hud.finale ? 300 : 0}
           />
-          {hud.net?.unstable && !hud.paused && hud.phase !== 'over' && (
-            <div
-              className="pointer-events-none absolute inset-x-0 top-16 z-[7] flex justify-center"
-              role="status"
-              aria-live="polite"
-            >
-              <div className="panel-cut flex items-center gap-2 bg-orange/95 px-4 py-1.5 text-ink-deep shadow-lg">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-ink-deep" aria-hidden />
-                <span className="text-xs font-bold uppercase tracking-widest">
-                  Connection unstable
-                </span>
-                <span className="text-[10px] font-semibold opacity-80">
-                  {hud.net.mode === 'server' ? 'server' : hud.net.mode} · {hud.net.ping} ms
-                </span>
-              </div>
-            </div>
-          )}
+          {/* R-032 5.2 / 5.3 (F-080): the shaky chip (no ms, no mode) and the rival's pause request. */}
+          {hud.net && <ShakyChip unstable={hud.net.unstable} hidden={hud.paused || hud.phase === 'over' || rivalLeft || dropLeft !== null} />}
+          {online && !hud.paused && hud.pauseRequests[1] && !hud.pauseRequests[0] && <PauseAskChip touch={touch} />}
 
-          {online && !hud.paused && hud.pauseRequests[1] && !hud.pauseRequests[0] && (
-            <div className="pointer-events-none absolute inset-x-0 top-28 flex justify-center">
-              <div className="panel-cut bg-gold/95 px-6 py-2 text-center text-ink-deep">
-                <div className="font-display text-xl">Your rival wants to pause</div>
-                <div className="text-xs font-bold uppercase tracking-widest">
-                  {touch ? 'Tap pause to agree' : 'Press Esc to agree'}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {dropLeft !== null && !rivalLeft && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-ink-deep/70">
-              <div className="panel-cut flex w-[26rem] flex-col items-center gap-3 bg-ink p-7 text-center">
-                <div className="font-display text-2xl text-gold">
-                  Your rival&apos;s connection dropped
-                </div>
-                <p className="text-sm text-cream/70">
-                  The game is on hold while they reconnect:{' '}
-                  <span className="font-display text-cream">{Math.max(0, dropLeft)}s</span>
-                </p>
-              </div>
-            </div>
-          )}
+          {dropLeft !== null && !rivalLeft && <OnlineOverlay ui={{ k: 'dropped', seconds: Math.max(0, dropLeft) }} h={{}} portal={PORTAL} />}
 
           {(hud.paused || menuOpen) && hud.phase !== 'over' && !rivalLeft && dropLeft === null && !settingsOpen && !howOpen && (
             <PauseScreen
@@ -680,92 +681,27 @@ export const ArenaGame = ({
             <SettingsPanel onClose={() => setSettingsOpen(false)} />
           )}
 
-          {glLost && (
-            <div className="absolute inset-0 z-30 flex items-center justify-center bg-ink-deep/90">
-              <div className="panel-cut flex w-[26rem] max-w-[90vw] flex-col items-center gap-4 bg-ink p-7 text-center">
-                <div className="font-display text-2xl text-gold">Graphics paused</div>
-                <p className="text-sm text-cream/70">Your browser stopped drawing the game. Reload to jump back in. This match will start over.</p>
-                <button
-                  type="button"
-                  autoFocus
-                  onClick={() => window.location.reload()}
-                  className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
-                >
-                  Reload
-                </button>
-              </div>
-            </div>
-          )}
+          {glLost && <OnlineOverlay ui={{ k: 'gl' }} h={{ onReload: () => window.location.reload() }} portal={PORTAL} />}
 
+          {devOverlay && <OnlineOverlay portal={PORTAL} ui={devOverlay} h={{ onLeave: () => setDevOverlay(null), onKeep: () => setDevOverlay(null) }} />}
           {rivalLeft && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-ink-deep/80">
-              <div className="panel-cut flex w-[26rem] flex-col items-center gap-4 bg-ink p-7 text-center">
-                {expired ? (
-                  <>
-                    <div className="font-display text-3xl text-orange">Link expired</div>
-                    <p className="text-sm text-cream/70">
-                      Your rival didn&apos;t come back. Start a new match and send a new link.
-                    </p>
-                    <Link
-                      href="/play"
-                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
-                    >
-                      New match
-                    </Link>
-                  </>
-                ) : asking ? (
-                  <>
-                    <div className="font-display text-2xl text-gold">Still not back</div>
-                    <p className="text-sm text-cream/70">
-                      {waitRound + 1 >= MAX_WAITS
-                        ? `Wait one more minute? This is the last one: after it the link expires.`
-                        : `Keep waiting another minute for your rival?`}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={keepWaiting}
-                      className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
-                    >
-                      {waitRound + 1 >= MAX_WAITS ? 'Wait (last time)' : 'Keep waiting'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={exit}
-                      className="panel-cut w-full bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider"
-                    >
-                      Leave
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="font-display text-3xl text-gold">Your rival left</div>
-                    <p className="text-sm text-cream/70">
-                      Waiting for them to come back{PORTAL ? '' : ' with the same link'}
-                      {waitRound >= MAX_WAITS ? ' (last wait)' : ''}:{' '}
-                      <span className="font-display text-cream">
-                        {Math.floor(waitLeft / 60)}:{String(waitLeft % 60).padStart(2, '0')}
-                      </span>
-                    </p>
-                    {!PORTAL && (
-                      <button
-                        type="button"
-                        onClick={copyInvite}
-                        className="panel-cut w-full bg-gold px-5 py-2 font-bold uppercase tracking-wider text-ink-deep"
-                      >
-                        {linkCopied ? 'Link copied' : 'Copy the link again'}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={exit}
-                      className="panel-cut w-full bg-cream/10 px-5 py-2 font-bold uppercase tracking-wider"
-                    >
-                      Leave
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
+            <OnlineOverlay
+              portal={PORTAL}
+              ui={
+                expired
+                  ? { k: 'expired' }
+                  : asking
+                    ? { k: 'asking', last: waitRound + 1 >= MAX_WAITS }
+                    : { k: 'left', waitLeft, last: waitRound >= MAX_WAITS, copied: linkCopied, link: onlineKind !== 'quick', quickRoom: onlineKind === 'quick' }
+              }
+              h={{
+                onCopy: () => void copyInvite(),
+                onLeave: exit,
+                onKeep: keepWaiting,
+                onNewRoom: () => leaveOnline('invite'),
+                onQuick: () => leaveOnline('quick'),
+              }}
+            />
           )}
 
           {end && !rivalLeft && (
@@ -778,7 +714,7 @@ export const ArenaGame = ({
                 tally={tp ? tally : undefined}
                 rematchAsked={rematchAsked}
                 rematchTicks={tp ? [rematchTicks[0], rematchTicks[1]] : undefined}
-                canNextArena={!online}
+                canNextArena={!online && !isLocalBot}
                 nextCharacter={online ? (hud.nextCharacter ?? hud.character) : undefined}
                 onRematch={rematch}
                 onNextArena={nextArena}
@@ -786,6 +722,19 @@ export const ArenaGame = ({
                 onMenu={exit}
                 keyTrapRef={keyTrapRef}
                 onChoiceUp={onChoiceUp}
+                botTag={!tp && !demo && (!online || onlineBot) ? `BOT · ${level.toUpperCase()}` : undefined}
+                offer={
+                  isLocalBot && (localBot?.offer || acceptedOffer)
+                    ? {
+                        state: acceptedOffer ? (localBot?.offer === false && offerWithdrawn ? 'gone' : 'connecting') : 'shown',
+                        onFight: () => {
+                          setAcceptedOffer(true);
+                          localBotRef.current?.onAccept();
+                        },
+                        onSearch: () => localBotRef.current?.onSearch(),
+                      }
+                    : undefined
+                }
               />
               <Support variant="results" className="absolute left-6 top-24 z-[31]" />
             </>
@@ -830,7 +779,8 @@ export const ArenaGame = ({
               Shake: {hud.motion ? 'on' : 'off'}
             </button>
             )}
-            {hud.net && <NetBadge net={hud.net} />}
+            {/* R-032 5.1: bars + ms; never in a browser-bot match (no network: hud.net is absent there). */}
+            {hud.net && <NetPill net={hud.net} />}
             {hud.muted && <span className="rounded-full bg-[rgba(38,18,74,.86)] px-3 py-1">muted (M)</span>}
             {settings.showFps && <span className="rounded-full bg-[rgba(38,18,74,.86)] px-3 py-1 tabular-nums">{hud.fps} fps</span>}
           </div>
@@ -847,22 +797,25 @@ export const ArenaGame = ({
         />
       )}
       {touch && portrait && <RotateHint />}
-      {lift && (online || demo) && (
+      {/* R-032 4 / D7: only the demo keeps the lift; online loads behind the VS doors like offline (no office tips). */}
+      {lift && demo && (
         <LiftLoading
           steps={[
             { label: 'The game', done: true },
             { label: 'Fonts', done: loaded.fonts },
-            { label: 'The office', done: loaded.office },
+            // Online rooms play OFFSITE now: name the arena actually loading (existing arena copy), not always the office.
+            { label: arenaId === 'office' ? 'The office' : titleCase(ARENA_COPY[arenaId].name), done: loaded.office },
             { label: 'First frame', done: hud !== null },
           ]}
           onDone={endLift}
           traits={!online}
         />
       )}
-      {lift && !online && !demo && (
+      {lift && !demo && (
         <VsRun
           mode="load"
           info={vsInfo}
+          syncNote={online ? NET_COPY.syncing : undefined}
           progress={(1 + Number(loaded.fonts) + Number(loaded.office) + Number(hud !== null)) / 4}
           onDone={endLift}
         />
