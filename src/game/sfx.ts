@@ -36,15 +36,30 @@ const SHOT_BUDGET = 6;
  * press of a match froze the fight for an instant.
  */
 let shared: AudioContext | null = null;
+/** Set by the first click, tap or key press (capture phase, so it is true before any handler of that same gesture runs). */
+let gestured = false;
+
+/**
+ * May the page open its audio context yet? Only after a user gesture: Chrome logs "The AudioContext was not allowed to start"
+ * for a context made earlier (release QA 2026-11-28 item 10), and the context would sit suspended anyway. `hasBeenActive` is
+ * the browser's own answer where it exists; our flag covers browsers without `navigator.userActivation`.
+ */
+export const mayOpenAudio = (ownGesture: boolean, userActivation?: { hasBeenActive: boolean } | null): boolean =>
+  ownGesture || !!userActivation?.hasBeenActive;
+
 const openContext = () => {
   if (shared) return shared;
+  if (!mayOpenAudio(gestured, typeof navigator === 'undefined' ? null : navigator.userActivation)) return null;
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AC) return null;
   shared = new AC();
   return shared;
 };
 if (typeof window !== 'undefined') {
-  const early = () => {
+  const early = (e: Event) => {
+    // A key event the page made up itself (the gamepad menu driver) is not a gesture to the browser.
+    if (!e.isTrusted) return;
+    gestured = true;
     openContext();
     window.removeEventListener('pointerdown', early, true);
     window.removeEventListener('keydown', early, true);

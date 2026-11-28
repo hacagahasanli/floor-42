@@ -79,6 +79,13 @@ const useBubble = (lines: readonly string[], traitLine: string) => {
   return { line: state.trait ? latest.current : lines[state.n % lines.length], on: state.on };
 };
 
+/**
+ * Enter with nothing focused starts PLAY, as PLAY's ENTER keycap promises. Focus is on BODY after a click on the backdrop or a
+ * click into the portal's iframe (release QA 2026-11-28 item 8); a focused button keeps its own Enter.
+ */
+export const enterStartsPlay = (code: string, focused: Element | null, body: Element | null): boolean =>
+  (code === 'Enter' || code === 'NumpadEnter') && (!focused || focused === body);
+
 export const HomeScreen = (p: HomeProps) => {
   const root = useRef<HTMLDivElement>(null);
   const active = p.active ?? true;
@@ -98,6 +105,20 @@ export const HomeScreen = (p: HomeProps) => {
     const el = root.current?.querySelector<HTMLElement>(`[data-entry="${p.lastFocus ?? 'play'}"]`);
     el?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.repeat || !enterStartsPlay(e.code, document.activeElement, document.body)) return;
+      const play = root.current?.querySelector<HTMLButtonElement>('[data-entry="play"]');
+      if (!play) return;
+      e.preventDefault();
+      // A click, not onPlay: the button's own sound and its disabled state (busy) apply.
+      play.click();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [active]);
 
   return (
