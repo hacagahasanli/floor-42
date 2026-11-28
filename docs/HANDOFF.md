@@ -17,7 +17,11 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 - Trait feedback (callouts, VFX, sounds, HUD badge, max-HP bars), star icons removed (IP).
 - Name PEWFIELD + logo A chosen (CD R-023); IP check done (ORMO/BRIX redesigned to avoid Wario / Roller Brawl likeness).
 
-## In flight when the chat was cleared
+## Colour balance status (2026-11-28 midday)
+- R-027 spec done; F-056 implemented on portal-build `11b6915`, F-057 (bigger wordmark) on rename-pewfield `3a4a61d` (rename rebased on F-056). Captures `docs/collab/shots/colour-balance/impl/`.
+- R-028 open with the CD: Settings has 4 sun marks, cooling HUD chip text contrast 2.42:1, wordmark/ribbon tuck, deviation review. Apply its F-items next, then the full test pass.
+
+## In flight when the chat was cleared (historical)
 - **R-027 colour balance** (Creative Director; first run died with the chat clear after the BEFORE captures, restarted 2026-11-28 10:03): Reis said it is nice but "too many colours, balance lost, messy". Spec will land in `docs/collab/CREATIVE/ui/direction-b/colour-balance.md`; then one engineer applies it (both `portal-build` and the rename branch, or merge rename first). Also judge: PEWFIELD wordmark on home is too small (~272x118).
 
 ## Waiting on Reis
