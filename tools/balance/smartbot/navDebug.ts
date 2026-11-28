@@ -2,7 +2,7 @@
 import { arenaOf, baseOf, CHARACTERS, isSolid } from '../../../src/game/sim/constants';
 import { createGame, step } from '../../../src/game/sim/step';
 import { EMPTY_INPUT } from '../../../src/game/sim/types';
-import { graphFor, navInput, newNavMem, surfaceOf } from './nav';
+import { graphFor, navInput, newNavMem, surfaceOf } from '../../../src/game/sim/botNav';
 
 import type { ArenaId } from '../../../src/game/sim/constants';
 import type { CharacterId, InputState } from '../../../src/game/sim/types';

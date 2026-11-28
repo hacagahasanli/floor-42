@@ -354,9 +354,11 @@ describe('closed boxes stop bullets; rails still go through', () => {
 
 describe('bots path over the new layout', () => {
   /** A bot (fighter 0) chasing a far, harmless rival: does it get past `pastX` (in the direction of travel)? */
-  const chase = (from: { x: number; y: number }, rival: { x: number; y: number }, pastX: number, seed: number) => {
+  const chase = (from: { x: number; y: number }, rival: { x: number; y: number }, pastX: number, seed: number, gun?: 'shotgun') => {
     const s = fighting(['hotfix', 'legacy']);
     const bot = createBot(0, seed, 'normal');
+    // The smart bot keeps its gun's range instead of running at the rival: a shotgun makes it close in.
+    if (gun) s.fighters[0].weapon = newWeapon(gun);
     place(s, 0, from.x, from.y);
     place(s, 1, rival.x, rival.y);
     const dir = rival.x > from.x ? 1 : -1;
@@ -382,7 +384,7 @@ describe('bots path over the new layout', () => {
       it(`gets over the metal box on the ${sign < 0 ? 'left' : 'right'} balcony (seed ${seed})`, () => {
         const b = ARENA.platforms.find((p) => p.style === 'metal' && Math.sign(p.x0) === sign)!;
         const pastX = sign < 0 ? b.x1 : b.x0;
-        expect(chase({ x: sign * 15.5, y: 9.4 }, { x: -sign * 15, y: 9.4 }, pastX, seed).ok).toBe(true);
+        expect(chase({ x: sign * 15.5, y: 9.4 }, { x: -sign * 15, y: 9.4 }, pastX, seed, 'shotgun').ok).toBe(true);
       });
     }
   }

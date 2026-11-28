@@ -1,0 +1,8 @@
+traits on; replays with a different result: 0/48; bot calls that changed the state: 0
+bot call cost over 141109 calls: mean 19 us, p99 164 us, p99.9 700 us, max 21862 us
+per call, cheapest of 3 identical replays (the work itself): mean 15 us, p99 147 us, p99.9 162 us, max 307 us, calls > 1 ms: 0
+single run, calls > 1 ms: 92 (6 of them overlapped a GC pause); max without a GC pause: 21862 us (145 calls overlapped one of 1356 GC pauses)
+traits off; replays with a different result: 0/48; bot calls that changed the state: 0
+bot call cost over 135912 calls: mean 18 us, p99 157 us, p99.9 530 us, max 27336 us
+per call, cheapest of 3 identical replays (the work itself): mean 14 us, p99 146 us, p99.9 159 us, max 203 us, calls > 1 ms: 0
+single run, calls > 1 ms: 78 (8 of them overlapped a GC pause); max without a GC pause: 27336 us (135 calls overlapped one of 1279 GC pauses)

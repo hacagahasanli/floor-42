@@ -52,7 +52,8 @@ const pct = (x: number) => (100 * x).toFixed(1);
 const pairJobs = (a: string, b: string, seeds: number, arena: ArenaId, seed0: number): VsJob[] => {
   const jobs: VsJob[] = [];
   for (let k = 0; k < seeds; k++) {
-    const ca = ROSTER[k % 4];
+    // --achar <id>: side A always plays this fighter (e.g. the easy bot drawn as each fighter, traits-balance.md §10).
+    const ca = (arg('achar') as CharacterId | undefined) ?? ROSTER[k % 4];
     const cb = ROSTER[Math.floor(k / 4) % 4];
     const seed = seed0 + k * 7919;
     jobs.push({ specs: [a, b], chars: [ca, cb], seed, arena, aSlot: 0 });

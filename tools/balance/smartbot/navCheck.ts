@@ -2,7 +2,7 @@
 import { arenaOf, baseOf, CHARACTERS, isSolid } from '../../../src/game/sim/constants';
 import { createGame, step } from '../../../src/game/sim/step';
 import { EMPTY_INPUT } from '../../../src/game/sim/types';
-import { graphFor, navInput, newNavMem, surfaceOf } from './nav';
+import { graphFor, navInput, newNavMem, surfaceOf } from '../../../src/game/sim/botNav';
 
 import type { ArenaId } from '../../../src/game/sim/constants';
 import type { CharacterId, InputState } from '../../../src/game/sim/types';
@@ -46,6 +46,6 @@ for (const arena of ['offsite', 'office'] as ArenaId[]) {
       }
       if (done) { ok++; tsum += t / 60; } else fails.push(`${from.id}(${from.y})->${to.id}(${to.y})`);
     }
-    console.log(`${arena} ${ch}: ${ok}/${tot} reached, mean ${(tsum / Math.max(ok, 1)).toFixed(2)} s. fails: ${fails.slice(0, 12).join(' ')}${fails.length > 12 ? ' ...' : ''}`);
+    console.log(`${arena} ${ch}: ${ok}/${tot} reached, mean ${(tsum / Math.max(ok, 1)).toFixed(2)} s. fails: ${(process.env.ALL ? fails : fails.slice(0, 12)).join(' ')}${!process.env.ALL && fails.length > 12 ? ' ...' : ''}`);
   }
 }

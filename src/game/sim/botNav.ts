@@ -1,13 +1,13 @@
 /**
- * Platform navigation for bots (prototype for docs/systems/smart-bot.md, NOT shipped code).
+ * Platform navigation for the bot (docs/systems/smart-bot.md section 3.5).
  * Surfaces = the floor + every platform top. Edges are analytic (jump physics from constants.ts), built once per
  * arena x character and cached. navInput() turns "stand on surface S near x" into left/right/up/down for this tick.
  * Pure: reads the state, never writes it, no RNG.
  */
-import { arenaOf, baseOf, CHARACTERS, isSolid, PHYS } from '../../../src/game/sim/constants';
+import { arenaOf, baseOf, CHARACTERS, isSolid, PHYS } from './constants';
 
-import type { ArenaData, Platform } from '../../../src/game/sim/constants';
-import type { CharacterId, Fighter, GameState } from '../../../src/game/sim/types';
+import type { ArenaData, Platform } from './constants';
+import type { CharacterId, Fighter, GameState } from './types';
 
 export interface Surface {
   id: number;
@@ -63,7 +63,8 @@ export const reachUp = (ch: CharacterId) => {
   const c = CHARACTERS[ch];
   const h1 = (c.jump * c.jump) / (2 * PHYS.gravity);
   const hAir = ((c.jump * 0.88) ** 2) / (2 * PHYS.gravity);
-  return h1 + hAir * c.airJumps - 0.45;
+  // Every extra air jump loses a little height to timing: keep a wider margin for the double air jumper.
+  return h1 + hAir * c.airJumps - 0.45 - 0.15 * (c.airJumps - 1);
 };
 
 const gapBetween = (a: { x0: number; x1: number }, b: { x0: number; x1: number }) => Math.max(0, b.x0 - a.x1, a.x0 - b.x1);
@@ -132,9 +133,18 @@ export const surfaceUnder = (g: NavGraph, x: number, y: number): Surface => {
   return best;
 };
 
-/** Dijkstra over ~25 nodes: the next surface on the cheapest route, or null when already there / unreachable. */
-export const nextHop = (g: NavGraph, from: number, to: number): number | null => {
-  if (from === to) return null;
+/**
+ * Dijkstra over ~25 nodes: the surfaces on the cheapest route after `from` (ending with `to`), [] when already there,
+ * null when unreachable. The graph never changes, so routes are cached per graph.
+ */
+const routeCache = new WeakMap<NavGraph, Map<number, number[] | null>>();
+export const routeOf = (g: NavGraph, from: number, to: number): number[] | null => {
+  if (from === to) return [];
+  let memo = routeCache.get(g);
+  if (!memo) routeCache.set(g, (memo = new Map()));
+  const key = from * 1024 + to;
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit;
   const n = g.surfaces.length;
   const dist = new Array(n).fill(Infinity);
   const prev = new Array(n).fill(-1);
@@ -151,11 +161,17 @@ export const nextHop = (g: NavGraph, from: number, to: number): number | null =>
         prev[e.to] = u;
       }
   }
-  if (dist[to] === Infinity) return null;
-  let v = to;
-  while (prev[v] !== from && prev[v] >= 0) v = prev[v];
-  return v;
+  let route: number[] | null = null;
+  if (dist[to] < Infinity) {
+    route = [];
+    for (let v = to; v !== from && v >= 0; v = prev[v]) route.unshift(v);
+  }
+  memo.set(key, route);
+  return route;
 };
+
+/** The next surface on the cheapest route, or null when already there / unreachable. */
+export const nextHop = (g: NavGraph, from: number, to: number): number | null => routeOf(g, from, to)?.[0] ?? null;
 
 export interface NavOut {
   move: -1 | 0 | 1;
@@ -169,8 +185,12 @@ export interface NavOut {
 export interface NavMem {
   hop: number | null;
   takeoffX: number;
+  /** Where the feet were heading on the last grounded tick (an unplanned hop, over a box, keeps going there). */
+  walkX: number;
+  /** The current hop is a walk off an edge (not a jump or a drop through a plank). */
+  walkOff: boolean;
 }
-export const newNavMem = (): NavMem => ({ hop: null, takeoffX: 0 });
+export const newNavMem = (): NavMem => ({ hop: null, takeoffX: 0, walkX: 0, walkOff: false });
 
 const clampIn = (s: Surface, x: number, inset: number) => Math.min(Math.max(x, s.x0 + inset), s.x1 - inset);
 
@@ -181,30 +201,64 @@ export const navInput = (state: GameState, me: Fighter, g: NavGraph, goal: Surfa
   const A = arenaOf(state);
   const halfW = CHARACTERS[me.character].width / 2;
   const toward = (x: number): -1 | 0 | 1 => (Math.abs(x - me.x) < 0.12 ? 0 : x < me.x ? -1 : 1);
+  // In the air: steer with braking, so a hop onto a narrow box top stops over it instead of sailing past
+  // (air control is 50 m/s^2 against 8 of air drag, so letting go of the key barely slows the fighter).
+  const steer = (x: number): -1 | 0 | 1 => {
+    const dx = x - me.x;
+    const want = Math.sign(dx) * Math.min(CHARACTERS[me.character].speed, Math.sqrt(2 * 40 * Math.abs(dx)));
+    return want > me.vx + 0.6 ? 1 : want < me.vx - 0.6 ? -1 : 0;
+  };
   if (!me.onGround) {
     // Airborne on a hop: air-jump near the apex while still below the target top, then drift onto it.
     const t = mem.hop !== null ? g.surfaces[mem.hop] : goal;
     // Dropping to a lower surface: keep drifting the way we walked off, then onto the target's span.
     if (t.y < me.y - 0.3 && me.vy <= 0) {
-      const dx = t.floor ? goalX : Math.min(Math.max(goalX, t.x0 + halfW), t.x1 - halfW);
-      return { move: toward(me.y > t.y + 1.5 && !t.floor ? mem.takeoffX : dx), up: false, down: false, arrived: false };
+      const dx = t.floor ? goalX : clampIn(t, goalX, halfW + 0.4);
+      const overIt = me.x > t.x0 && me.x < t.x1;
+      if (mem.walkOff && !overIt && me.y > t.y + 1.5 && !t.floor) return { move: toward(mem.takeoffX), up: false, down: false, arrived: false };
+      return { move: steer(dx), up: false, down: false, arrived: false };
     }
     const below = me.y < t.y + 0.15;
-    const up = below && me.vy < 2.5 && me.airJumps > 0 && t.y > me.y + 0.3;
+    // An unplanned hop only spends air jumps on a goal straight above.
+    const c = CHARACTERS[me.character];
+    const reachLeft = Math.max(0, me.vy) ** 2 / (2 * PHYS.gravity) + (me.airJumps * (c.jump * 0.88) ** 2) / (2 * PHYS.gravity);
+    const planned = mem.hop !== null || (me.x > t.x0 && me.x < t.x1 && t.y < me.y + reachLeft - 0.3);
+    const up = below && planned && me.vy < 1 && me.airJumps > 0 && t.y > me.y + 0.3;
     // Under a one-way plank going up: hold under it; once the feet clear its top, slide onto it.
     let aimX = clampIn(t, me.x, halfW + 0.2);
     // Rising: hold the take-off column (it is clear of box undersides and desk tops) until the feet pass the top.
     if (below && mem.hop !== null) aimX = mem.takeoffX;
+    // An unplanned hop (over a box in the way, a jink): keep heading where the feet were going.
+    else if (below && !planned) aimX = mem.walkX;
     if (t.solid && !below) aimX = clampIn(t, (t.x0 + t.x1) / 2, halfW + 0.2);
-    return { move: toward(aimX), up, down: false, arrived: false };
+    return { move: !below && t.solid ? steer(aimX) : toward(aimX), up, down: false, arrived: false };
   }
   const here = surfaceOf(g, me);
+  return navGround(A, me, g, here, goal, goalX, mem, halfW, (x) => {
+    mem.walkX = x;
+    return toward(x);
+  });
+};
+
+const navGround = (
+  A: ArenaData,
+  me: Fighter,
+  g: NavGraph,
+  here: Surface,
+  goal: Surface,
+  goalX: number,
+  mem: NavMem,
+  halfW: number,
+  toward: (x: number) => -1 | 0 | 1,
+): NavOut => {
   mem.hop = null;
+  mem.walkOff = false;
   if (here.id === goal.id) {
     const gx = clampIn(here, goalX, halfW + 0.2);
     return { move: toward(gx), up: false, down: false, arrived: Math.abs(gx - me.x) < 0.6 };
   }
-  const hopId = nextHop(g, here.id, goal.id);
+  const route = routeOf(g, here.id, goal.id);
+  const hopId = route?.[0] ?? null;
   if (hopId === null) return { move: toward(goalX), up: false, down: false, arrived: false };
   const t = g.surfaces[hopId];
   if (t.y > here.y + 0.3 || Math.abs(t.y - here.y) <= 0.3) {
@@ -246,9 +300,12 @@ export const navInput = (state: GameState, me: Fighter, g: NavGraph, goal: Surfa
     return { move: toward(tx), up: false, down: false, arrived: false };
   }
   // Walk off the side that faces the goal (the floor spans everything: its centre says nothing).
-  const aimAt = t.floor ? goalX : Math.min(Math.max(goalX, t.x0), t.x1);
+  // Dropping to the floor on the way somewhere else: walk off the side that faces the surface after it.
+  const after = t.floor && route && route.length > 1 ? g.surfaces[route[1]] : null;
+  const aimAt = after ? (after.x0 + after.x1) / 2 : t.floor ? goalX : Math.min(Math.max(goalX, t.x0), t.x1);
   const edgeX = Math.abs(aimAt - here.x0) < Math.abs(aimAt - here.x1) ? here.x0 - halfW - 0.5 : here.x1 + halfW + 0.5;
   mem.hop = hopId;
   mem.takeoffX = edgeX;
+  mem.walkOff = true;
   return { move: toward(Math.min(Math.max(edgeX, A.left + 0.5), A.right - 0.5)), up: false, down: false, arrived: false };
 };

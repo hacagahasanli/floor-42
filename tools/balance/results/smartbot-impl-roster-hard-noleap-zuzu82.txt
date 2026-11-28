@@ -1,0 +1,8 @@
+== roster smart:hard on offsite: row win % vs column (n=800 per cell) ==
+             BRIX         ORMO         ZUZU         TAVO         
+BRIX         -            48.6±3.5     46.6±3.5     51.6±3.5     
+ORMO         51.4±3.5     -            51.9±3.5     54.6±3.4     
+ZUZU         53.4±3.5     48.1±3.5     -            53.5±3.5     
+TAVO         48.4±3.5     45.4±3.4     46.5±3.5     -            
+  vs field: BRIX 49.0  ORMO 52.6  ZUZU 51.7  TAVO 46.8   max |win-50| 4.6 pts
+111.3 s

@@ -1,0 +1,31 @@
+0.1s tick 7 countdown | me -4.5,0.0 pistol hp 100 kos 0 | bot 7.5,4.0 pistol hp 85 kos 0 | 
+1.1s tick 73 countdown | me -4.5,0.0 pistol hp 100 kos 0 | bot 7.5,4.0 pistol hp 85 kos 0 | 
+2.1s tick 130 fight | me -3.6,2.1 pistol hp 100 kos 0 | bot 6.8,4.3 pistol hp 85 kos 0 | 
+3.0s tick 185 fight | me 0.1,0.0 smg hp 100 kos 0 | bot 12.4,8.1 pistol hp 85 kos 0 | 
+4.1s tick 251 fight | me -0.3,5.2 smg hp 100 kos 0 | bot 6.6,7.2 pistol hp 85 kos 0 | 
+5.0s tick 305 fight | me 3.0,1.9 smg hp 55 kos 0 | bot 10.5,7.2 pistol hp 63 kos 0 | 
+6.1s tick 371 fight | me -2.3,0.0 smg hp 9 kos 1 | bot 2.7,1.7 pistol hp 0 kos 0 DOWN | 
+7.0s tick 426 fight | me -2.3,0.0 smg hp 9 kos 1 | bot 2.7,1.7 pistol hp 0 kos 0 DOWN | 
+8.0s tick 486 fight | me -2.3,0.0 smg hp 9 kos 1 | bot 2.7,1.7 pistol hp 0 kos 0 DOWN | 
+9.1s tick 552 fight | me -2.3,0.0 smg hp 9 kos 1 | bot 10.8,1.2 pistol hp 85 kos 0 | 
+10.1s tick 611 fight | me 0.3,0.0 smg hp 0 kos 1 | bot 6.0,5.3 pistol hp 85 kos 1 | 
+11.1s tick 668 fight | me 0.3,0.0 smg hp 0 kos 1 | bot 8.3,4.0 smg hp 85 kos 1 | 
+12.1s tick 732 fight | me 0.3,0.0 smg hp 0 kos 1 | bot 4.0,5.0 smg hp 85 kos 1 | 
+13.1s tick 789 fight | me -7.6,0.0 pistol hp 100 kos 1 | bot 12.5,7.3 smg hp 85 kos 1 | 
+14.1s tick 852 fight | me -4.6,1.2 smg hp 100 kos 1 | bot 6.3,4.0 smg hp 85 kos 1 | 
+15.2s tick 913 fight | me -0.8,4.9 smg hp 11 kos 1 | bot 5.7,3.7 smg hp 59 kos 1 | 
+16.1s tick 970 fight | me -0.8,4.7 smg hp 0 kos 1 | bot 10.6,1.2 smg hp 59 kos 2 | 
+17.0s tick 1024 fight | me -0.8,4.7 smg hp 0 kos 1 | bot 10.5,8.2 smg hp 59 kos 2 | 
+18.1s tick 1092 fight | me -0.8,4.7 smg hp 0 kos 1 | bot 12.0,7.8 railgun hp 59 kos 2 | 
+19.1s tick 1148 fight | me 1.1,0.0 pistol hp 100 kos 1 | bot 8.7,10.5 railgun hp 33 kos 2 | 
+20.0s tick 1204 fight | me -0.1,2.9 shotgun hp 100 kos 1 | bot 10.1,4.3 railgun hp 33 kos 2 | 
+21.1s tick 1271 fight | me 0.6,3.6 shotgun hp 0 kos 1 | bot 9.7,5.7 railgun hp 33 kos 3 | 
+22.1s tick 1330 fight | me 0.6,3.6 shotgun hp 0 kos 1 | bot 11.4,8.3 railgun hp 33 kos 3 | 
+23.1s tick 1389 fight | me 0.6,3.6 shotgun hp 0 kos 1 | bot 11.2,10.4 railgun hp 33 kos 3 | 
+24.0s tick 1445 fight | me -4.9,4.0 shotgun hp 100 kos 1 | bot 12.6,11.4 railgun hp 47 kos 3 | 
+25.2s tick 1513 fight | me 0.7,7.5 shotgun hp 100 kos 1 | bot 8.5,9.1 railgun hp 26 kos 3 | 
+26.1s tick 1569 fight | me -0.2,7.1 shotgun hp 0 kos 1 | bot 5.9,4.0 railgun hp 26 kos 4 | 
+27.0s tick 1625 fight | me -0.2,7.1 shotgun hp 0 kos 1 | bot 3.9,6.7 railgun hp 26 kos 4 | 
+28.1s tick 1691 fight | me -0.2,7.1 shotgun hp 0 kos 1 | bot 3.9,8.3 railgun hp 26 kos 4 | 
+29.0s tick 1745 fight | me -9.0,0.0 uzi hp 100 kos 1 | bot 2.1,8.4 railgun hp 37 kos 4 | 
+30.1s tick 1812 fight | me -7.8,4.6 uzi hp 100 kos 1 | bot 5.8,6.6 railgun hp 54 kos 4 | 

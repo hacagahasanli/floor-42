@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { ARENA, arenaOf, ARENAS, DEFAULT_ARENA, isArenaId, menuSpotX, OFFSITE } from './constants';
-import { createBot } from './bot';
+// The golden hashes below were recorded with the pre-smart-bot brain: replay them with that brain (botOld.ts).
+import { createOldBot as createBot } from './botOld';
 import { createGame, step } from './step';
 
 import type { CharacterId } from './types';

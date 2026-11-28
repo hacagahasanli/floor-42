@@ -14,7 +14,7 @@
 import { arenaOf, baseOf, CHARACTERS, GUNS, isSolid } from '../../../src/game/sim/constants';
 import { visibleAim } from '../../../src/game/sim/step';
 import { EMPTY_INPUT } from '../../../src/game/sim/types';
-import { graphFor, navInput, newNavMem, surfaceUnder } from './nav';
+import { graphFor, navInput, newNavMem, surfaceUnder } from '../../../src/game/sim/botNav';
 
 import type { GameState, GunKind, InputState } from '../../../src/game/sim/types';
 

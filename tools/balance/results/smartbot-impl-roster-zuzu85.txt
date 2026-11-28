@@ -1,0 +1,45 @@
+== roster smart:easy on offsite: row win % vs column (n=800 per cell) ==
+             BRIX         ORMO         ZUZU         TAVO         
+BRIX         -            52.8±3.5     54.4±3.5     47.5±3.5     
+ORMO         47.3±3.5     -            46.9±3.5     43.3±3.4     
+ZUZU         45.6±3.5     53.1±3.5     -            45.6±3.5     
+TAVO         52.5±3.5     56.8±3.4     54.4±3.5     -            
+  vs field: BRIX 51.5  ORMO 45.8  ZUZU 48.1  TAVO 54.5   max |win-50| 6.8 pts
+== roster smart:easy on office: row win % vs column (n=800 per cell) ==
+             BRIX         ORMO         ZUZU         TAVO         
+BRIX         -            55.4±3.4     51.2±3.5     49.1±3.5     
+ORMO         44.6±3.4     -            45.3±3.4     42.9±3.4     
+ZUZU         48.8±3.5     54.8±3.4     -            45.3±3.4     
+TAVO         50.9±3.5     57.1±3.4     54.8±3.4     -            
+  vs field: BRIX 51.9  ORMO 44.3  ZUZU 49.6  TAVO 54.3   max |win-50| 7.1 pts
+142.0 s
+== roster smart:normal on offsite: row win % vs column (n=800 per cell) ==
+             BRIX         ORMO         ZUZU         TAVO         
+BRIX         -            50.4±3.5     46.8±3.5     50.2±3.5     
+ORMO         49.6±3.5     -            46.4±3.5     51.6±3.5     
+ZUZU         53.3±3.5     53.6±3.5     -            57.4±3.4     
+TAVO         49.8±3.5     48.4±3.5     42.6±3.4     -            
+  vs field: BRIX 49.1  ORMO 49.2  ZUZU 54.8  TAVO 46.9   max |win-50| 7.4 pts
+== roster smart:normal on office: row win % vs column (n=800 per cell) ==
+             BRIX         ORMO         ZUZU         TAVO         
+BRIX         -            48.4±3.5     44.3±3.4     52.3±3.5     
+ORMO         51.6±3.5     -            47.0±3.5     55.9±3.4     
+ZUZU         55.8±3.4     53.0±3.5     -            56.1±3.4     
+TAVO         47.8±3.5     44.1±3.4     43.9±3.4     -            
+  vs field: BRIX 48.3  ORMO 51.5  ZUZU 55.0  TAVO 45.3   max |win-50| 6.1 pts
+194.7 s
+== roster smart:hard on offsite: row win % vs column (n=800 per cell) ==
+             BRIX         ORMO         ZUZU         TAVO         
+BRIX         -            48.6±3.5     44.0±3.4     51.7±3.5     
+ORMO         51.4±3.5     -            51.2±3.5     54.6±3.4     
+ZUZU         56.0±3.4     48.8±3.5     -            56.5±3.4     
+TAVO         48.3±3.5     45.4±3.4     43.5±3.4     -            
+  vs field: BRIX 48.1  ORMO 52.4  ZUZU 53.8  TAVO 45.7   max |win-50| 6.5 pts
+== roster smart:hard on office: row win % vs column (n=800 per cell) ==
+             BRIX         ORMO         ZUZU         TAVO         
+BRIX         -            48.1±3.5     50.2±3.5     53.1±3.5     
+ORMO         51.9±3.5     -            47.0±3.5     52.1±3.5     
+ZUZU         49.8±3.5     53.0±3.5     -            55.0±3.4     
+TAVO         46.9±3.5     47.9±3.5     45.0±3.4     -            
+  vs field: BRIX 50.5  ORMO 50.3  ZUZU 52.6  TAVO 46.6   max |win-50| 5.0 pts
+269.4 s
