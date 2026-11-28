@@ -25,7 +25,7 @@ describe('the office is unchanged', () => {
     expect(menuSpotX(OFFSITE)).toBe(5.2);
   });
 
-  it('plays six seeded bot-vs-bot minutes exactly as before (golden hashes recorded at a9d0683)', () => {
+  it('plays six seeded bot-vs-bot minutes exactly as recorded (golden hashes: a9d0683, re-recorded for the line-of-fire rule)', () => {
     expect(runAll()).toEqual(GOLDEN);
   });
 
@@ -98,13 +98,16 @@ const runOne = (seed: number, arena?: 'office' | 'offsite') => {
 };
 const runAll = () => SEEDS.map((seed) => runOne(seed));
 
-// Recorded by running this same script on a worktree of a9d0683 (before the arena id existed).
+// Recorded by running this same script on a worktree of a9d0683 (before the arena id existed), then re-recorded on
+// aim-fix (2026-11-28) for the owner's line-of-fire rule: no round, rail or blast crosses a walkway or a box, and a
+// round no longer starts past the floor a fighter crouches on. The a9d0683 values still held at a469582 (checked);
+// the script here, run on a469582, reproduces them, so only the rule change moved them.
 const GOLDEN = [
-  '1 c38a1810ddf0cb21 2639 false',
-  '7 739077df70c93cbc 2656 false',
-  '42 840ea0f260fca91c 2632 false',
-  '99 1878593d040a96fc 2629 false',
-  '12345 927412b7c1e629bf 2627 false',
-  '777777 5563c11b4bb3e8c9 2601 false',
+  '1 e62d39e35a4e1500 2663 false',
+  '7 63da78e94cc50eee 2617 false',
+  '42 e2d541ab43a4e751 2688 false',
+  '99 90d8d5f7adac93fe 2679 false',
+  '12345 8e05e5992ac458a0 2692 false',
+  '777777 e1d9979eaedfa3fa 2588 false',
 ];
 const OFFICE_DATA_HASH = '880350b04eaab173';

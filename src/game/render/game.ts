@@ -11,7 +11,7 @@ import { getSettings, primaryLabel } from '../settings';
 import type { Settings } from '../settings';
 import { createBot, EASY_GUN_GRACE_TICKS } from '../sim/bot';
 import { arenaOf, ASSIST, CHARACTERS, DEFAULT_ARENA, DT, GUNS, OFFLINE_COUNTDOWN_SECONDS, PUSH, PHYS, RULES } from '../sim/constants';
-import { chooseCharacter, createGame, muzzle, pickupCandidate, step, visibleAim } from '../sim/step';
+import { autoAimPoint, chooseCharacter, createGame, furnitureCut, muzzle, pickupCandidate, step } from '../sim/step';
 import { maxHp, regenDelay } from '../sim/traits';
 
 import { createMatchTally } from '../awards';
@@ -726,12 +726,13 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   let started = false;
 
   const fireBeam = (x: number, y: number, angle: number) => {
-    // Out to the room's edge.
+    // Out to the room's edge, or to the walkway or box that stops it (the sim stops the rail there too).
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
     const tx = dx > 0 ? (A.right - x) / dx : dx < 0 ? (A.left - x) / dx : Infinity;
     const ty = dy > 0 ? (A.ceiling - y) / dy : dy < 0 ? (A.floor - y) / dy : Infinity;
-    const len = Math.min(tx, ty);
+    const edge = Math.min(tx, ty);
+    const len = edge * Math.min(1, furnitureCut(A, x, y, dx * edge, dy * edge, 'rail'));
     const b = beams[nextBeam++ % beams.length];
     b.life = 0.3;
     b.mesh.visible = true;
@@ -955,13 +956,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   };
 
   // Auto-aim: your gun follows the opponent's chest (lower when they crouch), or the part of them that shows
-  // over a desk. Fully hidden behind cover, it does not lock on and points ahead. You only move and shoot.
-  const autoAim = (id: number) => {
-    const me = state.fighters[id];
-    const foe = state.fighters.find((f) => f.id !== id)!;
-    const spot = foe.respawn > 0 ? null : visibleAim(state, id);
-    return spot ?? { x: me.x + me.facing * 5, y: me.y + 1.1 };
-  };
+  // over a desk. Fully hidden behind cover it still points at them; the shots stop on the cover. You only move and shoot.
+  const autoAim = (id: number) => autoAimPoint(state, id);
 
   const tmpV = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();

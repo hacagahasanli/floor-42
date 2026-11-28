@@ -283,7 +283,7 @@ describe('no standing in air', () => {
   });
 });
 
-describe('closed boxes stop bullets; rails still go through', () => {
+describe('closed boxes stop bullets, rails included', () => {
   /** A bullet fired flat at mid-height of the box, from 3 m to its `side`, towards it. */
   const flatShot = (s: GameState, b: Platform, side: -1 | 1, kind: 'bullet' | 'rail' = 'bullet') => {
     const y = (baseOf(b) + b.y) / 2;
@@ -308,14 +308,17 @@ describe('closed boxes stop bullets; rails still go through', () => {
         expect((impact as { x: number }).x).toBeCloseTo(side < 0 ? b.x0 : b.x1, 1);
       });
     }
-    it(`a rail goes straight through the ${label(b)}`, () => {
+    // Was 'a rail goes straight through'. Owner's rule 2026-11-28: no gun shoots through a box either.
+    it(`a rail stops at the ${label(b)} too`, () => {
       const s = fighting();
       park(s, 0);
       park(s, 1);
       flatShot(s, b, -1, 'rail');
       const events = run(s, 3);
-      expect(events.some((e) => e.type === 'impact')).toBe(false);
-      expect(s.projectiles.some((p) => p.x > b.x1)).toBe(true);
+      const impact = events.find((e) => e.type === 'impact');
+      expect(impact).toBeTruthy();
+      expect((impact as { x: number }).x).toBeCloseTo(b.x0, 1);
+      expect(s.projectiles.some((p) => p.x > b.x1)).toBe(false);
     });
   }
 

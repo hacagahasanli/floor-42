@@ -261,7 +261,7 @@ Notes:
 |---|---|
 | `bullet` | Pistol and SMG. Removed on first hit or when blocked. |
 | `pellet` | Shotgun. Same as bullet, shorter life, drawn shorter. |
-| `rail` | Pierces fighters (remembers who it hit in `hit[]`) and **ignores furniture**. Stopped only by the room walls. |
+| `rail` | Pierces fighters (remembers who it hit in `hit[]`). Since 2026-11-28 it stops at furniture like every other round (owner's line-of-fire rule: no shot crosses a walkway or a box). |
 | `grenade` | The rocket. Explodes on a fighter, on a wall/floor/ceiling, on furniture, or when `life` runs out. |
 | `bomb` | The thrown bomb. Same explosion triggers as a rocket, but it arcs under gravity (see Bombs). |
 
@@ -294,6 +294,8 @@ falloff  = 0.5 + 0.5 * (1 - d / radius)          // 1.0 at the centre, 0.5 at th
 damage   = rocket.damage * falloff * (0.45 if you shot it yourself)
 knockback scales with 0.4 + 0.6 * falloff
 ```
+
+Since 2026-11-28 a blast also needs a clear line (`clearShot`) from its centre to the fighter's nearest point, middle or head: no splash through a walkway, a boardwalk or a box. A rocket stopped by furniture bursts 0.01 short of it, on its own side. A round also starts short of any surface between the shooter's chest and the muzzle (`roundStart`), so a fighter crouched on a walkway cannot shoot through it.
 
 Measuring to the nearest body point rather than the centre means a rocket that hits someone's shoulder counts as a direct hit (d = 0, full damage), instead of being treated as 0.5 units away from their middle. Self-damage is 45% (`GRENADE.selfDamage`), so you can survive your own rocket jump.
 

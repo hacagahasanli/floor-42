@@ -123,9 +123,10 @@ Collision data (`ARENA.platforms`, all in the shared sim, so offline, bots and o
 | Metal boxes | ±11..±12 | balconies (9.4) | 10.4 | closed box: leg cover on the top floor |
 
 - Solid boxes have a `base`; their underside stops a jump from below (`step.ts`), and every solid box stops shots
-  through its sides (`furnitureCut` in `step.ts`). Rails go through walkways and the closed boxes (`CLOSED_STYLES`),
-  not through desks, the table or the counter. Auto-aim and the bot aim only at what shows over cover
-  (`visibleAim`); a rival fully hidden is not locked onto, and the bot holds fire and closes in.
+  through its sides (`furnitureCut` in `step.ts`). Since 2026-11-28 (owner's line-of-fire rule) no round crosses a
+  walkway or a box, the rail included, and no blast splashes through one; a shot hits only along a clear line
+  (`src/game/sim/lineOfFire.test.ts`). Auto-aim locks onto what shows over cover (`visibleAim`); with the rival fully
+  hidden it still points at them and the shots stop on the cover (`autoAimPoint`). The bot holds fire and closes in.
 - The bot hops onto a box on its own level and jumps again near the top of the hop if one jump is not enough.
 - Fixes: the floating gun spot is on the floor (x 4); the decorative rack at the back is gone (the real one is on the
   walkway); the fridge stands against the back wall; the table's legs and the desks' end panels sit where their
