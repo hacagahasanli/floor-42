@@ -62,3 +62,21 @@ export const GUN_ICON: Record<GunKind, WeaponName | null> = {
 /** The weapon chip text: name and the rounds in the gun (infinite reserve shows the infinity sign, no count). */
 export const ammoText = (mag: number, reserve: number): { main: string; reserve: string | null } =>
   reserve === Infinity ? { main: '∞', reserve: null } : { main: String(mag), reserve: `+${reserve}` };
+
+export interface Rect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * Do two boxes touch, or come closer than `gap` px? The corner pills (AIM / SHAKE, plain CSS px) against the bottom key strip
+ * and hint (design px, scaled by the stage): at small windows (CrazyGames QA 821x462 and 800x450) the scaled strip reaches the
+ * corner and the pills covered its last key (release QA 2026-11-28 item 1). Empty boxes (display none) never clash.
+ */
+export const boxesClash = (a: Rect, b: Rect, gap = 0): boolean => {
+  const empty = (r: Rect) => r.right <= r.left || r.bottom <= r.top;
+  if (empty(a) || empty(b)) return false;
+  return a.left < b.right + gap && b.left < a.right + gap && a.top < b.bottom + gap && b.top < a.bottom + gap;
+};

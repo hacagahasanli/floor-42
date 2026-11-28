@@ -12,6 +12,7 @@ import {
 } from '~/components/TouchControls';
 import { readAim } from '~/components/AimChoice';
 import { FdHud } from '~/components/fieldday/hud/FdHud';
+import { useClearOf } from '~/components/fieldday/hud/useClearOf';
 import { HowToScreen } from '~/components/fieldday/screens/HowToScreen';
 import { PauseScreen } from '~/components/fieldday/screens/PauseScreen';
 import { SettingsPanel } from '~/components/menu/SettingsPanel';
@@ -25,7 +26,7 @@ import { VsRun, vsTags } from '~/components/VsDoors';
 import { useRoundTelemetry } from '~/components/useTelemetry';
 import { KnockoutBand, useKeyStrip } from '~/components/FightStamps';
 import { Stamp } from '~/components/Stamp';
-import { ResultScreen } from '~/components/fieldday/screens/ResultScreen';
+import { INPUT_AT_MS, ResultScreen } from '~/components/fieldday/screens/ResultScreen';
 import { Support } from '~/components/SupportLink';
 import { ARENA_COPY, resolveArena } from '~/game/arenaChoice';
 import { botLevelFor, readFinishedMatch, saveFinishedMatch } from '~/game/firstMatch';
@@ -462,8 +463,6 @@ export const ArenaGame = ({
     setTimeout(() => keyTrapRef.current?.focus({ preventScroll: true }), 0);
   }, []);
   const peek2P = useCallback(() => gameRef.current?.peek2P() ?? null, []);
-  // Results: rematch when both players press Shoot.
-  const rematchTicks = useBothPress(peek2P, tp && hud?.phase === 'over', () => rematch());
 
   // Keyboard-navigation extensions (Vimium and friends) swallow keys like D, J, K, L
   // unless a text field has focus. Keep an invisible one focused while the game runs.
@@ -530,6 +529,12 @@ export const ArenaGame = ({
     prevPhase.current = hud?.phase;
   }, [hud?.phase]);
   const end = hud?.phase === 'over' && !bandHold ? END_TEXT(hud, demo, copy) : null;
+  // The AIM / SHAKE pills step aside while the bottom key strip or hint would run into them (small windows, release QA item 1).
+  const cornerRef = useRef<HTMLDivElement>(null);
+  const cornerClash = useClearOf(cornerRef, '[data-testid="key-strip"]:not([aria-hidden="true"]), [data-testid="hud-hint"]');
+  // Results: rematch when both players press Shoot, counted only once the result screen is up and its input lock has passed
+  // (release QA 2026-11-28 item 3: Shoot mashed through the final KO went straight to the next match).
+  const rematchTicks = useBothPress(peek2P, tp && !!end && !rivalLeft, () => rematch(), INPUT_AT_MS);
 
   return (
     <main data-kick-root className="relative h-[100dvh] w-screen touch-none select-none overflow-hidden bg-ink-deep">
@@ -784,8 +789,11 @@ export const ArenaGame = ({
             />
           )}
           <div
+            ref={cornerRef}
+            data-testid="corner-pills"
+            data-hidden={cornerClash || undefined}
             className={`fd absolute z-[5] flex items-center gap-2 text-[12px] font-bold ${tp ? 'bottom-3 left-1/2 -translate-x-1/2' : touch ? 'right-3 top-20' : 'bottom-3 right-3'}`}
-            style={{ color: '#FFF3D6' }}
+            style={{ color: '#FFF3D6', visibility: cornerClash ? 'hidden' : undefined }}
           >
             {!demo && !touch && !tp && (
               <button

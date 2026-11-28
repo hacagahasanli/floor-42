@@ -41,7 +41,8 @@ import type { CharacterId } from '~/game/sim/types';
  */
 const BEATS = { cut: 0, impact: 0.3, land: 0.75, loser: 1.05, final: 1.4, choice: 2.2, idle: 2.6 } as const;
 const STEP_CLASS = ['r-cut', 'r-impact', 'r-land', 'r-loser', 'r-final', 'r-choice', 'r-idle'] as const;
-const INPUT_AT_MS = 600;
+/** Input opens 0.6 s after the cut (spec section 4 item 5). Exported for the 2-player Shoot+Shoot rematch (ArenaGame). */
+export const INPUT_AT_MS = 600;
 const LAST_STEP = STEP_CLASS.length - 1;
 
 export interface ResultScreenProps {

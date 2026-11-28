@@ -98,14 +98,36 @@ export const BigKeycap = ({
   </span>
 );
 
+export interface BothPressState {
+  /** Shoot as read last frame (null before the first read). */
+  prev: [boolean, boolean] | null;
+  got: [boolean, boolean];
+  fired: boolean;
+}
+export const BOTH_PRESS_START: BothPressState = { prev: null, got: [false, false], fired: false };
+
+/**
+ * One frame of the both-press rule, pure (unit-tested). A tick needs a fresh press (up then down) after the lock: presses
+ * during `locked` are read (so a Shoot held through the lock still needs letting go) but never count. `fire` in the result
+ * is true on the one frame both ticks are in.
+ */
+export const stepBothPress = (s: BothPressState, now: [boolean, boolean], locked: boolean): BothPressState & { fire: boolean } => {
+  if (!s.prev || locked) return { ...s, prev: now, fire: false };
+  const got: [boolean, boolean] = [s.got[0] || (now[0] && !s.prev[0]), s.got[1] || (now[1] && !s.prev[1])];
+  const fire = got[0] && got[1] && !s.fired;
+  return { prev: now, got, fired: s.fired || fire, fire };
+};
+
 /**
  * Both players press Shoot (keys or pads) -> `onBoth`, once. Returns the ready ticks. A Shoot already held when this
- * becomes active needs a fresh press.
+ * becomes active needs a fresh press, and nothing counts for `lockMs` after it becomes active (the result screen's input
+ * lock, spec section 4 item 5: so Shoot mashed through the final KO cannot skip the result).
  */
 export const useBothPress = (
   peek: () => { inputs: [{ fire: boolean }, { fire: boolean }] } | null,
   active: boolean,
   onBoth: () => void,
+  lockMs = 0,
 ): [boolean, boolean] => {
   const [ready, setReady] = useState<[boolean, boolean]>([false, false]);
   const cb = useRef(onBoth);
@@ -113,34 +135,21 @@ export const useBothPress = (
   useEffect(() => {
     setReady([false, false]);
     if (!active) return;
-    let prev: [boolean, boolean] | null = null;
-    let got: [boolean, boolean] = [false, false];
-    let fired = false;
+    let s = BOTH_PRESS_START;
+    const since = performance.now();
     let raf = 0;
     const tick = () => {
       const p = peek();
       if (p) {
-        const fire: [boolean, boolean] = [p.inputs[0].fire, p.inputs[1].fire];
-        if (prev) {
-          const next: [boolean, boolean] = [
-            got[0] || (fire[0] && !prev[0]),
-            got[1] || (fire[1] && !prev[1]),
-          ];
-          if (next[0] !== got[0] || next[1] !== got[1]) {
-            got = next;
-            setReady(next);
-          }
-          if (got[0] && got[1] && !fired) {
-            fired = true;
-            cb.current();
-          }
-        }
-        prev = fire;
+        const next = stepBothPress(s, [p.inputs[0].fire, p.inputs[1].fire], performance.now() - since < lockMs);
+        if (next.got[0] !== s.got[0] || next.got[1] !== s.got[1]) setReady(next.got);
+        s = next;
+        if (next.fire) cb.current();
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [active, peek]);
+  }, [active, peek, lockMs]);
   return ready;
 };
