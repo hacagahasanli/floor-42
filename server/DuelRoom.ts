@@ -21,6 +21,12 @@ export const SERVER_BOT_LEVEL: BotLevel = ((l) => (l === 'easy' || l === 'hard' 
 /** The arena online rooms play (ONLINE_ARENA env; default OFFSITE, the default arena offline too). */
 export const ONLINE_ARENA: ArenaId = isArenaId(process.env.ONLINE_ARENA) ? process.env.ONLINE_ARENA : 'offsite';
 
+/**
+ * How often the room's clock checks whether the next 60 Hz game tick is due (TICK_POLL_MS env). Each check costs CPU
+ * even when nothing is due, and a Fly shared-cpu-1x has a 6.25 % CPU baseline (docs.fly.io/machines/cpu-performance).
+ */
+const POLL_MS = Math.max(1, Math.min(16, Number(process.env.TICK_POLL_MS) || 4));
+
 interface Seat {
   /** Null for the server bot. */
   client: Client | null;
@@ -149,7 +155,7 @@ export class DuelRoom extends Room {
       this.tick();
       stats?.record(t0);
     });
-    this.setSimulationInterval(() => step.poll(), 2);
+    this.setSimulationInterval(() => step.poll(), POLL_MS);
   }
 
   onJoin(client: Client, options: JoinOptions) {
