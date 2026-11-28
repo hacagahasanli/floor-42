@@ -264,7 +264,8 @@ describe('guns', () => {
     expect(events.some((e) => e.type === 'ko')).toBe(true);
   });
 
-  it('the railgun goes through furniture', () => {
+  // Was 'the railgun goes through furniture'. Owner's rule 2026-11-28: no gun shoots through a walkway (lineOfFire.test.ts).
+  it('the railgun stops at a walkway like every other gun', () => {
     const s = fighting();
     const walk = ARENA.platforms.find((p) => p.style === 'walkway')!;
     const mid = (walk.x0 + walk.x1) / 2;
@@ -272,7 +273,8 @@ describe('guns', () => {
     place(s, 1, mid, 0);
     arm(s, 0, 'railgun');
     run(s, 6, { fire: true, aimX: mid, aimY: 0.5 });
-    expect(s.fighters[0].kos).toBe(1);
+    expect(s.fighters[0].kos).toBe(0);
+    expect(s.fighters[1].hp).toBe(CHARACTERS[s.fighters[1].character].hp);
   });
 
   it('a grenade explodes and throws people around, the shooter too', () => {

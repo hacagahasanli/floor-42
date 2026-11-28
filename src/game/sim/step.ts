@@ -9,7 +9,6 @@ import {
   GRENADE,
   GUNS,
   baseOf,
-  isClosed,
   isSolid,
   PHYS,
   PUSH,
@@ -339,6 +338,8 @@ const explode = (state: GameState, p: Projectile) => {
     const ny = Math.min(Math.max(p.y, o.y), o.y + h);
     const d = Math.hypot(nx - p.x, ny - p.y);
     if (d > blast.radius) continue;
+    // No blast through a walkway, a boardwalk or a box: some part of the body must be in clear line of it.
+    if (![ny, o.y + h / 2, o.y + h * 0.95].some((y) => clearShot(arenaOf(state), p.x, p.y, nx, y))) continue;
     // Near the blast is lethal; the edge still hurts.
     const falloff =
       p.kind === 'bomb' ? Math.max(0.15, 1 - d / blast.radius) : 0.5 + 0.5 * (1 - d / blast.radius);
@@ -363,9 +364,25 @@ export const lobAngle = (x: number, y: number, tx: number, ty: number, v: number
   return dir > 0 ? up : Math.PI - up;
 };
 
+/**
+ * Where a round fired by `f` starts: the muzzle, unless furniture lies between the grip and the muzzle (a fighter
+ * crouched on a walkway aiming down, or one jumping up through it): then just short of that surface, so the round
+ * stops on it next tick instead of starting on the far side.
+ */
+const roundStart = (state: GameState, f: Fighter, kind: Projectile['kind']) => {
+  const m = muzzle(f);
+  const g = gripOf(f);
+  const ddx = m.x - g.x;
+  const ddy = m.y - g.y;
+  const t = furnitureCut(arenaOf(state), g.x, g.y, ddx, ddy, kind);
+  if (t > 1) return m;
+  const back = Math.max(0, t - 0.01 / (Math.hypot(ddx, ddy) || 1));
+  return { x: g.x + ddx * back, y: g.y + ddy * back };
+};
+
 const fire = (state: GameState, f: Fighter, kind: GunKind = f.weapon.kind) => {
   const g = GUNS[kind];
-  const m = muzzle(f);
+  const m = roundStart(state, f, g.projectile);
   for (let i = 0; i < g.pellets; i++) {
     let angle = f.aim + (nextRandom(state) - 0.5) * 2 * g.spread;
     if (g.projectile === 'bomb')
@@ -771,17 +788,18 @@ const updateFighter = (state: GameState, f: Fighter, input: InputState) => {
  * floor (or its base) to its top: a shot into its side stops, however flat, so a fighter crouched behind a desk is
  * hidden and one standing behind it shows only what rises above the top. A shot skimming along a top at chest
  * height grazes past; only steep shots coming down onto a top stop there. Walkways and shelves stop any shot
- * crossing them, however flat, so whoever stands on one is covered from below. Rails pierce bodies, one-way
- * floors and the closed boxes, but stop at desks, the table and the counter.
+ * crossing them, however flat, either way, so whoever stands on one is covered from below and whoever is under
+ * one is covered from above. Every gun obeys this, the rail included (it still pierces bodies): a shot hits only
+ * along a clear line (owner's rule, 2026-11-28).
  */
-const furnitureCut = (A: ArenaData, px: number, py: number, ddx: number, ddy: number, kind: Projectile['kind']) => {
+export const furnitureCut = (A: ArenaData, px: number, py: number, ddx: number, ddy: number, kind: Projectile['kind']) => {
   let tEnd = Infinity;
   const cut = (t: number) => {
     if (t >= 0 && t < tEnd) tEnd = t;
   };
   const ex = px + ddx;
   const ey = py + ddy;
-  if (kind !== 'rail' && ddy !== 0) {
+  if (ddy !== 0) {
     const steep = Math.abs(ddy) > Math.abs(ddx) * 0.15;
     for (const pl of A.platforms) {
       if ((py - pl.y) * (ey - pl.y) > 0 || (!steep && isSolid(pl))) continue;
@@ -791,8 +809,7 @@ const furnitureCut = (A: ArenaData, px: number, py: number, ddx: number, ddy: nu
     }
   }
   for (const pl of A.platforms) {
-    // Rails still go through the closed boxes up on the walkways and balconies (they are leg cover against guns).
-    if (!isSolid(pl) || (kind === 'rail' && isClosed(pl))) continue;
+    if (!isSolid(pl)) continue;
     const base = baseOf(pl);
     if (px > pl.x0 && px < pl.x1 && py > base && py < pl.y) {
       cut(0);
@@ -813,12 +830,8 @@ const furnitureCut = (A: ArenaData, px: number, py: number, ddx: number, ddy: nu
 export const clearShot = (A: ArenaData, ax: number, ay: number, bx: number, by: number, kind: Projectile['kind'] = 'bullet') =>
   furnitureCut(A, ax, ay, bx - ax, by - ay, kind) > 1;
 
-/** Where a fighter's shots come from when aiming at (tx, ty): the muzzle for that aim. */
-const muzzleToward = (f: Fighter, tx: number, ty: number) => {
-  const cy = f.y + bodyHeight(f) * 0.62;
-  const a = Math.atan2(ty - cy, tx - f.x);
-  return { x: f.x + Math.cos(a) * 0.7, y: cy + Math.sin(a) * 0.7 };
-};
+/** Where a fighter holds the gun: the chest (lower while crouching). The muzzle is 0.7 m out from here. */
+const gripOf = (f: Fighter) => ({ x: f.x, y: f.y + bodyHeight(f) * 0.62 });
 
 /** Heights on the rival's body to try, as fractions of it: the chest first, then up to the head, then down. */
 const AIM_SPOTS = [0.55, 0.7, 0.85, 0.95, 0.4, 0.25, 0.1];
@@ -835,10 +848,24 @@ export const visibleAim = (state: GameState, id: number): { x: number; y: number
   for (const k of AIM_SPOTS) {
     const tx = foe.x;
     const ty = foe.y + h * k;
-    const m = muzzleToward(me, tx, ty);
-    if (clearShot(arenaOf(state), m.x, m.y, tx, ty, kind)) return { x: tx, y: ty };
+    // From the grip, not the muzzle: the 0.7 m barrel can reach past a walkway the shooter crouches on.
+    const g = gripOf(me);
+    if (clearShot(arenaOf(state), g.x, g.y, tx, ty, kind)) return { x: tx, y: ty };
   }
   return null;
+};
+
+/**
+ * Where auto-aim points fighter `id`'s gun (keyboard, touch and 2-player): the part of the rival that shows, or,
+ * with the rival fully hidden behind cover (above or below a walkway, behind a desk), still at the rival's chest:
+ * the gun follows them and the shots stop on the cover, instead of pointing straight ahead. Only while the rival
+ * is down (respawning) does it point ahead.
+ */
+export const autoAimPoint = (state: GameState, id: number): { x: number; y: number } => {
+  const me = state.fighters[id];
+  const foe = state.fighters.find((f) => f.id !== id)!;
+  if (foe.respawn > 0) return { x: me.x + me.facing * 5, y: me.y + 1.1 };
+  return visibleAim(state, id) ?? { x: foe.x, y: foe.y + bodyHeight(foe) * 0.55 };
 };
 
 const updateProjectiles = (state: GameState) => {
@@ -921,8 +948,9 @@ const updateProjectiles = (state: GameState) => {
       return false;
     }
     if (blocked) {
-      p.x = ex;
-      p.y = ey;
+      // Explosives burst on the side they came from (the splash must not start on the far side of a walkway).
+      p.x = isExplosive(p.kind) ? hx : ex;
+      p.y = isExplosive(p.kind) ? hy : ey;
       return done();
     }
     return true;
