@@ -45,7 +45,7 @@ describe('copy table', () => {
   });
 
   it('roles are the roster-v3 section 5 roles', () => {
-    expect(ROSTER.map((r) => COPY.fighters[r.id].role)).toEqual(['The Jammer', 'The Office Dad', 'The Tiny Coach', 'The Trailblazer']);
+    expect(ROSTER.map((r) => COPY.fighters[r.id].role)).toEqual(['The Jammer', 'The Grandad', 'The Tiny Coach', 'The Trailblazer']);
   });
 
   it('no developer jargon anywhere, in the table or in any fighter name or one-liner', () => {
@@ -75,10 +75,10 @@ describe('per-arena match copy (F-043)', () => {
     const o = copyFor('offsite');
     expect(o.introTitle).toEqual(['TEAM-BUILDING', 'NO MERCY']);
     expect(o.introLine).toBe('Two fighters. One canyon of guns. First to 5 KOs wins.');
-    expect(o.knockoutLine).toBe('{NAME} WINS THE OFFSITE');
-    expect(o.resultWin).toBe('You survived the offsite.');
-    expect(o.resultLoss).toBe('The offsite got you.');
-    expect(o.resultDemo).toBe('{NAME} survived the offsite.');
+    expect(o.knockoutLine).toBe('{NAME} TAKES THE FIELD');
+    expect(o.resultWin).toBe('The field is yours.');
+    expect(o.resultLoss).toBe('They took the field.');
+    expect(o.resultDemo).toBe('{NAME} took the field.');
     expect(copyFor('office')).toEqual(copyFor());
     expect(copyFor().knockoutLine).toBe('{NAME} TAKES THE FLOOR');
   });

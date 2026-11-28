@@ -20,7 +20,7 @@ const FIGHTERS: Record<CharacterId, FighterCopy> = {
   // Roles from roster-v3.md section 5. The pitch lines carry only what is true today (stats): each fighter's trait sentence
   // joins them when the systems designer's traits ship (roster.ts keeps the lines as `traitLine`).
   hotfix: { role: 'The Jammer', pitch: 'Tallest, highest jumps, on skates.' },
-  legacy: { role: 'The Office Dad', pitch: 'Slow, wide and impossible to shove.' },
+  legacy: { role: 'The Grandad', pitch: 'Slow, wide and impossible to shove.' },
   standup: { role: 'The Tiny Coach', pitch: 'Smallest, fastest, three jumps.' },
   intern: { role: 'The Trailblazer', pitch: 'Balanced in every stat.' },
 };
@@ -101,10 +101,10 @@ export const ARENA_MATCH_COPY: Partial<Record<ArenaId, Pick<Copy, 'introTitle' |
   offsite: {
     introTitle: ['TEAM-BUILDING', 'NO MERCY'],
     introLine: `Two fighters. One canyon of guns. First to ${K} KOs wins.`,
-    knockoutLine: '{NAME} WINS THE OFFSITE',
-    resultWin: 'You survived the offsite.',
-    resultLoss: 'The offsite got you.',
-    resultDemo: '{NAME} survived the offsite.',
+    knockoutLine: '{NAME} TAKES THE FIELD',
+    resultWin: 'The field is yours.',
+    resultLoss: 'They took the field.',
+    resultDemo: '{NAME} took the field.',
   },
 };
 

@@ -12,7 +12,7 @@ import type { ArenaId } from './sim/constants';
 
 /** The arena picker's words (arena-2.md section 7): the name on the chip and the card line under it. */
 export const ARENA_COPY: Record<ArenaId, { name: string; line: string }> = {
-  offsite: { name: 'OFFSITE', line: 'Mandatory team-building. 41°C in the shade.' },
+  offsite: { name: 'OFFSITE', line: 'High noon on the planks. 41°C in the shade.' },
   office: { name: 'FLOOR 42', line: 'The office, after hours.' },
 };
 

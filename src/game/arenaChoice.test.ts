@@ -47,7 +47,7 @@ describe('arena selection (R-016 section 8)', () => {
 
   it('the picker has a name and a card line for every arena, from the spec (section 7)', () => {
     expect(ARENA_IDS.every((id) => ARENA_COPY[id].name && ARENA_COPY[id].line)).toBe(true);
-    expect(ARENA_COPY.offsite).toEqual({ name: 'OFFSITE', line: 'Mandatory team-building. 41°C in the shade.' });
+    expect(ARENA_COPY.offsite).toEqual({ name: 'OFFSITE', line: 'High noon on the planks. 41°C in the shade.' });
     expect(ARENA_COPY.office).toEqual({ name: 'FLOOR 42', line: 'The office, after hours.' });
   });
 });

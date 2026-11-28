@@ -428,7 +428,7 @@ const buildBrix = (c: BuildCtx, s: Look): Fx => {
   );
 };
 
-// --- ORMO, The Office Dad (slot legacy): silver quiff, walrus moustache, argyle vest, brick tie. R-024: no belly, never bald.
+// --- ORMO, The Grandad (slot legacy): silver quiff, walrus moustache, argyle vest, brick tie. R-024: no belly, never bald.
 const buildOrmo = (c: BuildCtx, s: Look): Fx => {
   const { head, torso } = c;
   const SIL = 0xcfc9bf;
