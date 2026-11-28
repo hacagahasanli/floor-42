@@ -80,10 +80,12 @@ describe('DuelRoom on a real server', () => {
 
   it('two quick-match players meet each other (no bot), even when the second asked for one', async () => {
     const a = await new Client(url).joinOrCreate(ROOM_NAME, opts({ bot: 3000 }));
+    a.onMessage('snap', () => {});
     const aPeer = next(a, 'peer');
     const aStart = next<StartMessage>(a, 'start', 9000);
     const b = await new Client(url).joinOrCreate(ROOM_NAME, opts({ character: 'legacy', bot: 300 }));
     const bStart = next<StartMessage>(b, 'start', 9000);
+    b.onMessage('snap', () => {});
     expect(b.roomId).toBe(a.roomId);
     expect(await aPeer).toBeTruthy();
     // No direct line in this test: both say so, the server starts in server mode.
@@ -128,6 +130,7 @@ describe('DuelRoom on a real server', () => {
     const start = next<StartMessage>(host, 'start', 1200);
     host.onMessage('waiting', () => {});
     expect(await start).toBeNull();
+    host.onMessage('peer', () => {});
     const friend = await new Client(url).joinById(host.roomId, opts({ character: 'standup' }));
     const peer = next(friend, 'peer');
     expect(await peer).toBeTruthy();

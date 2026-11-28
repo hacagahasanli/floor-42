@@ -1,0 +1,245 @@
+{
+  "bot": {
+    "waitedMs": 8975,
+    "searching": "Back BRIX You · ready ▲ 42 Main menu Searching · 0:01 RIVAL Searching The Jammer BRIX Tallest, highest jumps, on skates. Speed 9.4 m/s Jump 2× jump Weight average Brix The Jammer 1 Ormo The Grandad 2 Zuzu The Tiny Coach ",
+    "tags": [
+      "YOU",
+      "BOT · NORMAL"
+    ],
+    "pings": [
+      {
+        "mode": "server",
+        "ping": 1,
+        "unstable": false,
+        "snapGapMs": 18,
+        "inputDelayMs": 17,
+        "delayMs": 65,
+        "underruns": 0
+      },
+      {
+        "mode": "server",
+        "ping": 1,
+        "unstable": false,
+        "snapGapMs": 1,
+        "inputDelayMs": 17,
+        "delayMs": 54,
+        "underruns": 0
+      },
+      {
+        "mode": "server",
+        "ping": 0,
+        "unstable": false,
+        "snapGapMs": 5,
+        "inputDelayMs": 17,
+        "delayMs": 48,
+        "underruns": 0
+      },
+      {
+        "mode": "server",
+        "ping": 0,
+        "unstable": false,
+        "snapGapMs": 1,
+        "inputDelayMs": 17,
+        "delayMs": 44,
+        "underruns": 0
+      },
+      {
+        "mode": "server",
+        "ping": 0,
+        "unstable": false,
+        "snapGapMs": 8,
+        "inputDelayMs": 17,
+        "delayMs": 42,
+        "underruns": 0
+      }
+    ],
+    "winner": 0,
+    "resultText": "B R I X W I N S ! 1 – 0 · flawless! ESC Menu TAB Hold for stats 1 PARTICIPATION SHARPSHOOTER You hit 80% of shots HEAVY HITTER You dealt 100 damage IRON SPONGE Ormo soaked up 112 damage REMATCH ENTER CHANGE FIGHTER BRIX WINS! 1 – 0 · flawless!. SHARPSHOOTER: You hit 80% of shots. HEAVY HITTER: You d",
+    "rematchMs": 3047,
+    "tagsAfterRematch": [
+      "YOU",
+      "BOT · NORMAL"
+    ],
+    "arena": "offsite"
+  },
+  "pair": {
+    "waitedMs": 2074,
+    "tags": [
+      [
+        "YOU",
+        "RIVAL",
+        "YOU"
+      ],
+      [
+        "YOU",
+        "RIVAL"
+      ]
+    ],
+    "pingsA": [
+      {
+        "mode": "direct",
+        "ping": 5,
+        "unstable": false,
+        "snapGapMs": 17,
+        "inputDelayMs": 0,
+        "delayMs": 0,
+        "underruns": 0
+      },
+      {
+        "mode": "direct",
+        "ping": 4,
+        "unstable": false,
+        "snapGapMs": 2,
+        "inputDelayMs": 0,
+        "delayMs": 0,
+        "underruns": 0
+      },
+      {
+        "mode": "direct",
+        "ping": 8,
+        "unstable": false,
+        "snapGapMs": 5,
+        "inputDelayMs": 0,
+        "delayMs": 0,
+        "underruns": 0
+      },
+      {
+        "mode": "direct",
+        "ping": 4,
+        "unstable": false,
+        "snapGapMs": 8,
+        "inputDelayMs": 0,
+        "delayMs": 0,
+        "underruns": 0
+      },
+      {
+        "mode": "direct",
+        "ping": 7,
+        "unstable": false,
+        "snapGapMs": 12,
+        "inputDelayMs": 0,
+        "delayMs": 0,
+        "underruns": 0
+      },
+      {
+        "mode": "direct",
+        "ping": 7,
+        "unstable": false,
+        "snapGapMs": 14,
+        "inputDelayMs": 0,
+        "delayMs": 0,
+        "underruns": 0
+      }
+    ],
+    "pingsB": [
+      {
+        "mode": "direct",
+        "ping": 4,
+        "unstable": false,
+        "snapGapMs": 7,
+        "inputDelayMs": 17,
+        "delayMs": 62,
+        "underruns": 2
+      },
+      {
+        "mode": "direct",
+        "ping": 3,
+        "unstable": false,
+        "snapGapMs": 11,
+        "inputDelayMs": 17,
+        "delayMs": 52,
+        "underruns": 2
+      },
+      {
+        "mode": "direct",
+        "ping": 3,
+        "unstable": false,
+        "snapGapMs": 13,
+        "inputDelayMs": 17,
+        "delayMs": 47,
+        "underruns": 2
+      },
+      {
+        "mode": "direct",
+        "ping": 9,
+        "unstable": false,
+        "snapGapMs": 16,
+        "inputDelayMs": 17,
+        "delayMs": 44,
+        "underruns": 2
+      },
+      {
+        "mode": "direct",
+        "ping": 4,
+        "unstable": false,
+        "snapGapMs": 13,
+        "inputDelayMs": 17,
+        "delayMs": 42,
+        "underruns": 2
+      },
+      {
+        "mode": "direct",
+        "ping": 8,
+        "unstable": false,
+        "snapGapMs": 4,
+        "inputDelayMs": 17,
+        "delayMs": 41,
+        "underruns": 2
+      }
+    ],
+    "winners": [
+      1,
+      1
+    ],
+    "phaseWhileOnlyAAsked": "over",
+    "rematchMs": 7672,
+    "tagsAfter": [
+      [
+        "YOU",
+        "RIVAL",
+        "YOU"
+      ],
+      [
+        "YOU",
+        "RIVAL"
+      ]
+    ],
+    "url": "http://localhost:3011/play"
+  },
+  "invite": {
+    "link": "http://localhost:3011/play?room=7ZWNifzcW",
+    "stillWaitingAfter10s": true,
+    "joinMs": 712,
+    "tags": [
+      [
+        "YOU",
+        "RIVAL",
+        "YOU"
+      ],
+      [
+        "YOU",
+        "RIVAL"
+      ]
+    ],
+    "net": [
+      {
+        "mode": "direct",
+        "ping": 0,
+        "unstable": true,
+        "snapGapMs": 0,
+        "inputDelayMs": 0,
+        "delayMs": 0,
+        "underruns": 0
+      },
+      {
+        "mode": "direct",
+        "ping": 0,
+        "unstable": true,
+        "snapGapMs": 1,
+        "inputDelayMs": 33,
+        "delayMs": 69,
+        "underruns": 1
+      }
+    ]
+  }
+}

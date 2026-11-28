@@ -1,3 +1,5 @@
+# netlab sim.mts, 60 s each, jitter 10 ms, OFFSITE. Columns: scenario | RTT ms | loss | input->own p50 | p95 | input->rival-screen p50 | p95 | own corrections >5 cm per min per client | >50 cm per min | interpolation delay ms | timeline underruns (60 s) | bytes/s per client
+
 fight | 20 | 0.01 | 17 | 133.5 | 117 | 283.5 | 265.3 | 5.79 | 40 | 34 | 55787
 fight | 50 | 0.01 | 33.5 | 117 | 133.5 | 350 | 201.1 | 7.89 | 40 | 38 | 57064
 fight | 100 | 0.01 | 0 | 117 | 167 | 467 | 144.2 | 13.16 | 40 | 34 | 58450
