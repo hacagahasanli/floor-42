@@ -212,4 +212,4 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
   1. **2P key card** ("BOTH PRESS SHOOT TO FIGHT", `src/components/twoPlayer/KeyCard.tsx`) is still the old dark developer theme — the only old-theme screen a 2P player meets. Spec it in Field Day + colour-balance rules (layout, tokens, copy). Screens: `shots/colour-balance/impl2/keycard-2p.png`, `shots/local-2p/`.
   2. **2P result lock**: the spec's 0.6 s input lock is in; players mashing Shoot still leave at ~0.86 s, before the awards appear (1.4 s). Decide the lock (e.g. until awards land) for 2P (and 1P if the same).
   3. **HUD AIM/SHAKE pills** now hide at 907x510 / 821x462 / 800x450 while the key strip or bomb hint would touch them (back after 2 KOs). Accept, or give a move/shrink layout.
-- Expected: exact values in `CREATIVE/ui/direction-b/` + F-items. Priority: P0 (upload today). Status: open
+- Expected: exact values in `CREATIVE/ui/direction-b/` + F-items. Priority: P0 (upload today). Status: done (CD 2026-11-28): `CREATIVE/ui/direction-b/r030-2p-polish.md`, mockup `keycard/keycard.png`, F-070..F-072.

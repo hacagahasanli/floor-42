@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Key card 2P (R-030)</title>
+<style>
+@font-face { font-family: 'Titan One'; src: url(../fonts/TitanOne-Regular.woff2) format('woff2'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 600; src: url(../fonts/Baloo2-600.woff2) format('woff2'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 700; src: url(../fonts/Baloo2-700.woff2) format('woff2'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 800; src: url(../fonts/Baloo2-800.woff2) format('woff2'); }
+:root {
+  --grape: #3b1f6b; --grape-2: #5a3596; --grape-deep: #26124a;
+  --sun: #ffc83d; --sun-lo: #e08a00; --paper: #fffbf0; --btn2-lo: #d9cfee; --gray-ink: #5a5274;
+}
+* { box-sizing: border-box; margin: 0; }
+body { width: 1280px; height: 720px; overflow: hidden; position: relative; font-family: 'Baloo 2', sans-serif; color: var(--grape); background: #26124a; }
+.bg { position: absolute; inset: -20px; background: url(_bg.png) center/cover; filter: blur(8px) brightness(0.9); }
+.veil { position: absolute; inset: 0; background: rgba(38, 18, 74, 0.5); }
+.abs { position: absolute; }
+/* the Field Day outlined title (fd-ol, 4 px outline + 5 px drop) */
+.ol { color: #fff; text-shadow:
+  4px 0 0 var(--grape), -4px 0 0 var(--grape), 0 4px 0 var(--grape), 0 -4px 0 var(--grape),
+  2.9px 2.9px 0 var(--grape), -2.9px -2.9px 0 var(--grape), 2.9px -2.9px 0 var(--grape), -2.9px 2.9px 0 var(--grape),
+  0 9px 0 var(--grape), 2.9px 7.9px 0 var(--grape), -2.9px 7.9px 0 var(--grape); }
+.ol-sm { color: #fff; text-shadow:
+  3px 0 0 var(--grape), -3px 0 0 var(--grape), 0 3px 0 var(--grape), 0 -3px 0 var(--grape),
+  2.1px 2.1px 0 var(--grape), -2.1px -2.1px 0 var(--grape), 2.1px -2.1px 0 var(--grape), -2.1px 2.1px 0 var(--grape),
+  0 6px 0 var(--grape); }
+.title { top: 22px; left: 0; right: 0; text-align: center; font: 44px/56px 'Titan One'; letter-spacing: 0.5px; }
+.pill { left: 50%; transform: translateX(-50%); height: 34px; padding: 0 18px; border-radius: 17px; background: var(--grape);
+  color: #fff; font: 700 15px/34px 'Baloo 2'; white-space: nowrap; }
+.pill b { color: #fff; font-weight: 800; }
+.card { top: 134px; width: 520px; height: 420px; background: var(--paper); border: 4px solid var(--grape); border-radius: 26px;
+  box-shadow: 0 7px 0 var(--grape); overflow: hidden; }
+.card.l { left: 100px; } .card.r { left: 660px; }
+.head { height: 60px; background: var(--grape); display: flex; align-items: center; justify-content: space-between; padding: 0 22px 6px;
+  box-shadow: inset 0 -6px 0 var(--acc); }
+.head .p { font: 26px/1 'Titan One'; color: #fff; }
+.head .f { font: 22px/1 'Titan One'; color: #fff; display: flex; align-items: center; gap: 8px; }
+.head .f i { width: 16px; height: 16px; border-radius: 50%; background: var(--acc); border: 2.5px solid #fff; }
+.keys { position: absolute; top: 80px; left: 0; right: 0; display: flex; justify-content: center; gap: 30px; }
+.grid { display: grid; grid-template-columns: repeat(3, 52px); column-gap: 8px; row-gap: 10px; }
+.col { display: flex; flex-direction: column; gap: 10px; padding-top: 44px; }
+.row { display: flex; gap: 8px; }
+.k { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 52px; }
+.cap { width: 52px; height: 48px; border: 3px solid var(--grape); border-radius: 10px; background: #fff;
+  box-shadow: inset 0 -5px 0 var(--btn2-lo), 0 4px 0 var(--grape); display: flex; align-items: center; justify-content: center;
+  font: 22px/1 'Titan One'; color: var(--grape); padding-bottom: 4px; }
+.cap svg { width: 22px; height: 22px; }
+.cap.lit { background: var(--sun); box-shadow: inset 0 -5px 0 var(--sun-lo), 0 1px 0 var(--grape); transform: translateY(3px); }
+.lab { font: 800 12px/1 'Baloo 2'; letter-spacing: 0.6px; text-transform: uppercase; color: var(--grape-2); }
+.test { position: absolute; top: 286px; left: 0; right: 0; text-align: center; font: 700 14px/1 'Baloo 2'; color: var(--gray-ink); }
+.status { position: absolute; left: 18px; right: 18px; bottom: 20px; height: 62px; border-radius: 16px; border: 4px solid var(--grape);
+  display: flex; align-items: center; justify-content: center; gap: 10px; }
+.status.wait { background: #fff; box-shadow: 0 5px 0 var(--grape); font: 800 19px/1 'Baloo 2'; color: var(--grape); }
+.status.wait .kc { min-width: 34px; height: 32px; border: 3px solid var(--grape); border-radius: 8px; background: #fff; box-shadow: 0 3px 0 var(--grape);
+  display: inline-flex; align-items: center; justify-content: center; font: 800 17px/1 'Baloo 2'; padding: 2px 8px 0; }
+.status.ready { background: var(--sun); box-shadow: inset 0 -6px 0 var(--sun-lo); font: 30px/1 'Titan One'; }
+.status.ready svg { width: 26px; height: 26px; }
+.strip { left: 50%; transform: translateX(-50%); top: 664px; height: 38px; padding: 0 16px; border-radius: 19px; background: var(--grape);
+  display: flex; align-items: center; gap: 8px; color: #fff; font: 700 13px/1 'Baloo 2'; white-space: nowrap; }
+.strip .kc { min-width: 28px; height: 24px; border-radius: 6px; background: #fff; color: var(--grape); font: 800 12px/1 'Baloo 2';
+  display: inline-flex; align-items: center; justify-content: center; padding: 2px 7px 0; }
+.strip .sp { width: 10px; }
+</style>
+</head>
+<body>
+<div class="bg"></div><div class="veil"></div>
+
+<div class="abs title ol">BOTH PRESS SHOOT TO FIGHT</div>
+<div class="abs pill" style="top:88px">Shoot is the key next to your hand. Push is next to that. Dash is the far one.</div>
+
+<!-- P1: ZUZU, ready, holding F (lit) -->
+<section class="abs card l" style="--acc:#F25CB8">
+  <div class="head"><span class="p">PLAYER 1</span><span class="f"><i></i>ZUZU</span></div>
+  <div class="keys">
+    <div class="grid">
+      <span></span><div class="k"><div class="cap">W</div><span class="lab">Jump</span></div><span></span>
+      <div class="k"><div class="cap">A</div><span class="lab">Move</span></div>
+      <div class="k"><div class="cap">S</div><span class="lab">Crouch</span></div>
+      <div class="k"><div class="cap">D</div><span class="lab">Move</span></div>
+    </div>
+    <div class="col">
+      <div class="row">
+        <div class="k"><div class="cap lit">F</div><span class="lab">Shoot</span></div>
+        <div class="k"><div class="cap">G</div><span class="lab">Push</span></div>
+        <div class="k"><div class="cap">H</div><span class="lab">Dash</span></div>
+      </div>
+      <div class="row"><div class="k"><div class="cap">V</div><span class="lab">Sit</span></div></div>
+    </div>
+  </div>
+  <div class="test">Hold your keys. They light up.</div>
+  <div class="status ready ol-sm"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="#3b1f6b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>READY!</div>
+</section>
+
+<!-- P2: BRIX, not ready -->
+<section class="abs card r" style="--acc:#E5392F">
+  <div class="head"><span class="p">PLAYER 2</span><span class="f"><i></i>BRIX</span></div>
+  <div class="keys">
+    <div class="col">
+      <div class="row">
+        <div class="k"><div class="cap">K</div><span class="lab">Dash</span></div>
+        <div class="k"><div class="cap">L</div><span class="lab">Push</span></div>
+        <div class="k"><div class="cap">;</div><span class="lab">Shoot</span></div>
+      </div>
+      <div class="row"><div class="k"><div class="cap">M</div><span class="lab">Sit</span></div></div>
+    </div>
+    <div class="grid">
+      <span></span><div class="k"><div class="cap"><svg viewBox="0 0 20 20" style="transform:rotate(270deg)"><path d="M3 10h13M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="lab">Jump</span></div><span></span>
+      <div class="k"><div class="cap"><svg viewBox="0 0 20 20" style="transform:rotate(180deg)"><path d="M3 10h13M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="lab">Move</span></div>
+      <div class="k"><div class="cap"><svg viewBox="0 0 20 20" style="transform:rotate(90deg)"><path d="M3 10h13M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="lab">Crouch</span></div>
+      <div class="k"><div class="cap"><svg viewBox="0 0 20 20"><path d="M3 10h13M11 5l5 5-5 5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="lab">Move</span></div>
+    </div>
+  </div>
+  <div class="test">Hold your keys. They light up.</div>
+  <div class="status wait">Press <span class="kc">;</span> to fight</div>
+</section>
+
+<div class="abs pill" style="top:574px; font-weight:600">A key stays dark? Your keyboard can't take that combo. Change it in <b>Settings → Controls → 2 Player</b>.</div>
+
+<div class="abs strip"><span class="kc">ENTER</span>start now<span class="sp"></span><span class="kc">ESC</span>back</div>
+</body>
+</html>

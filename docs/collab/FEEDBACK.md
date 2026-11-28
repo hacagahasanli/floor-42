@@ -602,3 +602,21 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
 - What is wrong: one shotgun blast spawns one "-16" per pellet at the same spot; four overlap into "-1166"-like mush (`shots/r029/f069-floater-overlap-crop.png`, from `src-HUD-038.jpg`, a real 1P match).
 - What should change: pellets of one blast that hit the same target within 50 ms add into ONE number (e.g. "-64"), spawned once; the number scale tier follows the summed damage.
 - Expected result: every shotgun hit shows one readable number. Status: open
+
+## F-070 — 2P key card is still the old dark developer theme (P0, R-030)
+- What is wrong: `KeyCard.tsx` / `BigKeycap` use navy panels, translucent grey keycaps, cream-on-navy text and the fighter name in accent text (`shots/colour-balance/impl2/keycard-2p.png`). It is the only old-theme screen in the 2P flow, between Field Day select and the Field Day HUD, and the ready line never shows which key is each player's Shoot.
+- Why it matters: the theme flips dark for the 5-20 s before every 2P match, and a new pair has to hunt for their Shoot key on the cards.
+- What should change: rebuild it to `CREATIVE/ui/direction-b/r030-2p-polish.md` section 1 (exact values, copy, motion, testids): `.fd-veil`, Titan title `BOTH PRESS SHOOT TO FIGHT`, select-2p style cards (grape header + fighter foot strip, paper body, white grape keycaps, sun when held), per-card status bar `Press [<Shoot key>] to fight` -> sun `READY!`, warning pill, hint strip `[ENTER] start now [ESC] back`; view mode titled `2 PLAYER KEYS`; 250 ms hold after both ready.
+- Expected result: matches `CREATIVE/ui/direction-b/keycard/keycard.png` at 1280x720; layout check 0 issues at 1280x720, 821x462, 800x450. Status: open
+
+## F-071 — 2P Shoot+Shoot rematch skips the result (P0, R-030)
+- What is wrong: the 0.6 s lock lets mashing players leave at ~0.86 s (QA s8), before the winner lands and long before the awards (1.4-1.8 s).
+- Why it matters: in 2P the result screen, the reward of every match, is almost never seen.
+- What should change: Shoot+Shoot opens at 2.2 s (`BEATS.choice`, when REMATCH and its P1/P2 chips are up) or at once after Enter/Space skips the reveal, never before 0.6 s. Presses before opening are thrown away; a held Shoot needs a fresh press. 1P, online and Enter unchanged. Spec: `r030-2p-polish.md` section 2.
+- Expected result: QA s8 rerun shows the three medallions before the rematch; no rematch before 2.2 s without a skip. Status: open
+
+## F-072 — AIM/SHAKE pills: stack instead of hide at small sizes (P1, R-030)
+- What is wrong: at 907x510, 821x462 and 800x450 the pills are hidden while the key strip or hint is up, so new players lose the aim-mode pill in their first matches.
+- Why it matters: the strip is up exactly when a player is learning; the AIM pill (with its T hint) is part of that.
+- What should change: when the row would clash, switch the corner group to a right-aligned column (`flex-direction: column; align-items: flex-end; gap: 6px`, AIM on top); hide only if the column still clashes. Measured on the real build: column clears the strip by 87 / 68 / 63 px at the three sizes (`shots/r030/pills-*-stacked.png`). Spec: `r030-2p-polish.md` section 3.
+- Expected result: s9 rerun: pills visible and stacked with the strip up, back to a row after 2 KOs, 0 overlaps; 1280x720 unchanged. Status: open
