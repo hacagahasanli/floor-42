@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { ONLINE_ENABLED } from '~/lib/features';
+
 const KEY = 'floor42:install-hint';
 
 /** iPhone or iPad in the browser (not already opened from the home screen). */
@@ -39,8 +41,8 @@ export const InstallHint = ({ className = '' }: { className?: string }) => {
     <div className={`panel-cut flex max-w-md items-start gap-3 bg-ink p-4 text-left text-sm text-cream/85 ${className}`} role="note">
       <div className="flex-1">
         <b className="text-gold">Full screen on iPhone:</b> tap <b>Share</b> (the square with the arrow), then{' '}
-        <b>Add to Home Screen</b>, and open Pewfield from your home screen. It opens with no browser bars. To join a
-        friend from there, paste their link on the Play online page.
+        <b>Add to Home Screen</b>, and open Pewfield from your home screen. It opens with no browser bars.
+        {ONLINE_ENABLED && ' To join a friend from there, paste their link on the Play online page.'}
       </div>
       <button type="button" onClick={close} aria-label="Got it" className="panel-cut bg-cream/10 px-3 py-1 text-xs font-bold uppercase">
         Got it

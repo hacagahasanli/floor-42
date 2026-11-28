@@ -17,6 +17,7 @@ import { deviceFacts, renderProfile } from '~/game/render/quality';
 import { ROSTER } from '~/game/roster';
 import { getSettings } from '~/game/settings';
 import { ARENA_IDS, RULES } from '~/game/sim/constants';
+import { onlineOffered } from '~/lib/features';
 import { asset, navigate, PORTAL } from '~/lib/portal';
 import { GAME_VERSION, STUDIO_NAME } from '~/lib/studio';
 
@@ -255,8 +256,8 @@ export const MainMenu = ({
             koToWin={RULES.kosToWin}
             onPlay={fight}
             onTwoPlayer={show2PMenuItem(touch, pad) ? open2P : undefined}
-            // Online is off in the portal build for now (bot play only, decided 2026-11-21).
-            onOnline={PORTAL ? undefined : () => navigate('/play')}
+            // Online: never in the portal build (bot play only, 2026-11-21); on the site only while ONLINE_ENABLED (parked 2026-11-28).
+            onOnline={onlineOffered(PORTAL) ? () => navigate('/play') : undefined}
             onFighterSelect={openFighterSelect}
             onArena={cycleArena}
             onSettings={() => setSettingsOpen(true)}

@@ -56,7 +56,7 @@ npm run dev
 
 Open http://localhost:3000.
 
-- `/play`: **online 1v1**. *Invite a friend* gives you a link to send; *Quick match* pairs you with whoever is waiting. Rematch with Enter.
+- `/play`: **online 1v1**. *Invite a friend* gives you a link to send; *Quick match* pairs you with whoever is waiting. Rematch with Enter. **Parked since 2026-11-28** (the Fly server is off): `ONLINE_ENABLED` in `src/lib/features.ts` is false, so the menu has no ONLINE button and `/play` shows the main menu. Set it to true to bring the lobby back.
 - `/characters`: the main menu's fighter select (FIGHTER and PLAY open it; Esc or Back returns to `/`), then fight the bot (`/arena?p1=legacy&p2=standup&bot=hard`, add `&demo` to watch bot against bot). Fighter ids in URLs are internal and keep their old names: `hotfix` is BRIX, `legacy` is ORMO, `standup` is ZUZU, `intern` is TAVO.
 
 The browser connects to the game server on Fly.io by default. To run your own server locally:
