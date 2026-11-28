@@ -26,7 +26,8 @@ Read this first after a cleared chat. Detail lives in `docs/collab/LOG.md`, `REQ
 ## Deploys (learned 2026-11-28)
 - GitHub repo renamed to hacagahasanli/pewfield. Vercel project `floor-42` is Git-connected: **every push to `main` deploys production to floor42.nalbakigames.com** (no GitHub deployments API entries, so it looks unlinked — it is not).
 - 2026-11-28 ~11:23 push of main deployed PEWFIELD to the site; /play and /arena 500'd (module-level `new Path2D` in traitCallout.ts ran in SSR). Fixed eee024c, verified live (all routes 200, no console errors).
-- pewfield.nalbakigames.com added to the Vercel project; waits for the Cloudflare CNAME `pewfield -> 5d2e2b52607fdbaa.vercel-dns-017.com` (DNS only). floor42 -> pewfield 308 only after the studio site rename is live.
+- pewfield.nalbakigames.com LIVE (Cloudflare CNAME DNS-only). floor42.nalbakigames.com -> pewfield 308 set as a Vercel domain redirect (keeps path + query) on 2026-11-28.
+- Studio site nalbaki-games: Pewfield rename deployed 2026-11-28 (main be23cae; production branch main, push = deploy). Floor 42 playable hidden (files kept). Share image is assets/og-v2.jpg.
 - Open: the site's ONLINE button leads to the old dark lobby and the Fly server is off (online parked).
 - Site rename spec: `nalbaki-games/docs/growth/PEWFIELD-RENAME.md`.
 
