@@ -21,6 +21,7 @@ import { buildGun } from './guns';
 import { deviceFacts, renderProfile } from './quality';
 import { createGovernor, MAX_STEPS_PER_FRAME, stepDown } from './governor';
 import { createVfx } from './vfx';
+import { createNumberMerger, numberTier } from './damageNumbers';
 import { ROSTER } from '../roster';
 import { buildCalloutArt, whenFontReady } from './traitCallout';
 import { badgeFor, CALLOUT_DELAY, calloutLife, calloutPose, WORD_FIRES } from './traitFx';
@@ -573,13 +574,38 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
     return { sprite, life: 0, x: 0, y: 0, size: 1 };
   });
   let nextNumber = 0;
-  const popNumber = (x: number, y: number, damage: number) => {
-    const n = numbers[nextNumber++ % numbers.length];
-    const big = damage >= 50;
-    (n.sprite.material as THREE.SpriteMaterial).map = texFor(`-${Math.round(damage)}`, big ? '#ff3d6e' : '#ffd23f');
+  /** Draws `damage` on pool slot `i` in its size/colour tier (a merged blast redraws the same slot, F-069). */
+  const paintNumber = (i: number, damage: number) => {
+    const n = numbers[i];
+    const tier = numberTier(damage);
+    (n.sprite.material as THREE.SpriteMaterial).map = texFor(`-${Math.round(damage)}`, tier.color);
     (n.sprite.material as THREE.SpriteMaterial).needsUpdate = true;
-    Object.assign(n, { life: 0.7, x: x + (Math.random() - 0.5) * 0.6, y: y + 0.4, size: big ? 1.5 : 1.1 });
+    n.size = tier.size;
+  };
+  const popNumber = (x: number, y: number, damage: number) => {
+    const i = nextNumber++ % numbers.length;
+    const n = numbers[i];
+    paintNumber(i, damage);
+    Object.assign(n, { life: 0.7, x: x + (Math.random() - 0.5) * 0.6, y: y + 0.4 });
     n.sprite.visible = true;
+    return i;
+  };
+  // F-069: the pellets of one shotgun blast on one fighter add into one number instead of a stack of "-16"s.
+  const numberMerger = createNumberMerger<number>();
+  // Sim time of each fighter's last shotgun blast: the last shell of a magazine swaps the gun back to the pistol while its
+  // pellets are still flying, so "holds a shotgun" alone would miss that blast.
+  const lastBlastAt = new Map<number, number>();
+  const showDamage = (e: Extract<GameEvent, { type: 'hit' }>) => {
+    const by = e.by ?? -1;
+    const now = state.tick * DT;
+    const blast = lastBlastAt.get(by);
+    const pellet = by >= 0 && (state.fighters[by]?.weapon.kind === 'shotgun' || (blast !== undefined && now - blast <= GUNS.shotgun.life + DT));
+    const a = numberMerger.hit({ target: e.fighter, by, damage: e.damage, now, pellet });
+    if (a.kind === 'merge' && numbers[a.slot].sprite.visible) {
+      paintNumber(a.slot, a.total);
+      return;
+    }
+    numberMerger.bind(e.fighter, popNumber(e.x, e.y, a.total));
   };
   // Pickup callouts: two pooled sprites (one per fighter), textures drawn once at start.
   const CALLOUT_GOLD = '#ffd23f';
@@ -727,13 +753,14 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
           feedback(e.fighter === me ? 'light' : 'tiny');
         }
         if (e.gun === 'shotgun' && e.fighter === me) feedback('light');
+        if (e.gun === 'shotgun') lastBlastAt.set(e.fighter, state.tick * DT);
         break;
       case 'hit':
         vfx.burst(e.x, e.y, 4 + Math.round(e.damage / 3), 'spark', { speed: 3 + e.power * 0.3, life: 0.3 });
         if (e.damage > 15) vfx.ring(e.x, e.y, 0xfff1a8, { grow: 5, life: 0.22 });
         feedback(e.damage >= 50 || e.power > 12 ? 'heavy' : 'light', e.fighter);
         flinchFrom(e);
-        if (e.damage >= 1) popNumber(e.x, e.y, e.damage);
+        if (e.damage >= 1) showDamage(e);
         sfx.hit(e.power, e.x);
         break;
       case 'impact':
