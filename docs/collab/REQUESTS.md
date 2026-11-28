@@ -219,4 +219,4 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
   1. **Awards praise the loser**: after a 5-3 player win all three awards went to the bot ("Zuzu jumped 62 times"); 2 of 2 at 907. Give the rule (e.g. the winner always gets at least one award, max two to the loser; ties; 2P neutrality) — engineering owns `src/game/awards.ts` `chooseAwards`.
   2. **Dishonest loss copy**: "1 – 5 · so close! · one more?" after a 1-5 loss. Give the copy table by margin (win big/close, lose close/big, draw) for 1P and 2P.
 - Out of scope today (post-upload, logged in the playtest report): bot difficulty curve, KO stamp moment, first-minute text.
-- Expected: exact rules/strings as F-items. Priority: P0 (upload today). Status: open
+- Expected: exact rules/strings as F-items. Priority: P0 (upload today). Status: done (2026-11-28, Creative Director): F-074 (award rule), F-075 (pill copy by margin + new award strings)

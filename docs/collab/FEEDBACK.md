@@ -638,3 +638,66 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
   Lines 105-107 may no longer be rendered by the Field Day result. Change them anyway so the old copy cannot come back through a fallback. Update `arenaChoice.test.ts:50` and any copy test that pins these strings.
 - Kept on purpose (setting, not a joke): the arena name `OFFSITE` and the `OFFSITE FIELD DAY` ribbon (renaming an arena is out of scope today), and the office arena's `FLOOR 42` / `The office, after hours.` / `open office` / `One floor of guns`. That arena IS an office, so describing it is world-building. The fighter ids (`hotfix`, `legacy`, ...) are internal and never shown.
 - Expected result: `grep -rn "team-building\|WINS THE OFFSITE\|survived the offsite\|offsite got you\|Office Dad" src` returns nothing; the OFFSITE intro card and the final KO band show the new lines (screenshot one of each); the role reads `THE GRANDAD · 2× JUMP` on select. Status: open
+
+## F-074 — Awards: the winner always gets at least one, and never fewer than the loser (P0, R-031)
+- What is wrong: `chooseAwards` (`src/game/awards.ts`) picks the three highest-scoring awards with a 2-per-player cap, then a second pass fills any free slot even if it all goes to one player. Two of the five awards reward being hit (PIÑATA = rockets taken, IRON SPONGE = damage taken), and nothing in the pool rewards hitting. So the player who lost usually wins most categories. Playtest evidence: after a 5–3 player win all three awards went to the bot ("Zuzu jumped 62 times", "soaked up 456 damage", "hit 40% of shots"); at 907, 2 of 2 went to the bot (`docs/playtest/2026-11-28-old-vs-new.md` R2).
+- Why it matters: the result screen is where the win is paid out. If the winner stands on the podium with nothing named, the win feels taken away, and the reason to press REMATCH is weaker.
+- What should change (exact rule):
+  1. **Two new pool awards that reward the attacker** (they mirror IRON SPONGE and balance the pool). Same mechanics as today: whoever has the bigger number holds it, a tie gives it to nobody, and it needs at least `min`.
+
+     | id | title | value | ref | min | icon |
+     |---|---|---|---|---|---|
+     | `hitter` | HEAVY HITTER | `Math.round(stats.damage)` (damage dealt, from the sim) | 400 | 100 | weapon `shotgun` |
+     | `streak` | HOT STREAK | `stats.bestStreak` (KOs in a row without going down) | 3 | 2 | icon `flag` |
+
+     `AWARD_ORDER` becomes `['pinata', 'boomerang', 'streak', 'sharpshooter', 'hitter', 'bouncy', 'sponge']`. `AwardInput` gains `damage`, `bestStreak` and `kos` (all already in `ResultFighter`, so `resultModel.ts` passes them through).
+  2. **Fallback award, outside the pool: BLUE RIBBON** (`ribbon`, icon `pennant`). It is used only when step 3 finds that the winner holds no pool award. Value = the winner's KOs. It never competes on score.
+  3. **Selection.** Let `w` be the winner (0 or 1) and `l` the loser, or `w = null` for a draw. Build the candidates as today (pool of 7, sorted by score desc, then by `AWARD_ORDER`).
+     - **Decisive match (`w` is not null):**
+       a. Slot A = the winner's highest-scoring candidate. If the winner has none, slot A = BLUE RIBBON for the winner.
+       b. Then walk the rest of the candidates in sorted order and add each one while: total < 3, the winner has at most 2, and the **loser has at most 1**.
+       c. No fill pass. A screen with 1 or 2 medallions is correct (`slotsFor` already handles it).
+       d. Result: the winner has 1–2 awards, the loser has 0–1, and the winner never has fewer than the loser.
+     - **Draw (`w` is null):** sorted candidates, at most 3 in total and at most 2 per player, no fill pass, no BLUE RIBBON.
+     - **2P and demo:** the exact same rule. It is symmetric by slot index (P1/P2), so there is no bias toward P1 or toward the local player. Only the names differ ("You" / fighter name / "P1"/"P2", as today).
+  4. **Order of the returned list:** the winner's awards first (by score), then the loser's. On a draw, by score. This puts the winner's award in the first medallion slot.
+  5. Delete the "second pass" in `chooseAwards`.
+- Expected result (add these as unit tests in `awards.test.ts`):
+  - The playtest case: winner `w = 0` with KOs 5, damage 520, bestStreak 2, jumps 20, accuracy 31 % (30 shots), damage taken 300; rival with KOs 3, damage 300, bestStreak 1, jumps 62, accuracy 40 % (25 shots), damage taken 456. Result: `[hitter (0), streak (0), bouncy (1)]`. Holder 0 has 2, holder 1 has 1.
+  - The winner holds no pool award: winner gets exactly `[ribbon (w)]` plus at most 1 for the loser.
+  - The loser never gets more than 1 award in a decisive match; the winner never gets 0 in a decisive match (test both slot indices, so 2P is checked both ways).
+  - A draw with every candidate held by one player shows at most 2 awards.
+- Strings for the new awards are in F-075. Related: `CREATIVE/ui/direction-b/spec.md` b12–b15 and section 7 (award pool). This supersedes the "up to three most remarkable" rule there. Status: open
+
+## F-075 — Result pill copy by margin, and the new award strings (P0, R-031)
+- What is wrong: the loss pill picks a random line from `FD_COPY.result.lossLines` whatever the score, so a 1–5 loss can say "1 – 5 · so close! · one more?" (playtest R3, `shots/new-normal-result2.png`). The win pill is a stat list with no line, and the draw pill uses `copy.drawSub` ("Time ran out with the score level."), which is sentence case and off-voice next to the others.
+- Why it matters: copy that lies about the score reads as cheap, and players stop trusting the rest of the screen.
+- What should change (exact rule and strings, `src/components/fieldday/copy.ts` + `resultModel.ts`):
+  - **Margin** `m = |kos[0] − kos[1]|`. **Bands:** `close` = 1; `clear` = 2 or 3; `big` = 4 or more. **Shutout** = a decisive match where the loser has 0 KOs (it overrides the band on a win).
+  - **Pill format for every outcome:** `{a} – {b} · {line}` (score as today, en dash with spaces, then one line). The win pill no longer lists accuracy and best streak. They are in the TAB stats card, and the awards now carry the winner's numbers (F-074).
+  - **Which table:** `solo` and `online` use the **win table** when the local player wins and the **loss table** when they lose. `twoPlayer` and `demo` always use the **win table** (it names nobody, so it is neutral). Draws use the draw line in every mode.
+  - **Rotation:** where a cell has two lines, pick one per match with the existing `lossLine` random index, modulo that cell's length. Replace `lossLines` with the tables below. Stop passing `drawLine={copy.drawSub}` to the result (leave `copy.drawSub` itself alone, other screens may use it).
+
+  | Outcome | Band | Line(s) | Example pill |
+  |---|---|---|---|
+  | Win | shutout (5–0, any x–0) | `flawless!` | `5 – 0 · flawless!` |
+  | Win | big (m ≥ 4) | `total control` | `5 – 1 · total control` |
+  | Win | clear (m 2–3) | `clean win` | `5 – 3 · clean win` |
+  | Win | close (m 1) | `by a whisker!` | `5 – 4 · by a whisker!` |
+  | Loss | close (m 1) | `so close! · one more?` / `one KO short · run it back?` | `4 – 5 · so close! · one more?` |
+  | Loss | clear (m 2–3) | `run it back?` / `shake it off · go again?` | `2 – 5 · run it back?` |
+  | Loss | big (m ≥ 4, includes 0–5) | `tough one · go again?` / `try another fighter?` | `1 – 5 · tough one · go again?` |
+  | Draw | any | `all square · one more?` | `3 – 3 · all square · one more?` |
+
+  Suggested shape: `winLines: { shutout: [...], big: [...], clear: [...], close: [...] }`, `lossLines: { close: [...], clear: [...], big: [...] }`, `drawLine: 'all square · one more?'`.
+  - Banned on any loss with m ≥ 2: "so close", "next one's yours", any word that says the loser nearly won. "next one's yours" is retired (it is a promise the game cannot keep).
+  - **New award strings** (same shape as the existing `awards` entries):
+
+  | id | title | line |
+  |---|---|---|
+  | `hitter` | `HEAVY HITTER` | `` `${who} dealt ${n} damage` `` |
+  | `streak` | `HOT STREAK` | `` `${who} scored ${n} KOs in a row` `` |
+  | `ribbon` | `BLUE RIBBON` | `` `${who} took the field, ${n} KOs` `` (n is never 1 on a first-to-5 win; if it is, write `1 KO`) |
+
+  The titles fit the 224 px label card at Titan 18 (HEAVY HITTER is 12 characters, one fewer than BOUNCY CASTLE).
+- Expected result: `resultModel.test.ts` cases: 1–5 loss → a big-band line, never "so close"; 4–5 loss → a close-band line; 5–0 win → `5 – 0 · flawless!`; 5–3 win → `5 – 3 · clean win`; 2P 5–4 → `5 – 4 · by a whisker!` with title `P1 WINS!` (or P2); 3–3 draw → `3 – 3 · all square · one more?`. A screenshot of a real 1P big loss and a real 1P win at 1280 shows the pill on one line (the longest pill, `1 – 5 · tough one · go again?`, is 30 characters, shorter than today's `5 – 2 · 57% accuracy · best streak 3` at 36). Related: `CREATIVE/ui/direction-b/spec.md` b15 and section 7 (the loss rotation there is superseded by this table). Status: open
