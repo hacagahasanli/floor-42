@@ -782,3 +782,63 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
   - Invite code well, right side, two small lines: `Read it out` / `or send the link`.
 - Expected result: no empty band under the code field at 1280x720; the invite well's right side has two lines, as the mockup's.
 - Related: spec 3.3, 3.4 (updated in R-034). Status: done (engineering 2026-11-28, see LOG.md "R-034 follow-ups"; shots docs/online/shots/r032-impl/lobby-joining-*, lobby-code-*, lobby-invite-*, f086-doors-*)
+
+## F-090 — Muzzle flash: replace the grey hexagon with a flash per gun (P0, R-035)
+- What is wrong: every gun shows the same unlit `IcosahedronGeometry(0.18)` in pale `#fff1a8`, or white at 2.2x (`render/game.ts` ~l.378 / ~l.1117). On OFFSITE it reads as a grey hexagon sign next to the head, not as fire (`shots/r035/before-muzzle-zoom.png`).
+- Why it matters: the shot is the action the player repeats most. A flash that does not read makes every gun feel the same and "plain" (Reis's note).
+- What should change: spec `CREATIVE/specifications/r035-weapon-feel-ko-first-minute.md` §3.1. One flat star geometry per gun, built at load (ink outline, rim, cream core, vertex-coloured, one material), swapped per gun on the existing two meshes; sizes, points, life and colours per the table; the rocket flash comes out of the *back* of the tube; shotgun and rocket smoke puffs; random roll ±12° and scale 0.9–1.1.
+- Expected result: a per-gun frame sheet at 1280x720 on OFFSITE (re-run `shots/r035/capture.mjs` into `shots/r035/after/`) matches `specifications/r035/after-muzzle-flash.png`; no hexagon anywhere; no new shader compile in a fight (pre-compiled); draw calls unchanged.
+
+## F-091 — Recoil per gun: fighter kick, camera kick opposite the shot, per-gun hit-stop (P0, R-035)
+- What is wrong: body kick is `SHOT_KICK` 2.2 / 1 / 0.5 for every gun in a class; the camera does not react to your own shots except a `light` trauma for the shotgun; hit-stop only on `k > 10`.
+- Why it matters: weight comes from the shooter's body and the camera, not only from the target (Vlambeer: the screen moves opposite your gunfire).
+- What should change: §3.2 table (pitch, lean, slide, cap, spring ω, camera kick m + τ, trauma per gun; local shooter only, 50 % each in 2P, 0 with shake off / reduced motion) replacing `SHOT_KICK`; §3.3 hit-stop floor per gun (pistol 2 ticks, shotgun 3 once per blast, SMG/Uzi 0), offline only.
+- Expected result: holding fire 1 s per gun, the camera is back at rest within 4τ and every bone at its rest value; hit-stop never fires per Uzi bullet; online unchanged.
+
+## F-092 — Per-gun sound character; the Uzi stops being the SMG sped up (P0, R-035)
+- What is wrong: `RECORDED.uzi` plays the SMG sample at 1.12x, so the two automatics sound alike; pistol/SMG/Uzi have no character layer; the rail gives no recharge cue; the bomb is silent while its fuse runs; rockets are silent in flight.
+- Why it matters: in the leaders each gun has an identity you can hear with your eyes closed; sound is half of "this gun is fun".
+- What should change: §3.6, exact `tone()` / `noise()` layers per gun: pistol square "pap", SMG pitch walk +3 % per shot in a burst (cap +15 %, reset after 250 ms), Uzi = smg sample at rate 1.35 gain 0.30 + its own buzz with ±40 cent alternation, shotgun +3 dB low boom + `duck(-6, 0.3)` + hull tink, rail zap 0.18 + ring tail + recharge whine + ready blip at 1.4 s, rocket in-flight whistle (one voice per rocket, max 2), bomb beep per blink (new gate name `bombBeep`, ≤1/60 ms). Guns bus stays 0.45.
+- Expected result: a blind listen (a human) names SMG vs Uzi correctly; no voice exceeds `SHOT_BUDGET`; the limiter never clips in a rocket + shotgun moment (dev meter).
+
+## F-093 — Hit confirmation for the shooter: tick, hit marker, kill confirm (P0, R-035)
+- What is wrong: the shooter gets no confirmation of their own hit; everything (white flash, number) is on the small victim.
+- Why it matters: the hit is the reward loop of a shooter; without it, landing a shot feels like missing.
+- What should change: §3.7. Hit tick on the ui bus (≤1 per 50 ms), heavy-hit second layer, a 0.35 m ink+paper X hit marker for 90 ms (0.5 m / 120 ms heavy) at `e.x, e.y` for the local shooter only, kill-confirm two-note sting on your KO and a soft womp when you are KO'd. 2P: both players, panned to their side.
+- Expected result: looking only at your own fighter you can tell hit from miss for every gun at 1280x720; the bot's hits on you never draw a marker.
+
+## F-094 — Impacts by surface, shells, tracers per gun, rail beam, bomb fuse (P1, R-035)
+- What is wrong: surface hits are 3 dust bits for 0.25 s; hit sparks are `#fff1a8`, invisible on sand; no shells; one tracer size for pistol/SMG/Uzi; the rail beam is a single pale box; the bomb gives no countdown.
+- Why it matters: permanence and per-gun texture are what make a firefight look like a firefight; the bomb fuse is also a gameplay cue.
+- What should change: §3.4 (tracer sizes per gun, pellet streaks, two-tone rail beam, bomb fuse sparks + red blink 300 → 80 ms) and §3.5 (sun + ink hit chips thrown along the shot on OFFSITE; surface table ground / wood / wall / metal with sounds; brass casings pistol/SMG, every 2nd Uzi shot, red shotgun hull on the pump, rail coil glow + vent, bomb pin; instanced, pool 40, off on the low tier; decals P2).
+- Expected result: a 3 s SMG burst into a plank leaves visible casings and splinters; the bomb's blink visibly speeds up; low tier shows none of the casings; worst frame on first casing / first splinter < 50 ms on the M1 rig.
+
+## F-095 — The KO moment: centred KO! stamp, launch and tumble, short slow tail, BONK; the feed chip goes (P0, R-035)
+- What is wrong: the KO is a small feed chip under the score plus a body that drops straight down; nothing in the centre says KO (`shots/r035/before-ko-sheet.png`; playtest R5). The feed chip also slides over the fading arena card at the first KO ("OFFSIT[feed]he shade.", `shots/r035/before/ko-01.png`). The Field Day screens no longer mount `KoStamp`.
+- Why it matters: the KO is the payoff of every 6–10 s of fighting; the leaders sell it with a physical comic beat.
+- What should change: §4.1 timeline and §4.2 stamp. Keep hit-stop 9 ticks; add a 250 ms slow tail at 0.5x (offline); camera kick 0.30 m along the killing shot; `KO_BEAT = { hold: 0.45, back: 0.4, pull: 0.35, zoom: 0.80 }`; render-only launch (`vx 6·L`, `vy 8·√L`, g 30, 1.25 spins, L by weapon, wall stick 120 ms), land at ~683 ms with bounce and puff, `poseDeath` timer from landing; stamp `KO!` Titan 92 tomato + `{VICTIM} IS OUT` in the victim accent, centred at 23 % height (58 % if a living fighter's head is under it), in 110 / hold to 760 / out 140; BONK + stamp + whistle + land; remove `Feed` from `FdHud`.
+- Expected result: frame sheet at 0/150/300/450/700/900 ms matches `specifications/r035/after-ko-400ms.png` and `ko-timeline.png`: stamp centred, never over the living fighter; body airborne at 300 ms, down by 700; no feed chip; added real time per KO ≤ 0.3 s.
+
+## F-096 — Final KO: longer hit-stop, the loser hangs in the slow-motion, tighter camera (P1, R-035)
+- What is wrong: the final KO body falls on real time through the slow-motion, so the slow-mo shows a body already on the floor.
+- Why it matters: the match-winning KO is the moment players screenshot and the one that makes them press REMATCH.
+- What should change: §4.3. 12 ticks of hit-stop (offline); the launch uses sim-scaled time and L x 1.2 so the loser is airborne during the 0.3x slow-motion; beat zoom 0.70 / pull 0.5 held to the result; `stampBig()`; no KO! stamp; total ≤ 1.6 s from KO to result.
+- Expected result: frames at 300/600/900 ms after a final KO show the loser in the air; `gameplayStop` (or the result mount) ≤ 1.6 s after the `ko` event.
+
+## F-097 — First minute on a text diet; tips filtered by arena (P0, R-035)
+- What is wrong: a first-timer sees the trait jargon bubble on home ("…your dash is ready again"), the arena flavour line for 3 s into the fight, and a tip on the first respawn; on OFFSITE the tip can be false ("Push your rival into the glass…", seen in `shots/r035/before/gun-shotgun-01.png`).
+- Why it matters: the first minute decides the CrazyGames conversion (≥ 1 minute of play); every line read is attention taken from the fight.
+- What should change: §5. First-timer (`readFinishedMatch()` false): no trait line in the home bubble; arena card title only, hidden when FIGHT! lands; no tip on the first death. All matches: tips filtered by arena; OFFSITE gets `Push your rival into the cliff for a wall splat.` and `Kick off the cliff walls to climb fast.`; `Boulders and crates stop bullets: fight from behind them.` only once engineering confirms bullets stop there after the platform fix.
+- Expected result: a fresh-profile capture at home +2.5 s, fight +0.3 s, +2 s and the first respawn shows none of the three texts; no office tip ever on OFFSITE (unit test over the tip list per arena).
+
+## F-098 — Solo loop: TODAY tally, win streak, and HARDER BOT? after a win (P0, R-035)
+- What is wrong: 1P has no session reason to play the next match: no tally (2P has "Tonight"), no streak, and the rematch silently changes level after match 1.
+- Why it matters: playtime = matches x ~50 s; the next match needs a reason (playtest top-5 #4).
+- What should change: §6. Result pill `TODAY  YOU {w} – {l} BOT` from match 2 of the session; `WIN STREAK {n}` sun chip at ≥ 2, `STREAK ENDED AT {n}` once in grey, best streak in `pewfield:best-streak` with `NEW BEST · {n}` + `ding(2)`; after a 1P win below hard the primary sun button is `HARDER BOT?` (next level, same fighters and arena; 34 px if > 8 chars, one line at 1280 / 907x510 / 800x450), REMATCH moves to the first secondary; on hard the primary is NEXT ARENA; REMATCH always replays the level just played; 2P and demo unchanged.
+- Expected result: result captures after win 1, win 2 and a loss in one session show the tally, streak chip and button order as specified; Enter after a win at easy starts a normal match; layout check 0 issues.
+
+## F-099 — Guns in hand read as specks: scale 1.3 → 1.6 (P2, R-035)
+- What is wrong: guns are modelled at 1.3x life; at 1280 they are a few pixels in the hand and dark specks on the floor.
+- Why it matters: the gun you hold is the toy you play with; you should see which one it is.
+- What should change: §8 F-099 detail. `S` 1.3 → 1.6 in `guns.ts`, unless a gun's drawn tip ends > 0.15 m past the sim `muzzle()` (then 1.45 for that gun, else skip). No colour changes (R-027).
+- Expected result: a 1280x720 capture with each gun in hand: the gun type is recognisable; the first tracer frame starts at the drawn tip.
