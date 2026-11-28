@@ -701,3 +701,13 @@ Covers in `~/Desktop/projects/games-studio/crazygames/covers/pewfield/`, copy in
 
   The titles fit the 224 px label card at Titan 18 (HEAVY HITTER is 12 characters, one fewer than BOUNCY CASTLE).
 - Expected result: `resultModel.test.ts` cases: 1–5 loss → a big-band line, never "so close"; 4–5 loss → a close-band line; 5–0 win → `5 – 0 · flawless!`; 5–3 win → `5 – 3 · clean win`; 2P 5–4 → `5 – 4 · by a whisker!` with title `P1 WINS!` (or P2); 3–3 draw → `3 – 3 · all square · one more?`. A screenshot of a real 1P big loss and a real 1P win at 1280 shows the pill on one line (the longest pill, `1 – 5 · tough one · go again?`, is 30 characters, shorter than today's `5 – 2 · 57% accuracy · best streak 3` at 36). Related: `CREATIVE/ui/direction-b/spec.md` b15 and section 7 (the loss rotation there is superseded by this table). Status: done (engineering 2026-11-28, see LOG.md R-030/R-031 implementation)
+
+## F-084 — ZUZU 82 HP and easy-bot weights for the smart bot (P1, traits balance)
+- What is wrong: with the smart bot (it climbs), ZUZU at 85 HP wins 56.3 % vs the field at normal and hard on OFFSITE (800 matches per cell, `tools/balance/results/smartbot-roster-400.txt`); worst cells 8.3 / 7.5 points off 50. At easy she is 44.5 % and ORMO 56.2 %.
+- Why it matters: normal is the level most players meet, and humans who climb get what the bot gets. A fighter at 56 % becomes the "pick ZUZU" answer.
+- What should change:
+  1. `TRAIT_HP.standup` (`src/game/sim/traits.ts`) **85 → 82**, and `traits.test.ts` (`{ hotfix: 110, legacy: 115, standup: 82, intern: 100 }`). Nothing else in HP or guns changes. Online is unaffected while traits stay offline-only.
+  2. Easy level, per-fighter bot weights only: ZUZU easy gets `highGround` on with persona `high` x 0.6; ORMO easy trigger chance 0.6 (easy default 0.7). Normal and hard unchanged.
+  3. Re-run: `vs.ts --roster smart:{easy,normal,hard} --seeds 400 --arenas offsite,office`, plus `vs.ts --grid` for easy per bot fighter vs the masher.
+- Expected result (acceptance, `traits-balance.md` §10): normal/hard every cell 45-55 and vs field 47-53 on OFFSITE (measured at 82: 45.5-54.5 / 47.6-52.8 normal, 45.8-54.3 / 49.0-52.3 hard); office cells 44-56, vs field 46-54; easy OFFSITE vs field 44-56 and worst cell ≤ 8 off; easy bot wins ≤ 10 % vs the masher with each of the 4 fighters and the spread between fighters ≤ 6 points. If normal/hard fail, report and I pick 80 or 84; if only easy roster fails, ship and log it.
+- Related: `CREATIVE/characters/traits-balance.md` §1 (ZUZU row) and §10; `docs/systems/smart-bot.md` §0.3, §4, §7. Status: open

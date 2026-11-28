@@ -17,7 +17,7 @@ Systems design, 2026-11-28. Turns the four trait ideas in `roster-v3.md` (BRIX L
 |---|---|---|---|---|
 | `CHARACTERS.hotfix.hp` (BRIX) | **110** | hp | Tallest body (2.0 m) is hit most: +10 % evens her out (43.8 → 50.5 % vs field, normal OFFSITE, no traits) | 105-115 (105 left her at 42.6 %) |
 | `CHARACTERS.legacy.hp` (ORMO) | **115** | hp | Widest (1.0 m) and slowest: the tank. 120 with Tea Break 2.5 s over-shot to 53.9-55.9 % | 110-120 |
-| `CHARACTERS.standup.hp` (ZUZU) | **85** | hp | Smallest target: dies one SMG hit sooner (3 x 30 instead of 4). 80 under-shot (44.3 %), 90 over-shot (55.8 %) | 82-88 |
+| `CHARACTERS.standup.hp` (ZUZU) | **82** (was 85, changed 2026-11-28 for the smart bot, section 10) | hp | Smallest target. With the smart bot she climbs and 85 left her at 56.3 % vs field (normal and hard). 82 = 52.8 / 52.3 %. Breakpoints: SMG still 3 hits, pistol 2, rail/rocket 1; Uzi at full damage 6 hits instead of 7 (6 x 14 = 84) | 80-85 |
 | `CHARACTERS.intern.hp` (TAVO) | 100 | hp | Reference body (`balance.ts` uses his height) | - |
 | `GUNS.railgun.damage` | **120** | hp | One direct hit still kills anyone (max HP 115) | ≥ 115 |
 | `GUNS.launcher.damage`, `GUNS.bomb.damage` | **120** | hp | Same; splash edge becomes 60 instead of 55 (falloff unchanged) | ≥ 115 |
@@ -153,8 +153,8 @@ HP fixes the roster; the traits stay within ±3 points of each other in bot play
 | 1 | Is Leapfrog worth anything to people? | as specified | Leapfrog off | BRIX pick rate, BRIX win rate vs bot, leaps per match (log the `trait` event) |
 | 2 | Is Leapfrog spammable? | cooldown 2.5 s | cooldown 1.0 s | leaps per minute for the top 10 % of BRIX players; flag > 20/min |
 | 3 | Does Sugar Rush frustrate? | 1.2x for 1.0 s | 1.3x for 1.0 s | "she ran away" rate: ZUZU escapes at < 30 hp followed by full regen; quit rate vs ZUZU |
-| 4 | Is ZUZU at 85 hp too fragile to pick? | 85 | 90 | ZUZU pick share; win rate vs normal bot |
-| 5 | Is the office arena acceptable for ZUZU? | as is | ZUZU 82 hp on the office only | ZUZU win rate on the office |
+| 4 | Is ZUZU at 82 hp too fragile to pick? | 82 | 85 | ZUZU pick share; win rate vs normal bot |
+| 5 | (retired 2026-11-28: 82 hp is now global, section 10) | - | - | - |
 
 ## 8. Harness (`tools/balance/`)
 
@@ -168,3 +168,30 @@ HP fixes the roster; the traits stay within ±3 points of each other in bot play
 - Bot vs bot uses the same level on both sides; the player-vs-bot experience (one human, one bot) is not simulated.
 - Office results miss the 45-55 band for ZUZU by up to 1.9 points; easy-office ORMO is 58.5 %.
 - Cheapest real check: 10 people x 10 matches against the normal bot with each fighter on OFFSITE, logging winner and the trait events (2 hours of playtesting, no new code beyond the event log).
+
+## 10. Smart-bot update: ZUZU 82 HP (Creative Director, 2026-11-28, F-084)
+
+Source: `docs/systems/smart-bot.md` §0.3 and §7, `tools/balance/results/smartbot-roster-400.txt` (smart bot vs same smart bot, OFFSITE, traits on, 800 matches per cell, ±3.5 CI per cell, ±2.0 vs field).
+
+**Problem.** The old bot never climbed, so ZUZU's two air jumps were worth nothing to it. The smart bot climbs, and so will humans. ZUZU at 85 HP:
+
+| Level | ZUZU vs field (85) | worst cell (85) | ZUZU vs field (82) | worst cell (82) |
+|---|---|---|---|---|
+| easy | 44.5 | ORMO-ZUZU 59.0 (9.0 off) | 40.8 | ORMO-ZUZU 60.8 (10.8 off) |
+| normal | **56.3** | ZUZU-ORMO 58.3 (8.3 off) | 52.8 | 54.5 (4.5 off) |
+| hard | **56.3** | ZUZU-TAVO 57.5 (7.5 off) | 52.3 | ZUZU-TAVO 54.3 (4.2 off) |
+
+**Decision: ZUZU = 82 HP, one value for every level.** HP is a fighter stat and the stat a human plays with; normal and hard are where the bot plays like a person, so they set it. 82 puts every normal/hard cell inside 45-55 and every vs-field number inside 47-53. 83-84 were not run; 82 is measured and stays inside the old safe range (82-88), so I take the measured value rather than guess a midpoint.
+
+**Easy is compensated in the bot, not in the stat.** At easy the bot has high ground and retreat switched off (`smart-bot.md` §4), so an easy bot playing ZUZU never uses her air jumps and an easy ORMO trades in the open on 115 HP: the numbers measure the easy bot's piloting, not the fighter. Fix in the easy level's per-fighter weights only:
+- easy + ZUZU: `highGround` **on** with persona `high` x **0.6** (she climbs a bit, the way she is drawn and sold); everything else of easy unchanged.
+- easy + ORMO: `retreat` stays off; trigger chance **0.6** instead of 0.7 (he is the slow tank; a lazier trigger takes off what the open-field slugfest gives him).
+- Nothing else per fighter at easy.
+
+**Acceptance (n = 800 per cell, both side orders, traits on):**
+1. Normal and hard, OFFSITE and office: every cell 45-55, every vs-field 47-53. Office at 82 HP is not run yet; it is required. Office tolerance: cells 44-56 (as section 4.2 allowed), vs field 46-54.
+2. Easy, OFFSITE: every vs-field 44-56 and worst cell at most 8 points off 50 (today 10.8 at 82 HP).
+3. Easy, player-facing (the real gate, because a human never meets two easy bots): `vs.ts --grid` with the easy bot drawn as each fighter: bot wins at most 10 % vs the masher for **each** of the 4 fighters (smart-bot.md §5.2), and the spread between the easiest and hardest easy-bot fighter is at most 6 points.
+4. If 1 passes and 2 fails after the two easy weights above, ship anyway and log the numbers: 3 is the gate that a player feels. If 1 fails, 82 is wrong: report the table and I decide between 80 and 84.
+
+**Not verified:** office at 82; any human data (A/B row 4 now asks whether 82 is too fragile to pick); the easy weights are a reasoned proposal, unmeasured.
