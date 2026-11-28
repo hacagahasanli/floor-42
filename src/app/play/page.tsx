@@ -10,15 +10,16 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = ONLINE_ENABLED ? { title: 'Play online', ...pageUrlMeta('/play') } : pageUrlMeta('/');
 
 interface Props {
-  searchParams: Promise<{ room?: string }>;
+  searchParams: Promise<{ room?: string; r?: string }>;
 }
 
 const PlayPage = async ({ searchParams }: Props) => {
   // Online parked (src/lib/features.ts): old invite links and bookmarks land on the menu, not on a lobby with no server.
   if (!ONLINE_ENABLED) return <MainMenu />;
-  const { room } = await searchParams;
+  const { room, r } = await searchParams;
   const roomId = room && /^[\w-]{4,32}$/.test(room) ? room : undefined;
-  return <OnlineLobby roomId={roomId} />;
+  const region = r && /^[a-z0-9-]{2,12}$/.test(r) ? r : undefined;
+  return <OnlineLobby roomId={roomId} region={region} />;
 };
 
 export default PlayPage;

@@ -105,18 +105,21 @@ export const InvitePanel = ({
 /** C: quick match search, with the quiet-queue suggestion after 30 s. */
 export const QuickPanel = ({
   elapsed,
+  status,
   botHref,
   onInvite,
   onCancel,
 }: {
   elapsed: number;
+  /** Where the search is (own region, next region, bot on the way). */
+  status?: string;
   botHref: string;
   /** Left out on a portal, where a link to our own page cannot be shared. */
   onInvite?: () => void;
   onCancel: () => void;
 }) => (
   <Panel title="Looking for a rival">
-    <p>Anyone waiting gets matched with you.</p>
+    <p aria-live="polite">{status ?? 'Anyone waiting gets matched with you.'}</p>
     <span className="lb-elapsed" aria-hidden>
       {formatElapsed(elapsed)}
     </span>

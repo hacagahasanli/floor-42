@@ -24,8 +24,10 @@ describe('arena selection (R-016 section 8)', () => {
     expect(arenaFromQuery('nope')).toBeUndefined();
   });
 
-  it('online is always the office, whatever the URL or the settings say', () => {
+  it('online plays the arena the server room says (protocol 4), whatever the URL or the settings say; an older server: the office', () => {
     expect(resolveArena({ online: true, query: 'offsite', saved: 'offsite' })).toBe('office');
+    expect(resolveArena({ online: true, onlineArena: 'offsite', query: 'office', saved: 'office' })).toBe('offsite');
+    expect(resolveArena({ online: true, onlineArena: 'office', query: 'offsite' })).toBe('office');
   });
 
   it('the pick is remembered in settings, survives a reload and a bad value falls back to the default', () => {

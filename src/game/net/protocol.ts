@@ -4,11 +4,17 @@ import { expandState, compactState } from './wire';
 
 import type { WireInput } from './protocol-input';
 import type { WireState } from './wire';
+import type { BotLevel } from '../sim/bot';
+import type { ArenaId } from '../sim/constants';
 import type { CharacterId, GameEvent, GameState } from '../sim/types';
 
 export const ROOM_NAME = 'duel';
 export const SNAPSHOT_EVERY_TICKS = 1; // 60 snapshots a second (2 was 30)
 /**
+ * 4: matchmaking with a bot fallback (docs/online/2026-11-28-matchmaking.md). `start` says when the rival is a server
+ * bot (`bot`) and which arena the room plays (`arena`, also in the snapshot state); a quick-match join may ask for a
+ * bot after a wait (JoinOptions.bot). Older clients are refused (they would show a bot as a human "RIVAL").
+ *
  * 3: compact snapshots (wire.ts: rows of rounded numbers, about a fifth of the bytes) sent at 60
  * a second. Clients say their version when they join and the server refuses any other, so an old
  * page gets "reload" instead of garbage; a new client still reads an older server's snapshots.
@@ -17,7 +23,7 @@ export const SNAPSHOT_EVERY_TICKS = 1; // 60 snapshots a second (2 was 30)
  * sends the game's events. Sent in `start`; clients only send version-2 messages to a version-2
  * server (an older server disconnects a client for a message type it doesn't know).
  */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 /** The version that introduced lag compensation, numbered snapshots and events. */
 export const LAG_COMP_VERSION = 2;
 
@@ -29,9 +35,17 @@ export interface JoinOptions {
   private?: boolean;
   /** The client's PROTOCOL_VERSION; the server refuses a join without the current one. */
   v?: number;
-  /** Multi-region quick match: the latency tier (regions.ts tierFor) rooms are matched on, and the measured round trip. */
-  tier?: number;
-  rtt?: number;
+  /**
+   * Quick match only: if no human has joined this room this many ms after you joined it, the server seats a bot and
+   * starts. Absent: wait for a human (an earlier region in the search, or an invite). Clamped by the server.
+   */
+  bot?: number;
+}
+
+/** The rival is a server bot (never shown as a human). */
+export interface BotSeat {
+  slot: number;
+  level: BotLevel;
 }
 
 export interface StartMessage {
@@ -41,9 +55,10 @@ export interface StartMessage {
   direct?: boolean;
   /** The server's protocol version (missing: 1). */
   v?: number;
-  /** Multi-region quick match: the latency tier (regions.ts tierFor) rooms are matched on, and the measured round trip. */
-  tier?: number;
-  rtt?: number;
+  /** Set when the rival is the server's bot (protocol 4). */
+  bot?: BotSeat;
+  /** The arena the room plays (protocol 4; missing: the office). */
+  arena?: ArenaId;
 }
 
 /**

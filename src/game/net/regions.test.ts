@@ -1,4 +1,4 @@
-import { budgetAt, httpUrl, nearest, parseRegions, probeRegions, tierFor } from './regions';
+import { httpUrl, median, nearest, parseRegions, probeRegions } from './regions';
 
 describe('regions (off unless NEXT_PUBLIC_GAME_REGIONS is set)', () => {
   it('parses the region list and skips garbage; unset means no regions (today\'s single server)', () => {
@@ -13,8 +13,8 @@ describe('regions (off unless NEXT_PUBLIC_GAME_REGIONS is set)', () => {
     expect(httpUrl('ws://localhost:2567')).toBe('http://localhost:2567');
   });
 
-  it('probes every region, keeps the best of three after a warm-up, drops a region that does not answer', async () => {
-    const lat: Record<string, number[]> = { 'a.dev': [90, 41, 38, 44], 'b.dev': [200, 130, 120, 125] };
+  it('probes every region, keeps the median of four after a warm-up, drops a region that does not answer', async () => {
+    const lat: Record<string, number[]> = { 'a.dev': [90, 41, 38, 44, 200], 'b.dev': [200, 130, 120, 125, 121] };
     let clock = 0;
     const calls: string[] = [];
     const fetchFn = async (url: string) => {
@@ -31,20 +31,11 @@ describe('regions (off unless NEXT_PUBLIC_GAME_REGIONS is set)', () => {
     );
     expect(probes.find((p) => p.id === 'c')!.rtt).toBe(Infinity);
     expect(probes.filter((p) => p.id !== 'c').every((p) => Number.isFinite(p.rtt))).toBe(true);
-    expect(calls.filter((h) => h === 'a.dev')).toHaveLength(4);
+    expect(calls.filter((h) => h === 'a.dev')).toHaveLength(5);
+    expect(median([41, 38, 44, 200])).toBe(42.5);
+    expect(median([3, 1, 2])).toBe(2);
+    expect(median([])).toBe(Infinity);
     expect(nearest([{ id: 'a', rtt: 38 }, { id: 'b', rtt: 120 }, { id: 'c', rtt: Infinity }])).toEqual({ id: 'a', rtt: 38 });
     expect(nearest([{ id: 'c', rtt: Infinity }])).toBeNull();
-  });
-
-  it('budget: 60 ms first, widening with the wait; the tier groups players of a similar round trip', () => {
-    expect(budgetAt(0)).toBe(60);
-    expect(budgetAt(8_000)).toBe(100);
-    expect(budgetAt(25_000)).toBe(150);
-    expect(budgetAt(60_000)).toBe(Infinity);
-    expect(tierFor(35)).toBe(60);
-    expect(tierFor(60)).toBe(60);
-    expect(tierFor(85)).toBe(100);
-    expect(tierFor(140)).toBe(150);
-    expect(tierFor(400)).toBe(0);
   });
 });

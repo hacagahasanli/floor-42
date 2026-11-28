@@ -2,7 +2,7 @@
  * Which arena an offline match is played in. Pure (no DOM): the menu row, the /arena route and the portal's hash
  * route all go through here, so the rule is one function and it is tested.
  *
- *   online          -> always the office (the protocol and the server carry no arena)
+ *   online          -> the arena the server's room plays (protocol 4 carries it); an older server: the office
  *   `arena=` in the URL, when it names a known arena -> that one
  *   else the player's remembered choice (Settings.arena), which starts as DEFAULT_ARENA
  */
@@ -18,5 +18,14 @@ export const ARENA_COPY: Record<ArenaId, { name: string; line: string }> = {
 
 export const arenaFromQuery = (v: string | null | undefined): ArenaId | undefined => (isArenaId(v) ? v : undefined);
 
-export const resolveArena = ({ online = false, query, saved }: { online?: boolean; query?: string | null; saved?: ArenaId }): ArenaId =>
-  online ? 'office' : (arenaFromQuery(query) ?? (isArenaId(saved) ? saved : DEFAULT_ARENA));
+export const resolveArena = ({
+  online = false,
+  onlineArena,
+  query,
+  saved,
+}: {
+  online?: boolean;
+  onlineArena?: ArenaId;
+  query?: string | null;
+  saved?: ArenaId;
+}): ArenaId => (online ? (isArenaId(onlineArena) ? onlineArena : 'office') : (arenaFromQuery(query) ?? (isArenaId(saved) ? saved : DEFAULT_ARENA)));

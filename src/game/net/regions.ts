@@ -1,10 +1,10 @@
 /**
- * Multi-region support, off by default.
+ * Game server regions.
  *
- * Today there is one game server (Fly region fra) and every player connects to it. With
- * NEXT_PUBLIC_GAME_REGIONS set, the client probes each region's /ping, connects to the nearest and
- * quick match only pairs players in the same latency tier. Unset, nothing here runs and the game
- * behaves exactly as before. How to turn it on and what it costs: docs/TECHNICAL.md, "Regions".
+ * Today there is one game server (Fly region fra). With NEXT_PUBLIC_GAME_REGIONS set to more than one region, the
+ * client probes each region's /ping and quick match searches the nearest first, then the nearest other one, then
+ * seats a bot at home (matchmaking.ts). Adding a region is config only: deploy the same image as another Fly app and
+ * add `id=wss://host` to the list. How and what it costs: docs/online/2026-11-28-matchmaking.md.
  *
  * Why one Fly app per region: a browser cannot choose a region. fly-prefer-region is a request
  * header and a WebSocket upgrade from a page cannot set headers; fly-replay is a response header
@@ -30,6 +30,14 @@ export const parseRegions = (spec: string | undefined): Region[] => {
   return out;
 };
 
+/** Median; Infinity counts as a very slow answer (one lost sample does not knock a region out). */
+export const median = (xs: number[]): number => {
+  if (!xs.length) return Infinity;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
 export const httpUrl = (wsUrl: string) => wsUrl.replace(/^ws/, 'http');
 
 export interface Probe {
@@ -41,14 +49,16 @@ export interface Probe {
 type Fetch = (url: string, init?: { cache?: 'no-store'; signal?: AbortSignal }) => Promise<{ ok: boolean }>;
 
 /**
- * Round trip to each region: one warm-up request (DNS, TLS), then the best of `samples`. All
- * regions are probed at once; a region that does not answer within `timeoutMs` is out.
+ * Round trip to each region, measured (never a geo guess): one warm-up request (DNS, TLS, and on Fly the machine
+ * start), then the MEDIAN of `samples`. All regions are probed at once; one region's samples go one after the other
+ * on the warm connection (parallel requests to one host would open new TLS connections and time the handshakes).
+ * A region that does not answer within `timeoutMs` is out.
  */
 export const probeRegions = async (
   regions: Region[],
   fetchFn: Fetch = (u, i) => fetch(u, i),
   now: () => number = () => performance.now(),
-  samples = 3,
+  samples = 4,
   timeoutMs = 2500,
 ): Promise<Probe[]> =>
   Promise.all(
@@ -67,9 +77,9 @@ export const probeRegions = async (
         }
       };
       if ((await once()) === Infinity) return { id: r.id, rtt: Infinity };
-      let best = Infinity;
-      for (let i = 0; i < samples; i++) best = Math.min(best, await once());
-      return { id: r.id, rtt: Math.round(best) };
+      const got: number[] = [];
+      for (let i = 0; i < samples; i++) got.push(await once());
+      return { id: r.id, rtt: Math.round(median(got)) };
     }),
   );
 
@@ -78,28 +88,4 @@ export const nearest = (probes: Probe[]): Probe | null => {
   let best: Probe | null = null;
   for (const p of probes) if (Number.isFinite(p.rtt) && (!best || p.rtt < best.rtt)) best = p;
   return best;
-};
-
-/**
- * The round trip a player accepts to the server, by how long they have waited for a rival: 60 ms
- * at first (the owner's target), then wider. Quick match pairs only players in the same tier.
- * Widening while waiting needs the lobby to retry with the next tier: not wired yet.
- */
-export const BUDGET_STEPS: { afterMs: number; rtt: number }[] = [
-  { afterMs: 0, rtt: 60 },
-  { afterMs: 8_000, rtt: 100 },
-  { afterMs: 20_000, rtt: 150 },
-  { afterMs: 40_000, rtt: Infinity },
-];
-
-export const budgetAt = (waitedMs: number): number => {
-  let rtt = BUDGET_STEPS[0].rtt;
-  for (const s of BUDGET_STEPS) if (waitedMs >= s.afterMs) rtt = s.rtt;
-  return rtt;
-};
-
-/** The matching tier of a player: the smallest budget step that admits their round trip (0: beyond every step, matches anyone). */
-export const tierFor = (rtt: number): number => {
-  for (const s of BUDGET_STEPS) if (s.rtt >= rtt) return Number.isFinite(s.rtt) ? s.rtt : 0;
-  return 0;
 };

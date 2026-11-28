@@ -35,7 +35,8 @@ import { accentOf, readCharacter, saveCharacter, usePortraits } from '~/componen
 import { menuSound } from '~/components/menu/menuSound';
 import { useGamepadNav } from '~/components/menu/useGamepadNav';
 import { useMenuTelemetry } from '~/components/useTelemetry';
-import { createOnlineSession, joinRoom } from '~/game/net/client';
+import { createOnlineSession, gameRegions, joinRoom, regionProbes } from '~/game/net/client';
+import { planSearch, runQuickMatch, SearchCancelled } from '~/game/net/matchmaking';
 import { PORTAL } from '~/lib/portal';
 import { createHostSession } from '~/game/net/host';
 import { connectPeer } from '~/game/net/peer';
@@ -46,6 +47,9 @@ import '~/components/lobby/lobby.css';
 
 import type { ForcedState } from '~/components/lobby/lobbyView';
 import type { JoinMode, OnlineSession } from '~/game/net/client';
+import type { LegKind } from '~/game/net/matchmaking';
+import type { Region } from '~/game/net/regions';
+import type { BotLevel } from '~/game/sim/bot';
 import type { PeerLink } from '~/game/net/peer';
 import type { StartMessage } from '~/game/net/protocol';
 import type { CharacterId } from '~/game/sim/types';
@@ -63,11 +67,13 @@ type Stage =
   | { kind: 'menu' }
   | { kind: 'connecting'; join?: string }
   | { kind: 'linking' }
-  | { kind: 'waiting'; roomId: string; invite: boolean }
+  | { kind: 'waiting'; roomId: string; invite: boolean; leg?: LegKind; region?: Region }
   | {
       kind: 'playing';
       online: { session: OnlineSession; room: Room };
       characters: [CharacterId, CharacterId];
+      /** The rival is the server's bot (shown as BOT · LEVEL, never as a human). */
+      bot?: BotLevel;
     }
   | ({ kind: 'error' } & ErrorInfo);
 
@@ -159,7 +165,17 @@ const useElapsed = (active: boolean) => {
   return elapsed;
 };
 
-export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
+/** The search status under "Looking for a rival" (placeholder copy, R-032 asks the Creative Director for the real words). */
+const legLine = (leg: LegKind | undefined, multi: boolean) =>
+  leg === 'fallback'
+    ? 'Nobody near you yet. Trying the next region…'
+    : leg === 'bot' && !multi
+      ? 'Looking for a player. If nobody comes, a bot joins in a few seconds.'
+      : leg === 'bot'
+        ? 'Nobody free right now. A bot joins in a few seconds.'
+        : 'Looking for a player near you…';
+
+export const OnlineLobby = ({ roomId, region: inviteRegion }: { roomId?: string; region?: string }) => {
   const [character, setCharacter] = useState<CharacterId>('hotfix');
   const [characterReady, setCharacterReady] = useState(false);
   // Opened from an invite link: the first thing on screen is "Joining room", not a flash of the menu.
@@ -211,6 +227,79 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
     saveCharacter(id);
   };
 
+  /**
+   * Wire one room to the lobby. `matched` resolves when the room has a match (a human: `peer` / `start`; the bot:
+   * `start`) and rejects if the room closes first. Messages of a room the lobby has moved on from are ignored.
+   */
+  const attach = (room: Room, mode: JoinMode, region: Region, live: () => boolean) => {
+    let session: OnlineSession | null = null;
+    const mine = () => live() && roomRef.current === room;
+    let found!: () => void;
+    let lost!: (e: Error) => void;
+    const matched = new Promise<void>((res, rej) => {
+      found = res;
+      lost = rej;
+    });
+    matched.catch(() => {});
+    room.onMessage('waiting', (msg: { roomId: string }) => {
+      if (mine() && mode.kind !== 'quick') setStage({ kind: 'waiting', roomId: msg.roomId, invite: mode.kind === 'private', region });
+    });
+    // Both players are in: try a direct line between the two browsers before the match starts.
+    room.onMessage('peer', (msg: { slot: number }) => {
+      if (!mine()) return;
+      found();
+      setStage({ kind: 'linking' });
+      void connectPeer(room, msg.slot === 0).then((link) => {
+        linkRef.current = link;
+        room.send('direct', { ok: !!link });
+      });
+    });
+    room.onMessage('start', (msg: StartMessage) => {
+      if (session || !mine()) return; // later starts (rematches) are handled inside the arena
+      found();
+      const link = linkRef.current;
+      if (msg.direct && link) {
+        // Direct: the inviter's browser runs the game, the other predicts against it.
+        session = msg.slot === 0 ? createHostSession(room, link, msg) : createOnlineSession(room, msg, link);
+      } else {
+        link?.close();
+        linkRef.current = null;
+        session = createOnlineSession(room, msg);
+      }
+      sessionRef.current = session;
+      setStage({
+        kind: 'playing',
+        online: { session, room },
+        characters: msg.characters,
+        ...(msg.bot && msg.bot.slot !== msg.slot ? { bot: msg.bot.level } : {}),
+      });
+    });
+    // The rival left before the match started (the direct-line handshake): back to searching, or waiting for the friend.
+    room.onMessage('left', () => {
+      if (session || !mine()) return;
+      linkRef.current?.close();
+      linkRef.current = null;
+      if (mode.kind === 'quick') {
+        roomRef.current = null;
+        void room.leave();
+        void go({ kind: 'quick' });
+      } else setStage({ kind: 'waiting', roomId: room.roomId, invite: true, region });
+    });
+    room.onLeave((code: number) => {
+      lost(new Error(`left ${code}`));
+      // 4409: the bot took the seat while this join was on its way; the search starts again (catch below).
+      if (!session && mine() && code !== 4409) {
+        setStage({
+          kind: 'error',
+          title: 'Lost the connection',
+          message: 'Lost the connection to the game server.',
+          joinFailed: false,
+        });
+      }
+    });
+    return { matched };
+  };
+
   const go = async (mode: JoinMode) => {
     if (forced) return;
     const run = ++runRef.current;
@@ -218,56 +307,51 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
     lastMode.current = mode;
     setStage({ kind: 'connecting', join: mode.kind === 'join' ? mode.roomId : undefined });
     try {
-      const room = await joinRoom(mode, character);
+      if (mode.kind === 'quick') {
+        // Own region, then the nearest other one, then the server bot (matchmaking.ts). Never more than ~9 s.
+        const regions = gameRegions();
+        const legs = planSearch(regions, await regionProbes(regions));
+        const matchedOf = new WeakMap<Room, Promise<void>>();
+        await runQuickMatch<Room>(legs, {
+          now: () => performance.now(),
+          sleep: (ms) => new Promise((r) => window.setTimeout(r, ms)),
+          cancelled: () => !live(),
+          onLeg: (leg) => {
+            if (live()) setStage((st) => ({ kind: 'waiting', roomId: st.kind === 'waiting' ? st.roomId : '', invite: false, leg: leg.kind, region: leg.region }));
+          },
+          join: async (region, botAfterMs) => {
+            const { room } = await joinRoom(mode, character, region, botAfterMs);
+            if (!live()) {
+              void room.leave();
+              throw new SearchCancelled();
+            }
+            roomRef.current = room;
+            matchedOf.set(room, attach(room, mode, region, live).matched);
+            if (live()) setStage((st) => (st.kind === 'waiting' ? { ...st, roomId: room.roomId } : st));
+            return room;
+          },
+          matched: (room) => matchedOf.get(room)!,
+          leave: (room) => {
+            if (roomRef.current === room) roomRef.current = null;
+            void room.leave();
+          },
+        });
+        return;
+      }
+      const { room, region } = await joinRoom(mode, character);
       if (!live()) {
         // Cancelled while connecting: don't stay in a room nobody is looking at.
         void room.leave();
         return;
       }
       roomRef.current = room;
-      let session: OnlineSession | null = null;
-      room.onMessage('waiting', (msg: { roomId: string }) => {
-        if (live())
-          setStage({ kind: 'waiting', roomId: msg.roomId, invite: mode.kind === 'private' });
-      });
-      // Both players are in: try a direct line between the two browsers before the match starts.
-      room.onMessage('peer', (msg: { slot: number }) => {
-        if (!live()) return;
-        setStage({ kind: 'linking' });
-        void connectPeer(room, msg.slot === 0).then((link) => {
-          linkRef.current = link;
-          room.send('direct', { ok: !!link });
-        });
-      });
-      room.onMessage('start', (msg: StartMessage) => {
-        if (session || !live()) return; // later starts (rematches) are handled inside the arena
-        const link = linkRef.current;
-        if (msg.direct && link) {
-          // Direct: the inviter's browser runs the game, the other predicts against it.
-          session =
-            msg.slot === 0
-              ? createHostSession(room, link, msg)
-              : createOnlineSession(room, msg, link);
-        } else {
-          link?.close();
-          linkRef.current = null;
-          session = createOnlineSession(room, msg);
-        }
-        sessionRef.current = session;
-        setStage({ kind: 'playing', online: { session, room }, characters: msg.characters });
-      });
-      room.onLeave(() => {
-        if (!session && live()) {
-          setStage({
-            kind: 'error',
-            title: 'Lost the connection',
-            message: 'Lost the connection to the game server.',
-            joinFailed: false,
-          });
-        }
-      });
+      attach(room, mode, region, live);
     } catch (e) {
-      if (!live()) return;
+      if (!live() || e instanceof SearchCancelled) return;
+      if (mode.kind === 'quick' && e instanceof Error && e.message === 'left 4409') {
+        void go(mode);
+        return;
+      }
       const detail = e instanceof Error ? e.message : String(e);
       setStage(
         mode.kind === 'join'
@@ -305,7 +389,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   useEffect(() => {
     if (roomId && !joined.current && forced === null) {
       joined.current = true;
-      void go({ kind: 'join', roomId });
+      void go({ kind: 'join', roomId, region: inviteRegion });
     }
   }); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -418,19 +502,24 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
   }, [view.rivalFound]);
 
   if (stage.kind === 'playing') {
-    const { online: net, characters } = stage;
+    const { online: net, characters, bot } = stage;
     return (
       <ArenaGame
         player={characters[net.session.slot]}
         opponent={characters[1 - net.session.slot]}
         online={net}
+        onlineBot={bot}
       />
     );
   }
 
   const waitingRoom = view_stage.kind === 'waiting' ? view_stage.roomId : '';
+  // With more than one region the link names the room's region (a room id alone does not say where it lives).
+  const inviteRegion_ = view_stage.kind === 'waiting' && gameRegions().length > 1 ? view_stage.region?.id : undefined;
   const inviteLink =
-    view_stage.kind === 'waiting' ? `${window.location.origin}/play?room=${waitingRoom}` : '';
+    view_stage.kind === 'waiting'
+      ? `${window.location.origin}/play?room=${waitingRoom}${inviteRegion_ ? `&r=${inviteRegion_}` : ''}`
+      : '';
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink);
@@ -558,6 +647,7 @@ export const OnlineLobby = ({ roomId }: { roomId?: string }) => {
           {view_stage.kind === 'waiting' && !view_stage.invite && (
             <QuickPanel
               elapsed={elapsed}
+              status={legLine(view_stage.leg, gameRegions().length > 1)}
               botHref={botHref}
               onInvite={
                 PORTAL

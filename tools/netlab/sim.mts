@@ -30,6 +30,7 @@ const RTT = opt('rtt', 60);
 const JITTER = opt('jitter', 10);
 const LOSS = opt('loss', 0.01);
 const SECS = opt('secs', 60);
+const ARENA = args.includes('--office') ? undefined : ('offsite' as const);
 let seed = opt('seed', 1) >>> 0;
 const rnd = () => {
   seed = (seed + 0x6d2b79f5) | 0;
@@ -61,7 +62,10 @@ const pipe = () => {
 };
 
 const TICK = 1000 / 60;
-const game = createGame(['hotfix', 'legacy'], 7, true);
+const game = createGame(['hotfix', 'legacy'], 7, true, undefined, ARENA ? { arena: ARENA } : undefined);
+// The client's reconcile probe: every own correction (metres) it had to absorb.
+const netprobe: { k: string; own?: number; t: number }[] = [];
+(globalThis as { __netprobe?: unknown[] }).__netprobe = netprobe;
 const auth = createAuthority(game, { remote: [true, true] });
 auth.setRoundTrip(0, RTT);
 auth.setRoundTrip(1, RTT);
@@ -81,7 +85,7 @@ const makeClient = (slot: number) => {
     send: () => {},
     ping: () => {},
   };
-  const session = createOnlineSession(room as never, { slot, characters: ['hotfix', 'legacy'], v: 2 });
+  const session = createOnlineSession(room as never, { slot, characters: ['hotfix', 'legacy'], v: 4, ...(ARENA ? { arena: ARENA } : {}) });
   // The session sends inputs with room.send('input', [w]): route them over the simulated pipe.
   (room as { send: unknown }).send = (type: string, payload: never) => {
     if (type === 'input') toServer.send(() => auth.receive(slot, payload));
@@ -99,7 +103,7 @@ const botInput = (slot: number, t: number): InputState => {
     left: (h & 3) === 0,
     right: (h & 3) === 1,
     up: (h & 28) === 0 && t % 700 < 40,
-    fire: (h & 96) !== 0,
+    fire: !args.includes("--nofire") && (h & 96) !== 0,
     dash: (h & 255) === 7 && t % 700 < 40,
     aimX: slot === 0 ? 1 : -1,
     aimY: 0,
@@ -108,6 +112,10 @@ const botInput = (slot: number, t: number): InputState => {
 
 // Authority path of each fighter, to date the drawn rival.
 const path: { t: number; x: number[] }[] = [];
+// Input -> rival screen: when a client changes direction (left/right), how long until the OTHER client draws the
+// rival moving that way. And input -> own screen: how long until this client's own drawn fighter moves that way.
+const lastDir = [0, 0];
+const turns: { slot: number; at: number; dir: number; ownAt?: number; rivalAt?: number }[] = [];
 let seq = 0;
 let nextClientTick = 0;
 let nextServerTick = 0;
@@ -136,7 +144,13 @@ for (; vt <= end; vt += 0.5) {
   }
   while (nextClientTick <= vt) {
     nextClientTick += TICK;
-    for (const c of clients) c.session.tick(botInput(c.slot, nextClientTick));
+    for (const c of clients) {
+      const inp = botInput(c.slot, nextClientTick);
+      const dir = inp.right ? 1 : inp.left ? -1 : 0;
+      if (dir !== 0 && dir !== lastDir[c.slot] && vt > warm) turns.push({ slot: c.slot, at: vt, dir });
+      lastDir[c.slot] = dir;
+      c.session.tick(inp);
+    }
   }
   while (nextFrame <= vt) {
     nextFrame += TICK;
@@ -157,6 +171,12 @@ for (; vt <= end; vt += 0.5) {
       }
       // Only frames where the rival moves: a standing fighter has no meaningful age.
       if (Math.abs(drawn.vx) > 2 && best < 0.5) c.rivalAge.push(vt - bestT);
+      // The frame drawn now (render runs right after the tick in the browser too).
+      const ownVx = c.session.state.fighters[c.slot].vx;
+      for (const tr of turns) {
+        if (tr.slot === c.slot && tr.ownAt === undefined && Math.sign(ownVx) === tr.dir && vt >= tr.at) tr.ownAt = vt;
+        if (tr.slot === rival && tr.rivalAt === undefined && Math.sign(drawn.vx) === tr.dir && Math.abs(drawn.vx) > 0.5 && vt >= tr.at) tr.rivalAt = vt;
+      }
       const own = c.session.state.fighters[c.slot];
       if (c.lastOwn) c.corr.push(Math.hypot(own.x - c.lastOwn.x, own.y - c.lastOwn.y));
       c.lastOwn = { x: own.x, y: own.y };
@@ -176,10 +196,24 @@ const out = clients.map((c) => ({
   bytesPerSec: Math.round(c.bytes / ((end - warm) / 1000)),
   timeline: c.session.timeline,
 }));
-const r = { RTT, JITTER, LOSS, SECS, snapEveryTicks: SNAPSHOT_EVERY_TICKS, out };
+const done = turns.filter((t) => t.ownAt !== undefined && t.rivalAt !== undefined && t.rivalAt - t.at < 1500);
+const corrections = netprobe.filter((p) => p.k === 'rec' && (p.own ?? 0) > 0.05).length;
+const rubber = netprobe.filter((p) => p.k === 'rec' && (p.own ?? 0) > 0.5).length;
+const minutes = (end - warm) / 60_000;
+const latency = {
+  turns: done.length,
+  inputToOwnMs: { p50: q(done.map((t) => t.ownAt! - t.at), 0.5), p95: q(done.map((t) => t.ownAt! - t.at), 0.95) },
+  inputToRivalMs: { p50: q(done.map((t) => t.rivalAt! - t.at), 0.5), p95: q(done.map((t) => t.rivalAt! - t.at), 0.95) },
+  correctionsPerMin: +(corrections / minutes / 2).toFixed(1),
+  rubberBandsPerMin: +(rubber / minutes / 2).toFixed(2),
+};
+const r = { RTT, JITTER, LOSS, SECS, arena: ARENA ?? 'office', snapEveryTicks: SNAPSHOT_EVERY_TICKS, latency, out };
 if (args.includes('--json')) console.log(JSON.stringify(r));
 else {
-  console.log(`rtt ${RTT} jitter ${JITTER} loss ${LOSS} | snapshot every ${SNAPSHOT_EVERY_TICKS} tick(s)`);
+  console.log(`rtt ${RTT} jitter ${JITTER} loss ${LOSS} | snapshot every ${SNAPSHOT_EVERY_TICKS} tick(s) | ${ARENA ?? 'office'}`);
+  console.log(
+    `input->own p50 ${latency.inputToOwnMs.p50} p95 ${latency.inputToOwnMs.p95} ms | input->rival screen p50 ${latency.inputToRivalMs.p50} p95 ${latency.inputToRivalMs.p95} ms (${latency.turns} turns) | own corrections >5cm ${latency.correctionsPerMin}/min, >50cm ${latency.rubberBandsPerMin}/min per client`,
+  );
   for (const o of out)
     console.log(
       `client ${o.slot}: rival age p50 ${o.rivalAgeMs.p50} p95 ${o.rivalAgeMs.p95} ms (network share ${RTT / 2}) -> added p50 ${o.addedMs.p50} p95 ${o.addedMs.p95} | ${o.bytesPerSec} B/s | delay ${o.timeline?.delayMs} ms underruns ${o.timeline?.underruns} received ${o.timeline?.received}`,

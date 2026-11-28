@@ -2,18 +2,30 @@ import { Room, ServerError } from '@colyseus/core';
 
 import { createAuthority } from '../src/game/net/authority';
 import { createFixedStep, createTickStats } from '../src/game/net/fixedStep';
+import { clampBotDelay } from '../src/game/net/matchmaking';
 import { PROTOCOL_VERSION, SNAPSHOT_EVERY_TICKS } from '../src/game/net/protocol';
 import { snapshotMessage } from '../src/game/net/serverSnapshot';
-import { CHARACTERS } from '../src/game/sim/constants';
+import { createBot } from '../src/game/sim/bot';
+import { CHARACTERS, isArenaId } from '../src/game/sim/constants';
 import { chooseCharacter, createGame } from '../src/game/sim/step';
 
 import type { Authority } from '../src/game/net/authority';
-import type { JoinOptions, StartMessage, WireInput } from '../src/game/net/protocol';
-import type { CharacterId } from '../src/game/sim/types';
+import type { BotSeat, JoinOptions, StartMessage, WireInput } from '../src/game/net/protocol';
+import type { BotLevel } from '../src/game/sim/bot';
+import type { ArenaId } from '../src/game/sim/constants';
+import type { CharacterId, GameState, InputState } from '../src/game/sim/types';
 import type { Client } from '@colyseus/core';
 
+/** The server bot's level (BOT_LEVEL env: easy | normal | hard). */
+export const SERVER_BOT_LEVEL: BotLevel = ((l) => (l === 'easy' || l === 'hard' ? l : 'normal'))(process.env.BOT_LEVEL);
+/** The arena online rooms play (ONLINE_ARENA env; default OFFSITE, the default arena offline too). */
+export const ONLINE_ARENA: ArenaId = isArenaId(process.env.ONLINE_ARENA) ? process.env.ONLINE_ARENA : 'offsite';
+
 interface Seat {
-  client: Client;
+  /** Null for the server bot. */
+  client: Client | null;
+  /** The server bot's brain (the same createBot as offline), run once per server tick. */
+  bot: ((s: GameState) => InputState) | null;
   character: CharacterId;
   rematch: boolean;
   pause: boolean;
@@ -45,6 +57,12 @@ export class DuelRoom extends Room {
   /** Direct mode: the host's browser runs the game; this room doesn't simulate. */
   private direct = false;
   private handshake: ReturnType<typeof setTimeout> | null = null;
+  /** Quick match: the timer that seats the bot when no human came (JoinOptions.bot). */
+  private botTimer: { clear: () => void } | null = null;
+  /** Rooms created with `private` (invites) never get a bot. */
+  private privateRoom = false;
+  /** The bot delay the waiting player asked for (re-armed, shorter, if they drop and come back while searching). */
+  private botDelay: number | undefined;
 
   /** A client built for another protocol version is refused with a message it can show, not fed snapshots it cannot read. */
   onAuth(_client: Client, options: JoinOptions) {
@@ -53,6 +71,7 @@ export class DuelRoom extends Room {
   }
 
   onCreate(options: JoinOptions) {
+    this.privateRoom = !!options?.private;
     if (options?.private) void this.setPrivate(true);
 
     this.onMessage('input', (client: Client, inputs: WireInput[]) => {
@@ -70,10 +89,10 @@ export class DuelRoom extends Room {
     });
 
     // WebRTC introductions: offers, answers and candidates go to the other player as they are.
-    this.onMessage('signal', (client: Client, msg: unknown) => this.other(client)?.client.send('signal', msg));
+    this.onMessage('signal', (client: Client, msg: unknown) => this.other(client)?.client?.send('signal', msg));
     // Direct mode's fallback when the direct line drops: pass game messages through.
     this.onMessage('relay', (client: Client, raw: unknown) => {
-      if (typeof raw === 'string' && raw.length < 200_000) this.other(client)?.client.send('relay', raw);
+      if (typeof raw === 'string' && raw.length < 200_000) this.other(client)?.client?.send('relay', raw);
     });
     this.onMessage('direct', (client: Client, msg: { ok?: boolean }) => {
       const seat = this.seatOf(client);
@@ -87,7 +106,8 @@ export class DuelRoom extends Room {
       // In direct mode the host's browser knows when the match is over, not this room.
       if (!seat || (!this.direct && this.auth?.state.phase !== 'over')) return;
       seat.rematch = true;
-      if (this.seats.every((s) => s?.rematch)) this.startGame();
+      // The bot always wants another round.
+      if (this.seats.every((s) => s?.rematch || s?.bot)) this.startGame();
     });
 
     // Pause needs both players: one asks (Esc Esc), the other agrees the same way.
@@ -95,7 +115,8 @@ export class DuelRoom extends Room {
       const seat = this.seatOf(client);
       if (!seat || !this.auth || this.auth.state.phase === 'over') return;
       seat.pause = true;
-      if (this.seats.every((x) => x?.pause)) this.auth.state.paused = true;
+      // Against the bot the pause is instant, as offline.
+      if (this.seats.every((x) => x?.pause || x?.bot)) this.auth.state.paused = true;
       this.sendPause();
     });
     this.onMessage('cancelPause', (client: Client) => {
@@ -133,34 +154,79 @@ export class DuelRoom extends Room {
 
   onJoin(client: Client, options: JoinOptions) {
     const slot = this.seats[0] === null ? 0 : 1;
+    if (this.seats[slot]) {
+      // Both seats taken (the bot sat down while this join was on its way): this player goes back to the search.
+      client.leave(4409);
+      return;
+    }
     this.seats[slot] = {
       client,
+      bot: null,
       character: isCharacter(options?.character) ? options.character : 'hotfix',
       rematch: false,
       pause: false,
       direct: null,
     };
     if (this.seats.every(Boolean)) {
+      this.clearBotTimer();
       void this.lock();
       // First try to connect the two browsers directly; start in any case within 6 seconds.
       // Clients that don't know about direct play never answer and simply get server mode.
-      this.seats.forEach((x, slot) => x!.client.send('peer', { slot }));
+      this.seats.forEach((x, slot) => x!.client?.send('peer', { slot }));
       this.handshake = setTimeout(() => this.finishHandshake(), 6000);
     } else {
       client.send('waiting', { roomId: this.roomId });
+      // Quick match, last leg of the search: no human within the delay -> the bot sits down and the match starts.
+      this.botDelay = this.privateRoom ? undefined : clampBotDelay(options?.bot);
+      this.armBot(this.botDelay);
     }
+  }
+
+  private armBot(delay: number | undefined) {
+    this.clearBotTimer();
+    if (delay !== undefined) this.botTimer = this.clock.setTimeout(() => this.seatBot(), delay);
+  }
+
+  private clearBotTimer() {
+    this.botTimer?.clear();
+    this.botTimer = null;
+  }
+
+  /**
+   * The server bot takes the empty seat: the same createBot as offline, fed the authority's state on the server tick.
+   * The room locks first, so a human who arrives later finds another room (the next match), never this one mid-match.
+   */
+  private seatBot() {
+    this.botTimer = null;
+    const humans = this.seats.filter((x) => x?.client);
+    // A human is on the way (a reserved seat) or already here: they win, no bot.
+    if (humans.length !== 1 || this.seats.every(Boolean) || this.hasReachedMaxClients()) return;
+    void this.lock();
+    const slot = this.seats[0] === null ? 0 : 1;
+    const human = humans[0]!;
+    const pool = (Object.keys(CHARACTERS) as CharacterId[]).filter((c) => c !== human.character);
+    const character = pool[Math.floor(Math.random() * pool.length)] ?? 'legacy';
+    const think = createBot(slot, (Math.random() * 1e9) | 0, SERVER_BOT_LEVEL);
+    this.seats[slot] = { client: null, bot: think, character, rematch: true, pause: true, direct: false };
+    this.startGame();
   }
 
   /** A dropped connection (wifi blip, tab asleep) gets 20 seconds to come back to the same seat. */
   async onDrop(client: Client) {
     const seat = this.seatOf(client);
     if (!seat) return;
+    this.clearBotTimer();
     const slot = this.seats.indexOf(seat);
     if (this.auth) this.auth.state.paused = true;
     this.sendPause(); // the other client must stop predicting too
     this.broadcast('dropped', { slot, seconds: 20 });
     try {
       seat.client = await this.allowReconnection(client, 20);
+      // Reconnected before a match started (still searching): the search goes on, bot timer included.
+      if (!this.auth && !this.seats.every(Boolean)) {
+        seat.client.send('waiting', { roomId: this.roomId });
+        if (this.botDelay !== undefined) this.armBot(Math.min(this.botDelay, 1000));
+      }
       if (this.auth) this.auth.state.paused = false;
       this.broadcast('back', { slot });
       this.sendPause();
@@ -172,7 +238,14 @@ export class DuelRoom extends Room {
   onLeave(client: Client) {
     const slot = this.seats.findIndex((s) => s?.client === client);
     if (slot < 0) return;
+    this.clearBotTimer();
     this.seats[slot] = null;
+    // Only the bot is left: nobody to play for. The room closes (it is locked, so no one could join it anyway).
+    if (this.seats.some((s) => s?.bot)) {
+      this.auth = null;
+      void this.disconnect();
+      return;
+    }
     this.auth = null;
     this.direct = false;
     if (this.handshake) clearTimeout(this.handshake);
@@ -196,7 +269,7 @@ export class DuelRoom extends Room {
 
   private sendPause() {
     this.broadcast('pauseState', {
-      requests: this.seats.map((x) => !!x?.pause),
+      requests: this.seats.map((x) => !!x?.pause && !x?.bot),
       paused: !!this.auth?.state.paused,
     });
   }
@@ -207,24 +280,35 @@ export class DuelRoom extends Room {
 
   private startGame() {
     const [a, b] = this.seats as Seat[];
-    const game = createGame([a.character, b.character], (Math.random() * 1e9) | 0, true);
-    // Keep the measured round trips across a rematch.
+    const game = createGame([a.character, b.character], (Math.random() * 1e9) | 0, true, undefined, { arena: ONLINE_ARENA });
+    // Keep the measured round trips across a rematch. The bot's seat is not remote: its inputs are made here.
     if (this.auth) this.auth.reset(game);
-    else this.auth = createAuthority(game, { remote: [true, true] });
+    else this.auth = createAuthority(game, { remote: [!a.bot, !b.bot] });
+    const botSlot = this.seats.findIndex((s) => s?.bot);
+    const bot: BotSeat | undefined = botSlot >= 0 ? { slot: botSlot, level: SERVER_BOT_LEVEL } : undefined;
     for (const s of [a, b]) {
-      s.rematch = false;
-      s.pause = false;
+      s.rematch = !!s.bot;
+      s.pause = !!s.bot;
     }
     [a, b].forEach((s, slot) => {
-      const msg: StartMessage = { slot, characters: [a.character, b.character], direct: this.direct, v: PROTOCOL_VERSION };
-      s.client.send('start', msg);
+      const msg: StartMessage = {
+        slot,
+        characters: [a.character, b.character],
+        direct: this.direct,
+        v: PROTOCOL_VERSION,
+        arena: ONLINE_ARENA,
+        ...(bot ? { bot } : {}),
+      };
+      s.client?.send('start', msg);
     });
   }
 
   private tick() {
     const auth = this.auth;
     if (!auth || this.direct) return;
-    const events = auth.advance([null, null]);
+    // The bot decides from the state before this tick, like the offline bot (its inputs are kept for rewinds).
+    const state = auth.state;
+    const events = auth.advance(this.seats.map((s) => (s?.bot ? s.bot(state) : null)));
     // Test hook: NET_PROBE=1 logs every hit with the victim's position (for the network tests).
     if (process.env.NET_PROBE) {
       for (const e of events) {

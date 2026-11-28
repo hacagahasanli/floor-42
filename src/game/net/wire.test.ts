@@ -87,7 +87,7 @@ describe('compact snapshot (protocol 3)', () => {
   });
 
   it('is a fraction of the old size and the server sends it every tick', () => {
-    expect(PROTOCOL_VERSION).toBe(3);
+    expect(PROTOCOL_VERSION).toBe(4);
     expect(SNAPSHOT_EVERY_TICKS).toBe(1);
     const state = fight(900);
     const input = { ack: [5, 5] as [number, number], inputs: [[5, 3, 1, 1], [5, 3, 1, 1]] as never };
@@ -100,5 +100,16 @@ describe('compact snapshot (protocol 3)', () => {
     const msg = snapshotMessage(auth, 1);
     expect(msg.length).toBeLessThan(1200);
     expect(decodeSnapshot(msg).state.tick).toBeLessThanOrEqual(auth.tick);
+  });
+
+  it('protocol 4: the room\'s arena travels in the state (OFFSITE online), the office stays the absent field', () => {
+    const s = createGame(['hotfix', 'legacy'], 3, true, undefined, { arena: 'offsite' });
+    expect(expandState(compactState(s)).arena).toBe('offsite');
+    expect('arena' in expandState(compactState(createGame(['hotfix', 'legacy'], 3, true)))).toBe(false);
+    const auth = createAuthority(s, { remote: [true, true] });
+    for (let t = 0; t < 400; t++) auth.advance([null, null]);
+    const msg = snapshotMessage(auth, 1);
+    expect(decodeSnapshot(msg).state.arena).toBe('offsite');
+    expect(msg.length).toBeLessThan(1200);
   });
 });

@@ -116,6 +116,8 @@ const TOP: Col[] = [
   { k: 'net', t: 'b', o: true },
   { k: 'kosToWin', t: 'e', o: true },
   { k: 'assist', t: 'b', o: true },
+  // Protocol 4: online rooms may play another arena than the office (absent = the office).
+  { k: 'arena', t: 'e', o: true },
   { k: 'seed', t: 'e' },
   { k: 'dropTimer', t: 1000 },
   { k: 'nextId', t: 'e' },

@@ -24,7 +24,8 @@ export const createHostSession = (room: Room, link: PeerLink, start: StartMessag
   const guestSeat = 1 - slot;
   const remote = [false, false];
   remote[guestSeat] = true;
-  const newGame = (characters: [CharacterId, CharacterId]) => createGame(characters, (Math.random() * 1e9) | 0, true);
+  const newGame = (characters: [CharacterId, CharacterId]) =>
+    createGame(characters, (Math.random() * 1e9) | 0, true, undefined, start.arena ? { arena: start.arena } : undefined);
   const auth = createAuthority(newGame(start.characters), { remote });
   let tick = 0;
   let seq = 0;

@@ -107,6 +107,7 @@ export const ArenaGame = ({
   level: requestedLevel = 'normal',
   arena: requestedArena,
   online,
+  onlineBot,
   twoPlayer,
 }: {
   player: CharacterId;
@@ -116,16 +117,18 @@ export const ArenaGame = ({
   /** The `arena=` of the URL: which arena an offline match is played in (else the remembered pick, else the default). */
   arena?: string | null;
   online?: { session: OnlineSession; room: Room };
+  /** Online vs the server's bot (no human was free): its level, shown as BOT · LEVEL like offline. */
+  onlineBot?: BotLevel;
   /** Local 2-player on one keyboard: `player` is P1's fighter, `opponent` P2's; first to `kosToWin`. */
   twoPlayer?: { kosToWin: number };
 }) => {
   const tp = !!twoPlayer && !online && !demo;
   // The very first match against the bot is always easy; after that the menu's choice stands.
   const [firstMatch] = useState(() => !readFinishedMatch());
-  const level = demo || online || tp ? requestedLevel : botLevelFor(requestedLevel, !firstMatch);
+  const level = onlineBot ?? (demo || online || tp ? requestedLevel : botLevelFor(requestedLevel, !firstMatch));
   const kosToWin = twoPlayer?.kosToWin;
   // Fixed for the life of the page: changing the pick in settings mid-match must not rebuild the arena.
-  const [arenaId] = useState(() => resolveArena({ online: !!online, query: requestedArena, saved: getSettings().get().arena }));
+  const [arenaId] = useState(() => resolveArena({ online: !!online, onlineArena: online?.session.state.arena, query: requestedArena, saved: getSettings().get().arena }));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<ReturnType<typeof startArena> | null>(null);
   const keyTrapRef = useRef<HTMLInputElement>(null);
@@ -431,8 +434,8 @@ export const ArenaGame = ({
 
   const rematch = () => {
     if (vsRematch) return;
-    // Only online waits for the rival; against the bot the rematch starts at once.
-    if (online) setRematchAsked(true);
+    // Only online waits for the rival; against the bot (offline, or the server's bot) the rematch starts at once.
+    if (online && !onlineBot) setRematchAsked(true);
     counted.current = false;
     if (!online && !demo) {
       setVsRematch(true);
@@ -575,6 +578,7 @@ export const ArenaGame = ({
             demo={demo}
             tp={tp}
             online={!!online}
+            onlineBot={!!onlineBot}
             touch={touch}
             level={level}
             colours={colours}

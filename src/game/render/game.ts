@@ -144,8 +144,8 @@ export const startArena = (canvas: HTMLCanvasElement, opts: ArenaOptions) => {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
-  // Online play is always the office (the protocol carries no arena); offline uses the pick or the default.
-  const arenaId: ArenaId = opts.online ? 'office' : (opts.arena ?? DEFAULT_ARENA);
+  // Online: the arena of the server's room (in the session's state; an older server: the office); offline the pick.
+  const arenaId: ArenaId = opts.online ? (opts.online.state.arena ?? 'office') : (opts.arena ?? DEFAULT_ARENA);
   const A = arenaOf({ arena: arenaId });
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 400);
   camera.position.set(0, A.ceiling / 2, 40);

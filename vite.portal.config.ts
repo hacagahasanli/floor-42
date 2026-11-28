@@ -35,6 +35,8 @@ export default defineConfig({
     'process.env.NEXT_PUBLIC_BUILD': 'undefined',
     'process.env.NEXT_PUBLIC_GAME_SERVER': JSON.stringify(process.env.PORTAL_GAME_SERVER ?? 'wss://floor42-game.fly.dev'),
     'process.env.NEXT_PUBLIC_TURN_URL': 'undefined',
+    'process.env.NEXT_PUBLIC_ONLINE': 'undefined',
+    'process.env.NEXT_PUBLIC_GAME_REGIONS': 'undefined',
     'process.env.NEXT_PUBLIC_TURN_USERNAME': 'undefined',
     'process.env.NEXT_PUBLIC_TURN_CREDENTIAL': 'undefined',
   },
