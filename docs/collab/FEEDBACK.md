@@ -518,10 +518,53 @@ Spec: `CREATIVE/ui/direction-b/spec.md` §11; sheet `CREATIVE/ui/direction-b/tra
 - Why it matters: nothing leads the eye, and the fighters stop owning their colours, which hurts readability in a fight.
 - What should change: `CREATIVE/ui/direction-b/colour-balance.md` sections 3 and 4 in one pass: ButtonTone `sun | white | warn`; delete sky/teal tokens; white chips (HUD ready = white, cooling = #d9d3e6); grape ribbons; bunting sun/cream/tang; grape pips; 2P grape headers with accent foot, READY sun, VS white; result medals white with holder-accent ring, mist balloon, muted track #c9765c, confetti sun/white/winner.
 - Expected result: frames match `shots/colour-balance/after/*.png`; acceptance criteria 1-5 and 7 of the spec.
-- Related spec: colour-balance.md. Status: open
+- Related spec: colour-balance.md. Status: implemented (11b6915); reviewed by CD 2026-11-28 (R-028): accepted, follow-ups F-058, F-059, F-061, F-062, F-063, F-064
 
 ## F-057 — PEWFIELD wordmark too small on home (P1, R-027)
 - What is wrong: art about 272x118, smaller than PLAY (372x96); the tang subtitle ribbon under the tang FIELD ribbon reads as one orange block.
 - What should change: wordmark slot 420x160 (art ~369x160) at left 34 / top 34; grape arena ribbon at left 64 / top 184; menu column top 252, gap 16 (colour-balance.md section 5).
 - Expected result: `shots/colour-balance/after/home-pewfield.png`; layout check 0 issues at 1280 and 1920.
-- Related spec: colour-balance.md section 5. Status: open
+- Related spec: colour-balance.md section 5. Status: implemented (3a4a61d); reviewed by CD 2026-11-28 (R-028): accepted, the ribbon tuck is intended, layout-check follow-up F-060
+
+## F-058 — Settings: four sun marks; selected states become grape-2 (P1, R-028)
+- What is wrong: `impl/settings.png` shows sun on the selected tab, the AUTO segment, the ON toggle and DONE (and `.fd-slider b` fills sun on Audio). Sun stops meaning "the action".
+- Why it matters: one action colour per screen is the core of R-027; Settings is the screen players open to find DONE.
+- What should change: colour-balance.md 8.2. Selected tab: fill #5a3596, white Titan text without `.fd-ol`, `inset 0 -5px 0 #26124a`, drop `0 4px 0 #3b1f6b`. `.fd-seg button[aria-checked='true']`: #5a3596, white text, `inset 0 -3px 0 #26124a`. `.fd-toggle[aria-checked='true']`: track #5a3596. `.fd-slider b`: #5a3596. Keep sun on DONE and on `.fd-kc.fd-listening`.
+- Expected result: Settings (every tab) has exactly one sun element at rest (DONE); white on #5a3596 = 8.81:1; toggle ON vs OFF track 4.34:1. Re-capture Controls, Graphics, Audio and Accessibility.
+- Related spec: colour-balance.md 8.2. Status: open
+
+## F-059 — Contrast: cooling DASH/PUSH and `+ ADD` text (P1, R-028)
+- What is wrong: `.fd-chip.fd-cool` text #8c84a3 on #d9d3e6 = 2.42:1; `.fd-kc.fd-empty` #8c84a3 on #ffffff = 3.53:1. WCAG text minimum is 4.5:1.
+- What should change: new token `--gray-ink: #5a5274`. Cooling chip text #5a5274 (fill #d9d3e6 and border #8c84a3 unchanged); empty keycap text #5a5274 (dashed border #8c84a3 unchanged). `--gray-lo` is never used for text again.
+- Expected result: cooling 4.98:1, `+ ADD` 7.26:1; greyscale ready vs cooling still distinct by fill (255 vs 215) and border (48 vs 138) plus the seconds label. Re-capture `hud-offsite-grey.png`.
+- Related spec: colour-balance.md 8.3. Status: open
+
+## F-060 — Home PEWFIELD: whitelist the wordmark/ribbon lock-up (P2, R-028)
+- What is wrong: the strict layout check flags wordmark slot x arena-ribbon (18.2 px vertical box overlap) at 1280 and 1920. The tuck is intended.
+- What should change: do not move the ribbon. In the layout check, exempt only the pair `wordmark` x `arena-ribbon` on home, and only while the vertical overlap of their boxes is <= 20 design px; every other overlap still counts.
+- Expected result: home-pewfield 0 issues at 1280x720 and 1920x1080 with the whitelist; frames unchanged from `impl-pewfield/`.
+- Related spec: colour-balance.md 8.4. Status: open
+
+## F-061 — Pennant on grape ribbons reads as two quote marks (P2, R-028)
+- What is wrong: on the home arena ribbon and the Credits title ribbon the sticker pennant loses its grape stroke against grape; only two white specks remain.
+- What should change: add the on-dark pennant from `CREATIVE/ui/direction-b/traits/icons/ui-pennant-on-dark.svg` (string #FFF3D6, flags #FFC83D and #FFF3D6, no grape stroke) and use it on every grape surface: home ribbon at 24 px, Credits ribbon at 30 px. The Settings Credits button (white) keeps the sticker pennant.
+- Expected result: both ribbons show a small string of two flags, readable at 1280x720.
+- Related spec: colour-balance.md 8.6. Status: open
+
+## F-062 — SHARPSHOOTER pistol is a speck in its medal (P2, R-028, pre-existing)
+- What is wrong: in `impl/result-loss.png` the pistol is about 32x16 inside the 92 px medal disc (WeaponIcon's inline size beats `.fd-wide`).
+- What should change: any weapon icon inside `.fd-res-disc` renders at 56 x 28 px, centred, grape like the other award icons.
+- Expected result: the SHARPSHOOTER medal reads as a gun at a glance, same visual weight as BOOMERANG and PIÑATA.
+- Related spec: colour-balance.md 8.6. Status: open
+
+## F-063 — P1 / P2 tags in UI chrome: grape and white, no player hue (P1, R-028)
+- What is wrong: `impl/result-2p.png`: P1 tag #ff4d4d and P2 tag #4d7cff above the cards, the same colours in `Tonight: P1 3 - 2 P2`, and a red `P1 ✓` chip inside the sun REMATCH. They collide with BRIX red and TAVO blue and add two hues to the busiest screen.
+- What should change: every UI-chrome consumer of `PlayerChip` / `usePlayerColours()` (result tags, Tonight pill, rematch chips, HUD 2P key strips, Settings 2P keys, KeyCard): tag fill #3b1f6b, text #ffffff (2px white border where it sits on 3D or a photo); in the grape Tonight pill: P1/P2 white text, digits sun; rematch chip ready = #3b1f6b fill, white text and check; not ready = #ffffff fill, #3b1f6b text, 2px #3b1f6b border. Do NOT change the in-world over-head tags in `render/game.ts` (they keep `PLAYER_COLOURS` and the colour-blind pair).
+- Expected result: no red/blue in 2P UI chrome except fighter-owned parts; all tag text 13.17:1. Re-capture result-2p and the 2P HUD with key strips.
+- Related spec: colour-balance.md 8.5 (supersedes the strip-tag colour in spec.md 11.5.9). Status: open
+
+## F-064 — Reset confirm label too long for its button (P3, R-028)
+- What is wrong: `impl/settings-reset-confirm.png`: "PRESS AGAIN TO RESET ALL" fills the warn button edge to edge.
+- What should change: label `PRESS AGAIN TO RESET` (the row title already says "Reset all settings"); keep the 12 px clear space rule.
+- Expected result: label with >= 12 px clear space each side at 1280x720.
+- Related spec: colour-balance.md 8.7. Status: open

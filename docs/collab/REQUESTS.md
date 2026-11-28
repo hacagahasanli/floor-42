@@ -199,4 +199,4 @@ Format: `## R-001 — title` then Context, Expected deliverable, Priority (P0-P3
   4. Review all `impl/*.png` against `after/*.png` and the engineering deviations (toggles sun, VS lip, how-to titles, online rematch chips, KO/2P-ready confetti, grape default ribbon on pause/settings/credits/VS doors). Also: SHARPSHOOTER pistol icon ~32x16 in the 92 px medal (pre-existing) and the pennant icon on grape ribbons reading as two white marks.
 - Expected deliverable: decisions with exact values in colour-balance.md (new section) + F-items for anything engineering must change.
 - Priority: P1
-- Status: open
+- Status: done (CD 2026-11-28): colour-balance.md section 8; F-058..F-064

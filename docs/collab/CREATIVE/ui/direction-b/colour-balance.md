@@ -1,6 +1,6 @@
 # Colour balance (R-027): calm base, one action colour, fighters own their colours
 
-Status: decided (Creative Director, 2026-11-28). Supersedes any colour choice in `spec.md` that conflicts with it. Applies to every Field Day screen (`src/components/fieldday/**`, menus in `src/components/menu/**` that use `.fd`).
+Status: decided (Creative Director, 2026-11-28; section 8 added for R-028). Supersedes any colour choice in `spec.md` that conflicts with it. Applies to every Field Day screen (`src/components/fieldday/**`, menus in `src/components/menu/**` that use `.fd`).
 
 Evidence: `docs/collab/shots/colour-balance/`
 - `before/*.png` real build (portal-build 51eacbf; home-pewfield from rename-pewfield c551245), 1280x720, Chromium 1255 ANGLE Metal. Script `capture.mjs`.
@@ -32,7 +32,7 @@ What is NOT the problem (keep): the grape outline + drop system, Titan One, chun
 **60 / 30 / 10, with one action colour.**
 - **60 % world + paper.** The arena/desert and white/cream surfaces (cards, panels, secondary buttons, chips).
 - **30 % grape.** The one structural colour: outlines, text, pills, keycaps, headers, ribbons, filled pips.
-- **10 % SUN.** The ONE action colour: the single primary button per screen, the focused/picked thing (YOUR PICK, READY), the winner's celebration (rays, podium 1), "ready now" flashes.
+- **10 % SUN.** The ONE action colour: the single primary button per screen, the focused/picked thing (YOUR PICK, READY), the winner's celebration (rays, podium 1), "ready now" flashes. Persistent selected states inside a group (tabs, segments, toggles, sliders) are grape-2, not sun: section 8.2.
 - **Fighter accents belong to fighters.** They may appear only where the thing IS that fighter or was done BY that fighter: the model, portrait backdrops, the card's accent band, the trait disc, HUD portrait ring / HP bar / score block, a medal ring for the award holder, the 2P header foot strip. Never on a generic control.
 - **Orange (tang) is brand decor only**: the wordmark and the bunting. Never a button, chip or ribbon.
 - **Max saturated hue families visible at once in UI chrome: 2** (sun + grape-family), plus the accents of the fighters on screen. Select is the one screen allowed all four accents, and only inside the portraits, trait discs and the 4 px card bands.
@@ -109,3 +109,104 @@ Change (`HomeScreen.tsx`, `Wordmark`): slot 420x**160** (art height-bound, about
 - The 3D arenas, fighter models and accents: untouched (the desert is the 60 % base and stays).
 - Not seen: phones, the office arena HUD, pause, settings, how-to, credits, online lobby, boot. The rules cover them; engineering should send screenshots.
 - No player test of "calmer but still fun": this is the director's judgement against the owner's note.
+
+## 8. R-028 follow-ups after the F-056 / F-057 build (2026-11-28)
+
+Reviewed: every frame in `shots/colour-balance/impl/` (portal-build 11b6915) and `floor-42-rename/docs/collab/shots/colour-balance/impl-pewfield/` (rename-pewfield 3a4a61d) against `after/*.png`, plus the engineering LOG entry of 2026-11-28. Home, select, 2P, HUD and result match `after/` in colour. Four problems remain, listed first.
+
+### 8.1 Problems found in the build
+
+1. **Settings has four sun marks** (selected tab, AUTO segment, ON toggle, DONE) and the Audio sliders fill with sun too (`.fd-slider b`, not captured). The rule "the picked thing is sun" was written for a single pick per screen (YOUR PICK, READY). A settings panel has a dozen picks at once, so sun stops meaning "do this". Fix in 8.2.
+2. **Cooling DASH/PUSH text is 2.42:1** (#8c84a3 on #d9d3e6). The same grey on white, the `+ ADD` empty keycap (`.fd-kc.fd-empty`), is 3.53:1. Both fail WCAG 1.4.3 (4.5:1). Fix in 8.3.
+3. **2P UI still uses the player colours**: on the 2P result the `P1` tag (#ff4d4d, reads orange-red next to BRIX) and `P2` tag (#4d7cff, reads as the deleted sky) above the cards, `Tonight: P1 3 - 2 P2` in the same two colours, and the red `P1 ✓` chip inside the sun REMATCH. Red and blue are BRIX's and TAVO's accents (section 2). Fix in 8.5.
+4. **Pennant on grape ribbons** reads as two white quote marks (home arena ribbon, Credits title ribbon): the grape stroke vanishes on the grape ribbon and only the two white triangles are left. **SHARPSHOOTER** pistol draws about 32x16 inside the 92 px medal: an empty white disc with a speck. Fix in 8.6.
+
+### 8.2 Selected states: grape-2, not sun (Settings and any panel)
+
+Rule added to section 2: **sun = the one action, or a momentary event. A persistent selected state in a group (tab, segment, toggle, slider value) is grape-2.** One sun per screen holds without exceptions: on Settings that is DONE.
+
+| Component / state | Fill | Text / knob | Lip / inset | Ratio (WCAG) |
+|---|---|---|---|---|
+| Tab, selected (`.fd-tab` with the selected tone) | `--grape-2` #5a3596 | #ffffff, Titan One, no `.fd-ol` outline | `inset 0 -5px 0 var(--grape-deep)` #26124a, drop `0 4px 0 var(--grape)` | white on #5a3596 = **8.81:1** |
+| Tab, unselected | unchanged (#ffffff, lip #d9cfee) | grape #3b1f6b | unchanged | 13.17:1 |
+| Segmented, selected (`.fd-seg button[aria-checked='true']`) | #5a3596 | #ffffff | `inset 0 -3px 0 #26124a` | **8.81:1** |
+| Segmented, unselected | transparent on #ffffff | #3b1f6b | none | 13.17:1 |
+| Toggle ON (`.fd-toggle[aria-checked='true']`) | track #5a3596 | knob #ffffff, border #3b1f6b (unchanged) | unchanged inset shadow | track vs OFF track #b9b3c9 = **4.34:1** (non-text, 1.4.11 needs 3:1) |
+| Toggle OFF | track `--gray` #b9b3c9 (unchanged) | knob left | unchanged | knob position is the second cue |
+| Slider value fill (`.fd-slider b`) | #5a3596 | knob unchanged (white, grape border) | none | #5a3596 vs white track = 8.81:1 |
+| Keycap listening (`.fd-kc.fd-listening`, PRESS A KEY) | **sun, keep** | grape | unchanged | it is a momentary event, allowed |
+| DONE | sun (the one action) | unchanged | unchanged | |
+
+Greyscale check (luma 0.299/0.587/0.114): selected #5a3596 = 75, unselected white = 255, toggle OFF #b9b3c9 = 183. Selected reads as the dark one in every group. The focus ring (white + grape double ring) is unchanged and still marks keyboard focus separately from selection.
+
+Not sun anywhere in Settings except DONE and a listening keycap. `warn` (tang, "PRESS AGAIN TO RESET") is allowed beside DONE because it only exists during the confirm.
+
+### 8.3 Contrast: cooling chip and empty keycap
+
+New token `--gray-ink: #5a5274` (a darker step of `--gray-lo`, same hue family). `--gray-lo` #8c84a3 stays for borders, lips and dashed outlines only, never for text.
+
+| Component / state | Fill | Text | Border | Text ratio |
+|---|---|---|---|---|
+| HUD DASH/PUSH ready (`.fd-chip`) | #ffffff | #3b1f6b | 3px #3b1f6b | 13.17:1 |
+| HUD DASH/PUSH cooling (`.fd-chip.fd-cool`) | #d9d3e6 (unchanged) | **#5a5274** (was #8c84a3) | 3px **#8c84a3** (unchanged) | **4.98:1** (was 2.42:1) |
+| Empty keycap `+ ADD` (`.fd-kc.fd-empty`) | #ffffff | **#5a5274** | 3px dashed #8c84a3 (unchanged) | **7.26:1** (was 3.53:1) |
+
+Ready vs cooling in greyscale, three cues: fill 255 vs 215, border 48 vs 138 (the strongest, a 90-step difference), plus the cooling chip's seconds label (`PUSH 2s`). Text alone is 48 vs 88, so the border carries the state, not the text. The 300 ms sun flash on becoming ready is unchanged.
+
+Ratios computed with the WCAG 2.x relative-luminance formula, sRGB hex values as above, no alpha. The HUD chip text has no text-shadow inside the chip; if one is added the ratio only rises.
+
+### 8.4 Home PEWFIELD: the ribbon tuck is intended
+
+The arena ribbon tucked under the wordmark slot is deliberate: wordmark + ribbon read as one lock-up (the `after/home-pewfield.png` look, and the impl frames match it). Do NOT move the ribbon.
+
+Layout check: whitelist exactly this pair, `wordmark` slot x `arena-ribbon`, on home only, with a bound: vertical overlap of the two boxes <= **20 design px** (measured today: ribbon box top 175.8 vs slot bottom 194 = 18.2 px, because of the -3 degree tilt), and horizontal overlap anything. Any other overlap with the wordmark, or this one above 20 px, is still an issue. Criterion 6 of section 6 then reads "0 issues with the lock-up whitelist".
+
+Accepted as built: art 369.2 x 160 (>= 360 wide), PLAY at top 248, boot at scale 1.25 (462 x 200 at 1280, 56 px above the bar).
+
+### 8.5 P1 / P2 tags in 2P UI chrome (result, HUD key strips, Settings 2P keys, KeyCard, rematch chips)
+
+Today every `PlayerChip` / `usePlayerColours()` consumer fills with `PLAYER_COLOURS` (#ff4d4d / #4d7cff, colour-blind #e69f00 / #56b4e9). In UI chrome these add a red and a blue next to fighters who already own red (BRIX) and blue (TAVO): the exact collision section 1 removed. In the UI, P1 and P2 are identified by the label and by position (left/right plate, the portrait next to the tag), so they get no hue there.
+
+**Scope:** UI chrome only. The in-world over-head tags drawn in `render/game.ts` (`recolourMarks`) keep the player colours and the colour-blind pair: in a mirror match they are the only way to tell two identical fighters apart in the 3D scene, so they are a gameplay marker, not decor.
+
+| Element | Fill | Text | Border | Ratio |
+|---|---|---|---|---|
+| `P1` / `P2` tag on a light or world surface (result card tags, HUD, Settings 2P keys) | #3b1f6b | #ffffff | none (or 2px #ffffff where it sits on a photo/3D background) | 13.17:1 |
+| `P1` / `P2` inside the grape "Tonight" pill | none | #ffffff, the score digits sun #ffc83d | - | white on #3b1f6b 13.17:1, sun on #3b1f6b 8.52:1 |
+| Rematch chip inside the sun REMATCH button, player ready (`P1 ✓`) | #3b1f6b | #ffffff + white check | 2px #3b1f6b | 13.17:1 |
+| Rematch chip, player not ready (`P2`) | #ffffff | #3b1f6b | 2px #3b1f6b | 13.17:1 |
+
+This supersedes the "tag in Titan 13 on the player colour" line of spec.md section 11.5.9 (2P key strips): the strip tag becomes the grape/white pair above. `PLAYER_COLOURS` stays in code for the in-world tags only.
+
+### 8.6 Icons
+
+**Pennant on dark surfaces.** New asset `traits/icons/ui-pennant-on-dark.svg` (rendered and checked on #3b1f6b): string #FFF3D6 2.4 stroke, left flag #FFC83D, right flag #FFF3D6, no grape stroke. Use it whenever the pennant sits on grape (home arena ribbon at 24 px, Credits title ribbon at 30 px). The existing sticker pennant stays on white (Settings Credits button). Suggested API: `<Icon name="pennantOnDark" />` or a `tone="dark"` prop; engineering's choice.
+
+**Weapon icon in a medal.** Inside `.fd-res-disc` (92 px) a weapon icon renders at **56 x 28 px** (2:1 weapon art), centred, grape fill as the other award icons. The WeaponIcon inline size must not override this.
+
+### 8.7 Engineering deviations: verdicts
+
+| Deviation | Verdict |
+|---|---|
+| Toggle ON = sun | **Rejected**, now #5a3596 (8.2) |
+| Selected tab and AUTO segment = sun | **Rejected**, #5a3596 + white (8.2) |
+| VS disc white with `--btn2-lo` lip (after frame had a sun lip) | Accepted. VS is a label, not an action; the after frame's sun lip was an artefact of my injection |
+| READY = sun with `--sun-lo` lip, no extra grape drop | Accepted. A flat, pressed-in slab reads as "locked in", which is what READY means |
+| How to play titles grape on the white card body; striped grape headers | Accepted (matches the rule: cards differ by icon and text) |
+| Online rematch: grape ribbon, YOU READY sun chip, DECIDING white | Accepted, one sun on screen |
+| 1P loss YOU chip white | Accepted |
+| KO puff confetti sun/white/scorer accent/sun-hi; 2P ready sun/white/both accents | Accepted (not seen on screen) |
+| Bomb chip keeps BOMB + key and adds the icon | Accepted |
+| Grape default ribbon on pause, settings, credits, VS doors | Accepted (pennant fix 8.6 applies) |
+| `--ok` with no consumer | Accepted; keep the token for the first status mark |
+| Settings warn note text #c2410c | Accepted: 5.01:1 on #fffbf0 |
+| P1/P2 player-colour chips untouched | **Rejected**, 8.5 |
+| `--track-lane` token | Accepted |
+| Reset confirm label "PRESS AGAIN TO RESET ALL" fills the button edge to edge (settings-reset-confirm.png) | Copy change: **PRESS AGAIN TO RESET** (the row title already says "all") |
+
+### 8.8 Not verified
+
+- Audio and Graphics tabs, the 2P HUD, MATCH POINT pill, bomb badge, KO puff and 2P-ready confetti: not in any frame; rules apply.
+- 1920x1080 for the F-056 screens, phones, colour-blind mode.
+- The 22-24 px pennant-on-dark inside the live ribbon (checked only as a standalone render on grape).
+- Contrast is computed from hex values, not measured from pixels in the running build.
